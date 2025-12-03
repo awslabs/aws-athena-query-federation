@@ -436,6 +436,58 @@ public class VerticaExportQueryBuilderTest {
     }
 
     @Test
+    public void withQueryPlan_TinyIntFilter() {
+        // SQL : SELECT * FROM basic_write_nonexist WHERE tiny_int=1
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRrzBxLwBwqSBjqPBgobEhkKFxcYGRobHB0eHyAhIiMkJSYnKCkqKywtEt0DEtoDCgIKABKlAwqiAwoCCgAS+wIKCnZhcl9iaW5hcnkKCWludF9maWVsZAoIdGlueV9pbnQKCXNtYWxsX2ludAoLZW1wbG95ZWVfaWQKCWlzX2FjdGl2ZQoNZW1wbG95ZWVfbmFtZQoJam9iX3RpdGxlCgdhZGRyZXNzCglqb2luX2RhdGUKCXRpbWVzdGFtcAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKBWNvdW50CgZhbW91bnQKB2JhbGFuY2UKBHJhdGUKCmRpZmZlcmVuY2USnQEKBGoCEAEKBCoCEAEKBBICEAEKBBoCEAEKBGICEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaLBoqCAEaBAoCEAEiGBoWWhQKBCoCEAESChIICgQSAggCIgAYAiIGGgQKAigBGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiABoKEggKBBICCAMiABoKEggKBBICCAQiABoKEggKBBICCAUiABoKEggKBBICCAYiABoKEggKBBICCAciABoKEggKBBICCAgiABoKEggKBBICCAkiABoKEggKBBICCAoiABoKEggKBBICCAsiABoKEggKBBICCAwiABoKEggKBBICCA0iABoKEggKBBICCA4iABoKEggKBBICCA8iABoKEggKBBICCBAiABoKEggKBBICCBEiABoKEggKBBICCBIiABoKEggKBBICCBMiABoKEggKBBICCBQiABoKEggKBBICCBUiABoKEggKBBICCBYiABIKdmFyX2JpbmFyeRIJaW50X2ZpZWxkEgh0aW55X2ludBIJc21hbGxfaW50EgtlbXBsb3llZV9pZBIJaXNfYWN0aXZlEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSB2FkZHJlc3MSCWpvaW5fZGF0ZRIJdGltZXN0YW1wEghkdXJhdGlvbhIGc2FsYXJ5EgVib251cxIFaGFzaDESBWhhc2gyEgRjb2RlEgVkZWJpdBIFY291bnQSBmFtb3VudBIHYmFsYW5jZRIEcmF0ZRIKZGlmZmVyZW5jZTILEEoqB2lzdGhtdXM=");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT);
+        String expectedQuery =
+                "SELECT \"var_binary\", \"int_field\", \"tiny_int\", \"small_int\", \"employee_id\", \"is_active\", \"employee_name\", \"job_title\", \"address\", \"join_date\", CAST(\"timestamp\" AS VARCHAR) AS \"timestamp\", \"duration\", \"salary\", \"bonus\", \"hash1\", \"hash2\", \"code\", \"debit\", \"count\", \"amount\", \"balance\", \"rate\", \"difference\"\n" +
+                        "FROM \"public\".\"basic_write_nonexist\"\n" +
+                        "WHERE CAST(\"tiny_int\" AS INTEGER) = 1";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_SmallIntFilter() {
+        // SQL : SELECT * FROM basic_write_nonexist WHERE small_int=31622
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRr0BxLxBwqTBjqQBgobEhkKFxcYGRobHB0eHyAhIiMkJSYnKCkqKywtEt4DEtsDCgIKABKlAwqiAwoCCgAS+wIKCnZhcl9iaW5hcnkKCWludF9maWVsZAoIdGlueV9pbnQKCXNtYWxsX2ludAoLZW1wbG95ZWVfaWQKCWlzX2FjdGl2ZQoNZW1wbG95ZWVfbmFtZQoJam9iX3RpdGxlCgdhZGRyZXNzCglqb2luX2RhdGUKCXRpbWVzdGFtcAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKBWNvdW50CgZhbW91bnQKB2JhbGFuY2UKBHJhdGUKCmRpZmZlcmVuY2USnQEKBGoCEAEKBCoCEAEKBBICEAEKBBoCEAEKBGICEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaLRorCAEaBAoCEAEiGBoWWhQKBCoCEAESChIICgQSAggDIgAYAiIHGgUKAyjaGBoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJIgAaChIICgQSAggKIgAaChIICgQSAggLIgAaChIICgQSAggMIgAaChIICgQSAggNIgAaChIICgQSAggOIgAaChIICgQSAggPIgAaChIICgQSAggQIgAaChIICgQSAggRIgAaChIICgQSAggSIgAaChIICgQSAggTIgAaChIICgQSAggUIgAaChIICgQSAggVIgAaChIICgQSAggWIgASCnZhcl9iaW5hcnkSCWludF9maWVsZBIIdGlueV9pbnQSCXNtYWxsX2ludBILZW1wbG95ZWVfaWQSCWlzX2FjdGl2ZRINZW1wbG95ZWVfbmFtZRIJam9iX3RpdGxlEgdhZGRyZXNzEglqb2luX2RhdGUSCXRpbWVzdGFtcBIIZHVyYXRpb24SBnNhbGFyeRIFYm9udXMSBWhhc2gxEgVoYXNoMhIEY29kZRIFZGViaXQSBWNvdW50EgZhbW91bnQSB2JhbGFuY2USBHJhdGUSCmRpZmZlcmVuY2UyCxBKKgdpc3RobXVz");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT);
+        String expectedQuery =
+                "SELECT \"var_binary\", \"int_field\", \"tiny_int\", \"small_int\", \"employee_id\", \"is_active\", \"employee_name\", \"job_title\", \"address\", \"join_date\", CAST(\"timestamp\" AS VARCHAR) AS \"timestamp\", \"duration\", \"salary\", \"bonus\", \"hash1\", \"hash2\", \"code\", \"debit\", \"count\", \"amount\", \"balance\", \"rate\", \"difference\"\n" +
+                        "FROM \"public\".\"basic_write_nonexist\"\n" +
+                        "WHERE CAST(\"small_int\" AS INTEGER) = 3162";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_IntegerFilter() {
+        // SQL : SELECT employee_name FROM basic_write_nonexist WHERE int_field=2146482647
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRqDBBKABAruAzrrAwoFEgMKARcS1QMS0gMKAgoAEqUDCqIDCgIKABL7AgoKdmFyX2JpbmFyeQoJaW50X2ZpZWxkCgh0aW55X2ludAoJc21hbGxfaW50CgtlbXBsb3llZV9pZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoJdGltZXN0YW1wCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoFY291bnQKBmFtb3VudAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRKdAQoEagIQAQoEKgIQAQoEEgIQAQoEGgIQAQoEYgIQAQoECgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoFggECEAEKBYoCAhgBCgRiAhABCgRiAhABCgRiAhABCgQ6AhABCgQ6AhABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABGAI6HgoGcHVibGljChRiYXNpY193cml0ZV9ub25leGlzdBokGiIIARoECgIQASIMGgoSCAoEEgIIASIAIgoaCAoGKNfzwv8HGgoSCAoEEgIIBiIAEg1FTVBMT1lFRV9OQU1FMgsQSioHaXN0aG11cw==");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT);
+        String expectedQuery =
+                "SELECT \"employee_name\"\n" +
+                        "FROM \"public\".\"basic_write_nonexist\"\n" +
+                        "WHERE \"int_field\" = 2146482647";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_VarBinaryFilter() {
+        // SQL : SELECT * FROM basic_write_nonexist WHERE var_binary='FFD8FFE0'
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRr6BxL3BwqZBjqWBgobEhkKFxcYGRobHB0eHyAhIiMkJSYnKCkqKywtEuQDEuEDCgIKABKlAwqiAwoCCgAS+wIKCnZhcl9iaW5hcnkKCWludF9maWVsZAoIdGlueV9pbnQKCXNtYWxsX2ludAoLZW1wbG95ZWVfaWQKCWlzX2FjdGl2ZQoNZW1wbG95ZWVfbmFtZQoJam9iX3RpdGxlCgdhZGRyZXNzCglqb2luX2RhdGUKCXRpbWVzdGFtcAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKBWNvdW50CgZhbW91bnQKB2JhbGFuY2UKBHJhdGUKCmRpZmZlcmVuY2USnQEKBGoCEAEKBCoCEAEKBBICEAEKBBoCEAEKBGICEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaMxoxCAEaBAoCEAEiChoIEgYKAhIAIgAiGxoZWhcKBGoCEAISDQoLqgEIRkZEOEZGRTAYAhoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJIgAaChIICgQSAggKIgAaChIICgQSAggLIgAaChIICgQSAggMIgAaChIICgQSAggNIgAaChIICgQSAggOIgAaChIICgQSAggPIgAaChIICgQSAggQIgAaChIICgQSAggRIgAaChIICgQSAggSIgAaChIICgQSAggTIgAaChIICgQSAggUIgAaChIICgQSAggVIgAaChIICgQSAggWIgASCnZhcl9iaW5hcnkSCWludF9maWVsZBIIdGlueV9pbnQSCXNtYWxsX2ludBILZW1wbG95ZWVfaWQSCWlzX2FjdGl2ZRINZW1wbG95ZWVfbmFtZRIJam9iX3RpdGxlEgdhZGRyZXNzEglqb2luX2RhdGUSCXRpbWVzdGFtcBIIZHVyYXRpb24SBnNhbGFyeRIFYm9udXMSBWhhc2gxEgVoYXNoMhIEY29kZRIFZGViaXQSBWNvdW50EgZhbW91bnQSB2JhbGFuY2USBHJhdGUSCmRpZmZlcmVuY2UyCxBKKgdpc3RobXVz");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT);
+        String expectedQuery =
+                "SELECT \"var_binary\", \"int_field\", \"tiny_int\", \"small_int\", \"employee_id\", \"is_active\", \"employee_name\", \"job_title\", \"address\", \"join_date\", CAST(\"timestamp\" AS VARCHAR) AS \"timestamp\", \"duration\", \"salary\", \"bonus\", \"hash1\", \"hash2\", \"code\", \"debit\", \"count\", \"amount\", \"balance\", \"rate\", \"difference\"\n" +
+                        "FROM \"public\".\"basic_write_nonexist\"\n" +
+                        "WHERE \"var_binary\" = 84121112101651101008697108117101123116121112101618665826673786582894432118971081171016148494848484949484849484848494948484948484849484848484949494848484849484848494948484948484849494848494848484948494848494948484848125";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
     public void withQueryPlan_FloatFilter() {
         // SQL : SELECT * FROM basic_write_nonexist WHERE float_value < 500
         VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());

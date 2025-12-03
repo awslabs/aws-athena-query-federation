@@ -473,6 +473,13 @@ public class VerticaExportQueryBuilder {
             SubstraitTypeAndValue typeAndValue = accumulator.get(i);
             String paramName = "param" + i;
             SqlTypeName sqlTypeName = typeAndValue.getType();
+            // Substrait deserialization promotes TINYINT/SMALLINT to INTEGER.
+            // Query - SELECT * FROM basic_write_nonexist WHERE tiny_int=1
+            // After Deserialization - SELECT * FROM `public`.`basic_write_nonexist` WHERE CAST(`tiny_int` AS INTEGER) = 1
+
+            // Query - SELECT * FROM basic_write_nonexist WHERE small_int=31622
+            // After Deserialization - SELECT * FROM `public`.`basic_write_nonexist` WHERE CAST(`small_int` AS INTEGER) = 3162
+
             switch (sqlTypeName) {
                 case BOOLEAN:
                     sqlTemplate.add(paramName, (boolean) typeAndValue.getValue() ? 1 : 0);
