@@ -29,7 +29,6 @@ import io.substrait.proto.Rel;
 import io.substrait.proto.Type;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.IntervalUnit;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -37,12 +36,9 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.rel2sql.RelToSqlConverter;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,14 +101,11 @@ public final class SubstraitSqlUtils
         final Rel rel = protoPlan.getRelations(0).getRoot().getInput();
         final ReadRel readRel = SubstraitRelUtils.getReadRel(rel);
 
-        if (readRel != null && readRel.hasBaseSchema()) {
-            return convertSubstraitTypeToArrowSchema(readRel.getBaseSchema());
+        if (readRel == null || !readRel.hasBaseSchema()) {
+            throw new RuntimeException("Unable to extract base table schema from Substrait plan");
         }
 
-        // Fallback to existing behavior
-        final RelNode node = getRelNodeFromSubstraitPlan(protoPlan, sqlDialect);
-        final RelDataType relDataType = node.getRowType();
-        return convertRelDataTypeToArrowSchema(relDataType);
+        return convertSubstraitTypeToArrowSchema(readRel.getBaseSchema());
     }
 
     private static Schema convertSubstraitTypeToArrowSchema(final NamedStruct namedStruct)
@@ -121,12 +114,9 @@ public final class SubstraitSqlUtils
         final Type.Struct struct = namedStruct.getStruct();
 
         for (int i = 0; i < struct.getTypesCount(); i++) {
-            final String fieldName = i < namedStruct.getNamesCount() ? namedStruct.getNames(i) : "field_" + i;
-            final Type fieldType = struct.getTypes(i);
-            final ArrowType arrowType = convertSubstraitTypeToArrowType(fieldType);
-            final boolean nullable = true;
-
-            fields.add(new Field(fieldName, new FieldType(nullable, arrowType, null), null));
+            final String name = i < namedStruct.getNamesCount() ? namedStruct.getNames(i) : "field_" + i;
+            final ArrowType type = convertSubstraitTypeToArrowType(struct.getTypes(i));
+            fields.add(new Field(name, new FieldType(true, type, null), null));
         }
 
         return new Schema(fields);
@@ -134,22 +124,54 @@ public final class SubstraitSqlUtils
 
     private static ArrowType convertSubstraitTypeToArrowType(final Type type)
     {
-        if (type.hasBool()) return ArrowType.Bool.INSTANCE;
-        if (type.hasI8()) return new ArrowType.Int(8, true);
-        if (type.hasI16()) return new ArrowType.Int(16, true);
-        if (type.hasI32()) return new ArrowType.Int(32, true);
-        if (type.hasI64()) return new ArrowType.Int(64, true);
-        if (type.hasFp32()) return new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
-        if (type.hasFp64()) return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
-        if (type.hasString()) return ArrowType.Utf8.INSTANCE;
-        if (type.hasBinary()) return ArrowType.Binary.INSTANCE;
-        if (type.hasDate()) return new ArrowType.Date(DateUnit.DAY);
-        if (type.hasTime()) return new ArrowType.Time(TimeUnit.MICROSECOND, 64);
-        if (type.hasTimestamp()) return new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
-        if (type.hasDecimal()) return new ArrowType.Decimal(type.getDecimal().getPrecision(), type.getDecimal().getScale(), 128);
-        if (type.hasList()) return new ArrowType.List();
-        if (type.hasMap()) return new ArrowType.Map(false);
-        if (type.hasStruct()) return new ArrowType.Struct();
+        if (type.hasBool()) {
+            return ArrowType.Bool.INSTANCE;
+        }
+        if (type.hasI8()) {
+            return new ArrowType.Int(8, true);
+        }
+        if (type.hasI16()) {
+            return new ArrowType.Int(16, true);
+        }
+        if (type.hasI32()) {
+            return new ArrowType.Int(32, true);
+        }
+        if (type.hasI64()) {
+            return new ArrowType.Int(64, true);
+        }
+        if (type.hasFp32()) {
+            return new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
+        }
+        if (type.hasFp64()) {
+            return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
+        }
+        if (type.hasString()) {
+            return ArrowType.Utf8.INSTANCE;
+        }
+        if (type.hasBinary()) {
+            return ArrowType.Binary.INSTANCE;
+        }
+        if (type.hasDate()) {
+            return new ArrowType.Date(DateUnit.DAY);
+        }
+        if (type.hasTime()) {
+            return new ArrowType.Time(TimeUnit.MICROSECOND, 64);
+        }
+        if (type.hasTimestamp()) {
+            return new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
+        }
+        if (type.hasDecimal()) {
+            return new ArrowType.Decimal(type.getDecimal().getPrecision(), type.getDecimal().getScale(), 128);
+        }
+        if (type.hasList()) {
+            return new ArrowType.List();
+        }
+        if (type.hasMap()) {
+            return new ArrowType.Map(false);
+        }
+        if (type.hasStruct()) {
+            return new ArrowType.Struct();
+        }
 
         LOGGER.warn("Unsupported Substrait type: {}, defaulting to Utf8", type);
         return ArrowType.Utf8.INSTANCE;
@@ -171,95 +193,6 @@ public final class SubstraitSqlUtils
         catch (final Exception e) {
             LOGGER.error("Failed to convert from Substrait plan to RelNode", e);
             throw new RuntimeException("Failed to convert from Substrait plan to RelNode", e);
-        }
-    }
-
-    /**
-     * Converts a Calcite RelDataType to an Arrow Schema.
-     *
-     * @param relDataType The Calcite RelDataType to convert
-     * @return The corresponding Arrow Schema
-     */
-    private static Schema convertRelDataTypeToArrowSchema(final RelDataType relDataType)
-    {
-        final List<Field> fields = new ArrayList<>();
-
-        for (final RelDataTypeField relField : relDataType.getFieldList()) {
-            final String fieldName = relField.getName();
-            final RelDataType fieldType = relField.getType();
-            final ArrowType arrowType = convertSqlTypeToArrowType(fieldType.getSqlTypeName());
-            final boolean nullable = fieldType.isNullable();
-
-            final Field field = new Field(fieldName, new FieldType(nullable, arrowType, null), null);
-            fields.add(field);
-        }
-
-        return new Schema(fields);
-    }
-
-    /**
-     * Converts a Calcite SqlTypeName to an Arrow ArrowType.
-     *
-     * @param sqlTypeName The Calcite SqlTypeName to convert
-     * @return The corresponding Arrow ArrowType
-     */
-    private static ArrowType convertSqlTypeToArrowType(final SqlTypeName sqlTypeName)
-    {
-        switch (sqlTypeName) {
-            case BOOLEAN:
-                return ArrowType.Bool.INSTANCE;
-            case TINYINT:
-                return new ArrowType.Int(8, true);
-            case SMALLINT:
-                return new ArrowType.Int(16, true);
-            case INTEGER:
-                return new ArrowType.Int(32, true);
-            case BIGINT:
-                return new ArrowType.Int(64, true);
-            case REAL:
-            case FLOAT:
-                return new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
-            case DOUBLE:
-                return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
-            case DECIMAL:
-                return new ArrowType.Decimal(38, 10, 128); // Default precision and scale
-            case CHAR:
-            case VARCHAR:
-                return ArrowType.Utf8.INSTANCE;
-            case BINARY:
-            case VARBINARY:
-                return ArrowType.Binary.INSTANCE;
-            case DATE:
-                return new ArrowType.Date(DateUnit.DAY);
-            case TIME:
-                return new ArrowType.Time(TimeUnit.MILLISECOND, 32);
-            case TIMESTAMP:
-                return new ArrowType.Timestamp(TimeUnit.MILLISECOND, null);
-            case INTERVAL_YEAR:
-            case INTERVAL_YEAR_MONTH:
-            case INTERVAL_MONTH:
-                return new ArrowType.Interval(IntervalUnit.YEAR_MONTH);
-            case INTERVAL_DAY:
-            case INTERVAL_DAY_HOUR:
-            case INTERVAL_DAY_MINUTE:
-            case INTERVAL_DAY_SECOND:
-            case INTERVAL_HOUR:
-            case INTERVAL_HOUR_MINUTE:
-            case INTERVAL_HOUR_SECOND:
-            case INTERVAL_MINUTE:
-            case INTERVAL_MINUTE_SECOND:
-            case INTERVAL_SECOND:
-                return new ArrowType.Interval(IntervalUnit.DAY_TIME);
-            case ARRAY:
-                return new ArrowType.List();
-            case MAP:
-                return new ArrowType.Map(false);
-            case ROW:
-            case MULTISET:
-                return new ArrowType.Struct();
-            default:
-                LOGGER.warn("Unsupported SQL type: {}, defaulting to Utf8", sqlTypeName);
-                return ArrowType.Utf8.INSTANCE;
         }
     }
 }

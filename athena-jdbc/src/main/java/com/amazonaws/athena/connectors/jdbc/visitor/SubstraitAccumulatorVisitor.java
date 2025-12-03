@@ -73,7 +73,8 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
         Field arrowField = null;
         try {
             arrowField = schema.findField(currentColumn);
-        } catch (IllegalArgumentException e) {
+        }
+        catch (IllegalArgumentException e) {
             LOGGER.warn("exact match for column {} not found. searching with prefixes", currentColumn);
             for (Field field : schema.getFields()) {
                 if (field.getName().startsWith(currentColumn)) {
