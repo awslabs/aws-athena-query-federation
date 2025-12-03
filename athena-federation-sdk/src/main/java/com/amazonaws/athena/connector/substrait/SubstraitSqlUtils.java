@@ -22,7 +22,11 @@ package com.amazonaws.athena.connector.substrait;
 import io.substrait.extension.SimpleExtension;
 import io.substrait.isthmus.SubstraitToCalcite;
 import io.substrait.plan.ProtoPlanConverter;
+import io.substrait.proto.NamedStruct;
 import io.substrait.proto.Plan;
+import io.substrait.proto.ReadRel;
+import io.substrait.proto.Rel;
+import io.substrait.proto.Type;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.IntervalUnit;
@@ -98,9 +102,57 @@ public final class SubstraitSqlUtils
 
     private static Schema getTableSchemaFromSubstraitPlan(final Plan protoPlan, final SqlDialect sqlDialect)
     {
+        final Rel rel = protoPlan.getRelations(0).getRoot().getInput();
+        final ReadRel readRel = SubstraitRelUtils.getReadRel(rel);
+
+        if (readRel != null && readRel.hasBaseSchema()) {
+            return convertSubstraitTypeToArrowSchema(readRel.getBaseSchema());
+        }
+
+        // Fallback to existing behavior
         final RelNode node = getRelNodeFromSubstraitPlan(protoPlan, sqlDialect);
         final RelDataType relDataType = node.getRowType();
         return convertRelDataTypeToArrowSchema(relDataType);
+    }
+
+    private static Schema convertSubstraitTypeToArrowSchema(final NamedStruct namedStruct)
+    {
+        final List<Field> fields = new ArrayList<>();
+        final Type.Struct struct = namedStruct.getStruct();
+
+        for (int i = 0; i < struct.getTypesCount(); i++) {
+            final String fieldName = i < namedStruct.getNamesCount() ? namedStruct.getNames(i) : "field_" + i;
+            final Type fieldType = struct.getTypes(i);
+            final ArrowType arrowType = convertSubstraitTypeToArrowType(fieldType);
+            final boolean nullable = true;
+
+            fields.add(new Field(fieldName, new FieldType(nullable, arrowType, null), null));
+        }
+
+        return new Schema(fields);
+    }
+
+    private static ArrowType convertSubstraitTypeToArrowType(final Type type)
+    {
+        if (type.hasBool()) return ArrowType.Bool.INSTANCE;
+        if (type.hasI8()) return new ArrowType.Int(8, true);
+        if (type.hasI16()) return new ArrowType.Int(16, true);
+        if (type.hasI32()) return new ArrowType.Int(32, true);
+        if (type.hasI64()) return new ArrowType.Int(64, true);
+        if (type.hasFp32()) return new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
+        if (type.hasFp64()) return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
+        if (type.hasString()) return ArrowType.Utf8.INSTANCE;
+        if (type.hasBinary()) return ArrowType.Binary.INSTANCE;
+        if (type.hasDate()) return new ArrowType.Date(DateUnit.DAY);
+        if (type.hasTime()) return new ArrowType.Time(TimeUnit.MICROSECOND, 64);
+        if (type.hasTimestamp()) return new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
+        if (type.hasDecimal()) return new ArrowType.Decimal(type.getDecimal().getPrecision(), type.getDecimal().getScale(), 128);
+        if (type.hasList()) return new ArrowType.List();
+        if (type.hasMap()) return new ArrowType.Map(false);
+        if (type.hasStruct()) return new ArrowType.Struct();
+
+        LOGGER.warn("Unsupported Substrait type: {}, defaulting to Utf8", type);
+        return ArrowType.Utf8.INSTANCE;
     }
 
     private static RelNode getRelNodeFromSubstraitPlan(final Plan protoPlan, final SqlDialect sqlDialect)
