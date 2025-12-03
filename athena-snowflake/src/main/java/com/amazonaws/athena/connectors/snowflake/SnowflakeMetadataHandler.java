@@ -230,6 +230,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
+        if (request.getConstraints().isQueryPassThrough()) {
+            return;
+        }
         LOGGER.info("{}: Catalog {}, table {}", request.getQueryId(), request.getTableName().getSchemaName(), request.getTableName());
         // Always ensure the partition column exists in the schema
         if (partitionSchemaBuilder.getField(BLOCK_PARTITION_COLUMN_NAME) == null) {

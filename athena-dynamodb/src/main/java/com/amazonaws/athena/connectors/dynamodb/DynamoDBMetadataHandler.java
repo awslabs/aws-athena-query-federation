@@ -559,6 +559,8 @@ public class DynamoDBMetadataHandler
             logger.info("QPT Split Requested");
             return setupQueryPassthroughSplit(request);
         }
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
 
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();
@@ -584,7 +586,7 @@ public class DynamoDBMetadataHandler
                 Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
                 splitMetadata.put(hashKeyName, DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue(hashKeyValue), hashKeyName));
 
-                splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
+                splits.add(new Split(spillLocation, makeEncryptionKey(overrideConfig), splitMetadata));
 
                 if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != partitions.getRowCount() - 1) {
                     // We've reached max page size and this is not the last partition
@@ -609,7 +611,7 @@ public class DynamoDBMetadataHandler
                 splitMetadata.put(SEGMENT_ID_PROPERTY, String.valueOf(curPartition));
                 splitMetadata.put(SEGMENT_COUNT_METADATA, String.valueOf(segmentCount));
 
-                splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
+                splits.add(new Split(spillLocation, makeEncryptionKey(overrideConfig), splitMetadata));
 
                 if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != segmentCount - 1) {
                     // We've reached max page size and this is not the last partition
@@ -740,13 +742,15 @@ public class DynamoDBMetadataHandler
      */
     private GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)
     {
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         //Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
 
         //Since this is QPT query we return a fixed split.
         Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
         return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.newBuilder(spillLocation, makeEncryptionKey(overrideConfig))
                         .applyProperties(qptArguments)
                         .build());
     }
