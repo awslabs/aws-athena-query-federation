@@ -39,8 +39,13 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * This class is used to test the ElasticsearchSchemaUtils class.
@@ -161,9 +166,9 @@ public class ElasticsearchSchemaUtilsTest
     }
 
     @Test
-    public void parseMappingTest()
+    public void parseMapping_withValidMapping_returnsSchema()
     {
-        logger.info("parseMappingTest - enter");
+        logger.info("parseMapping_withValidMapping_returnsSchema - enter");
 
         Schema builtSchema = ElasticsearchSchemaUtils.parseMapping(mapping);
 
@@ -171,11 +176,11 @@ public class ElasticsearchSchemaUtilsTest
         assertTrue("Real and mocked mappings are different!",
                 ElasticsearchSchemaUtils.mappingsEqual(expectedSchema, builtSchema));
 
-        logger.info("parseMappingTest - exit");
+        logger.info("parseMapping_withValidMapping_returnsSchema - exit");
     }
 
     @Test
-    public void parseSchemaWithListOfStruct()
+    public void parseMapping_withListOfStruct_returnsSchema()
             throws JsonProcessingException
     {
 
@@ -262,18 +267,18 @@ public class ElasticsearchSchemaUtilsTest
                 "      }\n" +
                 "    }", LinkedHashMap.class);
 
-        logger.info("parseSchemaWithListOfStruct - enter");
+        logger.info("parseMapping_withListOfStruct_returnsSchema - enter");
 
         Schema builtSchema = ElasticsearchSchemaUtils.parseMapping(actual);
         // The built mapping and expected mapping should match.
         assertTrue("Real and mocked mappings are different!",
                 ElasticsearchSchemaUtils.mappingsEqual(expected, builtSchema));
 
-        logger.info("parseSchemaWithListOfStruct - exit");
+        logger.info("parseMapping_withListOfStruct_returnsSchema - exit");
     }
 
-    @Test(expected = AthenaConnectorException.class)
-    public void parseMappingWithInvalidMeta()
+    @Test
+    public void parseMapping_withInvalidMeta_throwsAthenaConnectorException()
             throws JsonProcessingException
     {
         LinkedHashMap actual = new ObjectMapper().readValue(" {\n" +
@@ -341,10 +346,147 @@ public class ElasticsearchSchemaUtilsTest
                 "      }\n" +
                 "    }", LinkedHashMap.class);
 
-        logger.info("parseMappingWithInvalidMeta - enter");
+        logger.info("parseMapping_withInvalidMeta_throwsAthenaConnectorException - enter");
 
-        Schema builtSchema = ElasticsearchSchemaUtils.parseMapping(actual);
+        try {
+            ElasticsearchSchemaUtils.parseMapping(actual);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain _meta only support value",
+                    ex.getMessage().contains("_meta only support value"));
+        }
 
-        logger.info("parseMappingWithInvalidMeta - exit");
+        logger.info("parseMapping_withInvalidMeta_throwsAthenaConnectorException - exit");
+    }
+
+    @Test
+    public void parseMapping_withUnknownType_returnsFieldWithNullType()
+    {
+        Map<String, Object> field1 = new LinkedHashMap<>();
+        field1.put("type", "unknown_type");
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("field1", field1);
+        Map<String, Object> mapping = new LinkedHashMap<>();
+        mapping.put("properties", properties);
+
+        Schema schema = ElasticsearchSchemaUtils.parseMapping(mapping);
+        Field field = schema.findField("field1");
+        
+        assertNotNull("Schema should contain field1", field);
+        assertSame("Should return NULL type for unknown type", Types.MinorType.NULL, Types.getMinorTypeForArrowType(field.getType()));
+    }
+
+    @Test
+    public void mappingsEqual_withDifferentSizes_returnsFalse()
+    {
+        Schema schema1 = SchemaBuilder.newBuilder()
+                .addField("field1", Types.MinorType.VARCHAR.getType())
+                .build();
+        Schema schema2 = SchemaBuilder.newBuilder()
+                .addField("field1", Types.MinorType.VARCHAR.getType())
+                .addField("field2", Types.MinorType.INT.getType())
+                .build();
+
+        boolean result = ElasticsearchSchemaUtils.mappingsEqual(schema1, schema2);
+        assertFalse("mappingsEqual should return false when schema sizes differ", result);
+    }
+
+    @Test
+    public void mappingsEqual_withDifferentFieldTypes_returnsFalse()
+    {
+        Schema schema1 = SchemaBuilder.newBuilder()
+                .addField("field1", Types.MinorType.VARCHAR.getType())
+                .build();
+        Schema schema2 = SchemaBuilder.newBuilder()
+                .addField("field1", Types.MinorType.INT.getType())
+                .build();
+
+        boolean result = ElasticsearchSchemaUtils.mappingsEqual(schema1, schema2);
+        assertFalse("mappingsEqual should return false when field types differ", result);
+    }
+
+    @Test
+    public void mappingsEqual_withDifferentMetadata_returnsFalse()
+    {
+        Schema schema1 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", new FieldType(true, Types.MinorType.BIGINT.getType(), null,
+                        ImmutableMap.of("scaling_factor", "100")), null))
+                .build();
+        Schema schema2 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", new FieldType(true, Types.MinorType.BIGINT.getType(), null,
+                        ImmutableMap.of("scaling_factor", "200")), null))
+                .build();
+
+        boolean result = ElasticsearchSchemaUtils.mappingsEqual(schema1, schema2);
+        assertFalse("mappingsEqual should return false when metadata differs", result);
+    }
+
+    @Test
+    public void mappingsEqual_withDifferentChildSizes_returnsFalse()
+    {
+        Schema schema1 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                        ImmutableList.of(new Field("child1", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null))))
+                .build();
+        Schema schema2 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                        ImmutableList.of(
+                                new Field("child1", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null),
+                                new Field("child2", FieldType.nullable(Types.MinorType.INT.getType()), null))))
+                .build();
+
+        boolean result = ElasticsearchSchemaUtils.mappingsEqual(schema1, schema2);
+        assertFalse("mappingsEqual should return false when child sizes differ", result);
+    }
+
+    @Test
+    public void mappingsEqual_withDifferentChildNames_returnsFalse()
+    {
+        Schema schema1 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                        ImmutableList.of(new Field("child1", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null))))
+                .build();
+        Schema schema2 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                        ImmutableList.of(new Field("child2", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null))))
+                .build();
+
+        boolean result = ElasticsearchSchemaUtils.mappingsEqual(schema1, schema2);
+        assertFalse("mappingsEqual should return false when child names differ", result);
+    }
+
+    @Test
+    public void mappingsEqual_withDifferentChildFieldTypes_returnsFalse()
+    {
+        Schema schema1 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                        ImmutableList.of(new Field("child1", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null))))
+                .build();
+        Schema schema2 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                        ImmutableList.of(new Field("child1", FieldType.nullable(Types.MinorType.INT.getType()), null))))
+                .build();
+
+        boolean result = ElasticsearchSchemaUtils.mappingsEqual(schema1, schema2);
+        assertFalse("mappingsEqual should return false when child field types differ", result);
+    }
+
+    @Test
+    public void mappingsEqual_withDifferentChildMetadata_returnsFalse()
+    {
+        Schema schema1 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                        ImmutableList.of(new Field("child1", new FieldType(true, Types.MinorType.BIGINT.getType(), null,
+                                ImmutableMap.of("scaling_factor", "100")), null))))
+                .build();
+        Schema schema2 = SchemaBuilder.newBuilder()
+                .addField(new Field("field1", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                        ImmutableList.of(new Field("child1", new FieldType(true, Types.MinorType.BIGINT.getType(), null,
+                                ImmutableMap.of("scaling_factor", "200")), null))))
+                .build();
+
+        boolean result = ElasticsearchSchemaUtils.mappingsEqual(schema1, schema2);
+        assertFalse("mappingsEqual should return false when child metadata differs", result);
     }
 }
