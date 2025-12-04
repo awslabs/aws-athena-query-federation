@@ -16,8 +16,6 @@ updates:
       - dependency-name: "com.google.api.grpc:grpc-google-cloud-bigquerystorage-v1"
       - dependency-name: "io.grpc:grpc-api"
       - dependency-name: "software.amazon.msk:aws-msk-iam-auth"
-      # bumping redshift version causes release tests to fail
-      - dependency-name: "com.amazon.redshift:redshift-jdbc42"
 
   - package-ecosystem: "github-actions"
     directory: "/"
