@@ -570,7 +570,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         assertFalse(response.getSplits().isEmpty());
     }
 
-    @Test(expected = AthenaConnectorException.class)
+    @Test(expected = NullPointerException.class)
     public void doGetSplits_NullRequest_ShouldThrowException() {
         verticaMetadataHandlerMocked.doGetSplits(allocator, null);
     }

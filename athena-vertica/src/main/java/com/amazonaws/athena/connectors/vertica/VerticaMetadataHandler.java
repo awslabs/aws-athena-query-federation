@@ -28,7 +28,6 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -60,8 +59,6 @@ import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
-import software.amazon.awssdk.services.glue.model.ErrorDetails;
-import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
@@ -345,10 +342,15 @@ public class VerticaMetadataHandler
      * 2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
-    {
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request){
         //ToDo: implement use of a continuation token to use in case of larger queries
-        try(Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        Connection connection = null;
+        try {
+            connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        } catch (Exception e) {
+            throw new RuntimeException("connection failed ", e);
+        }
+        try {
             Set<Split> splits = new HashSet<>();
             String exportBucket = getS3ExportBucket();
             String queryId = request.getQueryId().replace("-","");
@@ -431,11 +433,14 @@ public class VerticaMetadataHandler
                 splits.add(split);
                 return new GetSplitsResponse(catalogName,split);
             }
-        }
-        catch (Exception e) {
-            logger.error("Failed to generate splits: {}", e.getMessage(), e);
-            throw new AthenaConnectorException("Failed to generate splits: %s ", e.getMessage(), ErrorDetails.builder()
-                    .errorCode(FederationSourceErrorCode.PARTIAL_FAILURE_EXCEPTION.toString()).build());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    logger.warn("Failed to close database connection: {}", e.getMessage());
+                }
+            }
         }
     }
 
