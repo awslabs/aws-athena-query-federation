@@ -382,6 +382,15 @@
                                         <exclude>META-INF/maven/com.google.api.grpc/grpc-google-cloud-bigquerystorage-v1/pom.properties</exclude>
                                         <exclude>META-INF/maven/com.google.api.grpc/proto-google-cloud-bigquerystorage-v1/pom.xml</exclude>
                                         <exclude>META-INF/maven/com.google.api.grpc/proto-google-cloud-bigquerystorage-v1/pom.properties</exclude>
+                                        <!-- 10. Fix for CVE-2022-3510: proto-google-common-protos declares old protobuf-java -->
+                                        <exclude>META-INF/maven/com.google.api.grpc/proto-google-common-protos/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.google.api.grpc/proto-google-common-protos/pom.properties</exclude>
+                                        <!-- 11. Fix for CVE-2025-48734: Exclude commons-validator metadata that declares vulnerable commons-beanutils -->
+                                        <exclude>META-INF/maven/commons-validator/commons-validator/pom.xml</exclude>
+                                        <exclude>META-INF/maven/commons-validator/commons-validator/pom.properties</exclude>
+                                        <!-- 12. Fix for CVE-2025-48734: Exclude commons-digester metadata that declares vulnerable commons-beanutils -->
+                                        <exclude>META-INF/maven/commons-digester/commons-digester/pom.xml</exclude>
+                                        <exclude>META-INF/maven/commons-digester/commons-digester/pom.properties</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
