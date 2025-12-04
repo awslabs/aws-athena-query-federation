@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,10 +38,14 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.assertTrue;
 
 /**
  * This class is used to test the ElasticsearchDomainMapProvider class.
@@ -55,9 +60,9 @@ public class ElasticsearchDomainMapProviderTest
      * associated endpoints.
      */
     @Test
-    public void getDomainMapFromEnvironmentVarTest()
+    public void getDomainMap_withEnvironmentVar_returnsDomainMap()
     {
-        logger.info("getDomainMapFromEnvironmentVarTest - enter");
+        logger.info("getDomainMap_withEnvironmentVar_returnsDomainMap - enter");
 
         ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
         String domainMapping = "domain1=myusername@password:www.endpoint1.com,domain2=myusername@password:www.endpoint2.com";
@@ -71,13 +76,13 @@ public class ElasticsearchDomainMapProviderTest
         assertEquals("Invalid value for domain2:", "myusername@password:www.endpoint2.com",
                 domainMap.get("domain2"));
 
-        logger.info("getDomainMapFromEnvironmentVarTest - exit");
+        logger.info("getDomainMap_withEnvironmentVar_returnsDomainMap - exit");
     }
 
     @Test
-    public void getDomainMapFromAwsElasticsearchTest()
+    public void getDomainMap_fromAwsElasticsearch_returnsDomainMap()
     {
-        logger.info("getDomainMapFromAwsElasticsearchTest - enter");
+        logger.info("getDomainMap_fromAwsElasticsearch_returnsDomainMap - enter");
 
         AwsElasticsearchFactory mockElasticsearchFactory = mock(AwsElasticsearchFactory.class);
         ElasticsearchDomainMapProvider domainProvider =
@@ -124,6 +129,166 @@ public class ElasticsearchDomainMapProviderTest
                     domainMap.get(domainName));
         });
 
-        logger.info("getDomainMapFromAwsElasticsearchTest - exit");
+        logger.info("getDomainMap_fromAwsElasticsearch_returnsDomainMap - exit");
+    }
+
+    @Test
+    public void getDomainMap_withEmptyString_throwsAthenaConnectorException()
+    {
+        ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
+
+        try {
+            domainMapProvider.getDomainMap("");
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain Empty or null value",
+                    ex.getMessage().contains("Empty or null value found in DomainMapping"));
+        }
+    }
+
+    @Test
+    public void getDomainMap_withNullString_throwsAthenaConnectorException()
+    {
+        ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
+
+        try {
+            domainMapProvider.getDomainMap(null);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain Empty or null value",
+                    ex.getMessage().contains("Empty or null value found in DomainMapping"));
+        }
+    }
+
+    @Test
+    public void getDomainMap_withSingleDomainMapping_returnsSingleEntryMap()
+    {
+        ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
+        String domainMapping = "domain1=myusername@password:www.endpoint1.com";
+        Map<String, String> domainMap = domainMapProvider.getDomainMap(domainMapping);
+
+        assertEquals("Invalid number of elements in map:", 1, domainMap.size());
+        assertEquals("Invalid value for domain1:", "myusername@password:www.endpoint1.com",
+                domainMap.get("domain1"));
+    }
+
+    @Test
+    public void getDomainMap_withParsingError_throwsAthenaConnectorException()
+    {
+        ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
+        String invalidDomainMapping = "invalid=format=with=too=many=equals";
+
+        try {
+            domainMapProvider.getDomainMap(invalidDomainMapping);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain Parsing error",
+                    ex.getMessage().contains("DomainMapping Parsing error"));
+        }
+    }
+
+    @Test
+    public void getDomainMap_withInvalidFormat_returnsMapWithEmptyKeys()
+    {
+        // ElasticsearchDomainMapProvider.getDomainMap currently produces a map {"": ""} for input "=".
+        ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
+        String invalidDomainMapping = "=";
+
+        Map<String, String> domainMap = domainMapProvider.getDomainMap(invalidDomainMapping);
+
+        assertNotNull("Domain map should not be null for invalid format", domainMap);
+        assertFalse("Domain map should not be empty for single equals input", domainMap.isEmpty());
+        assertTrue("Domain map should contain empty key", domainMap.containsKey(""));
+        assertEquals("Domain map value for empty key should be empty string", "", domainMap.get(""));
+    }
+
+    @Test
+    public void getDomainMap_fromAwsElasticsearchWhenDescribeDomainsThrows_propagatesException()
+    {
+        AwsElasticsearchFactory mockElasticsearchFactory = mock(AwsElasticsearchFactory.class);
+        ElasticsearchDomainMapProvider domainProvider =
+                new ElasticsearchDomainMapProvider(true, mockElasticsearchFactory);
+        ElasticsearchClient mockClient = mock(ElasticsearchClient.class);
+        ListDomainNamesResponse mockDomainInfo = mock(ListDomainNamesResponse.class);
+        List<DomainInfo> domainInfo = new ArrayList<>();
+        domainInfo.add(DomainInfo.builder().domainName("domain1").build());
+
+        when(mockElasticsearchFactory.getClient()).thenReturn(mockClient);
+        when(mockClient.listDomainNames()).thenReturn(mockDomainInfo);
+        when(mockDomainInfo.domainNames()).thenReturn(domainInfo);
+        when(mockClient.describeElasticsearchDomains(any(DescribeElasticsearchDomainsRequest.class)))
+                .thenThrow(new RuntimeException("Describe domains failed"));
+
+        try {
+            domainProvider.getDomainMap(null);
+            fail("Expected RuntimeException was not thrown");
+        }
+        catch (RuntimeException ex) {
+            assertTrue("Exception message should contain Describe domains failed",
+                    ex.getMessage().contains("Describe domains failed"));
+        }
+    }
+
+    @Test
+    public void getDomainMap_fromAwsElasticsearchWithEmptyDomainList_throwsAthenaConnectorException()
+    {
+        AwsElasticsearchFactory mockElasticsearchFactory = mock(AwsElasticsearchFactory.class);
+        ElasticsearchDomainMapProvider domainProvider =
+                new ElasticsearchDomainMapProvider(true, mockElasticsearchFactory);
+        ElasticsearchClient mockClient = mock(ElasticsearchClient.class);
+        ListDomainNamesResponse mockDomainInfo = mock(ListDomainNamesResponse.class);
+
+        when(mockElasticsearchFactory.getClient()).thenReturn(mockClient);
+        when(mockClient.listDomainNames()).thenReturn(mockDomainInfo);
+        when(mockDomainInfo.domainNames()).thenReturn(ImmutableList.of());
+
+        try {
+            domainProvider.getDomainMap(null);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain no domain information",
+                    ex.getMessage().contains("no domain information"));
+        }
+    }
+
+    @Test
+    public void getDomainMap_fromAwsElasticsearchWithNullEndpoint_usesVpcEndpoint()
+    {
+        AwsElasticsearchFactory mockElasticsearchFactory = mock(AwsElasticsearchFactory.class);
+        ElasticsearchDomainMapProvider domainProvider =
+                new ElasticsearchDomainMapProvider(true, mockElasticsearchFactory);
+        ElasticsearchClient mockClient = mock(ElasticsearchClient.class);
+        ListDomainNamesResponse mockDomainInfo = mock(ListDomainNamesResponse.class);
+
+        List<String> domainNames = ImmutableList.of("domain1");
+        List<DomainInfo> domainInfo = new ArrayList<>();
+        List<ElasticsearchDomainStatus> domainStatus = new ArrayList<>();
+
+        domainInfo.add(DomainInfo.builder().domainName("domain1").build());
+        domainStatus.add(ElasticsearchDomainStatus.builder()
+                .domainName("domain1")
+                .endpoint(null)
+                .endpoints(java.util.Map.of("vpc", "vpc-domain1"))
+                .build());
+
+        when(mockElasticsearchFactory.getClient()).thenReturn(mockClient);
+        when(mockClient.listDomainNames()).thenReturn(mockDomainInfo);
+        when(mockDomainInfo.domainNames()).thenReturn(domainInfo);
+
+        when(mockClient.describeElasticsearchDomains(DescribeElasticsearchDomainsRequest.builder()
+                .domainNames(domainNames).build()))
+                .thenReturn(DescribeElasticsearchDomainsResponse.builder()
+                        .domainStatusList(domainStatus).build());
+
+        Map<String, String> domainMap = domainProvider.getDomainMap(null);
+
+        assertEquals("Invalid number of domains.", 1, domainMap.size());
+        assertTrue("Domain map should contain domain1", domainMap.containsKey("domain1"));
+        assertEquals("Endpoint should use VPC endpoint when endpoint is null",
+                "https://vpc-domain1", domainMap.get("domain1"));
     }
 }

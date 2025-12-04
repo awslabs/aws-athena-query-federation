@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-example
+ * athena-elasticsearch
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -27,9 +27,12 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -84,12 +87,13 @@ import java.util.UUID;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * This class is used to test the ElasticsearchRecordHandler class.
@@ -98,6 +102,7 @@ import static org.mockito.Mockito.verify;
 public class ElasticsearchRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchRecordHandlerTest.class);
+    private static final String TEST_QUERY_ID = "queryId-1";
 
     private ElasticsearchRecordHandler handler;
     private BlockAllocatorImpl allocator;
@@ -316,16 +321,16 @@ public class ElasticsearchRecordHandlerTest
     }
 
     @After
-    public void after()
+    public void tearDown()
     {
         allocator.close();
     }
 
     @Test
-    public void doReadRecordsNoSpill()
+    public void readRecords_withNoSpill_returnsRecordsInMemory()
             throws Exception
     {
-        logger.info("doReadRecordsNoSpill: enter");
+        logger.info("readRecords_withNoSpill_returnsRecordsInMemory: enter");
 
         SearchHit searchHit[] = new SearchHit[2];
         searchHit[0] = new SearchHit(1);
@@ -346,7 +351,7 @@ public class ElasticsearchRecordHandlerTest
 
         ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
                 "elasticsearch",
-                "queryId-" + System.currentTimeMillis(),
+                TEST_QUERY_ID,
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
@@ -372,7 +377,7 @@ public class ElasticsearchRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("readRecords_withNoSpill_returnsRecordsInMemory: rows[{}]", response.getRecordCount());
 
         assertEquals(2, response.getRecords().getRowCount());
         for (int i = 0; i < response.getRecords().getRowCount(); ++i) {
@@ -380,14 +385,14 @@ public class ElasticsearchRecordHandlerTest
             assertEquals(expectedDocuments[i], BlockUtils.rowToString(response.getRecords(), i));
         }
 
-        logger.info("doReadRecordsNoSpill: exit");
+        logger.info("readRecords_withNoSpill_returnsRecordsInMemory: exit");
     }
 
     @Test
-    public void doReadRecordsSpill()
+    public void readRecords_withSpill_returnsRecordsFromSpilledBlocks()
             throws Exception
     {
-        logger.info("doReadRecordsSpill: enter");
+        logger.info("readRecords_withSpill_returnsRecordsFromSpilledBlocks: enter");
 
         int batchSize = handler.getQueryBatchSize();
         SearchHit searchHit1[] = new SearchHit[batchSize];
@@ -412,7 +417,7 @@ public class ElasticsearchRecordHandlerTest
 
         ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
                 "elasticsearch",
-                "queryId-" + System.currentTimeMillis(),
+                TEST_QUERY_ID,
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
@@ -426,7 +431,7 @@ public class ElasticsearchRecordHandlerTest
         assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
 
         try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
-            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
+            logger.info("readRecords_withSpill_returnsRecordsFromSpilledBlocks: remoteBlocks[{}]", response.getRemoteBlocks().size());
 
             assertEquals(1, response.getNumberBlocks());
 
@@ -434,17 +439,17 @@ public class ElasticsearchRecordHandlerTest
             for (SpillLocation next : response.getRemoteBlocks()) {
                 S3SpillLocation spillLocation = (S3SpillLocation) next;
                 try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
-                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                    logger.info("readRecords_withSpill_returnsRecordsFromSpilledBlocks: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
                     assertEquals(expectedDocuments.length, block.getRowCount());
                     for (int rowCount = 0; rowCount < block.getRowCount(); rowCount++) {
-                        logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, rowCount));
+                        logger.info("readRecords_withSpill_returnsRecordsFromSpilledBlocks: {}", BlockUtils.rowToString(block, rowCount));
                         assertEquals(expectedDocuments[rowCount], BlockUtils.rowToString(block, rowCount));
                     }
                 }
             }
         }
 
-        logger.info("doReadRecordsSpill: exit");
+        logger.info("readRecords_withSpill_returnsRecordsFromSpilledBlocks: exit");
     }
 
     private class ByteHolder
@@ -480,5 +485,70 @@ public class ElasticsearchRecordHandlerTest
                 .withSplitId(UUID.randomUUID().toString())
                 .withIsDirectory(true)
                 .build();
+    }
+
+    @Test
+    public void readWithConstraint_whenQueryNotRunning_doesNotProcessRecords()
+            throws Exception
+    {
+        logger.info("readWithConstraint_whenQueryNotRunning_doesNotProcessRecords - enter");
+
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(false);
+
+        ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
+                "elasticsearch",
+                TEST_QUERY_ID,
+                new TableName("movies", "mishmash"),
+                mapping,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        BlockSpiller spiller = mock(BlockSpiller.class);
+
+        handler.readWithConstraint(spiller, request, queryStatusChecker);
+
+        verify(mockClient, never()).search(any(), any());
+
+        logger.info("readWithConstraint_whenQueryNotRunning_doesNotProcessRecords - exit");
+    }
+
+    @Test
+    public void readWithConstraint_whenIOException_throwsAthenaConnectorException()
+            throws Exception
+    {
+        logger.info("readWithConstraint_whenIOException_throwsAthenaConnectorException - enter");
+
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        when(mockClient.search(any(), any())).thenThrow(new IOException("Search failed"));
+
+        ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
+                "elasticsearch",
+                TEST_QUERY_ID,
+                new TableName("movies", "mishmash"),
+                mapping,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        BlockSpiller spiller = mock(BlockSpiller.class);
+
+        try {
+            handler.readWithConstraint(spiller, request, queryStatusChecker);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain Error sending search query",
+                    ex.getMessage() != null && ex.getMessage().contains("Error sending search query"));
+            assertTrue("Exception message should contain original error",
+                    ex.getMessage() != null && ex.getMessage().contains("Search failed"));
+        }
     }
 }
