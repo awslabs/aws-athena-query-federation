@@ -51,10 +51,14 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * This class is used to test the ElasticsearchTypeUtils class.
@@ -71,10 +75,10 @@ public class ElasticsearchTypeUtilsTest
      * @throws Exception
      */
     @Test
-    public void makeVarCharExtractorTest()
+    public void makeVarCharExtractor_withDocument_extractsVarCharValues()
             throws Exception
     {
-        logger.info("makeVarCharExtractorTest - enter");
+        logger.info("makeVarCharExtractor_withDocument_extractsVarCharValues - enter");
 
         mapping = SchemaBuilder.newBuilder()
                 .addField("mytext", Types.MinorType.VARCHAR.getType())
@@ -94,10 +98,10 @@ public class ElasticsearchTypeUtilsTest
                 "mytext", "My favorite Sci-Fi movie is Interstellar.",
                 "mytextlist", "[Hey, this is an array!, Wasn't expecting this!]");
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeVarCharExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
+        logger.info("makeVarCharExtractor_withDocument_extractsVarCharValues - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
-        logger.info("makeVarCharExtractorTest - exit");
+        logger.info("makeVarCharExtractor_withDocument_extractsVarCharValues - exit");
     }
 
     /**
@@ -105,10 +109,10 @@ public class ElasticsearchTypeUtilsTest
      * @throws Exception
      */
     @Test
-    public void makeBigIntExtractorTest()
+    public void makeBigIntExtractor_withDocument_extractsBigIntValues()
             throws Exception
     {
-        logger.info("makeBigIntExtractorTest - enter");
+        logger.info("makeBigIntExtractor_withDocument_extractsBigIntValues - enter");
 
         mapping = SchemaBuilder.newBuilder()
                 .addField(new Field("myscaledfloat",
@@ -163,10 +167,10 @@ public class ElasticsearchTypeUtilsTest
         expectedResults.put("mylonglist", new Long(2374637));
         expectedResults.put("mylongstringlist", new Long(945857834));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeBigIntExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
+        logger.info("makeBigIntExtractor_withDocument_extractsBigIntValues - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
-        logger.info("makeBigIntExtractorTest - exit");
+        logger.info("makeBigIntExtractor_withDocument_extractsBigIntValues - exit");
     }
 
     /**
@@ -174,10 +178,10 @@ public class ElasticsearchTypeUtilsTest
      * @throws Exception
      */
     @Test
-    public void makeIntExtractorTest()
+    public void makeIntExtractor_withDocument_extractsIntValues()
             throws Exception
     {
-        logger.info("makeIntExtractorTest - enter");
+        logger.info("makeIntExtractor_withDocument_extractsIntValues - enter");
 
         mapping = SchemaBuilder.newBuilder()
                 .addField("myint", Types.MinorType.INT.getType())
@@ -206,10 +210,10 @@ public class ElasticsearchTypeUtilsTest
                 "myintlist", new Integer(472394),
                 "myintstringlist", new Integer(34875934));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeIntExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
+        logger.info("makeIntExtractor_withDocument_extractsIntValues - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
-        logger.info("makeIntExtractorTest - exit");
+        logger.info("makeIntExtractor_withDocument_extractsIntValues - exit");
     }
 
     /**
@@ -217,10 +221,10 @@ public class ElasticsearchTypeUtilsTest
      * @throws Exception
      */
     @Test
-    public void makeSmallIntExtractorTest()
+    public void makeSmallIntExtractor_withDocument_extractsSmallIntValues()
             throws Exception
     {
-        logger.info("makeSmallIntExtractorTest - enter");
+        logger.info("makeSmallIntExtractor_withDocument_extractsSmallIntValues - enter");
 
         mapping = SchemaBuilder.newBuilder()
                 .addField("myshort", Types.MinorType.SMALLINT.getType())
@@ -249,10 +253,10 @@ public class ElasticsearchTypeUtilsTest
                 "myshortlist", new Short((short) 543),
                 "myshortstringlist", new Short((short) 334));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeSmallIntExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
+        logger.info("makeSmallIntExtractor_withDocument_extractsSmallIntValues - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
-        logger.info("makeSmallIntExtractorTest - exit");
+        logger.info("makeSmallIntExtractor_withDocument_extractsSmallIntValues - exit");
     }
 
     /**
@@ -260,10 +264,10 @@ public class ElasticsearchTypeUtilsTest
      * @throws Exception
      */
     @Test
-    public void makeTinyIntExtractorTest()
+    public void makeTinyIntExtractor_withDocument_extractsTinyIntValues()
             throws Exception
     {
-        logger.info("makeTinyIntExtractorTest - enter");
+        logger.info("makeTinyIntExtractor_withDocument_extractsTinyIntValues - enter");
 
         mapping = SchemaBuilder.newBuilder()
                 .addField("mybyte", Types.MinorType.TINYINT.getType())
@@ -292,10 +296,10 @@ public class ElasticsearchTypeUtilsTest
                 "mybytelist", new Byte((byte) 1),
                 "mybytestringlist", new Byte((byte) 3));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeTinyIntExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
+        logger.info("makeTinyIntExtractor_withDocument_extractsTinyIntValues - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
-        logger.info("makeTinyIntExtractorTest - exit");
+        logger.info("makeTinyIntExtractor_withDocument_extractsTinyIntValues - exit");
     }
 
     /**
@@ -303,10 +307,10 @@ public class ElasticsearchTypeUtilsTest
      * @throws Exception
      */
     @Test
-    public void makeFloat8ExtractorTest()
+    public void makeFloat8Extractor_withDocument_extractsFloat8Values()
             throws Exception
     {
-        logger.info("makeFloat8ExtractorTest - enter");
+        logger.info("makeFloat8Extractor_withDocument_extractsFloat8Values - enter");
 
         mapping = SchemaBuilder.newBuilder()
                 .addField("mydouble", Types.MinorType.FLOAT8.getType())
@@ -335,10 +339,10 @@ public class ElasticsearchTypeUtilsTest
                 "mydoublelist", new Double(65.0),
                 "mydoublestringlist", new Double(10.0));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeFloat8ExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
+        logger.info("makeFloat8Extractor_withDocument_extractsFloat8Values - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
-        logger.info("makeFloat8ExtractorTest - exit");
+        logger.info("makeFloat8Extractor_withDocument_extractsFloat8Values - exit");
     }
 
     /**
@@ -346,10 +350,10 @@ public class ElasticsearchTypeUtilsTest
      * @throws Exception
      */
     @Test
-    public void makeFloat4ExtractorTest()
+    public void makeFloat4Extractor_withDocument_extractsFloat4Values()
             throws Exception
     {
-        logger.info("makeFloat4ExtractorTest - enter");
+        logger.info("makeFloat4Extractor_withDocument_extractsFloat4Values - enter");
 
         mapping = SchemaBuilder.newBuilder()
                 .addField("myfloat", Types.MinorType.FLOAT4.getType())
@@ -378,10 +382,10 @@ public class ElasticsearchTypeUtilsTest
                 "myfloatlist", new Float(23.0),
                 "myfloatstringlist", new Float(45.0));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeFloat4ExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
+        logger.info("makeFloat4Extractor_withDocument_extractsFloat4Values - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
-        logger.info("makeFloat4ExtractorTest - exit");
+        logger.info("makeFloat4Extractor_withDocument_extractsFloat4Values - exit");
     }
 
     /**
@@ -389,10 +393,10 @@ public class ElasticsearchTypeUtilsTest
      * @throws Exception
      */
     @Test
-    public void makeDateMilliExtractorTest()
+    public void makeDateMilliExtractor_withDocument_extractsDateMilliValues()
             throws Exception
     {
-        logger.info("makeDateMilliExtractorTest - enter");
+        logger.info("makeDateMilliExtractor_withDocument_extractsDateMilliValues - enter");
 
         mapping = SchemaBuilder.newBuilder()
                 .addField("mydate", Types.MinorType.DATEMILLI.getType())
@@ -421,10 +425,10 @@ public class ElasticsearchTypeUtilsTest
                 "mydatelist", new Long("1589969730789"),
                 "mydatestringlist", new Long("1589543370123"));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeDateMilliExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
+        logger.info("makeDateMilliExtractor_withDocument_extractsDateMilliValues - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
-        logger.info("makeDateMilliExtractorTest - exit");
+        logger.info("makeDateMilliExtractor_withDocument_extractsDateMilliValues - exit");
     }
 
     /**
@@ -432,10 +436,10 @@ public class ElasticsearchTypeUtilsTest
      * @throws Exception
      */
     @Test
-    public void makeBooleanExtractorTest()
+    public void makeBitExtractor_withDocument_extractsBitValues()
             throws Exception
     {
-        logger.info("makeBooleanExtractorTest - enter");
+        logger.info("makeBitExtractor_withDocument_extractsBitValues - enter");
 
         mapping = SchemaBuilder.newBuilder()
                 .addField("myboolean", Types.MinorType.BIT.getType())
@@ -464,10 +468,10 @@ public class ElasticsearchTypeUtilsTest
                 "mybooleanlist", 0,
                 "mybooleanstringlist", 1);
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeBooleanExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
+        logger.info("makeBitExtractor_withDocument_extractsBitValues - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
-        logger.info("makeBooleanExtractorTest - exit");
+        logger.info("makeBitExtractor_withDocument_extractsBitValues - exit");
     }
 
     /**
@@ -483,62 +487,632 @@ public class ElasticsearchTypeUtilsTest
         Map<String, Object> results = new HashMap<>();
         for (Field field : mapping.getFields()) {
             Extractor extractor = typeUtils.makeExtractor(field);
-            if (extractor instanceof VarCharExtractor) {
-                NullableVarCharHolder holder = new NullableVarCharHolder();
-                ((VarCharExtractor) extractor).extract(document, holder);
-                assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
-                results.put(field.getName(), holder.value);
-            }
-            else if (extractor instanceof BigIntExtractor) {
-                NullableBigIntHolder holder = new NullableBigIntHolder();
-                ((BigIntExtractor) extractor).extract(document, holder);
-                assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
-                results.put(field.getName(), holder.value);
-            }
-            else if (extractor instanceof IntExtractor) {
-                NullableIntHolder holder = new NullableIntHolder();
-                ((IntExtractor) extractor).extract(document, holder);
-                assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
-                results.put(field.getName(), holder.value);
-            }
-            else if (extractor instanceof SmallIntExtractor) {
-                NullableSmallIntHolder holder = new NullableSmallIntHolder();
-                ((SmallIntExtractor) extractor).extract(document, holder);
-                assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
-                results.put(field.getName(), holder.value);
-            }
-            else if (extractor instanceof TinyIntExtractor) {
-                NullableTinyIntHolder holder = new NullableTinyIntHolder();
-                ((TinyIntExtractor) extractor).extract(document, holder);
-                assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
-                results.put(field.getName(), holder.value);
-            }
-            else if (extractor instanceof Float8Extractor) {
-                NullableFloat8Holder holder = new NullableFloat8Holder();
-                ((Float8Extractor) extractor).extract(document, holder);
-                assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
-                results.put(field.getName(), holder.value);
-            }
-            else if (extractor instanceof Float4Extractor) {
-                NullableFloat4Holder holder = new NullableFloat4Holder();
-                ((Float4Extractor) extractor).extract(document, holder);
-                assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
-                results.put(field.getName(), holder.value);
-            }
-            else if (extractor instanceof DateMilliExtractor) {
-                NullableDateMilliHolder holder = new NullableDateMilliHolder();
-                ((DateMilliExtractor) extractor).extract(document, holder);
-                assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
-                results.put(field.getName(), holder.value);
-            }
-            else if (extractor instanceof BitExtractor) {
-                NullableBitHolder holder = new NullableBitHolder();
-                ((BitExtractor) extractor).extract(document, holder);
-                assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
-                results.put(field.getName(), holder.value);
+            Object value = extractValue(extractor, field, document);
+            if (value != null) {
+                results.put(field.getName(), value);
             }
         }
 
         return results;
+    }
+
+    /**
+     * Extracts a value from a document using the appropriate extractor and holder.
+     * @param extractor the extractor to use
+     * @param field the field being extracted
+     * @param document the document containing the data
+     * @return the extracted value, or null if extraction failed
+     * @throws Exception
+     */
+    private Object extractValue(Extractor extractor, Field field, Map<String, Object> document)
+            throws Exception
+    {
+        if (extractor instanceof VarCharExtractor) {
+            NullableVarCharHolder holder = new NullableVarCharHolder();
+            ((VarCharExtractor) extractor).extract(document, holder);
+            assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
+            return holder.value;
+        }
+        else if (extractor instanceof BigIntExtractor) {
+            NullableBigIntHolder holder = new NullableBigIntHolder();
+            ((BigIntExtractor) extractor).extract(document, holder);
+            assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
+            return holder.value;
+        }
+        else if (extractor instanceof IntExtractor) {
+            NullableIntHolder holder = new NullableIntHolder();
+            ((IntExtractor) extractor).extract(document, holder);
+            assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
+            return holder.value;
+        }
+        else if (extractor instanceof SmallIntExtractor) {
+            NullableSmallIntHolder holder = new NullableSmallIntHolder();
+            ((SmallIntExtractor) extractor).extract(document, holder);
+            assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
+            return holder.value;
+        }
+        else if (extractor instanceof TinyIntExtractor) {
+            NullableTinyIntHolder holder = new NullableTinyIntHolder();
+            ((TinyIntExtractor) extractor).extract(document, holder);
+            assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
+            return holder.value;
+        }
+        else if (extractor instanceof Float8Extractor) {
+            NullableFloat8Holder holder = new NullableFloat8Holder();
+            ((Float8Extractor) extractor).extract(document, holder);
+            assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
+            return holder.value;
+        }
+        else if (extractor instanceof Float4Extractor) {
+            NullableFloat4Holder holder = new NullableFloat4Holder();
+            ((Float4Extractor) extractor).extract(document, holder);
+            assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
+            return holder.value;
+        }
+        else if (extractor instanceof DateMilliExtractor) {
+            NullableDateMilliHolder holder = new NullableDateMilliHolder();
+            ((DateMilliExtractor) extractor).extract(document, holder);
+            assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
+            return holder.value;
+        }
+        else if (extractor instanceof BitExtractor) {
+            NullableBitHolder holder = new NullableBitHolder();
+            ((BitExtractor) extractor).extract(document, holder);
+            assertEquals("Could not extract value for: " + field.getName(), 1, holder.isSet);
+            return holder.value;
+        }
+        return null;
+    }
+
+    @Test
+    public void makeDateMilliExtractor_withLocalDateTimeFormat_parsesAndSetsHolder()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mydatestringlist", Types.MinorType.DATEMILLI.getType())
+                .build();
+
+        Map<String, Object> document = new ObjectMapper().readValue(
+                "{\n" +
+                        "  \"mydatestringlist\" : [\n" +
+                        "    \"2020-05-15T06:49:30.123\"\n" +
+                        "  ]\n" +
+                        "}\n", HashMap.class);
+
+        DateMilliExtractor extractor = (DateMilliExtractor) typeUtils.makeExtractor(mapping.getFields().get(0));
+        NullableDateMilliHolder holder = new NullableDateMilliHolder();
+        extractor.extract(document, holder);
+
+        assertEquals("Should parse local date time format", 1, holder.isSet);
+    }
+
+    @Test
+    public void makeDateMilliExtractor_withInvalidDateFormat_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mydatestringlist", Types.MinorType.DATEMILLI.getType())
+                .build();
+
+        Map<String, Object> document = new ObjectMapper().readValue(
+                "{\n" +
+                        "  \"mydatestringlist\" : [\n" +
+                        "    \"invalid-date-format\"\n" +
+                        "  ]\n" +
+                        "}\n", HashMap.class);
+
+        DateMilliExtractor extractor = (DateMilliExtractor) typeUtils.makeExtractor(mapping.getFields().get(0));
+        NullableDateMilliHolder holder = new NullableDateMilliHolder();
+        extractor.extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for invalid date format", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeFactory_withUnsupportedFieldType_throwsAthenaConnectorException()
+    {
+        Field field = new Field("test", FieldType.nullable(Types.MinorType.INTERVALDAY.getType()), null);
+
+        try {
+            typeUtils.makeFactory(field);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException ex) {
+            assertTrue("Exception message should contain is not supported",
+                    ex.getMessage().contains("is not supported"));
+        }
+        catch (Exception e) {
+            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
+        }
+    }
+
+    @Test
+    public void makeDateMilliExtractor_withZonedDateTime_parsesEpochSecondsAndNanoSeconds()
+            throws Exception
+    {
+        String dateTimeString = "2020-05-15T06:49:30.123456789+05:00";
+        long expectedMillis = java.time.ZonedDateTime.parse(dateTimeString).toInstant().toEpochMilli();
+
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mydate", Types.MinorType.DATEMILLI.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("mydate", dateTimeString);
+
+        Field dateField = mapping.findField("mydate");
+        if (dateField == null) {
+            fail("Field mydate not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(dateField);
+        assertTrue("makeExtractor should return DateMilliExtractor for DATEMILLI field", extractor instanceof DateMilliExtractor);
+
+        NullableDateMilliHolder holder = new NullableDateMilliHolder();
+        ((DateMilliExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should successfully parse ZonedDateTime", 1, holder.isSet);
+        assertEquals("DateMilliHolder value should match parsed epoch millis", expectedMillis, holder.value);
+    }
+
+    @Test
+    public void makeDateMilliExtractor_withInvalidDateTimeFormatInList_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mydate", Types.MinorType.DATEMILLI.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<String> invalidDateList = new ArrayList<>();
+        invalidDateList.add("invalid-date-format-xyz");
+        document.put("mydate", invalidDateList);
+
+        Field dateField = mapping.findField("mydate");
+        if (dateField == null) {
+            fail("Field mydate not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(dateField);
+        NullableDateMilliHolder holder = new NullableDateMilliHolder();
+        ((DateMilliExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 on parse error", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeDateMilliExtractor_withInvalidDateTimeFormatString_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mydate", Types.MinorType.DATEMILLI.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("mydate", "completely-invalid-date-format-xyz-123");
+
+        Field dateField = mapping.findField("mydate");
+        if (dateField == null) {
+            fail("Field mydate not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(dateField);
+        NullableDateMilliHolder holder = new NullableDateMilliHolder();
+        ((DateMilliExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 when both ZonedDateTime and LocalDateTime parsing fail", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeDateMilliExtractor_withNonStringNonNumberNonList_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mydate", Types.MinorType.DATEMILLI.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("mydate", new HashMap<>());
+
+        Field dateField = mapping.findField("mydate");
+        if (dateField == null) {
+            fail("Field mydate not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(dateField);
+        NullableDateMilliHolder holder = new NullableDateMilliHolder();
+        ((DateMilliExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeDateMilliExtractor_withListContainingNonStringNonNumber_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mydate", Types.MinorType.DATEMILLI.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<Object> invalidList = new ArrayList<>();
+        invalidList.add(new HashMap<>());
+        document.put("mydate", invalidList);
+
+        Field dateField = mapping.findField("mydate");
+        if (dateField == null) {
+            fail("Field mydate not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(dateField);
+        NullableDateMilliHolder holder = new NullableDateMilliHolder();
+        ((DateMilliExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported list element type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeBigIntExtractor_withUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mybigint", Types.MinorType.BIGINT.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("mybigint", new HashMap<>());
+
+        Field field = mapping.findField("mybigint");
+        if (field == null) {
+            fail("Field mybigint not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableBigIntHolder holder = new NullableBigIntHolder();
+        ((BigIntExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeScaledFloatExtractor_withListContainingUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField(new Field("myscaled", new FieldType(true, Types.MinorType.BIGINT.getType(), null,
+                        ImmutableMap.of("scaling_factor", "10.0")), null))
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<Object> invalidList = new ArrayList<>();
+        invalidList.add(new Object());
+        document.put("myscaled", invalidList);
+
+        Field field = mapping.findField("myscaled");
+        if (field == null) {
+            fail("Field myscaled not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableBigIntHolder holder = new NullableBigIntHolder();
+        ((BigIntExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported list element type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeScaledFloatExtractor_withListContainingMap_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField(new Field("myscaled", new FieldType(true, Types.MinorType.BIGINT.getType(), null,
+                        ImmutableMap.of("scaling_factor", "10.0")), null))
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<Object> invalidList = new ArrayList<>();
+        invalidList.add(new HashMap<>());
+        document.put("myscaled", invalidList);
+
+        Field field = mapping.findField("myscaled");
+        if (field == null) {
+            fail("Field myscaled not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableBigIntHolder holder = new NullableBigIntHolder();
+        ((BigIntExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported list element type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeBitExtractor_withUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("myboolean", Types.MinorType.BIT.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("myboolean", new HashMap<>());
+
+        Field field = mapping.findField("myboolean");
+        if (field == null) {
+            fail("Field myboolean not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableBitHolder holder = new NullableBitHolder();
+        ((BitExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeBitExtractor_withListContainingUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("myboolean", Types.MinorType.BIT.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<Object> invalidList = new ArrayList<>();
+        invalidList.add(new HashMap<>());
+        document.put("myboolean", invalidList);
+
+        Field field = mapping.findField("myboolean");
+        if (field == null) {
+            fail("Field myboolean not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableBitHolder holder = new NullableBitHolder();
+        ((BitExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported list element type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeVarCharExtractor_withUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mytext", Types.MinorType.VARCHAR.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("mytext", new Object());
+
+        Field field = mapping.findField("mytext");
+        if (field == null) {
+            fail("Field mytext not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        ((VarCharExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeIntExtractor_withListContainingUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("myinteger", Types.MinorType.INT.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<Object> invalidList = new ArrayList<>();
+        invalidList.add(new HashMap<>());
+        document.put("myinteger", invalidList);
+
+        Field field = mapping.findField("myinteger");
+        if (field == null) {
+            fail("Field myinteger not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableIntHolder holder = new NullableIntHolder();
+        ((IntExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported list element type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeIntExtractor_withUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("myinteger", Types.MinorType.INT.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("myinteger", new HashMap<>());
+
+        Field field = mapping.findField("myinteger");
+        if (field == null) {
+            fail("Field myinteger not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableIntHolder holder = new NullableIntHolder();
+        ((IntExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeSmallIntExtractor_withListContainingUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("myshort", Types.MinorType.SMALLINT.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<Object> invalidList = new ArrayList<>();
+        invalidList.add(new HashMap<>());
+        document.put("myshort", invalidList);
+
+        Field field = mapping.findField("myshort");
+        if (field == null) {
+            fail("Field myshort not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableSmallIntHolder holder = new NullableSmallIntHolder();
+        ((SmallIntExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported list element type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeSmallIntExtractor_withUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("myshort", Types.MinorType.SMALLINT.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("myshort", new HashMap<>());
+
+        Field field = mapping.findField("myshort");
+        if (field == null) {
+            fail("Field myshort not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableSmallIntHolder holder = new NullableSmallIntHolder();
+        ((SmallIntExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeTinyIntExtractor_withListContainingUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mybyte", Types.MinorType.TINYINT.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<Object> invalidList = new ArrayList<>();
+        invalidList.add(new HashMap<>());
+        document.put("mybyte", invalidList);
+
+        Field field = mapping.findField("mybyte");
+        if (field == null) {
+            fail("Field mybyte not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableTinyIntHolder holder = new NullableTinyIntHolder();
+        ((TinyIntExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported list element type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeTinyIntExtractor_withUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mybyte", Types.MinorType.TINYINT.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("mybyte", new HashMap<>());
+
+        Field field = mapping.findField("mybyte");
+        if (field == null) {
+            fail("Field mybyte not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableTinyIntHolder holder = new NullableTinyIntHolder();
+        ((TinyIntExtractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeFloat8Extractor_withListContainingUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mydouble", Types.MinorType.FLOAT8.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<Object> invalidList = new ArrayList<>();
+        invalidList.add(new HashMap<>());
+        document.put("mydouble", invalidList);
+
+        Field field = mapping.findField("mydouble");
+        if (field == null) {
+            fail("Field mydouble not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableFloat8Holder holder = new NullableFloat8Holder();
+        ((Float8Extractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported list element type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeFloat8Extractor_withUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("mydouble", Types.MinorType.FLOAT8.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("mydouble", new HashMap<>());
+
+        Field field = mapping.findField("mydouble");
+        if (field == null) {
+            fail("Field mydouble not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableFloat8Holder holder = new NullableFloat8Holder();
+        ((Float8Extractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeFloat4Extractor_withListContainingUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("myfloat", Types.MinorType.FLOAT4.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        List<Object> invalidList = new ArrayList<>();
+        invalidList.add(new HashMap<>());
+        document.put("myfloat", invalidList);
+
+        Field field = mapping.findField("myfloat");
+        if (field == null) {
+            fail("Field myfloat not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableFloat4Holder holder = new NullableFloat4Holder();
+        ((Float4Extractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported list element type", 0, holder.isSet);
+    }
+
+    @Test
+    public void makeFloat4Extractor_withUnsupportedType_setsIsSetToZero()
+            throws Exception
+    {
+        mapping = SchemaBuilder.newBuilder()
+                .addField("myfloat", Types.MinorType.FLOAT4.getType())
+                .build();
+
+        Map<String, Object> document = new HashMap<>();
+        document.put("myfloat", new HashMap<>());
+
+        Field field = mapping.findField("myfloat");
+        if (field == null) {
+            fail("Field myfloat not found in schema");
+        }
+        Extractor extractor = typeUtils.makeExtractor(field);
+        NullableFloat4Holder holder = new NullableFloat4Holder();
+        ((Float4Extractor) extractor).extract(document, holder);
+
+        assertEquals("Should set isSet to 0 for unsupported type", 0, holder.isSet);
     }
 }
