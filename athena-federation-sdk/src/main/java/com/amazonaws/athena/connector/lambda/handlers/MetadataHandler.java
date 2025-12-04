@@ -66,6 +66,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
@@ -75,12 +76,13 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.utils.StringUtils;
+import software.amazon.awssdk.utils.CollectionUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -194,38 +196,22 @@ public abstract class MetadataHandler
     }
 
     /**
-     * Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
-     * by the corresponding value of the secret in AWS Secrets Manager with that name. If no such secret is found
-     * the function throws.
-     *
-     * @param rawString The string in which you'd like to replace SecretsManager placeholders.
-     * (e.g. ThisIsA${Secret}Here - The ${Secret} would be replaced with the contents of an SecretsManager
-     * secret called Secret. If no such secret is found, the function throws. If no ${} are found in
-     * the input string, nothing is replaced and the original string is returned.
-     */
-    protected String resolveSecrets(String rawString)
-    {
-        return secretsManager.resolveSecrets(rawString);
-    }
-
-    protected String resolveWithDefaultCredentials(String rawString)
-    {
-        return secretsManager.resolveWithDefaultCredentials(rawString);
-    }
-
-    protected String getSecret(String secretName)
-    {
-        return secretsManager.getSecret(secretName);
-    }
-
-    /**
      * Gets the CachableSecretsManager instance used by this handler.
      * This is used by credential providers to reuse the same secrets manager instance.
      * @return The CachableSecretsManager instance
      */
-    protected CachableSecretsManager getCachableSecretsManager()
+    public CachableSecretsManager getCachableSecretsManager()
     {
         return secretsManager;
+    }
+
+    /**
+     * Gets the KmsEncryptionProvider instance used by this handler.
+     * @return The KmsEncryptionProvider instance
+     */
+    public KmsEncryptionProvider getKmsEncryptionProvider()
+    {
+        return kmsEncryptionProvider;
     }
 
     protected EncryptionKey makeEncryptionKey()
@@ -241,13 +227,17 @@ public abstract class MetadataHandler
     /**
      * Used to make a spill location for a split. Each split should have a unique spill location, so be sure
      * to call this method once per split!
-     * @param request 
+     * @param request
      * @return A unique spill location.
      */
     protected SpillLocation makeSpillLocation(MetadataRequest request)
     {
         FederatedIdentity federatedIdentity = request.getIdentity();
         Map<String, String> configOptions = federatedIdentity.getConfigOptions();
+        if (CollectionUtils.isNullOrEmpty(configOptions)) {
+            logger.debug("configOptions is empty from federation. Use default configOptions.");
+            configOptions = new HashMap<>(this.configOptions);
+        }
         String queryId = request.getQueryId();
         String prefix = StringUtils.isBlank(configOptions.get(SPILL_PREFIX_ENV))
                 ? spillPrefix : configOptions.get(SPILL_PREFIX_ENV);
@@ -573,11 +563,6 @@ public abstract class MetadataHandler
     public void onPing(PingRequest request)
     {
         //NoOp
-    }
-
-    public AwsRequestOverrideConfiguration getRequestOverrideConfig(Map<String, String> configOptions)
-    {
-        return getRequestOverrideConfig(configOptions, kmsEncryptionProvider);
     }
 
     /**

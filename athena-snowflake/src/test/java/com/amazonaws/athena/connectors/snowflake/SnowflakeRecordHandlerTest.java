@@ -118,7 +118,7 @@ public class SnowflakeRecordHandlerTest
     private BlockAllocator allocator;
     private S3BlockSpillReader spillReader;
     private JdbcConnectionFactory jdbcConnectionFactory;
-    private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
+    private SnowflakeQueryStringBuilder jdbcSplitQueryBuilder;
     private S3Client amazonS3;
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
@@ -163,7 +163,7 @@ public class SnowflakeRecordHandlerTest
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
         this.handler = new SnowflakeRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
-
+    
     @Test
     public void doReadRecordsNoSpill()
             throws Exception
@@ -292,7 +292,7 @@ public class SnowflakeRecordHandlerTest
         }
         logger.info("doReadRecordsSpill: exit");
     }
-
+    
     private class ByteHolder
     {
         private byte[] bytes;
