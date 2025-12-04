@@ -34,6 +34,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -43,6 +47,8 @@ import static org.mockito.Mockito.when;
 public class CacheableAwsRestHighLevelClientTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CacheableAwsRestHighLevelClientTest.class);
+    private static final String ENDPOINT_1 = "endpoint1";
+    private static final String ENDPOINT_2 = "endpoint2";
 
     private CacheableAwsRestHighLevelClient clientCache;
 
@@ -62,76 +68,77 @@ public class CacheableAwsRestHighLevelClientTest
      * Test the cache's ability to return the correct client.
      */
     @Test
-    public void getClientSimpleTest()
+    public void get_withMultipleEndpoints_returnsCachedClientPerEndpoint()
             throws IOException
     {
-        logger.info("getClientSimpleTest - enter");
+        logger.info("get_withMultipleEndpoints_returnsCachedClientPerEndpoint - enter");
 
-        clientCache.put("endpoint1", client1);
-        clientCache.put("endpoint2", client2);
+        clientCache.put(ENDPOINT_1, client1);
+        clientCache.put(ENDPOINT_2, client2);
 
         when(client1.ping(RequestOptions.DEFAULT)).thenReturn(true);
         when(client2.ping(RequestOptions.DEFAULT)).thenReturn(true);
 
         assertEquals("Cache has wrong number of clients.", 2, clientCache.size());
-        assertNotNull("Cache get() method returned null.", clientCache.get("endpoint1"));
-        assertNotNull("Cache get() method returned null.", clientCache.get("endpoint2"));
-        assertEquals("Wrong client returned from cache.", client1, clientCache.get("endpoint1"));
-        assertEquals("Wrong client returned from cache.", client2, clientCache.get("endpoint2"));
+        assertNotNull("Cache get() method returned null.", clientCache.get(ENDPOINT_1));
+        assertNotNull("Cache get() method returned null.", clientCache.get(ENDPOINT_2));
+        assertEquals("Wrong client returned from cache.", client1, clientCache.get(ENDPOINT_1));
+        assertEquals("Wrong client returned from cache.", client2, clientCache.get(ENDPOINT_2));
 
-        logger.info("getClientSimpleTest - exit");
+        logger.info("get_withMultipleEndpoints_returnsCachedClientPerEndpoint - exit");
     }
 
     /**
      * Test the cache's ability to evict clients that have aged out (as indicated by MAX_CACHE_AGE_MS).
      */
     @Test
-    public void evictOldClientTest()
+    public void get_whenClientExceedsMaxCacheAge_evictsClient()
             throws IOException
     {
-        logger.info("evictOldClientTest - enter");
+        logger.info("get_whenClientExceedsMaxCacheAge_evictsClient - enter");
 
+        lenient().when(client1.ping(any())).thenReturn(true);
         // Test eviction on the get() method.
-        clientCache.addClientEntry("endpoint1", client1, System.currentTimeMillis() -
+        clientCache.addClientEntry(ENDPOINT_1, client1, System.currentTimeMillis() -
                 CacheableAwsRestHighLevelClient.MAX_CACHE_AGE_MS - 1);
 
         assertEquals("Cache has wrong number of clients.", 1, clientCache.size());
-        assertNull("Invalid value returned from cache.", clientCache.get("endpoint1"));
+        assertNull("Invalid value returned from cache.", clientCache.get(ENDPOINT_1));
         assertEquals("Cache has wrong number of clients.", 0, clientCache.size());
 
         // Test eviction on the put() method.
-        when(client2.ping(any())).thenReturn(true);
-        clientCache.addClientEntry("endpoint1", client1, System.currentTimeMillis() -
+        lenient().when(client2.ping(any())).thenReturn(true);
+        clientCache.addClientEntry(ENDPOINT_1, client1, System.currentTimeMillis() -
                 CacheableAwsRestHighLevelClient.MAX_CACHE_AGE_MS - 1);
 
         assertEquals("Cache has wrong number of clients.", 1, clientCache.size());
 
-        clientCache.put("endpoint2", client2);
+        clientCache.put(ENDPOINT_2, client2);
 
         assertEquals("Cache has wrong number of clients.", 1, clientCache.size());
-        assertNotNull("Cache get() method returned null.", clientCache.get("endpoint2"));
-        assertEquals("Wrong client returned from cache.", client2, clientCache.get("endpoint2"));
+        assertNotNull("Cache get() method returned null.", clientCache.get(ENDPOINT_2));
+        assertEquals("Wrong client returned from cache.", client2, clientCache.get(ENDPOINT_2));
 
-        logger.info("evictOldClientTest - exit");
+        logger.info("get_whenClientExceedsMaxCacheAge_evictsClient - exit");
     }
 
     /**
      * Test the cache's ability to evict unhealthy clients.
      */
     @Test
-    public void evictUnhealthyClientTest()
+    public void get_whenClientPingFails_evictsUnhealthyClient()
             throws IOException
     {
-        logger.info("evictUnhealthyClientTest - enter");
+        logger.info("get_whenClientPingFails_evictsUnhealthyClient - enter");
 
         when(client1.ping(any())).thenReturn(false);
-        clientCache.put("endpoint1", client1);
+        clientCache.put(ENDPOINT_1, client1);
 
         assertEquals("Cache has wrong number of clients.", 1, clientCache.size());
-        assertNull("Invalid value returned from cache.", clientCache.get("endpoint1"));
+        assertNull("Invalid value returned from cache.", clientCache.get(ENDPOINT_1));
         assertEquals("Cache has wrong number of clients.", 0, clientCache.size());
 
-        logger.info("evictUnhealthyClientTest - exit");
+        logger.info("get_whenClientPingFails_evictsUnhealthyClient - exit");
     }
 
     /**
@@ -139,11 +146,13 @@ public class CacheableAwsRestHighLevelClientTest
      * MAX_CACHE_SIZE).
      */
     @Test
-    public void evictExceededCapacityClientTest()
+    public void put_whenCapacityExceeded_evictsOldestClient()
+            throws IOException
     {
-        logger.info("evictExceededCapacityClientTest - enter");
+        logger.info("put_whenCapacityExceeded_evictsOldestClient - enter");
 
-        clientCache.put("endpoint1", client1);
+        lenient().when(client1.ping(any())).thenReturn(true);
+        clientCache.put(ENDPOINT_1, client1);
         for (int i = 0; i < CacheableAwsRestHighLevelClient.MAX_CACHE_SIZE; ++i) {
             String endpoint = "newendpoint" + i;
             clientCache.put(endpoint, client2);
@@ -151,8 +160,53 @@ public class CacheableAwsRestHighLevelClientTest
 
         assertEquals("Cache has wrong number of clients.",
                 CacheableAwsRestHighLevelClient.MAX_CACHE_SIZE, clientCache.size());
-        assertNull("Invalid value returned from cache.", clientCache.get("endpoint1"));
+        assertNull("Invalid value returned from cache.", clientCache.get(ENDPOINT_1));
 
-        logger.info("evictExceededCapacityClientTest - exit");
+        logger.info("put_whenCapacityExceeded_evictsOldestClient - exit");
+    }
+
+    @Test
+    public void get_withUnhealthyClient_evictsClientAndClosesIt()
+            throws IOException
+    {
+        clientCache.put(ENDPOINT_1, client1);
+        clientCache.put(ENDPOINT_2, client2);
+
+        assertEquals("Cache should have 2 clients before get", 2, clientCache.size());
+
+        // Make client1 unhealthy - get() will call evictCache(endpoint) internally
+        when(client1.ping(any())).thenThrow(new IOException("Connection failed"));
+        when(client2.ping(any())).thenReturn(true);
+
+        // get() will detect unhealthy client and evict it
+        assertNull("get() should return null for unhealthy client", clientCache.get(ENDPOINT_1));
+
+        assertEquals("Cache should have 1 client after eviction", 1, clientCache.size());
+
+        // Verify that client1 was closed during eviction
+        verify(client1, times(1)).close();
+
+        // Verify that client2 is still accessible after selective eviction
+        assertNotNull("Healthy client should still be accessible", clientCache.get(ENDPOINT_2));
+        assertEquals("get() should return client2 for endpoint2", client2, clientCache.get(ENDPOINT_2));
+    }
+
+    @Test
+    public void get_whenUnhealthyClientCloseThrowsIOException_evictsClientWithoutRethrowing()
+            throws IOException
+    {
+        doThrow(new IOException("Close failed")).when(client1).close();
+        clientCache.put(ENDPOINT_1, client1);
+
+        // Make client unhealthy - get() will call evictCache(endpoint) internally, which calls closeClient
+        when(client1.ping(any())).thenThrow(new IOException("Connection failed"));
+
+        // get() will detect unhealthy client and evict it (closeClient may throw IOException but should be handled)
+        clientCache.get(ENDPOINT_1);
+
+        assertEquals("Cache should be empty after eviction", 0, clientCache.size());
+
+        // Verify that close() was invoked during eviction
+        verify(client1, times(1)).close();
     }
 }
