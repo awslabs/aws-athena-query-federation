@@ -14,13 +14,13 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.35.8</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.40.1</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
         <aws-sdk.version>1.12.792</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.115.0</jsii.version>
+        <jsii.version>1.120.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.17</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
@@ -106,7 +106,7 @@
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
-                <version>5.4.3</version>
+                <version>5.5.1</version>
             </dependency>
             <!-- Fix for CVE-2024-57699: Override json-smart version from transitive dependencies -->
             <dependency>
@@ -369,6 +369,19 @@
                                         <!-- 6. Exclude old junit POM metadata directly -->
                                         <exclude>META-INF/maven/junit/junit/pom.xml</exclude>
                                         <exclude>META-INF/maven/junit/junit/pom.properties</exclude>
+                                        <!-- 7. Fix for CVE-2023-2976, CVE-2020-8908: Exclude escapevelocity metadata that declares vulnerable guava -->
+                                        <exclude>META-INF/maven/com.google.escapevelocity/escapevelocity/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.google.escapevelocity/escapevelocity/pom.properties</exclude>
+                                        <!-- 8. Fix for CVE-2025-55163: Exclude Google Cloud BigQuery metadata that declares vulnerable io.grpc -->
+                                        <exclude>META-INF/maven/com.google.cloud/google-cloud-bigquery/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.google.cloud/google-cloud-bigquery/pom.properties</exclude>
+                                        <exclude>META-INF/maven/com.google.cloud/google-cloud-bigquerystorage/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.google.cloud/google-cloud-bigquerystorage/pom.properties</exclude>
+                                        <!-- 9. Fix for CVE-2024-7254: Exclude google.api.grpc metadata that declares vulnerable protobuf -->
+                                        <exclude>META-INF/maven/com.google.api.grpc/grpc-google-cloud-bigquerystorage-v1/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.google.api.grpc/grpc-google-cloud-bigquerystorage-v1/pom.properties</exclude>
+                                        <exclude>META-INF/maven/com.google.api.grpc/proto-google-cloud-bigquerystorage-v1/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.google.api.grpc/proto-google-cloud-bigquerystorage-v1/pom.properties</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
