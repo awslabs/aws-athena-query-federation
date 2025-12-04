@@ -25,12 +25,14 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import io.substrait.proto.Plan;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -119,7 +121,16 @@ public class BigQuerySqlUtils
 
     private static List<String> toConjuncts(List<Field> columns, Constraints constraints, List<QueryParameterValue> parameterValues)
     {
-        LOGGER.debug("Inside toConjuncts(): ");
+        LOGGER.info("Inside toConjuncts(): ");
+        
+        // Use Substrait plan if available
+        if (constraints.getQueryPlan() != null) {
+            return BigQuerySubstraitPlanUtils.toConjuncts(columns, 
+                SubstraitRelUtils.deserializeSubstraitPlan(constraints.getQueryPlan().getSubstraitPlan()), 
+                constraints, parameterValues);
+        }
+        
+        // Fallback to summary-based processing
         ImmutableList.Builder<String> builder = ImmutableList.builder();
         for (Field column : columns) {
             ArrowType type = column.getType();
@@ -135,7 +146,7 @@ public class BigQuerySqlUtils
         return builder.build();
     }
 
-    private static String toPredicate(String columnName, ValueSet valueSet, ArrowType type, List<QueryParameterValue> parameterValues)
+    public static String toPredicate(String columnName, ValueSet valueSet, ArrowType type, List<QueryParameterValue> parameterValues)
     {
         List<String> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
@@ -210,15 +221,20 @@ public class BigQuerySqlUtils
         return "(" + Joiner.on(" OR ").join(disjuncts) + ")";
     }
 
-    private static String toPredicate(String columnName, String operator, Object value, ArrowType type,
+    public static String toPredicate(String columnName, String operator, Object value, ArrowType type,
                                       List<QueryParameterValue> parameterValues)
     {
-        parameterValues.add(getValueForWhereClause(columnName, value, type));
-        return quote(columnName) + " " + operator + " ?";
+        if (parameterValues != null) {
+            parameterValues.add(getValueForWhereClause(columnName, value, type));
+            return quote(columnName) + " " + operator + " ?";
+        }
+        else {
+            return quote(columnName) + " " + operator + " ?";
+        }
     }
 
     //Gets the representation of a value that can be used in a where clause, ie String values need to be quoted, numeric doesn't.
-    private static QueryParameterValue getValueForWhereClause(String columnName, Object value, ArrowType arrowType)
+    public static QueryParameterValue getValueForWhereClause(String columnName, Object value, ArrowType arrowType)
     {
         LOGGER.info("Inside getValueForWhereClause(-, -, -): ");
         LOGGER.info("arrowType.getTypeID():" + arrowType.getTypeID());
@@ -298,5 +314,48 @@ public class BigQuerySqlUtils
                     return quote(orderByField.getColumnName()) + " " + ordering + " " + nullsHandling;
                 })
                 .collect(Collectors.joining(", "));
+    }
+
+    public static String buildSqlFromPlan(TableName tableName, Schema schema, Constraints constraints,
+                                          List<QueryParameterValue> parameterValues)
+    {
+        LOGGER.info("Inside buildSql(): ");
+        StringBuilder sqlBuilder = new StringBuilder("SELECT ");
+
+        StringJoiner sj = new StringJoiner(",");
+        if (schema.getFields().isEmpty()) {
+            sj.add("null");
+        }
+        else {
+            for (Field field : schema.getFields()) {
+                sj.add(quote(field.getName()));
+            }
+        }
+        sqlBuilder.append(sj.toString())
+                .append(" from ")
+                .append(quote(tableName.getSchemaName()))
+                .append(".")
+                .append(quote(tableName.getTableName()));
+
+        LOGGER.info("constraints: " + constraints);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(constraints.getQueryPlan().getSubstraitPlan());
+        List<String> clauses = BigQuerySubstraitPlanUtils.toConjuncts(schema.getFields(), plan, constraints, parameterValues);
+
+        if (!clauses.isEmpty()) {
+            sqlBuilder.append(" WHERE ")
+                    .append(Joiner.on(" AND ").join(clauses));
+        }
+
+        String orderByClause = BigQuerySubstraitPlanUtils.extractOrderByClause(plan);
+        if (!Strings.isNullOrEmpty(orderByClause)) {
+            sqlBuilder.append(" ").append(orderByClause);
+        }
+
+        if (BigQuerySubstraitPlanUtils.getLimit(plan) > 0) {
+            sqlBuilder.append(" limit " + BigQuerySubstraitPlanUtils.getLimit(plan));
+        }
+
+        LOGGER.info("Generated SQL : {}", sqlBuilder);
+        return sqlBuilder.toString();
     }
 }

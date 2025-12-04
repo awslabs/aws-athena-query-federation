@@ -93,7 +93,7 @@ public class BigQueryMetadataHandler
 
     private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
 
-    BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
+    public BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(BigQueryConstants.SOURCE_TYPE, configOptions);
     }

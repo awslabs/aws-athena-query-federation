@@ -218,6 +218,11 @@ public abstract class MetadataHandler
         return secretsManager.getSecret(secretName);
     }
 
+    protected String getSecret(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return secretsManager.getSecret(secretName, requestOverrideConfiguration);
+    }
+
     /**
      * Gets the CachableSecretsManager instance used by this handler.
      * This is used by credential providers to reuse the same secrets manager instance.

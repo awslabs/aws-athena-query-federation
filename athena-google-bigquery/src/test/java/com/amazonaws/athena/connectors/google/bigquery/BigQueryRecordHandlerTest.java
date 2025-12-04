@@ -39,8 +39,6 @@ import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.ServerStreamingCallable;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
-import com.google.cloud.bigquery.Dataset;
-import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.FieldValue;
 import com.google.cloud.bigquery.FieldValueList;
@@ -105,7 +103,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
@@ -216,7 +213,7 @@ public class BigQueryRecordHandlerTest
         mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class), any(String.class))).thenReturn(bigQuery);
         mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
         mockedStatic.when(() -> BigQueryUtils.getEnvBigQueryCredsSmId(any(Map.class))).thenReturn("dummySecret");
-        
+
         // Mock the SecretsManager response
         GetSecretValueResponse secretResponse = GetSecretValueResponse.builder()
                 .secretString("dummy-secret-value")
@@ -249,7 +246,7 @@ public class BigQueryRecordHandlerTest
         when(bigQuery.getTable(any())).thenReturn(table);
         when(table.getDefinition()).thenReturn(def);
         when(def.getType()).thenReturn(TableDefinition.Type.TABLE);
-        
+
         // Mock the fixCaseForDatasetName and fixCaseForTableName methods
         mockedStatic.when(() -> BigQueryUtils.fixCaseForDatasetName(any(String.class), any(String.class), any(BigQuery.class))).thenReturn("dataset1");
         mockedStatic.when(() -> BigQueryUtils.fixCaseForTableName(any(String.class), any(String.class), any(String.class), any(BigQuery.class))).thenReturn("table1");
