@@ -178,7 +178,7 @@ public class DocDBRecordHandler
         }
 
         // ---------------------- LIMIT pushdown support ----------------------
-        final Pair<Boolean, Integer> limitPair = getLimit(plan, recordsRequest.getConstraints());
+        final Pair<Boolean, Integer> limitPair = getLimitFromPlan(plan, recordsRequest.getConstraints());
         final boolean hasLimit = limitPair.getLeft();
         final int limit = limitPair.getRight();
         if (hasLimit) {
