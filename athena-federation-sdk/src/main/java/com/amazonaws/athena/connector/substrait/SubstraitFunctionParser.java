@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -64,7 +64,7 @@ public final class SubstraitFunctionParser
     /**
      * Parses a Substrait expression into a map of column predicates grouped by column name.
      * This method extracts all column predicates from the expression and organizes them by the column they apply to.
-     * 
+     *
      * @param extensionDeclarationList List of function extension declarations from the Substrait plan
      * @param expression The Substrait expression to parse
      * @param columnNames List of column names in the schema for field reference resolution
@@ -85,7 +85,7 @@ public final class SubstraitFunctionParser
     /**
      * Recursively parses a Substrait expression to extract all column predicates.
      * This method flattens logical operations (AND/OR) and extracts individual column predicates.
-     * 
+     *
      * @param extensionDeclarationList List of function extension declarations from the Substrait plan
      * @param expression The Substrait expression to parse
      * @param columnNames List of column names in the schema for field reference resolution
@@ -97,7 +97,7 @@ public final class SubstraitFunctionParser
     {
         List<ColumnPredicate> columnPredicates = new ArrayList<>();
         ScalarFunctionInfo functionInfo = extractScalarFunctionInfo(expression, extensionDeclarationList);
-        
+
         if (functionInfo == null) {
             return columnPredicates;
         }
@@ -150,7 +150,7 @@ public final class SubstraitFunctionParser
         if (expression == null) {
             return null;
         }
-        
+
         // Extract function information from the Substrait expression
         ScalarFunctionInfo functionInfo = extractScalarFunctionInfo(expression, extensionDeclarationList);
 
@@ -172,7 +172,7 @@ public final class SubstraitFunctionParser
         // This preserves the original logical hierarchy from the SQL query
         if (isLogicalOperator(functionInfo.getFunctionName())) {
             List<LogicalExpression> childExpressions = new ArrayList<>();
-            
+
             // Recursively parse each child argument to build the expression tree
             for (FunctionArgument argument : functionInfo.getArguments()) {
                 LogicalExpression childExpr = parseLogicalExpression(extensionDeclarationList, argument.getValue(), columnNames);
@@ -180,7 +180,7 @@ public final class SubstraitFunctionParser
                     childExpressions.add(childExpr);
                 }
             }
-            
+
             // Create logical expression node with the operator and its children
             SubstraitOperator operator = mapToOperator(functionInfo.getFunctionName());
             return new LogicalExpression(operator, childExpressions);
@@ -206,7 +206,7 @@ public final class SubstraitFunctionParser
     /**
      * Creates a mapping from function reference anchors to function names.
      * This mapping is used to resolve function references in Substrait expressions.
-     * 
+     *
      * @param extensionDeclarationList List of extension declarations containing function definitions
      * @return A map from function anchor IDs to function names
      */
@@ -261,10 +261,10 @@ public final class SubstraitFunctionParser
         Map<Integer, String> functionMap = mapFunctionReferences(extensionDeclarationList);
         String functionName = functionMap.get(scalarFunction.getFunctionReference());
         List<FunctionArgument> arguments = scalarFunction.getArgumentsList();
-        
+
         return new ScalarFunctionInfo(functionName, arguments);
     }
-    
+
     /**
      * Creates a column predicate for unary operations.
      */
@@ -274,7 +274,7 @@ public final class SubstraitFunctionParser
         SubstraitOperator substraitOperator = mapToOperator(functionInfo.getFunctionName());
         return new ColumnPredicate(columnName, substraitOperator, null, null);
     }
-    
+
     /**
      * Creates a column predicate for binary operations.
      */
@@ -285,7 +285,7 @@ public final class SubstraitFunctionParser
         SubstraitOperator substraitOperator = mapToOperator(functionInfo.getFunctionName());
         return new ColumnPredicate(columnName, substraitOperator, value.getLeft(), value.getRight());
     }
-    
+
     /**
      * Checks if a function name represents a logical operator.
      */
@@ -298,7 +298,7 @@ public final class SubstraitFunctionParser
      * Maps Substrait function names to corresponding Operator enum values.
      * This method supports comparison operators, logical operators, null checks, and the NOT operator.
      * The mapping will be extended as additional operators are needed.
-     * 
+     *
      * @param functionName The Substrait function name (e.g., "gt:any_any", "equal:any_any", "not:bool")
      * @return The corresponding Operator enum value
      * @throws UnsupportedOperationException if the function name is not supported

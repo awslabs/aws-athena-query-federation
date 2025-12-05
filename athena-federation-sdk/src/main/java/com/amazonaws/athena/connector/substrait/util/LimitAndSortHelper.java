@@ -120,7 +120,7 @@ public final class LimitAndSortHelper
                     String columnName = tableColumns.get(fieldIndex);
                     SortDirection direction = sortField.getDirection();
                     boolean ascending = (direction == SortDirection.SORT_DIRECTION_ASC_NULLS_FIRST ||
-                                       direction == SortDirection.SORT_DIRECTION_ASC_NULLS_LAST);
+                            direction == SortDirection.SORT_DIRECTION_ASC_NULLS_LAST);
                     sortFields.add(new GenericSortField(columnName, ascending));
                 }
             }

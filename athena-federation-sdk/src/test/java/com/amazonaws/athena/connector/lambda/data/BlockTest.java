@@ -117,7 +117,7 @@ public class BlockTest
         ValueSet col1Constraint = EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(), true, false)
                 .add(10).build();
         Constraints constraints = new Constraints(Collections.singletonMap("col1", col1Constraint), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
-        
+
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, constraints)) {
             block.constrain(constraintEvaluator);
 
@@ -129,7 +129,7 @@ public class BlockTest
 
             IntVector col1Vector = (IntVector) block.getFieldVector("col1");
             VarCharVector col2Vector = (VarCharVector) block.getFieldVector("col2");
-            
+
             assertEquals(11, col1Vector.get(0));
             assertEquals("test", new String(col2Vector.get(0)));
         }
@@ -397,10 +397,10 @@ public class BlockTest
                         .build());
 
         schemaBuilder.addField(FieldBuilder.newBuilder("simplemap", new ArrowType.Map(false))
-            .addField("entries", Types.MinorType.STRUCT.getType(), false, Arrays.asList(
-                    FieldBuilder.newBuilder("key", Types.MinorType.VARCHAR.getType(), false).build(),
-                    FieldBuilder.newBuilder("value", Types.MinorType.INT.getType()).build()))
-            .build());
+                .addField("entries", Types.MinorType.STRUCT.getType(), false, Arrays.asList(
+                        FieldBuilder.newBuilder("key", Types.MinorType.VARCHAR.getType(), false).build(),
+                        FieldBuilder.newBuilder("value", Types.MinorType.INT.getType()).build()))
+                .build());
         return schemaBuilder.build();
     }
 

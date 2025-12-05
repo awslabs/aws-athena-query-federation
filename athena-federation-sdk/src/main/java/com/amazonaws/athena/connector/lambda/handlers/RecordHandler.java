@@ -278,7 +278,7 @@ public abstract class RecordHandler
     /**
      * Determines if a LIMIT can be applied and extracts the limit value.
      */
-    protected Pair<Boolean, Integer> getLimit(Plan plan, Constraints constraints)
+    protected Pair<Boolean, Integer> getLimitFromPlan(Plan plan, Constraints constraints)
     {
         return LimitAndSortHelper.getLimit(plan, constraints);
     }
