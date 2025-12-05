@@ -10,7 +10,7 @@
     <version>2022.47.1</version>
     <properties>
         <!-- make sure gremlin driver version stays within the Neptune supported range -->
-        <gremlinDriverVersion>3.7.4</gremlinDriverVersion>
+        <gremlinDriverVersion>3.8.0</gremlinDriverVersion>
         <neptune.sigv4.signer.version>3.1.0</neptune.sigv4.signer.version>
     </properties>
     <dependencies>
