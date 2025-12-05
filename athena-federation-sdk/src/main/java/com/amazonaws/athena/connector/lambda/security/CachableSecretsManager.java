@@ -135,19 +135,7 @@ public class CachableSecretsManager
      */
     public String getSecret(String secretName)
     {
-        CacheEntry cacheEntry = cache.get(secretName);
-
-        if (cacheEntry == null || cacheEntry.getAge() > MAX_CACHE_AGE_MS) {
-            logger.info("getSecret: Resolving secret[{}].", secretName);
-            GetSecretValueResponse secretValueResult = secretsManager.getSecretValue(GetSecretValueRequest.builder()
-                    .secretId(secretName)
-                    .build());
-            cacheEntry = new CacheEntry(secretName, secretValueResult.secretString());
-            evictCache(cache.size() >= MAX_CACHE_SIZE);
-            cache.put(secretName, cacheEntry);
-        }
-
-        return cacheEntry.getValue();
+        return getSecret(secretName, null);
     }
 
     /**

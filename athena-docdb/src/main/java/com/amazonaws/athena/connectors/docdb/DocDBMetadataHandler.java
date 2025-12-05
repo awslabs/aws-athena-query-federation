@@ -44,9 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOp
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
-import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -76,7 +74,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.ENFORCE_SSL;
-import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.JDBC_PARAMS;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
@@ -516,28 +513,5 @@ public class DocDBMetadataHandler
         final String[] parts = secretArn.split(":");
         final String nameWithSuffix = parts[6];
         return nameWithSuffix.substring(0, nameWithSuffix.lastIndexOf('-'));
-    }
-
-    /**
-     * Determines if the current request is a federated request by checking for the presence of a FAS token.
-     * 
-     * <p>A federated request is identified by:
-     * <ul>
-     *   <li>The presence of a {@link FederatedIdentity} in the request</li>
-     *   <li>The existence of configuration options within the federated identity</li>
-     *   <li>The presence of a FAS (Federation Access Service) token in the config options</li>
-     * </ul>
-     * 
-     * <p>Federated requests require dynamic connection string construction using credentials
-     * from AWS Secrets Manager rather than static environment variables.
-     * 
-     * @param req The federation request to check
-     * @return true if this is a federated request with a FAS token, false otherwise
-     */
-    private boolean isRequestFederated(FederationRequest req)
-    {
-        FederatedIdentity federatedIdentity = req.getIdentity();
-        Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
-        return (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null);
     }
 }
