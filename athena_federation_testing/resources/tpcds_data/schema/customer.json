@@ -1,0 +1,13 @@
+{
+  "table_setup": {
+    "primary_key": "c_customer_sk",
+    "primary_type": "int",
+    "sort_key": "c_birth_year",
+    "sort_key_type": "int"
+  },
+  "predicate": {
+    "primary_key_predicate": "c_customer_sk = 65",
+    "sort_key_predicate": "c_birth_year = 1990",
+    "complex_key_predicate": "(c_customer_sk + 5) > 500"
+  }
+}
