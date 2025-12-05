@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_QUOTE_CHAR;
 
@@ -53,8 +54,6 @@ public class SnowflakeQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeQueryStringBuilder.class);
-
-    private static final String PARTITION_COLUMN_KEY = "partition";
 
     public SnowflakeQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
@@ -88,7 +87,7 @@ public class SnowflakeQueryStringBuilder
     {
         String columnNames = tableSchema.getFields().stream()
                 .map(Field::getName)
-                .filter(name -> !name.equalsIgnoreCase(PARTITION_COLUMN_KEY))
+                .filter(name -> !name.equalsIgnoreCase(BLOCK_PARTITION_COLUMN_NAME))
                 .map(this::quote)
                 .collect(Collectors.joining(", "));
 

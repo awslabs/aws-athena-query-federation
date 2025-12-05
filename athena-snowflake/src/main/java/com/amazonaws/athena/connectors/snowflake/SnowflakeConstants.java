@@ -46,9 +46,10 @@ public final class SnowflakeConstants
     public static final String SINGLE_QUOTE_CHAR = "\'";
 
     /**
-     * Column key
+     * Partition key
      */
     public static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
+    public static final String S3_ENHANCED_PARTITION_COLUMN_NAME = "s3_column_name_list";
 
     /**
      * A ssl file location constant to store the SSL certificate

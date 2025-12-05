@@ -84,6 +84,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -110,6 +111,7 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBL
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.JDBC_PROPERTIES;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.LIST_PAGINATED_TABLES_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SHOW_PRIMARY_KEYS_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_NAME;
@@ -211,12 +213,18 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
-        if (request.getConstraints().isQueryPassThrough()) {
+        if (request.getConstraints().isQueryPassThrough() && !SnowflakeConstants.isS3ExportEnabled(configOptions)) {
             return;
         }
-        LOGGER.info("{}: Catalog {}, table {}", request.getQueryId(), request.getTableName().getSchemaName(), request.getTableName());
-        // Always ensure the partition column exists in the schema
-        if (partitionSchemaBuilder.getField(BLOCK_PARTITION_COLUMN_NAME) == null) {
+
+        // enhance partition schema information for s3 export.
+        // during get splits, there is no columns which could result copy into predicate faield.
+        // we will need full list of project column here
+        if (partitionSchemaBuilder.getField(S3_ENHANCED_PARTITION_COLUMN_NAME) == null && SnowflakeConstants.isS3ExportEnabled(configOptions)) {
+            LOGGER.info("enhancePartitionSchema for S3 export {}: Catalog {}, table {}", request.getQueryId(), request.getTableName().getSchemaName(), request.getTableName());
+            partitionSchemaBuilder.addField(S3_ENHANCED_PARTITION_COLUMN_NAME, Types.MinorType.VARBINARY.getType());
+        }
+        else if (partitionSchemaBuilder.getField(BLOCK_PARTITION_COLUMN_NAME) == null) {
             partitionSchemaBuilder.addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
         }
     }
@@ -234,7 +242,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         TableName tableName = request.getTableName();
         String queryID = request.getQueryId();
-        this.handleSnowflakePartitions(blockWriter, tableName, queryID);
+
+        this.handleSnowflakePartitions(request, blockWriter, tableName, queryID);
     }
 
     @Override
@@ -250,7 +259,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 configOptions);
     }
 
-    private void handleSnowflakePartitions(BlockWriter blockWriter, TableName tableName, String queryID) throws Exception
+    private void handleSnowflakePartitions(GetTableLayoutRequest request, BlockWriter blockWriter, TableName tableName, String queryID) throws Exception
     {
         LOGGER.debug("getPartitions: {}: Schema {}, table {}", queryID, tableName.getSchemaName(),
                 tableName.getTableName());
@@ -258,7 +267,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         // if we are using export method, we don't need to calculate partition
         if (SnowflakeConstants.isS3ExportEnabled(configOptions)) {
             blockWriter.writeRows((Block block, int rowNum) -> {
-                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);
+                block.setValue(S3_ENHANCED_PARTITION_COLUMN_NAME,
+                        rowNum,
+                        request.getSchema().serializeAsMessage());
                 return 1;
             });
             return;
@@ -389,7 +400,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             String sfIntegrationName = this.getStorageIntegrationName();
             String sfS3ExportPathPrefix = this.getStorageIntegrationS3PathFromSnowFlake(connection, sfIntegrationName);
-            String snowflakeExportSQL = this.getSnowFlakeBaseSQL(request);
+            String snowflakeExportSQL = this.getSnowFlakeCopyIntoBaseSQL(request);
 
             // Build S3 path and COPY INTO query
             String s3Path = String.format("%s/%s/%s/", sfS3ExportPathPrefix, queryId, UUID.randomUUID().toString());
@@ -524,7 +535,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         /**
          * query to fetch column data type to handle appropriate datatype to arrowtype conversions.
          */
-        String dataTypeQuery = "select COLUMN_NAME, DATA_TYPE from \"INFORMATION_SCHEMA\".\"COLUMNS\" WHERE TABLE_SCHEMA=? AND TABLE_NAME=?";
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
@@ -595,9 +605,15 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public Schema getPartitionSchema(final String catalogName)
     {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        // if we are using export, we don't care about partition for table schema
+        if (SnowflakeConstants.isS3ExportEnabled(configOptions)) {
+            LOGGER.debug("Skipping partition, s3 export enable: " + catalogName);
+            return schemaBuilder.build();
+        }
+
         LOGGER.debug("getPartitionSchema: " + catalogName);
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
-                .addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
+        schemaBuilder.addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
         return schemaBuilder.build();
     }
 
@@ -754,15 +770,20 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         });
     }
 
-    private String getSnowFlakeBaseSQL(GetSplitsRequest request) throws SQLException
+    private String getSnowFlakeCopyIntoBaseSQL(GetSplitsRequest request) throws SQLException
     {
         String generatedSql;
         if (request.getConstraints().isQueryPassThrough()) {
             generatedSql = this.buildQueryPassthroughSql(request.getConstraints());
         }
         else {
+            // Get split has no column info, we will need to use the custom partition column we get from GetTableLayOurResponse to obtain information.
+            FieldReader fieldReaderPreparedStmt = request.getPartitions().getFieldReader(S3_ENHANCED_PARTITION_COLUMN_NAME);
+            ByteBuffer buffer = ByteBuffer.wrap(fieldReaderPreparedStmt.readByteArray());
+            Schema schema = Schema.deserializeMessage(buffer);
+
             generatedSql = snowflakeQueryStringBuilder.getBaseExportSQLString(request.getCatalogName(), request.getTableName().getSchemaName(), request.getTableName().getTableName(),
-                    request.getSchema(),
+                    schema,
                     request.getConstraints());
         }
         return generatedSql;

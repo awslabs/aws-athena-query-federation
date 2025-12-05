@@ -382,7 +382,8 @@ public class SnowflakeMetadataHandlerTest
 
             assertNotNull(partitions);
             assertTrue(partitions.getRowCount() > 0);
-            assertEquals("*", partitions.getFieldReader("partition").readText().toString());
+            // With S3 export enabled, the partition column now contains serialized schema bytes
+            assertNotNull(partitions.getFieldReader(SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME).readByteArray());
         }
     }
 
@@ -837,15 +838,22 @@ public class SnowflakeMetadataHandlerTest
         try (MockedStatic<SnowflakeConstants> snowflakeConstantsMockedStatic = mockStatic(SnowflakeConstants.class)) {
             snowflakeConstantsMockedStatic.when(() -> SnowflakeConstants.isS3ExportEnabled(any())).thenReturn(true);
 
-            Schema schema = SchemaBuilder.newBuilder()
+            Schema tableSchema = SchemaBuilder.newBuilder()
                 .addStringField("col1")
-                .addStringField("partition")
+                .addStringField("col2")
+                .build();
+                
+            Schema partitionSchema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addField(SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType())
                 .build();
 
-            Block partitions = allocator.createBlock(schema);
+            Block partitions = allocator.createBlock(partitionSchema);
             partitions.getFieldVector("col1").allocateNew();
-            partitions.getFieldVector("partition").allocateNew();
-            BlockUtils.setValue(partitions.getFieldVector("partition"), 0, "*");
+            partitions.getFieldVector(SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME).allocateNew();
+            // Set serialized schema bytes instead of string
+            byte[] serializedSchema = tableSchema.serializeAsMessage();
+            BlockUtils.setValue(partitions.getFieldVector(SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME), 0, serializedSchema);
             partitions.setRowCount(1);
             
             // Create handler with storage integration configuration
