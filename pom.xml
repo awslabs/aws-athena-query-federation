@@ -507,6 +507,24 @@
                     <notimestamp>true</notimestamp>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <id>print-java-info</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <commandlineArgs>-c "echo '[WARNING] ========================================'; echo '[WARNING] Maven Build Configuration Verification'; echo '[WARNING] ========================================'; if [ '${maven.compiler.release}' = '8' ]; then echo '[WARNING] Activated Profile: java8'; elif [ '${maven.compiler.release}' = '17' ]; then echo '[WARNING] Activated Profile: java17'; else echo '[WARNING] Activated Profile: default (Java 11)'; fi; echo '[WARNING] maven.compiler.release = ${maven.compiler.release}'; echo '[WARNING] Java version = ${java.version}'; echo '[WARNING] ========================================'"</commandlineArgs>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
     <profiles>
