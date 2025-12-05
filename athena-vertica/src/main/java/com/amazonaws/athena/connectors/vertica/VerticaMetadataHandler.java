@@ -350,6 +350,7 @@ public class VerticaMetadataHandler
         } catch (Exception e) {
             throw new RuntimeException("connection failed ", e);
         }
+        // To handle connection leakage issue added try-finally to close the connection, no logic change
         try {
             Set<Split> splits = new HashSet<>();
             String exportBucket = getS3ExportBucket();
