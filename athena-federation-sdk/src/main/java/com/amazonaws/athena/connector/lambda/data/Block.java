@@ -180,6 +180,34 @@ public class Block
     }
 
     /**
+     * Attempts to write the provided value to the specified field on the specified row. This method does _not_ update the
+     * row count on the underlying Apache Arrow VectorSchema. You must call setRowCount(...) to ensure the values
+     * your have written are considered 'valid rows' and thus available when you attempt to serialize this Block. This
+     * method replies on BlockUtils' field conversion/coercion logic to convert the provided value into a type that
+     * matches Apache Arrow's supported serialization format. For more details on coercion please see @BlockUtils
+     *
+     * @param fieldName The name of the field you wish to write to.
+     * @param row The row number to write to. Note that Apache Arrow Blocks begin with row 0 just like a typical array.
+     * @param value The value you wish to write.
+     * @param hasQueryPlan Whether the operation is running under a query plan, if true, bypasses constraint checks.
+     * @return True if the value was written to the Block (even if the field is missing from the Block),
+     * False if the value was not written due to failing a constraint or if query plan is present.
+     * @note This method will take no action if the provided fieldName is not a valid field in this Block's Schema.
+     * In such cases the method will return true.
+     */
+    public boolean offerValue(String fieldName, int row, Object value, boolean hasQueryPlan)
+    {
+        if (!hasQueryPlan && !constraintEvaluator.apply(fieldName, value)) {
+            return false;
+        }
+        FieldVector vector = getFieldVector(fieldName);
+        if (vector != null) {
+            BlockUtils.setValue(vector, row, value);
+        }
+        return true;
+    }
+
+    /**
      * Attempts to set the provided value for the given field name and row. If the Block's schema does not
      * contain such a field, this method does nothing and returns false.
      *

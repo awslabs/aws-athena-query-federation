@@ -160,7 +160,7 @@ public class BigQuerySqlUtilsTest
 
         // Float test
         ValueSet floatSet = SortedRangeSet.newBuilder(FLOAT_TYPE, false)
-                .add(new Range(Marker.exactly(allocator, FLOAT_TYPE, TEST_FLOAT), 
+                .add(new Range(Marker.exactly(allocator, FLOAT_TYPE, TEST_FLOAT),
                              Marker.exactly(allocator, FLOAT_TYPE, TEST_FLOAT)))
                 .build();
         constraintMap.put("floatCol", floatSet);
@@ -169,7 +169,7 @@ public class BigQuerySqlUtilsTest
         // Calculate days since epoch for 2023-01-01
         long daysFromEpoch = java.time.LocalDate.of(2023, 1, 1).toEpochDay();
         ValueSet dateSet = SortedRangeSet.newBuilder(DATE_TYPE, false)
-                .add(new Range(Marker.exactly(allocator, DATE_TYPE, daysFromEpoch), 
+                .add(new Range(Marker.exactly(allocator, DATE_TYPE, daysFromEpoch),
                              Marker.exactly(allocator, DATE_TYPE, daysFromEpoch)))
                 .build();
         constraintMap.put("dateCol", dateSet);
@@ -192,13 +192,13 @@ public class BigQuerySqlUtilsTest
         constraintMap.put("nullCol", nullSet);
 
         ValueSet nonNullSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
-                .add(new Range(Marker.lowerUnbounded(allocator, STRING_TYPE), 
+                .add(new Range(Marker.lowerUnbounded(allocator, STRING_TYPE),
                              Marker.upperUnbounded(allocator, STRING_TYPE)))
                 .build();
         constraintMap.put("nonNullCol", nonNullSet);
 
         ValueSet emptyStringSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
-                .add(new Range(Marker.exactly(allocator, STRING_TYPE, ""), 
+                .add(new Range(Marker.exactly(allocator, STRING_TYPE, ""),
                              Marker.exactly(allocator, STRING_TYPE, "")))
                 .build();
         constraintMap.put("emptyCol", emptyStringSet);

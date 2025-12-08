@@ -26,8 +26,10 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
 import com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigquery.BigQuery;
@@ -52,6 +54,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.grpc.LoadBalancerRegistry;
 import io.grpc.internal.PickFirstLoadBalancerProvider;
+import io.substrait.proto.Plan;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -85,13 +88,13 @@ import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 public class BigQueryRecordHandler
         extends RecordHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryRecordHandler.class);
     private final ThrottlingInvoker invoker;
     BufferAllocator allocator;
 
     private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
 
-    BigQueryRecordHandler(java.util.Map<String, String> configOptions, BufferAllocator allocator)
+    public BigQueryRecordHandler(java.util.Map<String, String> configOptions, BufferAllocator allocator)
     {
         this(S3Client.create(),
                 SecretsManagerClient.create(),
@@ -134,13 +137,47 @@ public class BigQueryRecordHandler
 
         TableId tableId = TableId.of(projectName, datasetName, tableName);
         TableDefinition.Type type = bigQueryClient.getTable(tableId).getDefinition().getType();
-
-        if (type.equals(TableDefinition.Type.TABLE)) {
-            getTableData(spiller, recordsRequest, parameterValues, projectName, datasetName, tableName);
-        }
-        else {
+        LOGGER.info("Table Type: {}, projectName: {}, datasetName: {}, tableName: {}, tableId: {}", type, projectName, datasetName, tableName, tableId);
+        
+        // Optimized execution strategy selection
+        if (shouldUseSqlPath(type, recordsRequest.getConstraints())) {
+            LOGGER.info("Inside If condition should use sql path");
             getData(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient, datasetName, tableName);
         }
+        else {
+            LOGGER.info("Inside else");
+            getTableData(spiller, recordsRequest, parameterValues, projectName, datasetName, tableName);
+        }
+    }
+
+    /**
+     * Determines optimal execution strategy based on table type and query characteristics.
+     * Uses SQL path for views, ORDER BY queries, and LIMIT with complex predicates.
+     */
+    private boolean shouldUseSqlPath(TableDefinition.Type tableType, Constraints constraints)
+    {
+        // Force SQL for non-TABLE types (views, materialized views, etc.)
+        if (!tableType.equals(TableDefinition.Type.TABLE)) {
+            return true;
+        }
+        
+        // Check for ORDER BY using Substrait plan or legacy constraints
+        boolean hasOrderBy = false;
+        boolean hasLimit = false;
+        if (constraints.getQueryPlan() != null) {
+            Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(constraints.getQueryPlan().getSubstraitPlan());
+            hasOrderBy = !BigQuerySubstraitPlanUtils.extractOrderByClause(plan).isEmpty();
+            hasLimit = BigQuerySubstraitPlanUtils.getLimit(plan) > 0;
+        }
+        
+        // Force SQL for ORDER BY (Storage API doesn't support ordering)
+        if (hasOrderBy || hasLimit) {
+            LOGGER.info("Order By or Limit applicable");
+            return true;
+        }
+        
+        // Default to Storage API for simple table scans
+        return false;
     }
 
     private void handleQueryPassthrough(BlockSpiller spiller,
@@ -162,8 +199,18 @@ public class BigQueryRecordHandler
                          BigQuery bigQueryClient,
                          String datasetName, String tableName) throws TimeoutException
     {
-        String query = BigQuerySqlUtils.buildSql(new TableName(datasetName, tableName),
-                recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues);
+        String query = null;
+        if (recordsRequest.getConstraints().getQueryPlan() != null) {
+            LOGGER.info("Query Plan is not null: {}", recordsRequest.getConstraints().getQueryPlan());
+            query = BigQuerySqlUtils.buildSqlFromPlan(new TableName(datasetName, tableName),
+                    recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues);
+            LOGGER.info("Query generated with plan: {}", query);
+        }
+        else {
+            query = BigQuerySqlUtils.buildSql(new TableName(datasetName, tableName),
+                    recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues);
+            LOGGER.info("Query generated without plan: {}", query);
+        }
         getData(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient, query);
     }
 
@@ -174,8 +221,8 @@ public class BigQueryRecordHandler
                          BigQuery bigQueryClient,
                          String query) throws TimeoutException
     {
-        logger.debug("Got Request with constraints: {}", recordsRequest.getConstraints());
-        logger.debug("Executing SQL Query: {} for Split: {}", query, recordsRequest.getSplit());
+        LOGGER.debug("Got Request with constraints: {}", recordsRequest.getConstraints());
+        LOGGER.debug("Executing SQL Query: {} for Split: {}", query, recordsRequest.getSplit());
         QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).setUseLegacySql(false).setPositionalParameters(parameterValues).build();
         Job queryJob;
         try {
@@ -184,7 +231,7 @@ public class BigQueryRecordHandler
         }
         catch (BigQueryException bqe) {
             if (bqe.getMessage().contains("Already Exists: Job")) {
-                logger.info("Caught exception that this job is already running. ");
+                LOGGER.info("Caught exception that this job is already running. ");
                 //Return silently because another lambda is already processing this.
                 //Ideally when this happens, we would want to get the existing queryJob.
                 //This would allow this Lambda to timeout while waiting for the query.
@@ -214,7 +261,7 @@ public class BigQueryRecordHandler
             }
         }
         catch (InterruptedException ie) {
-            logger.info("Got interrupted waiting for Big Query to finish the query.");
+            LOGGER.info("Got interrupted waiting for Big Query to finish the query.");
             Thread.currentThread().interrupt();
         }
         outputResultsView(spiller, recordsRequest, result);
@@ -239,6 +286,7 @@ public class BigQueryRecordHandler
             ReadSession.TableReadOptions.Builder optionsBuilder =
                     ReadSession.TableReadOptions.newBuilder()
                             .addAllSelectedFields(fields);
+            LOGGER.info("Inside get table data method");
             ReadSession.TableReadOptions options = BigQueryStorageApiUtils.setConstraints(optionsBuilder, recordsRequest.getSchema(), recordsRequest.getConstraints()).build();
 
             // Start specifying the read session we want created.
@@ -268,7 +316,7 @@ public class BigQueryRecordHandler
                     Preconditions.checkState(session.getStreamsCount() > 0);
                 }
                 catch (IllegalStateException exp) {
-                    logger.warn("No records found in the table: " + tableName);
+                    LOGGER.warn("No records found in the table: " + tableName);
                     return;
                 }
 
@@ -333,9 +381,9 @@ public class BigQueryRecordHandler
      */
     private void outputResultsView(BlockSpiller spiller, ReadRecordsRequest recordsRequest, TableResult result)
     {
-        logger.info("Inside outputResults: ");
+        LOGGER.info("Inside outputResults: ");
         String timeStampColsList = Objects.toString(recordsRequest.getSchema().getCustomMetadata().get("timeStampCols"), "");
-        logger.info("timeStampColsList: " + timeStampColsList);
+        LOGGER.info("timeStampColsList: " + timeStampColsList);
         if (result != null) {
             for (FieldValueList row : result.iterateAll()) {
                 spiller.writeRows((Block block, int rowNum) -> {
