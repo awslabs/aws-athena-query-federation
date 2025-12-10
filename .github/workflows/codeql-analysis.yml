@@ -29,13 +29,13 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
       # Specify custom java build since the autobuild doesn't take advantage of multiple cores.
       # For more info on specifying custom build steps, see:
       # https://docs.github.com/en/enterprise-server@3.6/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-the-codeql-workflow-for-compiled-languages#adding-build-steps-for-a-compiled-language
       - name: Build java
         run: mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
