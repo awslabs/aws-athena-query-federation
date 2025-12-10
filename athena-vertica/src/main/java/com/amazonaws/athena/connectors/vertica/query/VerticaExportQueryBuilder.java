@@ -448,6 +448,9 @@ public class VerticaExportQueryBuilder {
      * Output: SELECT name FROM users WHERE id = {param0} AND status = {param1}
      */
     private SqlSelect createParameterizedQuery(SqlSelect select) {
+        if (select.getFetch() != null || select.getOffset() != null) {
+            return select;
+        }
         AtomicInteger paramIndex = new AtomicInteger(0);
 
         if (select.getWhere() != null) {

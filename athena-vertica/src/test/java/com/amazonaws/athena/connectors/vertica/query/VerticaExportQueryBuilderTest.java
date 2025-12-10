@@ -217,6 +217,21 @@ public class VerticaExportQueryBuilderTest {
     }
 
     @Test
+    public void withQueryPlan_WithLimit_OrderBy_WhereClause() {
+        // SQL: SELECT * FROM "basic_write_nonexist" where job_title IN ('Project Lead' , 'Software Engineer') AND is_active='true' ORDER BY employee_id limit 2
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("", "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIQGg4IARABGghhbmQ6Ym9vbBIPGg0IARACGgdvcjpib29sEhUaEwgCEAMaDWVxdWFsOmFueV9hbnkaowkSoAkKwgcavwcKAgoAErQHKrEHCgIKABKaBzqXBwobEhkKFxcYGRobHB0eHyAhIiMkJSYnKCkqKywtEuUEEuIECgIKABKlAwqiAwoCCgAS+wIKCnZhcl9iaW5hcnkKCWludF9maWVsZAoIdGlueV9pbnQKCXNtYWxsX2ludAoLZW1wbG95ZWVfaWQKCWlzX2FjdGl2ZQoNZW1wbG95ZWVfbmFtZQoJam9iX3RpdGxlCgdhZGRyZXNzCglqb2luX2RhdGUKCXRpbWVzdGFtcAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKBWNvdW50CgZhbW91bnQKB2JhbGFuY2UKBHJhdGUKCmRpZmZlcmVuY2USnQEKBGoCEAEKBCoCEAEKBBICEAEKBBoCEAEKBGICEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaswEasAEIARoECgIQASJxGm8abQgCGgQKAhABIi4aLBoqCAMaBAoCEAEiDBoKEggKBBICCAciACISGhAKDmIMUHJvamVjdCBMZWFkIjMaMRovCAMaBAoCEAEiDBoKEggKBBICCAciACIXGhUKE2IRU29mdHdhcmUgRW5naW5lZXIiMxoxGi8IAxoECgIQASIMGgoSCAoEEgIIBSIAIhcaFVoTCgQKAhACEgkKB6oBBHRydWUYAhoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJIgAaChIICgQSAggKIgAaChIICgQSAggLIgAaChIICgQSAggMIgAaChIICgQSAggNIgAaChIICgQSAggOIgAaChIICgQSAggPIgAaChIICgQSAggQIgAaChIICgQSAggRIgAaChIICgQSAggSIgAaChIICgQSAggTIgAaChIICgQSAggUIgAaChIICgQSAggVIgAaChIICgQSAggWIgAaDgoKEggKBBICCAQiABACGAAgAhIKdmFyX2JpbmFyeRIJaW50X2ZpZWxkEgh0aW55X2ludBIJc21hbGxfaW50EgtlbXBsb3llZV9pZBIJaXNfYWN0aXZlEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSB2FkZHJlc3MSCWpvaW5fZGF0ZRIJdGltZXN0YW1wEghkdXJhdGlvbhIGc2FsYXJ5EgVib251cxIFaGFzaDESBWhhc2gyEgRjb2RlEgVkZWJpdBIFY291bnQSBmFtb3VudBIHYmFsYW5jZRIEcmF0ZRIKZGlmZmVyZW5jZTILEEoqB2lzdGhtdXM=");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT);
+        String expectedQuery =
+                "SELECT \"var_binary\", \"int_field\", \"tiny_int\", \"small_int\", \"employee_id\", \"is_active\", \"employee_name\", \"job_title\", \"address\", \"join_date\", CAST(\"timestamp\" AS VARCHAR) AS \"timestamp\", \"duration\", \"salary\", \"bonus\", \"hash1\", \"hash2\", \"code\", \"debit\", \"count\", \"amount\", \"balance\", \"rate\", \"difference\"\n" +
+                        "FROM \"public\".\"basic_write_nonexist\"\n" +
+                        "WHERE \"job_title\" IN ('Project Lead', 'Software Engineer') AND \"is_active\"\n" +
+                        "ORDER BY \"employee_id\"\n" +
+                        "LIMIT 2";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
     public void withQueryPlan_NotClause() {
         // SQL: SELECT employee_name,bonus FROM basic_write_nonexist WHERE bonus != '5000'
         VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
