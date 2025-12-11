@@ -349,6 +349,11 @@
                                 <exclude>META-INF/*.SF</exclude>
                                 <exclude>META-INF/*.DSA</exclude>
                                 <exclude>META-INF/*.RSA</exclude>
+                                <!-- CRITICAL FIX for CVE-2025-48924: Exclude problematic metadata -->
+                                <!-- These POMs declare vulnerable commons-lang/commons-lang3 versions -->
+                                <!-- 1. commons-lang 2.4 (direct vulnerability) -->
+                                <exclude>META-INF/maven/commons-lang/commons-lang/pom.xml</exclude>
+                                <exclude>META-INF/maven/commons-lang/commons-lang/pom.properties</exclude>
                             </excludes>
                         </filter>
                     </filters>
