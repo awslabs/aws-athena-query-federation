@@ -121,11 +121,11 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.bool(true),
                 QueryParameterValue.int64(10), QueryParameterValue.int64(1000000));
         String expectedSql = "SELECT `integerRange`,`isNullRange`,`isNotNullRange`,`stringRange`,`booleanRange`,`integerInRange` from `schema`.`table` " +
-                "WHERE ((integerRange IS NULL) OR (`integerRange` > ? AND `integerRange` < ?)) " +
-                "AND (isNullRange IS NULL) AND (isNotNullRange IS NOT NULL) " +
-                "AND ((`stringRange` >= ? AND `stringRange` < ?)) " +
-                "AND (`booleanRange` = ?) " +
-                "AND (`integerInRange` IN (?,?))";
+                "WHERE integerRange IS NULL OR `integerRange` > ? AND `integerRange` < ? " +
+                "AND isNullRange IS NULL AND isNotNullRange IS NOT NULL " +
+                "AND `stringRange` >= ? AND `stringRange` < ? " +
+                "AND `booleanRange` = ? " +
+                "AND `integerInRange` IN (?,?)";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParameterValues, expectedSql);
     }
@@ -147,8 +147,8 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.int64(0),
                 QueryParameterValue.int64(100)
         );
-        String expectedSql = "SELECT `intCol` from `schema`.`table` WHERE ((`intCol` > ? AND `intCol` < ?)) " +
-                "ORDER BY `intCol` ASC NULLS FIRST, `stringCol` DESC NULLS LAST limit 10";
+        String expectedSql = "SELECT `intCol` from `schema`.`table` WHERE `intCol` > ? AND `intCol` < ? " +
+                "ORDER BY `intCol` ASC NULLS FIRST, `stringCol` DESC NULLS LAST LIMIT 10";
         Constraints constraints = getConstraints(constraintMap, orderByFields, 10);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParams, expectedSql);
     }
@@ -178,7 +178,7 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.date(TEST_DATE)
         );
         String expectedSql = "SELECT `floatCol`,`dateCol` from `schema`.`table` " +
-                "WHERE (`floatCol` = ?) AND (`dateCol` = ?)";
+                "WHERE `floatCol` = ? AND `dateCol` = ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParams, expectedSql);
     }
@@ -204,7 +204,7 @@ public class BigQuerySqlUtilsTest
         constraintMap.put("emptyCol", emptyStringSet);
         List<QueryParameterValue> expectedParams = ImmutableList.of(QueryParameterValue.string(""));
         String expectedSql = "SELECT `nullCol`,`nonNullCol`,`emptyCol` from `schema`.`table` " +
-                "WHERE (nullCol IS NULL) AND (nonNullCol IS NOT NULL) AND (`emptyCol` = ?)";
+                "WHERE nullCol IS NULL AND nonNullCol IS NOT NULL AND `emptyCol` = ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParams, expectedSql);
     }
@@ -226,7 +226,7 @@ public class BigQuerySqlUtilsTest
                              Marker.exactly(allocator, STRING_TYPE, VALUE_PREFIX + valueThree)))
                 .build();
         constraintMap.put("multiValueCol", inSet);
-        String expectedSql = "SELECT `multiValueCol` from `schema`.`table` WHERE (`multiValueCol` IN (?,?,?))";
+        String expectedSql = "SELECT `multiValueCol` from `schema`.`table` WHERE `multiValueCol` IN (?,?,?)";
         List<QueryParameterValue> expectedParams = ImmutableList.of(
                 QueryParameterValue.string(VALUE_PREFIX + valueOne),
                 QueryParameterValue.string(VALUE_PREFIX + valueTwo),
@@ -291,7 +291,7 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.dateTime(TEST_DATE + " " + TEST_TIME + ".123000")   // .123 padded
         );
         String expectedSql = "SELECT `dateNoMicrosCol`,`dateMicrosCol` from `schema`.`table` " +
-                "WHERE (`dateNoMicrosCol` = ?) AND (`dateMicrosCol` = ?)";
+                "WHERE `dateNoMicrosCol` = ? AND `dateMicrosCol` = ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, schema, expectedParams, expectedSql);
     }
@@ -349,8 +349,8 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.date(TEST_DATE)                  // Epoch GTE
         );
         String expectedSql = "SELECT `dateStringLteCol`,`dateStringGteCol`,`dateEpochLteCol`,`dateEpochGteCol` from `schema`.`table` " +
-                "WHERE ((`dateStringLteCol` <= ?)) AND ((`dateStringGteCol` >= ?)) AND " +
-                "((`dateEpochLteCol` <= ?)) AND ((`dateEpochGteCol` >= ?))";
+                "WHERE `dateStringLteCol` <= ? AND `dateStringGteCol` >= ? AND " +
+                "`dateEpochLteCol` <= ? AND `dateEpochGteCol` >= ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, schema, expectedParams, expectedSql);
     }
@@ -410,8 +410,8 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.date(dateValue)                  // Epoch GTE
         );
         String expectedSql = "SELECT `dateStringLteCol`,`dateStringGteCol`,`dateEpochLteCol`,`dateEpochGteCol` from `schema`.`table` " +
-                "WHERE ((`dateStringLteCol` <= ?)) AND ((`dateStringGteCol` >= ?)) AND " +
-                "((`dateEpochLteCol` <= ?)) AND ((`dateEpochGteCol` >= ?))";
+                "WHERE `dateStringLteCol` <= ? AND `dateStringGteCol` >= ? AND " +
+                "`dateEpochLteCol` <= ? AND `dateEpochGteCol` >= ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, schema, expectedParams, expectedSql);
     }
