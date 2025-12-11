@@ -38,6 +38,9 @@ We provide testing for both from Athena Datacatalog and Glue datacatalog
 
 Under Root: 
 ```
+Python at least 3.12
+pip at least 24.3
+
 python -m venv perf_testing
 source perf_testing/bin/activate
 pip install -r requirements.txt
@@ -46,9 +49,11 @@ pip install -r requirements.txt
 Manual Steps:
 
 This testing framework will boostrap resources for you, hence, this required a `Master_key` for all databases generated.
-You will need to fill the config.properties.template and rename it to config.properties.
+You will need to fill config.properties.
 
-1. Required a secret from secret manager for  `rds_secret_name`.
+1. `tpcds_scale_factor` -> specify factor, example: tpcds1, tpcds30, tpcds100
+2. `lf_admin_role_arn` -> specify if you want to use migrate catalog from Athena to LakeFormation
+3. =Required a secret from secret manager for  `rds_secret_name`.
 
 Format as below
 ```

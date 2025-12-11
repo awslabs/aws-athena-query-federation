@@ -135,7 +135,7 @@ def generate_tpcds_data():
         '--conf': 'spark.sql.shuffle.partitions=100',
         '--BUCKET_NAME': config_helper.get_glue_job_bucket_name(common_infra.get_account_id()),
         '--SCALE': config_helper.get_tpcds_scale_factor_number(),
-        '--NUM_PARTITIONS':'64', #3 workers with 16cpu
+        '--NUM_PARTITIONS':'48', #3 workers with 16cpu
         '--CONNECTION_NAME': glue_connection_name,
         '--TABLE_LIST': ','.join(tables)
     }

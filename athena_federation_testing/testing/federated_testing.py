@@ -353,8 +353,8 @@ class Federated_Testing(ABC):
         queries = []
 
         queries.append({
-            "Query":f'SELECT c_customer_sk FROM {catalog_name}.{self.get_database_name()}.customer',
-            "TableName":"customer",
+            "Query":f'SELECT c_customer_sk FROM {catalog_name}.{self.get_database_name()}.{self.get_table_prefix()}customer',
+            "TableName":f"{self.get_table_prefix()}customer",
             "Description":"Column projection",
         })
         return queries
