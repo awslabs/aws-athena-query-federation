@@ -671,6 +671,18 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">BigQueryMetadataHandler(EncryptionKeyFactory, SecretsManagerClient, AthenaClient, String, String, String, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryMetadataHandler.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQueryMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryPredicateBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query"><span class="typeNameLink">BigQueryPredicateBuilder</span></a> - Class in <a href="com/amazonaws/athena/connectors/google/bigquery/query/package-summary.html">com.amazonaws.athena.connectors.google.bigquery.query</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query"><span class="typeNameLink">BigQueryQueryBuilder</span></a> - Class in <a href="com/amazonaws/athena/connectors/google/bigquery/query/package-summary.html">com.amazonaws.athena.connectors.google.bigquery.query</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#%3Cinit%3E(org.stringtemplate.v4.ST)">BigQueryQueryBuilder(ST)</a></span> - Constructor for class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryFactory.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query"><span class="typeNameLink">BigQueryQueryFactory</span></a> - Class in <a href="com/amazonaws/athena/connectors/google/bigquery/query/package-summary.html">com.amazonaws.athena.connectors.google.bigquery.query</a></dt>
+<dd>
+<div class="block">Factory for creating BigQuery query builders with StringTemplate support.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryFactory.html#%3Cinit%3E()">BigQueryQueryFactory()</a></span> - Constructor for class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryFactory.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryFactory</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt"><span class="typeNameLink">BigQueryQueryPassthrough</span></a> - Class in <a href="com/amazonaws/athena/connectors/google/bigquery/qpt/package-summary.html">com.amazonaws.athena.connectors.google.bigquery.qpt</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#%3Cinit%3E()">BigQueryQueryPassthrough()</a></span> - Constructor for class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
@@ -683,7 +695,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/google/bigquery/BigQuerySqlUtils.html" title="class in com.amazonaws.athena.connectors.google.bigquery"><span class="typeNameLink">BigQuerySqlUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/google/bigquery/package-summary.html">com.amazonaws.athena.connectors.google.bigquery</a></dt>
 <dd>
-<div class="block">Utilities that help with Sql operations.</div>
+<div class="block">Utilities that help with Sql operations using StringTemplate.</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryStorageApiUtils.html" title="class in com.amazonaws.athena.connectors.google.bigquery"><span class="typeNameLink">BigQueryStorageApiUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/google/bigquery/package-summary.html">com.amazonaws.athena.connectors.google.bigquery</a></dt>
 <dd>
@@ -880,6 +892,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Builds the client.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#build()">build()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseRowBuilder.html#build()">build()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseRowBuilder.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseRowBuilder</a></dt>
 <dd>
 <div class="block">Returns the built row.</div>
@@ -899,6 +913,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html#build()">build()</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">VerticaExportQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/PredicateBuilder.html#buildConjucts(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">buildConjucts(Constraints)</a></span> - Static method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/PredicateBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">PredicateBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryPredicateBuilder.html#buildConjuncts(java.util.List,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,java.util.List)">buildConjuncts(List&lt;Field&gt;, Constraints, List&lt;QueryParameterValue&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryPredicateBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryPredicateBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/stacks/ConnectorStack.html#builder()">builder()</a></span> - Static method in class com.amazonaws.athena.connector.integ.stacks.<a href="com/amazonaws/athena/connector/integ/stacks/ConnectorStack.html" title="class in com.amazonaws.athena.connector.integ.stacks">ConnectorStack</a></dt>
 <dd>&nbsp;</dd>
@@ -976,8 +992,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQuerySqlUtils.html#buildSql(com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,java.util.List)">buildSql(TableName, Schema, Constraints, List&lt;QueryParameterValue&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQuerySqlUtils.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQuerySqlUtils</a></dt>
 <dd>
-<div class="block">Builds an SQL statement from the schema, table name, split and contraints that can be executable by
- BigQuery.</div>
+<div class="block">Builds an SQL statement from the schema, table name, split and constraints that can be executable by
+ BigQuery using StringTemplate approach.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html#buildSql(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSql(Connection, String, String, String, Schema, Constraints, Split)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcSplitQueryBuilder</a></dt>
 <dd>
@@ -1564,6 +1580,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/package-summary.html">com.amazonaws.athena.connectors.google.bigquery.qpt</a> - package com.amazonaws.athena.connectors.google.bigquery.qpt</dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/google/bigquery/query/package-summary.html">com.amazonaws.athena.connectors.google.bigquery.query</a> - package com.amazonaws.athena.connectors.google.bigquery.query</dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a> - package com.amazonaws.athena.connectors.hbase</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/connection/package-summary.html">com.amazonaws.athena.connectors.hbase.connection</a> - package com.amazonaws.athena.connectors.hbase.connection</dt>
@@ -2116,6 +2134,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Creates a PrivateKey object from a private key string.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/QueryFactory.html#createQptVerticaExportQueryBuilder()">createQptVerticaExportQueryBuilder()</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/QueryFactory.html" title="class in com.amazonaws.athena.connectors.vertica.query">QueryFactory</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryFactory.html#createQueryBuilder()">createQueryBuilder()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryFactory.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/QueryFactory.html#createSelectQueryBuilder(java.lang.String)">createSelectQueryBuilder(String)</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/QueryFactory.html" title="class in com.amazonaws.athena.connectors.timestream.query">QueryFactory</a></dt>
 <dd>&nbsp;</dd>
@@ -4960,6 +4980,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html#getConjucts()">getConjucts()</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#getConjuncts()">getConjuncts()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/HiveJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/HiveJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.cloudera">HiveJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/ImpalaJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/ImpalaJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.cloudera">ImpalaJdbcConnectionFactory</a></dt>
@@ -5631,6 +5653,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html#getLimit()">getLimit()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#getLimitClause()">getLimitClause()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#getLogger()">getLogger()</a></span> - Method in interface com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.<a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthroughSignature</a></dt>
 <dd>
 <div class="block">note: due to needing to stay compatible with JDK8; we can't use JDK9 private method</div>
@@ -5868,6 +5892,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html#getOrderByClause()">getOrderByClause()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#getOrderByClause()">getOrderByClause()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Ranges.html#getOrderedRanges()">getOrderedRanges()</a></span> - Method in interface com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Ranges.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">Ranges</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/SortedRangeSet.html#getOrderedRanges()">getOrderedRanges()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/SortedRangeSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">SortedRangeSet</a></dt>
@@ -5895,6 +5921,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeMetadataHandler.html#getPaginatedTables(java.sql.Connection,java.lang.String,int,int)">getPaginatedTables(Connection, String, int, int)</a></span> - Method in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeMetadataHandler.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/sqlserver/SqlServerMetadataHandler.html#getPaginatedTables(java.sql.Connection,java.lang.String,int,int)">getPaginatedTables(Connection, String, int, int)</a></span> - Method in class com.amazonaws.athena.connectors.sqlserver.<a href="com/amazonaws/athena/connectors/sqlserver/SqlServerMetadataHandler.html" title="class in com.amazonaws.athena.connectors.sqlserver">SqlServerMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#getParameterValues()">getParameterValues()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html#getPartitionCols()">getPartitionCols()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a></dt>
 <dd>
@@ -6194,6 +6222,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Public accessor for the Subnet Ids (e.g. subnet-xxxxx)</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#getProjection()">getProjection()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html#getProjection()">getProjection()</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#getProjectionAttributeNames()">getProjectionAttributeNames()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
@@ -6305,6 +6335,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchUtils.html#getQueryResult(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest)">getQueryResult(CloudWatchLogsClient, StartQueryRequest)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchUtils.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchUtils.html#getQueryResults(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse)">getQueryResults(CloudWatchLogsClient, StartQueryResponse)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchUtils.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchUtils</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryFactory.html#getQueryTemplate(java.lang.String)">getQueryTemplate(String)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryFactory.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Ranges.html#getRangeCount()">getRangeCount()</a></span> - Method in interface com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Ranges.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">Ranges</a></dt>
 <dd>&nbsp;</dd>
@@ -6528,6 +6560,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Returns the schema name that tables should be listed for.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#getSchemaName()">getSchemaName()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html#getSchemaNameCaseInsensitiveMatch(java.util.Map,com.mongodb.client.MongoClient,java.lang.String)">getSchemaNameCaseInsensitiveMatch(Map&lt;String, String&gt;, MongoClient, String)</a></span> - Static method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBCaseInsensitiveResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html#getSchemas()">getSchemas()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></dt>
@@ -6906,6 +6940,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">The fully qualified name of the table represented by this TableProvider.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#getTableName()">getTableName()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/DescribeTableQueryBuilder.html#getTableName()">getTableName()</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">DescribeTableQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html#getTableName()">getTableName()</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">SelectQueryBuilder</a></dt>
@@ -7111,6 +7147,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Provides access to the Apache Arrow Block used to store the value of this marker.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryStorageApiUtils.html#getValueForWhereClause(java.lang.String,java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType)">getValueForWhereClause(String, Object, ArrowType)</a></span> - Static method in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryStorageApiUtils.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQueryStorageApiUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.html#getValues()">getValues()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">EquatableValueSet</a></dt>
 <dd>
 <div class="block">Provides access to all the values in this ValueSet.</div>
@@ -10154,6 +10192,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/v2/RemoteReadRecordsResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><span class="typeNameLink">RemoteReadRecordsResponseSerDe.Serializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQuerySqlUtils.html#renderTemplate(java.lang.String,java.util.Map)">renderTemplate(String, Map&lt;String, Object&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQuerySqlUtils.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQuerySqlUtils</a></dt>
+<dd>
+<div class="block">Generic method to render any string template with parameters</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchMetadataHandler.html#resolveDomainMap(java.util.Map)">resolveDomainMap(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchMetadataHandler.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseFieldResolver.html#resolver(boolean,java.lang.String)">resolver(boolean, String)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseFieldResolver.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseFieldResolver</a></dt>
@@ -12671,6 +12713,8 @@ the order they are declared.</div>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html#withConjucts(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">withConjucts(Constraints)</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#withConjuncts(org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">withConjuncts(Schema, Constraints)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/PreparedStatementBuilder.html#withConnection(java.sql.Connection)">withConnection(Connection)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/PreparedStatementBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">PreparedStatementBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html#withConstraints(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,org.apache.arrow.vector.types.pojo.Schema)">withConstraints(Constraints, Schema)</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">VerticaExportQueryBuilder</a></dt>
@@ -12709,6 +12753,8 @@ the order they are declared.</div>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html#withIsDirectory(boolean)">withIsDirectory(boolean)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.spill.<a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain.spill">S3SpillLocation.Builder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#withLimitClause(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">withLimitClause(Constraints)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SpillConfig.Builder.html#withMaxBlockBytes(long)">withMaxBlockBytes(long)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SpillConfig.Builder.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig.Builder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html#withMaxDelayMs(long)">withMaxDelayMs(long)</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a></dt>
@@ -12719,11 +12765,15 @@ the order they are declared.</div>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SpillConfig.Builder.html#withNumSpillThreads(int)">withNumSpillThreads(int)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SpillConfig.Builder.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig.Builder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#withOrderByClause(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">withOrderByClause(Constraints)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/PreparedStatementBuilder.html#withParameters(java.util.List)">withParameters(List&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/PreparedStatementBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">PreparedStatementBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html#withPrefix(java.lang.String)">withPrefix(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.spill.<a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain.spill">S3SpillLocation.Builder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html#withPreparedStatementSQL(java.lang.String)">withPreparedStatementSQL(String)</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">VerticaExportQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#withProjection(org.apache.arrow.vector.types.pojo.Schema)">withProjection(Schema)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html#withProjection(org.apache.arrow.vector.types.pojo.Schema)">withProjection(Schema)</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -12754,6 +12804,8 @@ the order they are declared.</div>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/DataSourceOptimizations.html#withSupportedSubTypes(com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.PushdownSubTypes...)">withSupportedSubTypes(PushdownSubTypes...)</a></span> - Method in enum com.amazonaws.athena.connector.lambda.metadata.optimizations.<a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/DataSourceOptimizations.html" title="enum in com.amazonaws.athena.connector.lambda.metadata.optimizations">DataSourceOptimizations</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/DescribeTableQueryBuilder.html#withTablename(java.lang.String)">withTablename(String)</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">DescribeTableQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html#withTableName(com.amazonaws.athena.connector.lambda.domain.TableName)">withTableName(TableName)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.query.<a href="com/amazonaws/athena/connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html#withTableName(java.lang.String)">withTableName(String)</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -12824,6 +12876,8 @@ the order they are declared.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html#writeAllValue(org.apache.arrow.vector.complex.writer.FieldWriter,org.apache.arrow.vector.types.pojo.Field,org.apache.arrow.memory.BufferAllocator,int,com.amazonaws.athena.connector.lambda.data.FieldResolver,java.lang.Object,boolean)">writeAllValue(FieldWriter, Field, BufferAllocator, int, FieldResolver, Object, boolean)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockUtils</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryFederationExpressionParser.html#writeArrayConstructorClause(java.util.List)">writeArrayConstructorClause(List&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryFederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQueryFederationExpressionParser</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/HiveFederationExpressionParser.html#writeArrayConstructorClause(org.apache.arrow.vector.types.pojo.ArrowType,java.util.List)">writeArrayConstructorClause(ArrowType, List&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/HiveFederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.cloudera">HiveFederationExpressionParser</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/ImpalaFederationExpressionParser.html#writeArrayConstructorClause(org.apache.arrow.vector.types.pojo.ArrowType,java.util.List)">writeArrayConstructorClause(ArrowType, List&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/ImpalaFederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.cloudera">ImpalaFederationExpressionParser</a></dt>
@@ -12831,8 +12885,6 @@ the order they are declared.</div>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2FederationExpressionParser.html#writeArrayConstructorClause(org.apache.arrow.vector.types.pojo.ArrowType,java.util.List)">writeArrayConstructorClause(ArrowType, List&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2FederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2FederationExpressionParser</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2FederationExpressionParser.html#writeArrayConstructorClause(org.apache.arrow.vector.types.pojo.ArrowType,java.util.List)">writeArrayConstructorClause(ArrowType, List&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2FederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.db2">Db2FederationExpressionParser</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryFederationExpressionParser.html#writeArrayConstructorClause(org.apache.arrow.vector.types.pojo.ArrowType,java.util.List)">writeArrayConstructorClause(ArrowType, List&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryFederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQueryFederationExpressionParser</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hortonworks/HiveFederationExpressionParser.html#writeArrayConstructorClause(org.apache.arrow.vector.types.pojo.ArrowType,java.util.List)">writeArrayConstructorClause(ArrowType, List&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.hortonworks.<a href="com/amazonaws/athena/connectors/hortonworks/HiveFederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.hortonworks">HiveFederationExpressionParser</a></dt>
 <dd>&nbsp;</dd>

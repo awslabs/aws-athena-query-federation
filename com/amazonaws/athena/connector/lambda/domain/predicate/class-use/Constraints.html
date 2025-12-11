@@ -179,58 +179,62 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.google.bigquery.query">com.amazonaws.athena.connectors.google.bigquery.query</a></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.hortonworks">com.amazonaws.athena.connectors.hortonworks</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.jdbc">com.amazonaws.athena.connectors.jdbc</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.jdbc.manager">com.amazonaws.athena.connectors.jdbc.manager</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.mysql">com.amazonaws.athena.connectors.mysql</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.oracle">com.amazonaws.athena.connectors.oracle</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.postgresql">com.amazonaws.athena.connectors.postgresql</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.saphana">com.amazonaws.athena.connectors.saphana</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.snowflake">com.amazonaws.athena.connectors.snowflake</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.sqlserver">com.amazonaws.athena.connectors.sqlserver</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.synapse">com.amazonaws.athena.connectors.synapse</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.teradata">com.amazonaws.athena.connectors.teradata</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.timestream.query">com.amazonaws.athena.connectors.timestream.query</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.vertica.query">com.amazonaws.athena.connectors.vertica.query</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -922,8 +926,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
         <a href="../Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
         <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;com.google.cloud.bigquery.QueryParameterValue&gt;&nbsp;parameterValues)</code></th>
 <td class="colLast">
-<div class="block">Builds an SQL statement from the schema, table name, split and contraints that can be executable by
- BigQuery.</div>
+<div class="block">Builds an SQL statement from the schema, table name, split and constraints that can be executable by
+ BigQuery using StringTemplate approach.</div>
 </td>
 </tr>
 <tr class="rowColor">
@@ -937,6 +941,46 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <th class="colSecond" scope="row"><span class="typeNameLabel">BigQueryStorageApiUtils.</span><code><span class="memberNameLink"><a href="../../../../../connectors/google/bigquery/BigQueryStorageApiUtils.html#setConstraints(com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">setConstraints</a></span>&#8203;(com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder&nbsp;optionsBuilder,
               org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
               <a href="../Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</section>
+</li>
+<li class="blockList">
+<section><a id="com.amazonaws.athena.connectors.google.bigquery.query">
+<!--   -->
+</a>
+<h3>Uses of <a href="../Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a> in <a href="../../../../../connectors/google/bigquery/query/package-summary.html">com.amazonaws.athena.connectors.google.bigquery.query</a></h3>
+<table class="useSummary">
+<caption><span>Methods in <a href="../../../../../connectors/google/bigquery/query/package-summary.html">com.amazonaws.athena.connectors.google.bigquery.query</a> with parameters of type <a href="../Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Method</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BigQueryPredicateBuilder.</span><code><span class="memberNameLink"><a href="../../../../../connectors/google/bigquery/query/BigQueryPredicateBuilder.html#buildConjuncts(java.util.List,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,java.util.List)">buildConjuncts</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;org.apache.arrow.vector.types.pojo.Field&gt;&nbsp;columns,
+              <a href="../Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
+              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;com.google.cloud.bigquery.QueryParameterValue&gt;&nbsp;parameterValues)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="../../../../../connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BigQueryQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../../connectors/google/bigquery/query/BigQueryQueryBuilder.html#withConjuncts(org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">withConjuncts</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
+             <a href="../Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BigQueryQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../../connectors/google/bigquery/query/BigQueryQueryBuilder.html#withLimitClause(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">withLimitClause</a></span>&#8203;(<a href="../Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="../../../../../connectors/google/bigquery/query/BigQueryQueryBuilder.html" title="class in com.amazonaws.athena.connectors.google.bigquery.query">BigQueryQueryBuilder</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BigQueryQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../../connectors/google/bigquery/query/BigQueryQueryBuilder.html#withOrderByClause(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">withOrderByClause</a></span>&#8203;(<a href="../Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
