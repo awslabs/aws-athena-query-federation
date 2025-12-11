@@ -49,13 +49,13 @@ jobs:
 
       - name: Load data and run test
         run: |
-               cd $GITHUB_WORKSPACE/athena_federation_testing;
+          cd $GITHUB_WORKSPACE/athena_federation_testing;
           #           python infra_main.py --action generate_tpcds;
           #           python infra_main.py --action create_infra;
           #           python infra_main.py --action load_data;
-               python infra_main.py --action create_connector;
-               python infra_main.py --action update_connector;
-               python testing_main.py --action release_test;
+          python infra_main.py --action create_connector;
+          python infra_main.py --action update_connector;
+          python testing_main.py --action release_test;
         env:
           # env vars that are secrets should always be set in the env field, so they aren't visible in $GITHUB_ENV file
           AWS_REGION: 'us-west-2'
