@@ -21,6 +21,8 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -31,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
@@ -41,6 +44,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -52,6 +56,7 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -67,9 +72,15 @@ import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.IMPALA_QU
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.NAME;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.SCHEMA_NAME;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class ImpalaRecordHandlerTest
 {
@@ -87,6 +98,8 @@ public class ImpalaRecordHandlerTest
     private static final String QPT_SCHEMA_FUNCTION_NAME_VALUE = "system.query";
     private static final String QPT_NAME_PROPERTY = "name";
     private static final String QPT_SCHEMA_PROPERTY = "schema";
+    private static final String QUERY_ID = "queryId";
+    private static final String BASE_CONNECTION_STRING = "impala://jdbc:impala://testHost:10000/default;AuthMech=3;";
 
     private ImpalaRecordHandler impalaRecordHandler;
     private Connection connection;
@@ -100,30 +113,30 @@ public class ImpalaRecordHandlerTest
     public void setup()
             throws Exception
     {
-        this.amazonS3 = Mockito.mock(S3Client.class);
-        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
-        this.athena = Mockito.mock(AthenaClient.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId(TEST_SECRET).build())))
+        this.amazonS3 = mock(S3Client.class);
+        this.secretsManager = mock(SecretsManagerClient.class);
+        this.athena = mock(AthenaClient.class);
+        when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId(TEST_SECRET).build())))
                 .thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
-        this.connection = Mockito.mock(Connection.class);
-        this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        this.connection = mock(Connection.class);
+        this.jdbcConnectionFactory = mock(JdbcConnectionFactory.class);
+        when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER));
 
         this.impalaRecordHandler = new ImpalaRecordHandler(
             new DatabaseConnectionConfig(TEST_CATALOG, ImpalaConstants.IMPALA_NAME,
-                "impala://jdbc:impala://localhost:10000/athena;{" + TEST_SECRET + "}", TEST_SECRET),
+                    BASE_CONNECTION_STRING + "{" + TEST_SECRET + "}", TEST_SECRET),
             amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     private ValueSet getSingleValueSet(Object value)
     {
-        Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range.isSingleValue()).thenReturn(true);
-        Mockito.when(range.getLow().getValue()).thenReturn(value);
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
-        Mockito.when(valueSet.isNullAllowed()).thenReturn(false);
+        Range range = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        when(range.isSingleValue()).thenReturn(true);
+        when(range.getLow().getValue()).thenReturn(value);
+        ValueSet valueSet = mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        when(valueSet.isNullAllowed()).thenReturn(false);
         return valueSet;
     }
 
@@ -141,31 +154,31 @@ public class ImpalaRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap(TEST_PARTITION, TEST_PARTITION_VALUE));
-        Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
+        Split split = mock(Split.class);
+        when(split.getProperties()).thenReturn(Collections.singletonMap(TEST_PARTITION, TEST_PARTITION_VALUE));
+        when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
 
-        Range range1a = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range1a.isSingleValue()).thenReturn(true);
-        Mockito.when(range1a.getLow().getValue()).thenReturn(1);
-        Range range1b = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range1b.isSingleValue()).thenReturn(true);
-        Mockito.when(range1b.getLow().getValue()).thenReturn(2);
-        ValueSet valueSet1 = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet1.getRanges().getOrderedRanges()).thenReturn(ImmutableList.of(range1a, range1b));
+        Range range1a = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        when(range1a.isSingleValue()).thenReturn(true);
+        when(range1a.getLow().getValue()).thenReturn(1);
+        Range range1b = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        when(range1b.isSingleValue()).thenReturn(true);
+        when(range1b.getLow().getValue()).thenReturn(2);
+        ValueSet valueSet1 = mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        when(valueSet1.getRanges().getOrderedRanges()).thenReturn(ImmutableList.of(range1a, range1b));
         final long dateDays = TimeUnit.MILLISECONDS.toDays(Date.valueOf("2020-01-05").getTime());
         ValueSet valueSet2 = getSingleValueSet(dateDays);
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
+        Constraints constraints = mock(Constraints.class);
+        when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
                 .put(TEST_COL2, valueSet2)
                 .build());
-        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+        PreparedStatement expectedPreparedStatement = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.impalaRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Date expectedDate = new Date(120, 0, 5);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        Mockito.verify(preparedStatement, Mockito.times(1))
+        verify(preparedStatement, Mockito.times(1))
                 .setDate(1, expectedDate);
     }
 
@@ -193,13 +206,13 @@ public class ImpalaRecordHandlerTest
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
                 Constraints.DEFAULT_NO_LIMIT, queryPassthroughArgs, null);
 
-        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+        PreparedStatement expectedPreparedStatement = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
 
         PreparedStatement preparedStatement = this.impalaRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
 
         // Verify passthrough query was used
-        Mockito.verify(this.connection).prepareStatement(QPT_TEST_QUERY);
+        verify(this.connection).prepareStatement(QPT_TEST_QUERY);
         Mockito.verifyNoMoreInteractions(this.connection);
         assertSame(expectedPreparedStatement, preparedStatement);
     }
@@ -220,13 +233,13 @@ public class ImpalaRecordHandlerTest
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
                 Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
-        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+        PreparedStatement expectedPreparedStatement = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
 
         PreparedStatement preparedStatement = this.impalaRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
 
         // Verify that a non-passthrough SQL query was used
-        Mockito.verify(this.connection).prepareStatement(Mockito.argThat(sql -> !sql.equals(QPT_TEST_QUERY)));
+        verify(this.connection).prepareStatement(Mockito.argThat(sql -> !sql.equals(QPT_TEST_QUERY)));
         Mockito.verifyNoMoreInteractions(this.connection);
         assertSame(expectedPreparedStatement, preparedStatement);
     }
@@ -254,8 +267,8 @@ public class ImpalaRecordHandlerTest
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
                 Constraints.DEFAULT_NO_LIMIT, queryPassthroughArgs, null);
 
-        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+        PreparedStatement expectedPreparedStatement = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
 
         try {
             this.impalaRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
@@ -291,8 +304,8 @@ public class ImpalaRecordHandlerTest
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
                 Constraints.DEFAULT_NO_LIMIT, queryPassthroughArgs, null);
 
-        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+        PreparedStatement expectedPreparedStatement = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
 
         try {
             this.impalaRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
@@ -303,7 +316,6 @@ public class ImpalaRecordHandlerTest
             Assert.assertTrue(e.getMessage().contains("Function Signature doesn't match implementation's"));
         }
     }
-
 
     @Test
     public void testBuildSplitSqlWithComplexConstraints()
@@ -324,11 +336,11 @@ public class ImpalaRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
+        Split split = mock(Split.class);
         Map<String, String> properties = new HashMap<>();
         properties.put(TEST_PARTITION, TEST_PARTITION_VALUE);
-        Mockito.when(split.getProperties()).thenReturn(properties);
-        Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
+        when(split.getProperties()).thenReturn(properties);
+        when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
 
         // Create complex constraints with multiple predicates
         ValueSet idSet = createMultipleValueSet(1, 2, 3, 4, 5);
@@ -359,17 +371,17 @@ public class ImpalaRecordHandlerTest
         PreparedStatement expectedPreparedStatement = executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
 
         // Verify parameter setting for all constraints
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setInt(1, 1);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setInt(2, 2);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setInt(3, 3);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setInt(4, 4);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setInt(5, 5);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setInt(6, 25);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setInt(7, 65);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setDouble(8, 50000.0);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setString(9, "IT");
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setBoolean(10, true);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setBigDecimal(11, BigDecimal.valueOf(1234.56));
+        verify(expectedPreparedStatement, Mockito.times(1)).setInt(1, 1);
+        verify(expectedPreparedStatement, Mockito.times(1)).setInt(2, 2);
+        verify(expectedPreparedStatement, Mockito.times(1)).setInt(3, 3);
+        verify(expectedPreparedStatement, Mockito.times(1)).setInt(4, 4);
+        verify(expectedPreparedStatement, Mockito.times(1)).setInt(5, 5);
+        verify(expectedPreparedStatement, Mockito.times(1)).setInt(6, 25);
+        verify(expectedPreparedStatement, Mockito.times(1)).setInt(7, 65);
+        verify(expectedPreparedStatement, Mockito.times(1)).setDouble(8, 50000.0);
+        verify(expectedPreparedStatement, Mockito.times(1)).setString(9, "IT");
+        verify(expectedPreparedStatement, Mockito.times(1)).setBoolean(10, true);
+        verify(expectedPreparedStatement, Mockito.times(1)).setBigDecimal(11, BigDecimal.valueOf(1234.56));
     }
 
     @Test
@@ -385,11 +397,11 @@ public class ImpalaRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
+        Split split = mock(Split.class);
         Map<String, String> properties = new HashMap<>();
         properties.put(TEST_PARTITION, TEST_PARTITION_VALUE);
-        Mockito.when(split.getProperties()).thenReturn(properties);
-        Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
+        when(split.getProperties()).thenReturn(properties);
+        when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
 
         // Create constraints with ORDER BY and LIMIT
         OrderByField orderByField = new OrderByField("salary", OrderByField.Direction.DESC_NULLS_LAST);
@@ -421,11 +433,11 @@ public class ImpalaRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
+        Split split = mock(Split.class);
         Map<String, String> properties = new HashMap<>();
         properties.put(TEST_PARTITION, TEST_PARTITION_VALUE);
-        Mockito.when(split.getProperties()).thenReturn(properties);
-        Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
+        when(split.getProperties()).thenReturn(properties);
+        when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
 
         // Create Top N query with predicates, ORDER BY, and LIMIT
         ValueSet deptSet = getSingleValueSet("IT");
@@ -446,8 +458,8 @@ public class ImpalaRecordHandlerTest
         PreparedStatement expectedPreparedStatement = executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
 
         // Verify parameter setting
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setDouble(1, 50000.0);
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setString(2, "IT");
+        verify(expectedPreparedStatement, Mockito.times(1)).setDouble(1, 50000.0);
+        verify(expectedPreparedStatement, Mockito.times(1)).setString(2, "IT");
     }
 
     @Test
@@ -462,11 +474,11 @@ public class ImpalaRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
+        Split split = mock(Split.class);
         Map<String, String> properties = new HashMap<>();
         properties.put(TEST_PARTITION, TEST_PARTITION_VALUE);
-        Mockito.when(split.getProperties()).thenReturn(properties);
-        Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
+        when(split.getProperties()).thenReturn(properties);
+        when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
 
         // Test date constraints
         final long dateDays = TimeUnit.MILLISECONDS.toDays(Date.valueOf("2023-01-15").getTime());
@@ -491,8 +503,8 @@ public class ImpalaRecordHandlerTest
         PreparedStatement expectedPreparedStatement = executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
 
         // Verify parameter setting
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setDate(Mockito.anyInt(), Mockito.any(Date.class));
-        Mockito.verify(expectedPreparedStatement, Mockito.times(1)).setTimestamp(Mockito.anyInt(), Mockito.any(Timestamp.class));
+        verify(expectedPreparedStatement, Mockito.times(1)).setDate(Mockito.anyInt(), Mockito.any(Date.class));
+        verify(expectedPreparedStatement, Mockito.times(1)).setTimestamp(Mockito.anyInt(), Mockito.any(Timestamp.class));
     }
 
     @Test
@@ -506,11 +518,11 @@ public class ImpalaRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
+        Split split = mock(Split.class);
         Map<String, String> properties = new HashMap<>();
         properties.put(TEST_PARTITION, TEST_PARTITION_VALUE);
-        Mockito.when(split.getProperties()).thenReturn(properties);
-        Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
+        when(split.getProperties()).thenReturn(properties);
+        when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
 
         // Test NULL constraints
         ValueSet nullSet = createNullValueSet();
@@ -568,11 +580,11 @@ public class ImpalaRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
+        Split split = mock(Split.class);
         Map<String, String> properties = new HashMap<>();
         properties.put(TEST_PARTITION, TEST_PARTITION_VALUE);
-        Mockito.when(split.getProperties()).thenReturn(properties);
-        Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
+        when(split.getProperties()).thenReturn(properties);
+        when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
 
         // Test multiple ORDER BY fields
         OrderByField orderByField1 = new OrderByField("department", OrderByField.Direction.ASC_NULLS_LAST);
@@ -611,64 +623,164 @@ public class ImpalaRecordHandlerTest
      */
     private Split createBaseSplit()
     {
-        Split split = Mockito.mock(Split.class);
+        Split split = mock(Split.class);
         Map<String, String> properties = new HashMap<>();
         properties.put(TEST_PARTITION, TEST_PARTITION_VALUE);
-        Mockito.when(split.getProperties()).thenReturn(properties);
-        Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
+        when(split.getProperties()).thenReturn(properties);
+        when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
         return split;
     }
-
-
+    
     private ValueSet createMultipleValueSet(Object... values)
     {
         java.util.List<Range> ranges = new java.util.ArrayList<>();
         for (Object value : values) {
-            Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-            Mockito.when(range.isSingleValue()).thenReturn(true);
-            Mockito.when(range.getLow().getValue()).thenReturn(value);
+            Range range = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+            when(range.isSingleValue()).thenReturn(true);
+            when(range.getLow().getValue()).thenReturn(value);
             ranges.add(range);
         }
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(ranges);
-        Mockito.when(valueSet.isNullAllowed()).thenReturn(false);
+        ValueSet valueSet = mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        when(valueSet.getRanges().getOrderedRanges()).thenReturn(ranges);
+        when(valueSet.isNullAllowed()).thenReturn(false);
         return valueSet;
     }
 
     private ValueSet createRangeSet(Marker.Bound lowerBound, Object lowerValue, Marker.Bound upperBound, Object upperValue)
     {
-        Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range.isSingleValue()).thenReturn(false);
-        Mockito.when(range.getLow().getBound()).thenReturn(lowerBound);
-        Mockito.when(range.getLow().getValue()).thenReturn(lowerValue);
-        Mockito.when(range.getLow().isLowerUnbounded()).thenReturn(lowerBound == Marker.Bound.BELOW);
-        Mockito.when(range.getHigh().getBound()).thenReturn(upperBound);
-        Mockito.when(range.getHigh().getValue()).thenReturn(upperValue);
-        Mockito.when(range.getHigh().isUpperUnbounded()).thenReturn(upperBound == Marker.Bound.ABOVE);
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
-        Mockito.when(valueSet.isNullAllowed()).thenReturn(false);
+        Range range = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        when(range.isSingleValue()).thenReturn(false);
+        when(range.getLow().getBound()).thenReturn(lowerBound);
+        when(range.getLow().getValue()).thenReturn(lowerValue);
+        when(range.getLow().isLowerUnbounded()).thenReturn(lowerBound == Marker.Bound.BELOW);
+        when(range.getHigh().getBound()).thenReturn(upperBound);
+        when(range.getHigh().getValue()).thenReturn(upperValue);
+        when(range.getHigh().isUpperUnbounded()).thenReturn(upperBound == Marker.Bound.ABOVE);
+        ValueSet valueSet = mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        when(valueSet.isNullAllowed()).thenReturn(false);
         return valueSet;
     }
 
     private ValueSet createNullValueSet()
     {
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.emptyList());
-        Mockito.when(valueSet.isNullAllowed()).thenReturn(true);
-        Mockito.when(valueSet.isNone()).thenReturn(true);
+        ValueSet valueSet = mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.emptyList());
+        when(valueSet.isNullAllowed()).thenReturn(true);
+        when(valueSet.isNone()).thenReturn(true);
         return valueSet;
     }
 
     private PreparedStatement executeAndVerifySqlGeneration(TableName tableName, Schema schema, Split split, Constraints constraints, String expectedSql) throws SQLException
     {
-        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
+        PreparedStatement expectedPreparedStatement = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 
         PreparedStatement preparedStatement = this.impalaRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
 
         assertSame(expectedPreparedStatement, preparedStatement);
-        Mockito.verify(this.connection).prepareStatement(Mockito.eq(expectedSql));
+        verify(this.connection).prepareStatement(Mockito.eq(expectedSql));
         return expectedPreparedStatement;
+    }
+
+    @Test
+    public void getCredentialProvider_withSecret_returnsImpalaCredentialsProvider() throws Exception
+    {
+        DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig(
+                TEST_CATALOG, ImpalaConstants.IMPALA_NAME,
+                BASE_CONNECTION_STRING + "{" + TEST_SECRET + "}", TEST_SECRET);
+
+        mockSecretManagerResponse();
+        CredentialsProvider provider = captureCredentialsProvider(configWithSecret, true);
+
+        assertNotNull("Expected non-null CredentialsProvider when secret configured", provider);
+        assertTrue("Expected ImpalaCredentialsProvider type", provider instanceof ImpalaCredentialsProvider);
+    }
+
+    @Test
+    public void getCredentialProvider_withoutSecret_returnsNull() throws Exception
+    {
+        DatabaseConnectionConfig configWithoutSecret = new DatabaseConnectionConfig(
+                TEST_CATALOG, ImpalaConstants.IMPALA_NAME,
+                BASE_CONNECTION_STRING);
+
+        CredentialsProvider provider = captureCredentialsProvider(configWithoutSecret, false);
+
+        assertNull("Expected null CredentialsProvider when no secret configured", provider);
+    }
+
+    /**
+     * Captures the CredentialsProvider used by the JDBC connection factory
+     */
+    private CredentialsProvider captureCredentialsProvider(DatabaseConnectionConfig config, boolean hasSecret) throws Exception
+    {
+        Connection mockConn = mockConnectionAndMetadata();
+        if (hasSecret) {
+            when(jdbcConnectionFactory.getConnection(Mockito.any(CredentialsProvider.class)))
+                    .thenReturn(mockConn);
+        }
+        else {
+            when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
+                    .thenReturn(mockConn);
+        }
+
+        ImpalaRecordHandler handler = new ImpalaRecordHandler(
+                config, amazonS3, secretsManager, athena, jdbcConnectionFactory,
+                jdbcSplitQueryBuilder, ImmutableMap.of());
+
+        handler.readWithConstraint(
+                mock(BlockSpiller.class),
+                mockReadRecordsRequest(),
+                mock(QueryStatusChecker.class));
+
+        ArgumentCaptor<CredentialsProvider> captor = ArgumentCaptor.forClass(CredentialsProvider.class);
+        verify(jdbcConnectionFactory).getConnection(captor.capture());
+        return captor.getValue();
+    }
+
+    private void mockSecretManagerResponse()
+    {
+        GetSecretValueResponse mockResponse =
+                GetSecretValueResponse.builder()
+                        .secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}")
+                        .build();
+
+        when(secretsManager.getSecretValue(
+                Mockito.any(GetSecretValueRequest.class)))
+                .thenReturn(mockResponse);
+    }
+
+    private Connection mockConnectionAndMetadata() throws Exception
+    {
+        Connection mockConn = mock(Connection.class);
+        java.sql.DatabaseMetaData metaData = mock(java.sql.DatabaseMetaData.class);
+        when(metaData.getDatabaseProductName()).thenReturn("Impala");
+        when(mockConn.getMetaData()).thenReturn(metaData);
+
+        PreparedStatement stmt = mock(PreparedStatement.class);
+        ResultSet rs = mock(ResultSet.class);
+        when(mockConn.prepareStatement(Mockito.anyString())).thenReturn(stmt);
+        when(stmt.executeQuery()).thenReturn(rs);
+        when(rs.next()).thenReturn(false);
+
+        return mockConn;
+    }
+
+    private ReadRecordsRequest mockReadRecordsRequest()
+    {
+        ReadRecordsRequest req = mock(ReadRecordsRequest.class);
+        Split split = mock(Split.class);
+        SchemaBuilder sb = SchemaBuilder.newBuilder();
+        sb.addField(FieldBuilder.newBuilder("testCol", Types.MinorType.VARCHAR.getType()).build());
+
+        when(req.getQueryId()).thenReturn(QUERY_ID);
+        when(req.getCatalogName()).thenReturn(TEST_CATALOG);
+        when(req.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
+        when(req.getSplit()).thenReturn(split);
+        when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "*"));
+        when(split.getProperty("partition")).thenReturn("*");
+        when(req.getSchema()).thenReturn(sb.build());
+        when(req.getConstraints()).thenReturn(mock(Constraints.class));
+        return req;
     }
 }
