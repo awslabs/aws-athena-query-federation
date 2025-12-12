@@ -92,7 +92,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.19.0</version>
+                <version>3.20.0</version>
             </dependency>
             <!-- Fix for CVE-2025-24970, CVE-2025-58056, CVE-2025-58057 and CVE-2025-55163: Override Netty version from transitive dependencies -->
             <dependency>
