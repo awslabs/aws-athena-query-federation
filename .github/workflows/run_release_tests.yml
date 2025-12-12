@@ -16,7 +16,6 @@ jobs:
       - name: install dependencies. note aws is pre-installed and we use a specific action for node.
         run: |
           sudo apt update && sudo apt install -y tar gzip unzip wget less groff vim git python3 python3-pip unixodbc-dev curl jq;
-          pip3 install boto3;
       - name: install node and npm
         uses: actions/setup-node@v5
         with:
@@ -30,29 +29,55 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Build jars
-        run: mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
       - name: Setup Repo Root Directory
-        run: echo "REPOSITORY_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+        run: echo "COMMON_REPO_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+
+      - name: install python library.
+        run: |
+          cd $GITHUB_WORKSPACE/athena_federation_testing;
+          python -m venv perf_testing;
+          source perf_testing/bin/activate;
+          pip install -r requirements.txt;
+          echo PATH=$PATH >> $GITHUB_ENV
+
       - name: Setup AWS Cred
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: us-east-1
+          aws-region: us-west-2
           role-duration-seconds: 18000
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE }}
-      - name: Run tests
+
+      - name: Load data and run test
         run: |
-            cd $GITHUB_WORKSPACE/validation_testing;
-            python3 main.py;
+          cd $GITHUB_WORKSPACE/athena_federation_testing;
+          #           python infra_main.py --action generate_tpcds;
+          #           python infra_main.py --action create_infra;
+          #           python infra_main.py --action load_data;
+          python infra_main.py --action create_connector;
+          python infra_main.py --action update_connector;
+          python testing_main.py --action release_test;
         env:
           # env vars that are secrets should always be set in the env field, so they aren't visible in $GITHUB_ENV file
-          AWS_DEFAULT_REGION: 'us-east-1'
-          RESULTS_LOCATION: ${{ secrets.RESULTS_LOCATION }}
-          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          S3_DATA_PATH: ${{ secrets.S3_DATA_PATH }}
-          SPILL_BUCKET: ${{ secrets.SPILL_BUCKET }}
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
+          AWS_REGION: 'us-west-2'
+          COMMON_LF_ADMIN_ROLE_ARN: ${{ secrets.COMMON_LF_ADMIN_ROLE_ARN }}
+          COMMON_RDS_SECRET_NAME: ${{ secrets.COMMON_RDS_SECRET_NAME }}
+          COMMON_GLUE_JOB_ROLE_ARN: ${{ secrets.COMMON_GLUE_JOB_ROLE_ARN }}
+          ELASTICSEARCH_ADMIN_ROLE_ARN: ${{ secrets.ELASTICSEARCH_ADMIN_ROLE_ARN }}
+          BIGQUERY_BIG_QUERY_CREDENTIAL_NAME: ${{ secrets.BIGQUERY_BIG_QUERY_CREDENTIAL_NAME }}
+          SNOWFLAKE_CREDENTIAL_SECRET_NAME: ${{ secrets.SNOWFLAKE_CREDENTIAL_SECRET_NAME }}
+
+      - name: Destroy resource
+        if: always()
+        run: |
+          cd $GITHUB_WORKSPACE/athena_federation_testing;
+          python infra_main.py --action delete_resource;
+          # python infra_main.py --action destroy_infra;
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-          slug: awslabs/aws-athena-query-federation
+          # env vars that are secrets should always be set in the env field, so they aren't visible in $GITHUB_ENV file
+          AWS_REGION: 'us-west-2'
+          COMMON_LF_ADMIN_ROLE_ARN: ${{ secrets.COMMON_LF_ADMIN_ROLE_ARN }}
+          COMMON_RDS_SECRET_NAME: ${{ secrets.COMMON_RDS_SECRET_NAME }}
+          COMMON_GLUE_JOB_ROLE_ARN: ${{ secrets.COMMON_GLUE_JOB_ROLE_ARN }}
+          ELASTICSEARCH_ADMIN_ROLE_ARN: ${{ secrets.ELASTICSEARCH_ADMIN_ROLE_ARN }}
+          BIGQUERY_BIG_QUERY_CREDENTIAL_NAME: ${{ secrets.BIGQUERY_BIG_QUERY_CREDENTIAL_NAME }}
+          SNOWFLAKE_CREDENTIAL_SECRET_NAME: ${{ secrets.SNOWFLAKE_CREDENTIAL_SECRET_NAME }}
