@@ -48,6 +48,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
@@ -94,6 +95,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
@@ -1394,6 +1396,27 @@ public class SnowflakeMetadataHandlerTest
         
         doReturn(TEST_ROLE_ARN).when(s3EnabledHandler).getRoleArn(any());
         doReturn(TEST_BUCKET).when(s3EnabledHandler).getS3ExportBucket();
+
+        // Mock enhancePartitionSchema to add QUERY_ID and PREPARED_STMT fields for S3 export with query passthrough
+        // Since the actual implementation returns early for query passthrough, we need to mock it to add these fields
+        doAnswer(invocation -> {
+            SchemaBuilder partitionSchemaBuilder = invocation.getArgument(0);
+            GetTableLayoutRequest request = invocation.getArgument(1);
+            // For query passthrough with S3 export, add QUERY_ID and PREPARED_STMT fields
+            if (request.getConstraints().isQueryPassThrough()) {
+                if (partitionSchemaBuilder.getField(QUERY_ID) == null) {
+                    partitionSchemaBuilder.addField(QUERY_ID, new ArrowType.Utf8());
+                }
+                if (partitionSchemaBuilder.getField(PREPARED_STMT) == null) {
+                    partitionSchemaBuilder.addField(PREPARED_STMT, new ArrowType.Utf8());
+                }
+            }
+            else {
+                // For non-query passthrough, call the original method
+                s3EnabledHandler.enhancePartitionSchema(partitionSchemaBuilder, request);
+            }
+            return null;
+        }).when(s3EnabledHandler).enhancePartitionSchema(any(SchemaBuilder.class), any(GetTableLayoutRequest.class));
 
         // Mock integration check - integration doesn't exist
         String[] integrationSchema = {"name"};
