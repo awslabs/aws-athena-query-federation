@@ -17,7 +17,7 @@ jobs:
         run: |
           sudo apt update && sudo apt install -y tar gzip unzip wget less groff vim git python3 python3-pip unixodbc-dev curl jq;
       - name: install node and npm
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 18
       - name: Set up JDK 11
