@@ -19,7 +19,9 @@
  */
 package com.amazonaws.athena.connectors.hbase;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -38,43 +40,44 @@ public class HbaseTableNameUtilsTest
 {
     private final Map<String, String> config = com.google.common.collect.ImmutableMap.of(HbaseTableNameUtils.ENABLE_CASE_INSENSITIVE_MATCH, "true");
 
+    private static final String SCHEMA = "schema";
+    private static final String CASE_INSENSITIVE_AMBIGUITY_MESSAGE = "Either no tables or multiple tables resolved from case insensitive name";
+
     @Test
-    public void getQualifiedTableName()
+    public void getQualifiedTableName_withTable_returnsQualifiedName()
     {
         String table = "table";
         testGetQualifiedTableName(table);
     }
 
     @Test
-    public void getQualifiedTableNameWithNamespace()
+    public void getQualifiedTableName_withNamespacePrefix_returnsQualifiedName()
     {
         String table = "schema:table";
         testGetQualifiedTableName(table);
     }
 
     private void testGetQualifiedTableName(String table) {
-        String schema = "schema";
         String expected = "schema:table";
-        String actualWithTable = HbaseTableNameUtils.getQualifiedTableName(new TableName(schema, table));
-        String actualWithStrings = HbaseTableNameUtils.getQualifiedTableName(schema, table);
-        assertEquals(expected, actualWithTable);
-        assertEquals(expected, actualWithStrings);
+        String actualWithTable = HbaseTableNameUtils.getQualifiedTableName(new TableName(SCHEMA, table));
+        String actualWithStrings = HbaseTableNameUtils.getQualifiedTableName(SCHEMA, table);
+        assertEquals("Qualified name from TableName should match", expected, actualWithTable);
+        assertEquals("Qualified name from strings should match", expected, actualWithStrings);
     }
 
     @Test
-    public void getQualifiedTable()
+    public void getQualifiedTable_withSchemaAndTable_returnsTableName()
     {
         String table = "table";
-        String schema = "schema";
-        org.apache.hadoop.hbase.TableName expected = org.apache.hadoop.hbase.TableName.valueOf(schema + ":" + table);
-        org.apache.hadoop.hbase.TableName actualWithTable = HbaseTableNameUtils.getQualifiedTable(new TableName(schema, table));
-        org.apache.hadoop.hbase.TableName actualWithStrings = HbaseTableNameUtils.getQualifiedTable(schema, table);
-        assertEquals(expected, actualWithTable);
-        assertEquals(expected, actualWithStrings);
+        org.apache.hadoop.hbase.TableName expected = org.apache.hadoop.hbase.TableName.valueOf(SCHEMA + ":" + table);
+        org.apache.hadoop.hbase.TableName actualWithTable = HbaseTableNameUtils.getQualifiedTable(new TableName(SCHEMA, table));
+        org.apache.hadoop.hbase.TableName actualWithStrings = HbaseTableNameUtils.getQualifiedTable(SCHEMA, table);
+        assertEquals("Qualified TableName from TableName should match", expected, actualWithTable);
+        assertEquals("Qualified TableName from strings should match", expected, actualWithStrings);
     }
 
     @Test
-    public void getHbaseTableName()
+    public void getHbaseTableName_withCaseInsensitiveMatch_returnsResolvedTable()
             throws IOException
     {
         org.apache.hadoop.hbase.TableName[] tableNames = {
@@ -87,11 +90,11 @@ public class HbaseTableNameUtilsTest
         TableName input = new TableName("schema", "test");
         org.apache.hadoop.hbase.TableName expected = HbaseTableNameUtils.getQualifiedTable("schema", "Test");
         org.apache.hadoop.hbase.TableName result = HbaseTableNameUtils.getHbaseTableName(config, mockConnection, input);
-        assertEquals(expected, result);
+        assertEquals("Resolved table should match expected", expected, result);
     }
 
     @Test
-    public void getHbaseTableNameFlagFalse()
+    public void getHbaseTableName_withFlagFalse_returnsQualifiedTableWithoutSearch()
             throws IOException
     {
         HBaseConnection mockConnection = mock(HBaseConnection.class);
@@ -99,15 +102,13 @@ public class HbaseTableNameUtilsTest
         TableName input = new TableName("schema", "Test");
         org.apache.hadoop.hbase.TableName expected = HbaseTableNameUtils.getQualifiedTable("schema", "Test");
         org.apache.hadoop.hbase.TableName result = HbaseTableNameUtils.getHbaseTableName(com.google.common.collect.ImmutableMap.of(), mockConnection, input);
-        assertEquals(expected, result);
+        assertEquals("Result should be qualified table without case search", expected, result);
         verify(mockConnection, times(0)).tableExists(any());
         verify(mockConnection, times(0)).listTableNamesByNamespace(any());
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void getHbaseTableNameDNE()
-            throws IOException
-    {
+    @Test
+    public void getHbaseTableName_withNoMatchingTable_throwsIllegalStateException() {
         org.apache.hadoop.hbase.TableName[] tableNames = {
             org.apache.hadoop.hbase.TableName.valueOf("schema:test")
         };
@@ -116,11 +117,15 @@ public class HbaseTableNameUtilsTest
         when(mockConnection.tableExists(any())).thenReturn(false);
 
         TableName input = new TableName("schema", "table");
-        HbaseTableNameUtils.getHbaseTableName(config, mockConnection, input);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                HbaseTableNameUtils.getHbaseTableName(config, mockConnection, input));
+        assertTrue("Exception message should describe case insensitive resolution",
+                ex.getMessage().contains(CASE_INSENSITIVE_AMBIGUITY_MESSAGE));
     }
-    
+
     @Test
-    public void tryCaseInsensitiveSearch()
+    public void tryCaseInsensitiveSearch_withSingleMatch_returnsTable()
             throws IOException
     {
         org.apache.hadoop.hbase.TableName[] tableNames = {
@@ -131,11 +136,11 @@ public class HbaseTableNameUtilsTest
         when(mockConnection.listTableNamesByNamespace(any())).thenReturn(tableNames);
         org.apache.hadoop.hbase.TableName result = HbaseTableNameUtils.tryCaseInsensitiveSearch(mockConnection, input);
         org.apache.hadoop.hbase.TableName expected = HbaseTableNameUtils.getQualifiedTable("schema", "test");
-        assertEquals(expected, result);
+        assertEquals("Single match should return resolved table", expected, result);
     }
-    
+
     @Test
-    public void tryCaseInsensitiveSearchSingle()
+    public void tryCaseInsensitiveSearch_withExactCaseMatch_returnsTable()
             throws IOException
     {
         org.apache.hadoop.hbase.TableName[] tableNames = {
@@ -146,13 +151,11 @@ public class HbaseTableNameUtilsTest
         when(mockConnection.listTableNamesByNamespace(any())).thenReturn(tableNames);
         org.apache.hadoop.hbase.TableName result = HbaseTableNameUtils.tryCaseInsensitiveSearch(mockConnection, input);
         org.apache.hadoop.hbase.TableName expected = HbaseTableNameUtils.getQualifiedTable("schema", "Test");
-        assertEquals(expected, result);
+        assertEquals("Exact case match should return resolved table", expected, result);
     }
-    
-    @Test(expected = IllegalStateException.class)
-    public void tryCaseInsensitiveSearchMultiple()
-            throws IOException
-    {
+
+    @Test
+    public void tryCaseInsensitiveSearch_withMultipleMatches_throwsIllegalStateException() {
         org.apache.hadoop.hbase.TableName[] tableNames = {
             org.apache.hadoop.hbase.TableName.valueOf("schema:Test"),
             org.apache.hadoop.hbase.TableName.valueOf("schema:tEst")
@@ -160,19 +163,25 @@ public class HbaseTableNameUtilsTest
         TableName input = new TableName("schema", "test");
         HBaseConnection mockConnection = mock(HBaseConnection.class);
         when(mockConnection.listTableNamesByNamespace(any())).thenReturn(tableNames);
-        HbaseTableNameUtils.tryCaseInsensitiveSearch(mockConnection, input);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                HbaseTableNameUtils.tryCaseInsensitiveSearch(mockConnection, input));
+        assertTrue("Exception message should describe multiple tables",
+                ex.getMessage().contains(CASE_INSENSITIVE_AMBIGUITY_MESSAGE));
     }
-    
-    @Test(expected = IllegalStateException.class)
-    public void tryCaseInsensitiveSearchNone()
-            throws IOException
-    {
+
+    @Test
+    public void tryCaseInsensitiveSearch_withNoMatch_throwsIllegalStateException() {
         org.apache.hadoop.hbase.TableName[] tableNames = {
             org.apache.hadoop.hbase.TableName.valueOf("schema:other")
         };
         TableName input = new TableName("schema", "test");
         HBaseConnection mockConnection = mock(HBaseConnection.class);
         when(mockConnection.listTableNamesByNamespace(any())).thenReturn(tableNames);
-        HbaseTableNameUtils.tryCaseInsensitiveSearch(mockConnection, input);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                HbaseTableNameUtils.tryCaseInsensitiveSearch(mockConnection, input));
+        assertTrue("Exception message should describe no tables resolved",
+                ex.getMessage().contains(CASE_INSENSITIVE_AMBIGUITY_MESSAGE));
     }
 }
