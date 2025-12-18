@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'OpenSearch Domain for Athena integration test'
+
+Parameters:
+  DBUsername:
+    Type: String
+    Description: Master username for the instance
+
+  DBpwd:
+    Type: String
+    NoEcho: true
+    Description: Master password for the instance
+
+  DomainAccessARN:
+    Type: String
+    Description: ARN that will have access to the OpenSearch domain
+
+Resources:
+  OpenSearchDomain:
+    Type: AWS::OpenSearchService::Domain
+    Properties:
+      DomainName: athena-integ
+      EngineVersion: 'OpenSearch_1.3'
+      ClusterConfig:
+        InstanceType: 'm5.large.search'
+        InstanceCount: 1
+        ZoneAwarenessEnabled: false
+        DedicatedMasterEnabled: false
+        WarmEnabled: false
+      EBSOptions:
+        EBSEnabled: true
+        VolumeType: 'gp3'
+        VolumeSize: 100
+        Iops: 5000
+        Throughput: 250
+      EncryptionAtRestOptions:
+        Enabled: true
+      NodeToNodeEncryptionOptions:
+        Enabled: true
+      DomainEndpointOptions:
+        EnforceHTTPS: true
+      AdvancedSecurityOptions:
+        Enabled: true
+        InternalUserDatabaseEnabled: true
+        MasterUserOptions:
+          MasterUserName: !Ref DBUsername
+          MasterUserPassword: !Ref DBpwd
+      AccessPolicies:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "*"
+            Action:
+              - 'es:ESHttp*'
+            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/athena-integ/*'
+
+

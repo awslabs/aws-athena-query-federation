@@ -1,0 +1,13 @@
+{
+  "table_setup": {
+    "primary_key": "i_item_sk",
+    "primary_type": "int",
+    "sort_key": "i_item_id",
+    "sort_key_type": "string"
+  },
+  "predicate": {
+    "primary_key_predicate": "i_item_sk = 1",
+    "sort_key_predicate": "i_item_id = AAAAAAAABAAAAAAA",
+    "complex_key_predicate": "(i_item_sk * 10) > 100"
+  }
+}

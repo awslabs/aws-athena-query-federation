@@ -105,6 +105,42 @@ public class VerticaMetadataHandlerTest extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(VerticaMetadataHandlerTest.class);
     private static final String[] TABLE_TYPES = new String[]{"TABLE"};
+
+    private static final String TEST_SCHEMA = "testSchema";
+    private static final String TEST_TABLE = "testTable1";
+    private static final String TEST_S3_BUCKET = "testS3Bucket";
+    private static final String TEST_QUERY_ID = "queryId";
+    private static final String QUERY_ID = "testQueryId";
+    private static final String TEST_CATALOG = "testCatalog";
+    private static final String DEFAULT_CATALOG = "default";
+
+    private static final String INT_TYPE = "int";
+    private static final String VARCHAR_TYPE = "varchar";
+    private static final String TEST_VALUE = "test";
+    private static final String NULLABLE_FIELD = "nullable_field";
+    private static final String NULLABLE_NAME = "nullable_name";
+    private static final String NULLABLE_SCORE = "nullable_score";
+    private static final String REQUIRED_FIELD = "required_field";
+
+    private static final String ID_FIELD = "id";
+    private static final String NAME_FIELD = "name";
+    private static final String SCORE_FIELD = "score";
+    private static final String GRADE_FIELD = "grade";
+    private static final String AGE_FIELD = "age";
+    private static final String DEPARTMENT_FIELD = "department";
+    private static final String STATUS_FIELD = "status";
+    private static final String PRICE_FIELD = "price";
+    private static final String CATEGORY_FIELD = "category";
+    private static final String FIELD1 = "field1";
+    private static final String FIELD2 = "field2";
+    private static final String PREPARED_STMT_FIELD = "preparedStmt";
+    private static final String AWS_REGION_SQL_FIELD = "awsRegionSql";
+
+    private static final String TABLE_SCHEM = "TABLE_SCHEM";
+    private static final String TABLE_NAME = "TABLE_NAME";
+    private static final String COLUMN_NAME = "COLUMN_NAME";
+    private static final String TYPE_NAME = "TYPE_NAME";
+
     private QueryFactory queryFactory;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private VerticaMetadataHandler verticaMetadataHandler;
@@ -124,7 +160,7 @@ public class VerticaMetadataHandlerTest extends TestBase
     private BlockWriter blockWriter;
     private QueryStatusChecker queryStatusChecker;
     private VerticaMetadataHandler verticaMetadataHandlerMocked;
-    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", VERTICA_NAME,
+    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, VERTICA_NAME,
             "vertica://jdbc:vertica:thin:username/password@//127.0.0.1:1521/vrt");
 
 
@@ -177,10 +213,10 @@ public class VerticaMetadataHandlerTest extends TestBase
                 .build();
         Mockito.when(verticaSchemaUtils.buildTableSchema(connection, tableName)).thenReturn(tableSchema);
 
-        GetTableRequest request = new GetTableRequest(federatedIdentity, "testQueryId", "testCatalog", tableName, Collections.emptyMap());
+        GetTableRequest request = new GetTableRequest(federatedIdentity, QUERY_ID, TEST_CATALOG, tableName, Collections.emptyMap());
         GetTableResponse response = verticaMetadataHandler.doGetTable(allocator, request);
 
-        assertEquals("testCatalog", response.getCatalogName());
+        assertEquals(TEST_CATALOG, response.getCatalogName());
         assertEquals(tableName, response.getTableName());
         assertEquals(tableSchema, response.getSchema());
         assertTrue(response.getPartitionColumns().isEmpty());
@@ -191,7 +227,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.when(verticaSchemaUtils.buildTableSchema(connection, tableName))
                 .thenThrow(new RuntimeException("Schema build failed"));
 
-        GetTableRequest request = new GetTableRequest(federatedIdentity, "testQueryId", "testCatalog", tableName, Collections.emptyMap());
+        GetTableRequest request = new GetTableRequest(federatedIdentity, QUERY_ID, TEST_CATALOG, tableName, Collections.emptyMap());
         verticaMetadataHandler.doGetTable(allocator, request);
     }
 
@@ -205,10 +241,10 @@ public class VerticaMetadataHandlerTest extends TestBase
         Schema emptySchema = SchemaBuilder.newBuilder().build();
         Mockito.when(verticaSchemaUtils.buildTableSchema(connection, tableName)).thenReturn(emptySchema);
 
-        GetTableRequest request = new GetTableRequest(federatedIdentity, "testQueryId", "testCatalog", tableName, Collections.emptyMap());
+        GetTableRequest request = new GetTableRequest(federatedIdentity, QUERY_ID, TEST_CATALOG, tableName, Collections.emptyMap());
         GetTableResponse response = verticaMetadataHandler.doGetTable(allocator, request);
 
-        assertEquals("testCatalog", response.getCatalogName());
+        assertEquals(TEST_CATALOG, response.getCatalogName());
         assertEquals(tableName, response.getTableName());
         assertEquals(emptySchema, response.getSchema());
         assertNotNull("Response should not be null", response);
@@ -217,10 +253,10 @@ public class VerticaMetadataHandlerTest extends TestBase
     @Test
     public void doListTables() throws Exception
     {
-        String[] schema = {"TABLE_SCHEM", "TABLE_NAME",};
-        Object[][] values = {{"testSchema", "testTable1"}};
+        String[] schema = {TABLE_SCHEM, TABLE_NAME,};
+        Object[][] values = {{TEST_SCHEMA, TEST_TABLE}};
         List<TableName> expectedTables = new ArrayList<>();
-        expectedTables.add(new TableName("testSchema", "testTable1"));
+        expectedTables.add(new TableName(TEST_SCHEMA, TEST_TABLE));
 
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
@@ -230,8 +266,8 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         ListTablesResponse listTablesResponse = this.verticaMetadataHandler.doListTables(this.allocator,
                 new ListTablesRequest(this.federatedIdentity,
-                        "testQueryId",
-                        "testCatalog",
+                        QUERY_ID,
+                        TEST_CATALOG,
                         tableName.getSchemaName(),
                         null, UNLIMITED_PAGE_SIZE_VALUE));
 
@@ -254,7 +290,7 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         ListSchemasResponse listSchemasResponse = this.verticaMetadataHandler.doListSchemaNames(this.allocator,
                 new ListSchemasRequest(this.federatedIdentity,
-                        "testQueryId", "testCatalog"));
+                        QUERY_ID, TEST_CATALOG));
 
         Assert.assertArrayEquals(expected, listSchemasResponse.getSchemas().toArray());
     }
@@ -267,8 +303,8 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         this.verticaMetadataHandler.enhancePartitionSchema(schemaBuilder, new GetTableLayoutRequest(
                 this.federatedIdentity,
-                "queryId",
-                "testCatalog",
+                TEST_QUERY_ID,
+                TEST_CATALOG,
                 this.tableName,
                 this.constraints,
                 this.schema,
@@ -292,14 +328,14 @@ public class VerticaMetadataHandlerTest extends TestBase
                 .addField("decimal_col", new ArrowType.Decimal(10, 2, 128)) // DECIMAL
                 .addStringField("varchar_col") // VARCHAR
                 .addStringField("preparedStmt")
-                .addStringField("queryId")
-                .addStringField("awsRegionSql")
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
                 .build();
 
         Set<String> partitionCols = new HashSet<>();
         partitionCols.add("preparedStmt");
-        partitionCols.add("queryId");
-        partitionCols.add("awsRegionSql");
+        partitionCols.add(TEST_QUERY_ID);
+        partitionCols.add(AWS_REGION_SQL_FIELD);
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("bit_col", SortedRangeSet.copyOf(new ArrowType.Bool(),
@@ -319,22 +355,22 @@ public class VerticaMetadataHandlerTest extends TestBase
         constraintsMap.put("decimal_col", SortedRangeSet.copyOf(new ArrowType.Decimal(10, 2, 128),
                 ImmutableList.of(Range.equal(allocator, new ArrowType.Decimal(10, 2, 128), new BigDecimal("123.45"))), false));
         constraintsMap.put("varchar_col", SortedRangeSet.copyOf(new ArrowType.Utf8(),
-                ImmutableList.of(Range.equal(allocator, new ArrowType.Utf8(), "test")), false));
+                ImmutableList.of(Range.equal(allocator, new ArrowType.Utf8(), TEST_VALUE)), false));
 
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
         Object[][] values = {
-                {"testSchema", "testTable1", "bit_col", "boolean"},
-                {"testSchema", "testTable1", "tinyint_col", "tinyint"},
-                {"testSchema", "testTable1", "smallint_col", "smallint"},
-                {"testSchema", "testTable1", "int_col", "int"},
-                {"testSchema", "testTable1", "bigint_col", "bigint"},
-                {"testSchema", "testTable1", "float_col", "float"},
-                {"testSchema", "testTable1", "double_col", "double"},
-                {"testSchema", "testTable1", "decimal_col", "numeric"},
-                {"testSchema", "testTable1", "varchar_col", "varchar"},
-                {"testSchema", "testTable1", "preparedStmt", "varchar"},
-                {"testSchema", "testTable1", "queryId", "varchar"},
-                {"testSchema", "testTable1", "awsRegionSql", "varchar"}
+                {TEST_SCHEMA, TEST_TABLE, "bit_col", "boolean"},
+                {TEST_SCHEMA, TEST_TABLE, "tinyint_col", "tinyint"},
+                {TEST_SCHEMA, TEST_TABLE, "smallint_col", "smallint"},
+                {TEST_SCHEMA, TEST_TABLE, "int_col", "int"},
+                {TEST_SCHEMA, TEST_TABLE, "bigint_col", "bigint"},
+                {TEST_SCHEMA, TEST_TABLE, "float_col", "float"},
+                {TEST_SCHEMA, TEST_TABLE, "double_col", "double"},
+                {TEST_SCHEMA, TEST_TABLE, "decimal_col", "numeric"},
+                {TEST_SCHEMA, TEST_TABLE, "varchar_col", VARCHAR_TYPE},
+                {TEST_SCHEMA, TEST_TABLE, "preparedStmt", VARCHAR_TYPE},
+                {TEST_SCHEMA, TEST_TABLE, TEST_QUERY_ID, VARCHAR_TYPE},
+                {TEST_SCHEMA, TEST_TABLE, AWS_REGION_SQL_FIELD, VARCHAR_TYPE}
         };
         int[] types = {
                 Types.BOOLEAN, Types.TINYINT, Types.SMALLINT, Types.INTEGER, Types.BIGINT,
@@ -345,7 +381,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
 
-        String queryId = "queryId" + UUID.randomUUID().toString().replace("-", "");
+        String queryId = TEST_QUERY_ID + UUID.randomUUID().toString().replace("-", "");
         String s3ExportBucket = "s3://testS3Bucket";
         String expectedExportSql = String.format(
                 "EXPORT TO PARQUET(directory = 's3://s3://testS3Bucket/%s', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
@@ -368,7 +404,7 @@ public class VerticaMetadataHandlerTest extends TestBase
              GetTableLayoutResponse res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req)) {
             Block partitions = res.getPartitions();
 
-            String actualQueryID = partitions.getFieldReader("queryId").readText().toString();
+            String actualQueryID = partitions.getFieldReader(TEST_QUERY_ID).readText().toString();
             String actualExportSql = partitions.getFieldReader("preparedStmt").readText().toString();
 
             logger.info("Expected queryId: {}", queryId);
@@ -381,7 +417,7 @@ public class VerticaMetadataHandlerTest extends TestBase
 
             String normalizedActualExportSql = actualExportSql.replace(actualQueryID, queryId);
             Assert.assertEquals(expectedExportSql, normalizedActualExportSql);
-            Assert.assertEquals("ALTER SESSION SET AWSRegion='us-east-1'", partitions.getFieldReader("awsRegionSql").readText().toString());
+            Assert.assertEquals("ALTER SESSION SET AWSRegion='us-east-1'", partitions.getFieldReader(AWS_REGION_SQL_FIELD).readText().toString());
 
             for (int row = 0; row < partitions.getRowCount() && row < 1; row++) {
                 logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
@@ -399,14 +435,14 @@ public class VerticaMetadataHandlerTest extends TestBase
                 .addIntField("month")
                 .addIntField("year")
                 .addStringField("preparedStmt")
-                .addStringField("queryId")
-                .addStringField("awsRegionSql")
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
                 .build();
 
         List<String> partitionCols = new ArrayList<>();
         partitionCols.add("preparedStmt");
-        partitionCols.add("queryId");
-        partitionCols.add("awsRegionSql");
+        partitionCols.add(TEST_QUERY_ID);
+        partitionCols.add(AWS_REGION_SQL_FIELD);
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
@@ -417,9 +453,9 @@ public class VerticaMetadataHandlerTest extends TestBase
             BlockUtils.setValue(partitions.getFieldVector("day"), i, 2016 + i);
             BlockUtils.setValue(partitions.getFieldVector("month"), i, (i % 12) + 1);
             BlockUtils.setValue(partitions.getFieldVector("year"), i, (i % 28) + 1);
-            BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), i, "test");
-            BlockUtils.setValue(partitions.getFieldVector("queryId"), i, "123");
-            BlockUtils.setValue(partitions.getFieldVector("awsRegionSql"), i, "us-west-2");
+            BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), i, TEST_VALUE);
+            BlockUtils.setValue(partitions.getFieldVector(TEST_QUERY_ID), i, "123");
+            BlockUtils.setValue(partitions.getFieldVector(AWS_REGION_SQL_FIELD), i, "us-west-2");
 
         }
 
@@ -427,10 +463,10 @@ public class VerticaMetadataHandlerTest extends TestBase
         S3Object obj = S3Object.builder().key("testKey").build();
         objectList.add(obj);
         ListObjectsResponse listObjectsResponse = ListObjectsResponse.builder().contents(objectList).build();
-        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(TEST_S3_BUCKET);
         Mockito.when(amazonS3.listObjects(nullable(ListObjectsRequest.class))).thenReturn(listObjectsResponse);
 
-        GetSplitsRequest originalReq = new GetSplitsRequest(this.federatedIdentity, "queryId", "catalog_name",
+        GetSplitsRequest originalReq = new GetSplitsRequest(this.federatedIdentity, TEST_QUERY_ID, "catalog_name",
                 new TableName("schema", "table_name"),
                 partitions,
                 partitionCols,
@@ -450,14 +486,14 @@ public class VerticaMetadataHandlerTest extends TestBase
                 .addIntField("id")
                 .addStringField("name")
                 .addStringField("preparedStmt")
-                .addStringField("queryId")
-                .addStringField("awsRegionSql")
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
                 .build();
 
         List<String> partitionCols = new ArrayList<>();
         partitionCols.add("preparedStmt");
-        partitionCols.add("queryId");
-        partitionCols.add("awsRegionSql");
+        partitionCols.add(TEST_QUERY_ID);
+        partitionCols.add(AWS_REGION_SQL_FIELD);
 
         String query = "SELECT id, name FROM testTable";
         Map<String, String> queryArgs = Map.of("QUERY", query, "schemaFunctionName", "SYSTEM.QUERY");
@@ -472,8 +508,8 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         Block partitions = allocator.createBlock(schema);
         BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), 0, "SELECT id, name FROM testTable");
-        BlockUtils.setValue(partitions.getFieldVector("queryId"), 0, "query123");
-        BlockUtils.setValue(partitions.getFieldVector("awsRegionSql"), 0, "ALTER SESSION SET AWSRegion='us-west-2'");
+        BlockUtils.setValue(partitions.getFieldVector(TEST_QUERY_ID), 0, "query123");
+        BlockUtils.setValue(partitions.getFieldVector(AWS_REGION_SQL_FIELD), 0, "ALTER SESSION SET AWSRegion='us-west-2'");
 
         List<S3Object> objectList = new ArrayList<>();
         S3Object obj = S3Object.builder().key("query123/part1.parquet").build();
@@ -487,7 +523,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.when(connection.prepareStatement("EXPORT TO PARQUET(directory = 's3://testS3Bucket/query123') AS SELECT id, name FROM testTable")).thenReturn(Mockito.mock(PreparedStatement.class));
         Mockito.when(connection.prepareStatement("ALTER SESSION SET AWSRegion='us-west-2'")).thenReturn(Mockito.mock(PreparedStatement.class));
 
-        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, "queryId", "catalog_name",
+        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, TEST_QUERY_ID, "catalog_name",
                 new TableName("schema", JdbcQueryPassthrough.SCHEMA_FUNCTION_NAME), partitions, partitionCols, queryConstraints, null);
 
         GetSplitsResponse rawResponse = verticaMetadataHandlerMocked.doGetSplits(allocator, req);
@@ -551,7 +587,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         Block partitions = allocator.createBlock(schema);
         BlockUtils.setValue(partitions.getFieldVector("invalidField"), 0, "invalid");
 
-        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, "queryId", "catalog_name",
+        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, TEST_QUERY_ID, "catalog_name",
                 new TableName("schema", "table_name"), partitions, Collections.emptyList(),
                 new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
 
@@ -565,18 +601,18 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         Schema schema = SchemaBuilder.newBuilder()
                 .addStringField("preparedStmt")
-                .addStringField("queryId")
-                .addStringField("awsRegionSql")
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
                 .build();
 
         Block partitions = allocator.createBlock(schema);
-        BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), 0, "test");
-        BlockUtils.setValue(partitions.getFieldVector("queryId"), 0, "123");
-        BlockUtils.setValue(partitions.getFieldVector("awsRegionSql"), 0, "us-west-2");
+        BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), 0, TEST_VALUE);
+        BlockUtils.setValue(partitions.getFieldVector(TEST_QUERY_ID), 0, "123");
+        BlockUtils.setValue(partitions.getFieldVector(AWS_REGION_SQL_FIELD), 0, "us-west-2");
 
-        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(TEST_S3_BUCKET);
 
-        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, "queryId", "catalog_name",
+        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, TEST_QUERY_ID, "catalog_name",
                 new TableName("schema", "table_name"), partitions, Collections.emptyList(),
                 new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
 
@@ -607,10 +643,10 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.when(resultSetMetaData.getColumnLabel(2)).thenReturn("name");
         Mockito.when(resultSetMetaData.getColumnTypeName(2)).thenReturn("VARCHAR");
 
-        GetTableRequest request = new GetTableRequest(federatedIdentity, "testQueryId", "testCatalog", tableName, queryConstraints.getQueryPassthroughArguments());
+        GetTableRequest request = new GetTableRequest(federatedIdentity, QUERY_ID, TEST_CATALOG, tableName, queryConstraints.getQueryPassthroughArguments());
         GetTableResponse response = verticaMetadataHandler.doGetQueryPassthroughSchema(allocator, request);
 
-        assertEquals("testCatalog", response.getCatalogName());
+        assertEquals(TEST_CATALOG, response.getCatalogName());
         assertEquals(tableName, response.getTableName());
         assertEquals(2, response.getSchema().getFields().size());
         assertEquals("id", response.getSchema().getFields().get(0).getName());
@@ -627,7 +663,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 Collections.emptyMap(),
                 null
         );
-        GetTableRequest request = new GetTableRequest(federatedIdentity, "testQueryId", "testCatalog", tableName, queryConstraints.getQueryPassthroughArguments());
+        GetTableRequest request = new GetTableRequest(federatedIdentity, QUERY_ID, TEST_CATALOG, tableName, queryConstraints.getQueryPassthroughArguments());
 
         try {
             verticaMetadataHandler.doGetQueryPassthroughSchema(allocator, request);
@@ -635,5 +671,291 @@ public class VerticaMetadataHandlerTest extends TestBase
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("No Query passed through"));
         }
+    }
+
+    @Test
+    public void testPredicateBuilderInClauseHandling() throws Exception
+    {
+        Schema tableSchema = createTestSchema(ID_FIELD, INT_TYPE, NAME_FIELD, VARCHAR_TYPE);
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        constraintsMap.put(ID_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 1),
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 2),
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 3)
+                ), false));
+
+        String actualSql = executeTableLayoutTest(tableSchema, constraintsMap,
+                ID_FIELD, INT_TYPE, NAME_FIELD, VARCHAR_TYPE);
+
+        String actualQueryID = actualSql.substring(actualSql.indexOf("s3://testS3Bucket/") + 18,
+                actualSql.indexOf("', Compression"));
+        String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
+                actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
+                "AS SELECT id,name " +
+                "FROM \"testSchema\".\"testTable1\" " +
+                "WHERE (\"id\" IN (1,2,3))";
+
+        Assert.assertEquals(expectedExportSql, actualSql);
+    }
+
+    @Test
+    public void testPredicateBuilderNullHandling() throws Exception
+    {
+        Schema tableSchema = createTestSchema(NULLABLE_FIELD, VARCHAR_TYPE);
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        constraintsMap.put(NULLABLE_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(),
+                ImmutableList.of(Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), TEST_VALUE)), true));
+
+        String actualSql = executeTableLayoutTest(tableSchema, constraintsMap,
+                NULLABLE_FIELD, VARCHAR_TYPE);
+
+        String actualQueryID = actualSql.substring(actualSql.indexOf("s3://testS3Bucket/") + 18,
+                actualSql.indexOf("', Compression"));
+        String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
+                actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
+                "AS SELECT nullable_field " +
+                "FROM \"testSchema\".\"testTable1\" " +
+                "WHERE ((nullable_field IS NULL) OR \"nullable_field\" = 'test' )";
+
+        Assert.assertEquals(expectedExportSql, actualSql);
+    }
+
+    @Test
+    public void testPredicateBuilderRangeHandling() throws Exception
+    {
+        Schema tableSchema = createTestSchema(NAME_FIELD, VARCHAR_TYPE);
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        constraintsMap.put(NAME_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(),
+                ImmutableList.of(Range.range(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), TEST_VALUE, true, "tesu", false)), false));
+
+        String actualSql = executeTableLayoutTest(tableSchema, constraintsMap,
+                NAME_FIELD, VARCHAR_TYPE);
+
+        String actualQueryID = actualSql.substring(actualSql.indexOf("s3://testS3Bucket/") + 18,
+                actualSql.indexOf("', Compression"));
+        String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
+                actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
+                "AS SELECT name " +
+                "FROM \"testSchema\".\"testTable1\" " +
+                "WHERE ((\"name\" >= 'test'  AND \"name\" < 'tesu' ))";
+
+        Assert.assertEquals(expectedExportSql, actualSql);
+    }
+
+    @Test
+    public void testComplexExpressionWithRangeAndInPredicatesTest() throws Exception
+    {
+        Schema tableSchema = createTestSchema(ID_FIELD, INT_TYPE, STATUS_FIELD, VARCHAR_TYPE, PRICE_FIELD, INT_TYPE, CATEGORY_FIELD, VARCHAR_TYPE);
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        constraintsMap.put(PRICE_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.range(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 100, true, 1000, true)), false));
+
+        constraintsMap.put(ID_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 1),
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 2),
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 3),
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 4),
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 5)
+                ), false));
+
+        constraintsMap.put(STATUS_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(),
+                ImmutableList.of(Range.range(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), "A", false, "Z", true)), false));
+
+        constraintsMap.put(CATEGORY_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(),
+                ImmutableList.of(
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), "electronics"),
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), "books")
+                ), false));
+
+        String actualSql = executeTableLayoutTest(tableSchema, constraintsMap,
+                ID_FIELD, INT_TYPE, STATUS_FIELD, VARCHAR_TYPE, PRICE_FIELD, INT_TYPE, CATEGORY_FIELD, VARCHAR_TYPE);
+
+        // Extract query ID for expected SQL construction
+        String actualQueryID = actualSql.substring(actualSql.indexOf("s3://testS3Bucket/") + 18,
+                actualSql.indexOf("', Compression"));
+
+        // Construct expected SQL with actual query ID
+        String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
+                actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
+                "AS SELECT id,status,price,category " +
+                "FROM \"testSchema\".\"testTable1\" " +
+                "WHERE (\"id\" IN (1,2,3,4,5)) AND ((\"status\" > 'A'  AND \"status\" <= 'Z' )) AND ((\"price\" >= 100  AND \"price\" <= 1000 )) AND (\"category\" IN ('books','electronics'))";
+
+        Assert.assertEquals(expectedExportSql, actualSql);
+    }
+
+    @Test
+    public void testComplexExpressionWithNullableComparisonsTest() throws Exception
+    {
+        Schema tableSchema = createTestSchema(ID_FIELD, INT_TYPE, NULLABLE_NAME, VARCHAR_TYPE, NULLABLE_SCORE, INT_TYPE, REQUIRED_FIELD, VARCHAR_TYPE);
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        constraintsMap.put(NULLABLE_NAME, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(),
+                ImmutableList.of(Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), TEST_VALUE)), true));
+
+        constraintsMap.put(NULLABLE_SCORE, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.range(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 0, true, 100, false)), false));
+
+        constraintsMap.put(REQUIRED_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(),
+                ImmutableList.of(Range.all(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())), false));
+
+        constraintsMap.put(ID_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 0)), false));
+
+        String actualSql = executeTableLayoutTest(tableSchema, constraintsMap,
+                ID_FIELD, INT_TYPE, NULLABLE_NAME, VARCHAR_TYPE, NULLABLE_SCORE, INT_TYPE, REQUIRED_FIELD, VARCHAR_TYPE);
+
+        // Extract query ID for expected SQL construction
+        String actualQueryID = actualSql.substring(actualSql.indexOf("s3://testS3Bucket/") + 18,
+                actualSql.indexOf("', Compression"));
+
+        // Construct expected SQL with actual query ID
+        String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
+                actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
+                "AS SELECT id,nullable_name,nullable_score,required_field " +
+                "FROM \"testSchema\".\"testTable1\" " +
+                "WHERE ((\"id\" > 0 )) AND ((nullable_name IS NULL) OR \"nullable_name\" = 'test' ) AND ((\"nullable_score\" >= 0  AND \"nullable_score\" < 100 )) AND (required_field IS NOT NULL)";
+
+        Assert.assertEquals(expectedExportSql, actualSql);
+
+        logger.info("Nullable comparisons test - Generated SQL: {}", actualSql);
+    }
+
+    @Test
+    public void testMultipleOperatorComplexExpression() throws Exception
+    {
+        Schema tableSchema = createTestSchema(SCORE_FIELD, INT_TYPE, GRADE_FIELD, VARCHAR_TYPE, AGE_FIELD, INT_TYPE, DEPARTMENT_FIELD, VARCHAR_TYPE);
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        constraintsMap.put(SCORE_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 85)), false));
+
+        constraintsMap.put(GRADE_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(),
+                ImmutableList.of(Range.lessThanOrEqual(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), "B")), false));
+
+        constraintsMap.put(AGE_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.range(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 18, true, 65, false)), false));
+
+        constraintsMap.put(DEPARTMENT_FIELD, SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(),
+                ImmutableList.of(
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), "engineering"),
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), "marketing"),
+                        Range.equal(allocator, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), "sales")
+                ), false));
+
+        String actualSql = executeTableLayoutTest(tableSchema, constraintsMap,
+                SCORE_FIELD, INT_TYPE, GRADE_FIELD, VARCHAR_TYPE, AGE_FIELD, INT_TYPE, DEPARTMENT_FIELD, VARCHAR_TYPE);
+
+        // Extract query ID for expected SQL construction
+        String actualQueryID = actualSql.substring(actualSql.indexOf("s3://testS3Bucket/") + 18,
+                actualSql.indexOf("', Compression"));
+
+        // Construct expected SQL with actual query ID
+        String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
+                actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
+                "AS SELECT score,grade,age,department " +
+                "FROM \"testSchema\".\"testTable1\" " +
+                "WHERE ((\"score\" > 85 )) AND ((\"grade\" <= 'B' )) AND ((\"age\" >= 18  AND \"age\" < 65 )) AND (\"department\" IN ('engineering','marketing','sales'))";
+
+        Assert.assertEquals(expectedExportSql, actualSql);
+
+        logger.info("Multiple operators test - Generated SQL: {}", actualSql);
+    }
+
+    @Test
+    public void testEmptyConstraintsNegativeCase() throws Exception
+    {
+        Schema tableSchema = createTestSchema(FIELD1, INT_TYPE, FIELD2, VARCHAR_TYPE);
+        Map<String, ValueSet> constraintsMap = new HashMap<>(); // Empty constraints
+
+        String actualSql = executeTableLayoutTest(tableSchema, constraintsMap,
+                FIELD1, INT_TYPE, FIELD2, VARCHAR_TYPE);
+
+        // Extract query ID for expected SQL construction
+        String actualQueryID = actualSql.substring(actualSql.indexOf("s3://testS3Bucket/") + 18,
+                actualSql.indexOf("', Compression"));
+
+        // Construct expected SQL with actual query ID (no WHERE clause for empty constraints)
+        String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
+                actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
+                "AS SELECT field1,field2 " +
+                "FROM \"testSchema\".\"testTable1\"";
+
+        Assert.assertEquals(expectedExportSql, actualSql);
+
+        logger.info("Empty constraints test - Generated SQL: {}", actualSql);
+    }
+
+    private Schema createTestSchema(String... columnSpecs)
+    {
+        SchemaBuilder builder = SchemaBuilder.newBuilder();
+        for (int i = 0; i < columnSpecs.length; i += 2) {
+            String columnName = columnSpecs[i];
+            String columnType = columnSpecs[i + 1];
+            switch (columnType.toLowerCase()) {
+                case INT_TYPE:
+                case "integer":
+                    builder.addIntField(columnName);
+                    break;
+                case "bigint":
+                    builder.addBigIntField(columnName);
+                    break;
+                default:
+                    builder.addStringField(columnName);
+            }
         }
+        return builder.build();
+    }
+
+    private String executeTableLayoutTest(Schema tableSchema,
+                                          Map<String, ValueSet> constraintsMap, String... columnSpecs) throws Exception
+    {
+        Set<String> partitionCols = new HashSet<>();
+
+        // Create mock result set for columns
+        String[] schema = {TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, TYPE_NAME};
+        Object[][] values = new Object[columnSpecs.length / 2][];
+        int[] types = new int[columnSpecs.length / 2];
+
+        for (int i = 0; i < columnSpecs.length; i += 2) {
+            int rowIndex = i / 2;
+            String columnName = columnSpecs[i];
+            String columnType = columnSpecs[i + 1];
+            values[rowIndex] = new Object[]{TEST_SCHEMA, TEST_TABLE, columnName, columnType};
+            types[rowIndex] = columnType.equalsIgnoreCase(INT_TYPE) || columnType.equalsIgnoreCase("integer") ? Types.INTEGER : Types.VARCHAR;
+        }
+
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
+        Mockito.when(connection.getMetaData().getColumns(null, TEST_SCHEMA, TEST_TABLE, null)).thenReturn(resultSet);
+
+        Mockito.lenient().when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(TEST_S3_BUCKET);
+
+        try (GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, DEFAULT_CATALOG,
+                new TableName(TEST_SCHEMA, TEST_TABLE),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                tableSchema,
+                partitionCols);
+
+             GetTableLayoutResponse res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req)) {
+            Block partitions = res.getPartitions();
+
+            String actualSql = partitions.getFieldReader(PREPARED_STMT_FIELD).readText().toString();
+
+            for (int row = 0; row < partitions.getRowCount() && row < 1; row++) {
+                logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
+            }
+            assertTrue(partitions.getRowCount() > 0);
+            logger.info("Generated SQL: {}", actualSql);
+
+            return actualSql;
+        }
+    }
 }
