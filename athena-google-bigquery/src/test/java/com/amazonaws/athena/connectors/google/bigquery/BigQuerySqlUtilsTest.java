@@ -59,7 +59,7 @@ public class BigQuerySqlUtilsTest
     private static final String TABLE_NAME = "table";
     static final TableName tableName = new TableName(SCHEMA_NAME, TABLE_NAME);
     private static final String TEST_DATE = "2023-01-01";
-    private static final String TEST_TIME = "10:30:00";
+    private static final String TEST_TIME = "00:30:00";
     private static final String TEST_DATETIME = TEST_DATE + "T" + TEST_TIME;
     private static final String TEST_DATETIME_MICROS = TEST_DATETIME + ".123";
     private static final String TEST_DATETIME_PADDED = TEST_DATE + " " + TEST_TIME + ".000000";
@@ -121,11 +121,11 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.bool(true),
                 QueryParameterValue.int64(10), QueryParameterValue.int64(1000000));
         String expectedSql = "SELECT `integerRange`,`isNullRange`,`isNotNullRange`,`stringRange`,`booleanRange`,`integerInRange` from `schema`.`table` " +
-                "WHERE ((integerRange IS NULL) OR (`integerRange` > ? AND `integerRange` < ?)) " +
-                "AND (isNullRange IS NULL) AND (isNotNullRange IS NOT NULL) " +
-                "AND ((`stringRange` >= ? AND `stringRange` < ?)) " +
-                "AND (`booleanRange` = ?) " +
-                "AND (`integerInRange` IN (?,?))";
+                "WHERE integerRange IS NULL OR `integerRange` > ? AND `integerRange` < ? " +
+                "AND isNullRange IS NULL AND isNotNullRange IS NOT NULL " +
+                "AND `stringRange` >= ? AND `stringRange` < ? " +
+                "AND `booleanRange` = ? " +
+                "AND `integerInRange` IN (?,?)";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParameterValues, expectedSql);
     }
@@ -147,8 +147,8 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.int64(0),
                 QueryParameterValue.int64(100)
         );
-        String expectedSql = "SELECT `intCol` from `schema`.`table` WHERE ((`intCol` > ? AND `intCol` < ?)) " +
-                "ORDER BY `intCol` ASC NULLS FIRST, `stringCol` DESC NULLS LAST limit 10";
+        String expectedSql = "SELECT `intCol` from `schema`.`table` WHERE `intCol` > ? AND `intCol` < ? " +
+                "ORDER BY `intCol` ASC NULLS FIRST, `stringCol` DESC NULLS LAST LIMIT 10";
         Constraints constraints = getConstraints(constraintMap, orderByFields, 10);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParams, expectedSql);
     }
@@ -178,7 +178,7 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.date(TEST_DATE)
         );
         String expectedSql = "SELECT `floatCol`,`dateCol` from `schema`.`table` " +
-                "WHERE (`floatCol` = ?) AND (`dateCol` = ?)";
+                "WHERE `floatCol` = ? AND `dateCol` = ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParams, expectedSql);
     }
@@ -204,7 +204,7 @@ public class BigQuerySqlUtilsTest
         constraintMap.put("emptyCol", emptyStringSet);
         List<QueryParameterValue> expectedParams = ImmutableList.of(QueryParameterValue.string(""));
         String expectedSql = "SELECT `nullCol`,`nonNullCol`,`emptyCol` from `schema`.`table` " +
-                "WHERE (nullCol IS NULL) AND (nonNullCol IS NOT NULL) AND (`emptyCol` = ?)";
+                "WHERE nullCol IS NULL AND nonNullCol IS NOT NULL AND `emptyCol` = ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParams, expectedSql);
     }
@@ -226,7 +226,7 @@ public class BigQuerySqlUtilsTest
                              Marker.exactly(allocator, STRING_TYPE, VALUE_PREFIX + valueThree)))
                 .build();
         constraintMap.put("multiValueCol", inSet);
-        String expectedSql = "SELECT `multiValueCol` from `schema`.`table` WHERE (`multiValueCol` IN (?,?,?))";
+        String expectedSql = "SELECT `multiValueCol` from `schema`.`table` WHERE `multiValueCol` IN (?,?,?)";
         List<QueryParameterValue> expectedParams = ImmutableList.of(
                 QueryParameterValue.string(VALUE_PREFIX + valueOne),
                 QueryParameterValue.string(VALUE_PREFIX + valueTwo),
@@ -291,7 +291,7 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.dateTime(TEST_DATE + " " + TEST_TIME + ".123000")   // .123 padded
         );
         String expectedSql = "SELECT `dateNoMicrosCol`,`dateMicrosCol` from `schema`.`table` " +
-                "WHERE (`dateNoMicrosCol` = ?) AND (`dateMicrosCol` = ?)";
+                "WHERE `dateNoMicrosCol` = ? AND `dateMicrosCol` = ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, schema, expectedParams, expectedSql);
     }
@@ -300,18 +300,17 @@ public class BigQuerySqlUtilsTest
     public void testSqlWithDateRangePredicates()
     {
         Map<String, ValueSet> constraintMap = new LinkedHashMap<>();
-        String dateValue = "2023-01-01T10:30:00";
         // Test date with <= predicate using string format (contains "-")
         ValueSet dateStringLteSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
                 .add(new Range(Marker.lowerUnbounded(allocator, STRING_TYPE),
-                             Marker.exactly(allocator, STRING_TYPE, dateValue)))
+                             Marker.exactly(allocator, STRING_TYPE, TEST_DATETIME)))
                 .build();
         String dateStringLteCol = "dateStringLteCol";
         constraintMap.put(dateStringLteCol, dateStringLteSet);
 
         // Test date with >= predicate using string format
         ValueSet dateStringGteSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
-                .add(new Range(Marker.exactly(allocator, STRING_TYPE, dateValue),
+                .add(new Range(Marker.exactly(allocator, STRING_TYPE, TEST_DATETIME),
                              Marker.upperUnbounded(allocator, STRING_TYPE)))
                 .build();
         String dateStringGteCol = "dateStringGteCol";
@@ -350,8 +349,69 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.date(TEST_DATE)                  // Epoch GTE
         );
         String expectedSql = "SELECT `dateStringLteCol`,`dateStringGteCol`,`dateEpochLteCol`,`dateEpochGteCol` from `schema`.`table` " +
-                "WHERE ((`dateStringLteCol` <= ?)) AND ((`dateStringGteCol` >= ?)) AND " +
-                "((`dateEpochLteCol` <= ?)) AND ((`dateEpochGteCol` >= ?))";
+                "WHERE `dateStringLteCol` <= ? AND `dateStringGteCol` >= ? AND " +
+                "`dateEpochLteCol` <= ? AND `dateEpochGteCol` >= ?";
+        Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
+        executeAndVerify(constraints, schema, expectedParams, expectedSql);
+    }
+
+    @Test
+    public void testSqlWithDateRangePredicatesWithEndOfDateTest()
+    {
+        Map<String, ValueSet> constraintMap = new LinkedHashMap<>();
+        String dateTimeValue = "2023-12-31T23:59:59";
+        String dateValue = "2023-12-31";
+        // Test date with <= predicate using string format (contains "-")
+        ValueSet dateStringLteSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
+                .add(new Range(Marker.lowerUnbounded(allocator, STRING_TYPE),
+                        Marker.exactly(allocator, STRING_TYPE, dateTimeValue)))
+                .build();
+        String dateStringLteCol = "dateStringLteCol";
+        constraintMap.put(dateStringLteCol, dateStringLteSet);
+
+        // Test date with >= predicate using string format
+        ValueSet dateStringGteSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
+                .add(new Range(Marker.exactly(allocator, STRING_TYPE, dateTimeValue),
+                        Marker.upperUnbounded(allocator, STRING_TYPE)))
+                .build();
+        String dateStringGteCol = "dateStringGteCol";
+        constraintMap.put(dateStringGteCol, dateStringGteSet);
+
+        // Test date with <= predicate using epoch days
+        long epochDays = java.time.LocalDate.of(2023, 12, 31).toEpochDay();
+        ValueSet dateEpochLteSet = SortedRangeSet.newBuilder(DATE_TYPE, false)
+                .add(new Range(Marker.lowerUnbounded(allocator, DATE_TYPE),
+                        Marker.exactly(allocator, DATE_TYPE, epochDays)))
+                .build();
+        String dateEpochLteCol = "dateEpochLteCol";
+        constraintMap.put(dateEpochLteCol, dateEpochLteSet);
+
+        // Test date with >= predicate using epoch days
+        ValueSet dateEpochGteSet = SortedRangeSet.newBuilder(DATE_TYPE, false)
+                .add(new Range(Marker.exactly(allocator, DATE_TYPE, epochDays),
+                        Marker.upperUnbounded(allocator, DATE_TYPE)))
+                .build();
+        String dateEpochGteCol = "dateEpochGteCol";
+        constraintMap.put(dateEpochGteCol, dateEpochGteSet);
+
+        // Create schema that maps string values to DATE_TYPE to trigger the if block
+        List<Field> fields = new ArrayList<>();
+        fields.add(Field.nullable(dateStringLteCol, DATE_TYPE));    // Map string to DATE_TYPE
+        fields.add(Field.nullable(dateStringGteCol, DATE_TYPE));    // Map string to DATE_TYPE
+        fields.add(Field.nullable(dateEpochLteCol, DATE_TYPE));     // Keep as DATE_TYPE
+        fields.add(Field.nullable(dateEpochGteCol, DATE_TYPE));     // Keep as DATE_TYPE
+        Schema schema = new Schema(fields);
+        // For string dates, we expect datetime parameters with microseconds
+        // For epoch days, we expect date parameters
+        List<QueryParameterValue> expectedParams = ImmutableList.of(
+                QueryParameterValue.dateTime(dateTimeValue.replace("T", " ") + ".000000"),  // String LTE
+                QueryParameterValue.dateTime(dateTimeValue.replace("T", " ") + ".000000"),  // String GTE
+                QueryParameterValue.date(dateValue),                 // Epoch LTE
+                QueryParameterValue.date(dateValue)                  // Epoch GTE
+        );
+        String expectedSql = "SELECT `dateStringLteCol`,`dateStringGteCol`,`dateEpochLteCol`,`dateEpochGteCol` from `schema`.`table` " +
+                "WHERE `dateStringLteCol` <= ? AND `dateStringGteCol` >= ? AND " +
+                "`dateEpochLteCol` <= ? AND `dateEpochGteCol` >= ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, schema, expectedParams, expectedSql);
     }
