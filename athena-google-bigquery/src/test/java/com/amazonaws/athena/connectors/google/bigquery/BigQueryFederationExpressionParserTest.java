@@ -175,7 +175,7 @@ public class BigQueryFederationExpressionParserTest
     {
         FunctionName likeFunction = StandardFunctions.LIKE_PATTERN_FUNCTION_NAME.getFunctionName();
         String likeClause = bigQueryExpressionParser.mapFunctionToDataSourceSyntax(likeFunction, intType, ImmutableList.of(INPUT_ARGUMENT1, INPUT_ARGUMENT2));
-        assertEquals("(110 LIKE 120)", likeClause);
+        assertEquals("110 LIKE 120", likeClause);
     }
 
     @Test
@@ -183,7 +183,7 @@ public class BigQueryFederationExpressionParserTest
     {
         FunctionName notFunction = StandardFunctions.NOT_FUNCTION_NAME.getFunctionName();
         String notClause = bigQueryExpressionParser.mapFunctionToDataSourceSyntax(notFunction, intType, ImmutableList.of(INPUT_ARGUMENT1));
-        assertEquals("( NOT 110)", notClause);
+        assertEquals("(NOT 110)", notClause);
     }
 
     @Test
@@ -191,7 +191,7 @@ public class BigQueryFederationExpressionParserTest
     {
         FunctionName isDistFunction = StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME.getFunctionName();
         String isDistClause = bigQueryExpressionParser.mapFunctionToDataSourceSyntax(isDistFunction, intType, ImmutableList.of(INPUT_ARGUMENT1, INPUT_ARGUMENT2));
-        assertEquals("(110 IS DISTINCT FROM 120)", isDistClause);
+        assertEquals("110 IS DISTINCT FROM 120", isDistClause);
     }
 
     @Test
@@ -199,7 +199,7 @@ public class BigQueryFederationExpressionParserTest
     {
         FunctionName nullIfFunction = StandardFunctions.NULLIF_FUNCTION_NAME.getFunctionName();
         String nullIfClause = bigQueryExpressionParser.mapFunctionToDataSourceSyntax(nullIfFunction, intType, ImmutableList.of(INPUT_ARGUMENT1, INPUT_ARGUMENT2));
-        assertEquals("(NULLIF(110, 120))", nullIfClause);
+        assertEquals("NULLIF(110, 120)", nullIfClause);
     }
 
     @Test(expected = IllegalArgumentException.class)
