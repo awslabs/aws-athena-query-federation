@@ -134,6 +134,7 @@ public class VerticaMetadataHandlerTest extends TestBase
     private static final String FIELD1 = "field1";
     private static final String FIELD2 = "field2";
     private static final String PREPARED_STMT_FIELD = "preparedStmt";
+    private static final String QUERY_ID_FIELD = "queryId";
     private static final String AWS_REGION_SQL_FIELD = "awsRegionSql";
 
     private static final String TABLE_SCHEM = "TABLE_SCHEM";
@@ -431,9 +432,9 @@ public class VerticaMetadataHandlerTest extends TestBase
     public void testGetPartitionsWithQueryPlan() throws Exception {
         Schema tableSchema = createTestSchema();
         Set<String> partitionCols = new HashSet<>();
-        partitionCols.add("preparedStmt");
-        partitionCols.add("queryId");
-        partitionCols.add("awsRegionSql");
+        partitionCols.add(PREPARED_STMT_FIELD);
+        partitionCols.add(QUERY_ID_FIELD);
+        partitionCols.add(AWS_REGION_SQL_FIELD);
         String queryId = "queryId" + UUID.randomUUID().toString().replace("-", "");
         String s3ExportBucket = "s3://testS3Bucket";
 
