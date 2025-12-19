@@ -54,12 +54,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.github.stefanbirkner</groupId>
-            <artifactId>system-lambda</artifactId>
-            <version>1.2.1</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>kms</artifactId>
             <version>${aws-sdk-v2.version}</version>
@@ -265,8 +259,8 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-             <!--- to meet engine version 3.19.0 -->
-            <version>3.19.0</version>
+             <!--- to meet engine version 3.20.0 -->
+            <version>3.20.0</version>
         </dependency>
         <dependency>
             <groupId>net.jqwik</groupId>
