@@ -27,9 +27,9 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connectors.msk.dto.TopicPartitionPiece;
 import org.apache.arrow.vector.types.Types;
 import org.apache.kafka.clients.consumer.MockConsumer;
-import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.After;
@@ -45,12 +45,14 @@ import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.DataFormat;
 import software.amazon.awssdk.services.glue.model.GetSchemaRequest;
 import software.amazon.awssdk.services.glue.model.GetSchemaResponse;
+import software.amazon.awssdk.services.glue.model.GetRegistryRequest;
+import software.amazon.awssdk.services.glue.model.GetRegistryResponse;
 import software.amazon.awssdk.services.glue.model.GetSchemaVersionRequest;
 import software.amazon.awssdk.services.glue.model.GetSchemaVersionResponse;
 import software.amazon.awssdk.services.glue.model.ListRegistriesRequest;
 import software.amazon.awssdk.services.glue.model.ListRegistriesResponse;
 import software.amazon.awssdk.services.glue.model.RegistryListItem;
-
+import software.amazon.awssdk.services.glue.model.SchemaListItem;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -58,9 +60,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.msk.AmazonMskConstants.AVRO_DATA_FORMAT;
 import static com.amazonaws.athena.connectors.msk.AmazonMskConstants.PROTOBUF_DATA_FORMAT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -69,6 +73,19 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class AmazonMskMetadataHandlerTest {
     private static final String QUERY_ID = "queryId";
+    private static final String EARLIEST = "earliest";
+    private static final String JSON_FORMAT = "json";
+    private static final String SCHEMA_ARN = "arn";
+    private static final String TEST_SCHEMA = "TestSchema";
+    private static final String TEST_REGISTRY = "TestRegistry";
+    private static final String ID = "id";
+    private static final String NAME = "name";
+    private static final String KAFKA_CATALOG = "kafka";
+    private static final String DEFAULT_SCHEMA = "default";
+    private static final String TEST_REGISTRY_DESCRIPTION = "something something {AthenaFederationMSK} something";
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final long START_OFFSET = 0L;
+    
     private AmazonMskMetadataHandler amazonMskMetadataHandler;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
@@ -84,12 +101,19 @@ public class AmazonMskMetadataHandlerTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         partitions = Mockito.mock(Block.class);
         partitionCols = Mockito.mock(List.class);
-        constraints = Mockito.mock(Constraints.class);
+        constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                null
+        );
         java.util.Map configOptions = com.google.common.collect.ImmutableMap.of(
             "aws.region", "us-west-2",
             "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-NEW",
@@ -99,7 +123,7 @@ public class AmazonMskMetadataHandlerTest {
             "certificates_s3_reference", "s3://msk-connector-test-bucket/mskfiles/",
             "secrets_manager_secret", "AmazonMSK_afq");
 
-        consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
+        consumer = new MockConsumer<>(EARLIEST);
         Map<TopicPartition, Long> partitionsStart = new HashMap<>();
         Map<TopicPartition, Long> partitionsEnd = new HashMap<>();
 
@@ -117,7 +141,7 @@ public class AmazonMskMetadataHandlerTest {
         consumer.updateEndOffsets(partitionsEnd);
         consumer.updatePartitions("testTopic", partitionInfoList);
         awsGlueClientBuilder = Mockito.mockStatic(GlueClient.class);
-        awsGlueClientBuilder.when(()-> GlueClient.create()).thenReturn(awsGlue);
+        awsGlueClientBuilder.when(GlueClient::create).thenReturn(awsGlue);
         amazonMskMetadataHandler = new AmazonMskMetadataHandler(consumer, configOptions);
     }
 
@@ -128,7 +152,7 @@ public class AmazonMskMetadataHandlerTest {
     }
 
     @Test
-    public void testDoListSchemaNames() {
+    public void doListSchemaNames_whenRegistriesExist_returnsSchemaNames() {
         String registryName = "Asdf";
         Mockito.when(awsGlue.listRegistries(any(ListRegistriesRequest.class))).thenAnswer(x -> ListRegistriesResponse.builder()
                 .registries(RegistryListItem.builder()
@@ -144,7 +168,7 @@ public class AmazonMskMetadataHandlerTest {
     }
 
     @Test(expected = RuntimeException.class)
-    public void testDoListSchemaNamesThrowsException() {
+    public void doListSchemaNames_whenRequestThrows_throwsRuntimeException() {
         ListSchemasRequest listSchemasRequest = mock(ListSchemasRequest.class);
         when(listSchemasRequest.getCatalogName()).thenThrow(new RuntimeException("RuntimeException() "));
         ListSchemasResponse listSchemasResponse = amazonMskMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
@@ -153,7 +177,7 @@ public class AmazonMskMetadataHandlerTest {
 
 
     @Test
-    public void testDoGetTable() throws Exception {
+    public void doGetTable_whenJsonSchema_returnsTableWithOneField() throws Exception {
         String arn = "defaultarn", schemaName = "defaultschemaname", schemaVersionId = "defaultversionid";
         Long latestSchemaVersion = 123L;
         GetSchemaResponse getSchemaResponse = GetSchemaResponse.builder()
@@ -179,13 +203,13 @@ public class AmazonMskMetadataHandlerTest {
                 .build();
         Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
         Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
-        GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "kafka", new TableName("default", "testtable"), Collections.emptyMap());
+        GetTableRequest getTableRequest = createGetTableRequest("default", "testtable");
         GetTableResponse getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         assertEquals(1, getTableResponse.getSchema().getFields().size());
     }
 
     @Test
-    public void testDoGetTableWithProtobufSchema()
+    public void doGetTable_whenProtobufSchema_returnsTableWithCorrectFieldsAndTypes()
     {
         String arn = "defaultarn";
         String schemaName = "defaultschemaname";
@@ -211,13 +235,7 @@ public class AmazonMskMetadataHandlerTest {
         Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
         Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
 
-        GetTableRequest getTableRequest = new GetTableRequest(
-            federatedIdentity, 
-            QUERY_ID, 
-            "kafka",
-            new TableName("default", "testmessage"), 
-            Collections.emptyMap()
-        );
+        GetTableRequest getTableRequest = createGetTableRequest("default", "testmessage");
 
         GetTableResponse getTableResponse;
         try {
@@ -244,7 +262,7 @@ public class AmazonMskMetadataHandlerTest {
     }
 
     @Test
-    public void testDoGetSplits() throws Exception
+    public void doGetSplits_whenMultiplePartitions_returnsPaginatedSplits() throws Exception
     {
         String arn = "defaultarn", schemaName = "defaultschemaname", schemaVersionId = "defaultversionid";
         Long latestSchemaVersion = 123L;
@@ -279,7 +297,7 @@ public class AmazonMskMetadataHandlerTest {
                 new TableName("default", "testTopic"),
                 Mockito.mock(Block.class),
                 new ArrayList<>(),
-                Mockito.mock(Constraints.class),
+                constraints,
                 null 
         );
 
@@ -293,11 +311,447 @@ public class AmazonMskMetadataHandlerTest {
                 new TableName("default", "testTopic"),
                 Mockito.mock(Block.class),
                 new ArrayList<>(),
-                Mockito.mock(Constraints.class),
+                constraints,
                 response.getContinuationToken()
         );
         response = amazonMskMetadataHandler.doGetSplits(blockAllocator, request);
         assertEquals(500, response.getSplits().size());
         assertNull(response.getContinuationToken());
+    }
+
+    @Test
+    public void pieceTopicPartition_whenSinglePiece_returnsSinglePiece() {
+        long startOffset = START_OFFSET;
+        long endOffset = 5000L; // Less than MAX_RECORDS_IN_SPLIT (10000)
+
+        List<TopicPartitionPiece> pieces = amazonMskMetadataHandler.pieceTopicPartition(startOffset, endOffset);
+
+        assertEquals(1, pieces.size());
+        assertEquals(startOffset, pieces.get(0).startOffset);
+        assertEquals(endOffset, pieces.get(0).endOffset);
+    }
+
+    @Test
+    public void pieceTopicPartition_whenMultiplePieces_returnsMultiplePieces() {
+        long endOffset = 25000L;
+
+        List<TopicPartitionPiece> pieces = amazonMskMetadataHandler.pieceTopicPartition(START_OFFSET, endOffset);
+
+        assertEquals(3, pieces.size());
+
+        assertEquals(START_OFFSET, pieces.get(0).startOffset);
+        assertEquals(10000L, pieces.get(0).endOffset);
+
+        assertEquals(10001L, pieces.get(1).startOffset);
+        assertEquals(20001L, pieces.get(1).endOffset);
+
+        assertEquals(20002L, pieces.get(2).startOffset);
+        assertEquals(25000L, pieces.get(2).endOffset);
+    }
+
+    @Test
+    public void pieceTopicPartition_whenNonZeroStart_returnsCorrectPieces() {
+        long startOffset = 5000L;
+        long endOffset = 35000L;
+
+        List<TopicPartitionPiece> pieces = amazonMskMetadataHandler.pieceTopicPartition(startOffset, endOffset);
+
+        assertEquals(3, pieces.size());
+
+        assertEquals(5000L, pieces.get(0).startOffset);
+        assertEquals(15000L, pieces.get(0).endOffset);
+
+        assertEquals(15001L, pieces.get(1).startOffset);
+        assertEquals(25001L, pieces.get(1).endOffset);
+
+        assertEquals(25002L, pieces.get(2).startOffset);
+        assertEquals(35000L, pieces.get(2).endOffset);
+    }
+
+    @Test
+    public void pieceTopicPartition_whenMaxRecords_returnsCorrectPieces() {
+        long endOffset = 10000L;
+
+        List<TopicPartitionPiece> pieces = amazonMskMetadataHandler.pieceTopicPartition(START_OFFSET, endOffset);
+
+        assertEquals(1, pieces.size());
+        assertEquals(START_OFFSET, pieces.get(0).startOffset);
+        assertEquals(10000L, pieces.get(0).endOffset);
+    }
+
+    @Test
+    public void pieceTopicPartition_whenLargePartition_returnsMultiplePieces() {
+        long endOffset = 1_000_000L;
+
+        List<TopicPartitionPiece> pieces = amazonMskMetadataHandler.pieceTopicPartition(START_OFFSET, endOffset);
+
+        assertEquals(100, pieces.size());
+
+        assertEquals(START_OFFSET, pieces.get(0).startOffset);
+        assertEquals(10000L, pieces.get(0).endOffset);
+
+        assertEquals(500050L, pieces.get(50).startOffset);
+        assertEquals(510050L, pieces.get(50).endOffset);
+
+        assertEquals(990099L, pieces.get(99).startOffset);
+        assertEquals(1000000L, pieces.get(99).endOffset);
+    }
+
+    @Test
+    public void doGetTable_whenAvroFormat_returnsAvroSchema() throws Exception {
+        GetSchemaResponse getSchemaResponse = createGetSchemaResponse("arn:aws:glue:us-west-2:123456789101:schema/TestRegistry/avroSchema", "avroSchema");
+
+        String avroSchemaDefinition = "{\n" +
+                "  \"name\": \"TestRecord\",\n" +
+                "  \"type\": \"record\",\n" +
+                "  \"fields\": [\n" +
+                "    {\n" +
+                "      \"name\": \"id\",\n" +
+                "      \"type\": \"int\",\n" +
+                "      \"formatHint\": \"%d\"\n" +
+                "    },\n" +
+                "    {\n" +
+                "      \"name\": \"name\",\n" +
+                "      \"type\": \"string\",\n" +
+                "      \"formatHint\": \"%s\"\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}";
+
+        GetSchemaVersionResponse getSchemaVersionResponse = createGetSchemaVersionResponse("arn:aws:glue:us-west-2:123456789101:schema/TestRegistry/avroSchema", "AVRO", avroSchemaDefinition);
+
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
+
+        GetTableRequest getTableRequest = createGetTableRequest(TEST_REGISTRY, "avroSchema");
+
+        GetTableResponse getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
+
+        assertEquals(2, getTableResponse.getSchema().getFields().size());
+        assertEquals(ID, getTableResponse.getSchema().getFields().get(0).getName());
+        assertEquals(NAME, getTableResponse.getSchema().getFields().get(1).getName());
+
+        assertEquals(ID, getTableResponse.getSchema().getFields().get(0).getMetadata().get(NAME));
+        assertEquals("int", getTableResponse.getSchema().getFields().get(0).getMetadata().get("type"));
+        assertEquals("%d", getTableResponse.getSchema().getFields().get(0).getMetadata().get("formatHint"));
+
+        assertEquals(NAME, getTableResponse.getSchema().getFields().get(1).getMetadata().get(NAME));
+        assertEquals("string", getTableResponse.getSchema().getFields().get(1).getMetadata().get("type"));
+        assertEquals("%s", getTableResponse.getSchema().getFields().get(1).getMetadata().get("formatHint"));
+
+        assertEquals(AVRO_DATA_FORMAT, getTableResponse.getSchema().getCustomMetadata().get("dataFormat"));
+        assertEquals(TEST_REGISTRY, getTableResponse.getSchema().getCustomMetadata().get("glueRegistryName"));
+        assertEquals("avroSchema", getTableResponse.getSchema().getCustomMetadata().get("glueSchemaName"));
+    }
+
+    @Test
+    public void doGetTable_whenCaseInsensitiveResolution_returnsResolvedSchema() throws Exception {
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class)))
+                .thenThrow(new RuntimeException("Schema not found"))
+                .thenReturn(createGetSchemaResponse(SCHEMA_ARN, TEST_SCHEMA));
+
+        ListRegistriesResponse registriesResponse = createListRegistriesResponse(null, createRegistryListItem(TEST_REGISTRY, TEST_REGISTRY_DESCRIPTION));
+        Mockito.when(awsGlue.listRegistries(any(ListRegistriesRequest.class)))
+                .thenReturn(registriesResponse);
+
+        software.amazon.awssdk.services.glue.model.ListSchemasResponse schemasResponse = software.amazon.awssdk.services.glue.model.ListSchemasResponse.builder()
+                .schemas(SchemaListItem.builder().schemaName(TEST_SCHEMA).build())
+                .build();
+        Mockito.when(awsGlue.listSchemas(any(software.amazon.awssdk.services.glue.model.ListSchemasRequest.class)))
+                .thenReturn(schemasResponse);
+
+        GetSchemaVersionResponse schemaVersionResponse = createGetSchemaVersionResponse(SCHEMA_ARN, JSON_FORMAT, "{\n" +
+                "\t\"topicName\": \"testtable\",\n" +
+                "\t\"message\": {\n" +
+                "\t\t\"dataFormat\": \"json\",\n" +
+                "\t\t\"fields\": [{\n" +
+                "\t\t\t\"name\": \"col1\",\n" +
+                "\t\t\t\"mapping\": \"col1\",\n" +
+                "\t\t\t\"type\": \"STRING\"\n" +
+                "\t\t}]\n" +
+                "\t}\n" +
+                "}");
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class)))
+                .thenReturn(schemaVersionResponse);
+
+        GetTableRequest getTableRequest = createGetTableRequest(TEST_REGISTRY, TEST_SCHEMA);
+        GetTableResponse getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
+
+        assertEquals(1, getTableResponse.getSchema().getFields().size());
+        assertEquals("col1", getTableResponse.getSchema().getFields().get(0).getName());
+        assertEquals(TEST_REGISTRY, getTableResponse.getTableName().getSchemaName());
+        assertEquals(TEST_SCHEMA, getTableResponse.getTableName().getTableName());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetTable_whenInvalidSchema_throwsRuntimeException() throws Exception {
+        GetSchemaResponse getSchemaResponse = createGetSchemaResponse(SCHEMA_ARN, "invalid");
+        GetSchemaVersionResponse getSchemaVersionResponse = createGetSchemaVersionResponse(SCHEMA_ARN, JSON_FORMAT, "invalid json");
+
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
+
+        GetTableRequest getTableRequest = createGetTableRequest(DEFAULT_SCHEMA, "invalid");
+        amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
+    }
+
+    @Test
+    public void doListTables_whenUnlimitedPageSize_returnsAllTables() {
+        ListRegistriesResponse registriesResponse = createListRegistriesResponse(null, createRegistryListItem(TEST_REGISTRY, TEST_REGISTRY_DESCRIPTION));
+        Mockito.when(awsGlue.listRegistries(any(ListRegistriesRequest.class)))
+                .thenReturn(registriesResponse);
+
+        List<String> schemaItems = new ArrayList<>();
+        for (int i = 1; i <= 50; i++) {
+            schemaItems.add("schema" + i);
+        }
+
+        List<SchemaListItem> schemas = schemaItems.stream()
+                .map(name -> SchemaListItem.builder().schemaName(name).build())
+                .collect(Collectors.toList());
+        software.amazon.awssdk.services.glue.model.ListSchemasResponse schemasResponse = software.amazon.awssdk.services.glue.model.ListSchemasResponse.builder()
+                .schemas(schemas)
+                .build();
+        Mockito.when(awsGlue.listSchemas(any(software.amazon.awssdk.services.glue.model.ListSchemasRequest.class)))
+                .thenReturn(schemasResponse);
+
+        ListTablesRequest listTablesRequest = new ListTablesRequest(
+                federatedIdentity,
+                QUERY_ID,
+                KAFKA_CATALOG,
+                TEST_REGISTRY,
+                null,
+                ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE
+        );
+
+        ListTablesResponse response = amazonMskMetadataHandler.doListTables(blockAllocator, listTablesRequest);
+
+        assertEquals(50, response.getTables().size());
+        assertNull(response.getNextToken());
+        
+        for (int i = 1; i <= 50; i++) {
+            final int schemaIndex = i;
+            boolean found = response.getTables().stream()
+                    .anyMatch(table -> table.getTableName().equals("schema" + schemaIndex));
+            assertTrue("Schema" + schemaIndex + " should be present", found);
+        }
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doListTables_whenExceedsMaxResults_throwsRuntimeException() {
+        ListRegistriesResponse registriesResponse = createListRegistriesResponse(null, createRegistryListItem(TEST_REGISTRY, TEST_REGISTRY_DESCRIPTION));
+        Mockito.when(awsGlue.listRegistries(any(ListRegistriesRequest.class)))
+                .thenReturn(registriesResponse);
+
+        List<String> largeSchemaList = new ArrayList<>();
+        for (int i = 1; i <= 100001; i++) {
+            largeSchemaList.add("schema" + i);
+        }
+
+        List<SchemaListItem> largeSchemas = largeSchemaList.stream()
+                .map(name -> SchemaListItem.builder().schemaName(name).build())
+                .collect(Collectors.toList());
+        software.amazon.awssdk.services.glue.model.ListSchemasResponse largeResponse = software.amazon.awssdk.services.glue.model.ListSchemasResponse.builder()
+                .schemas(largeSchemas)
+                .build();
+
+        Mockito.when(awsGlue.listSchemas(any(software.amazon.awssdk.services.glue.model.ListSchemasRequest.class)))
+                .thenReturn(largeResponse);
+
+        ListTablesRequest listTablesRequest = new ListTablesRequest(
+                federatedIdentity,
+                QUERY_ID,
+                KAFKA_CATALOG,
+                TEST_REGISTRY,
+                null,
+                ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE
+        );
+
+        amazonMskMetadataHandler.doListTables(blockAllocator, listTablesRequest);
+    }
+
+    @Test
+    public void doListSchemaNames_withPagination_returnsPaginatedResults() {
+        ListRegistriesResponse firstPageResponse = createListRegistriesResponse("token1", createRegistryListItem("Registry1", TEST_REGISTRY_DESCRIPTION));
+
+        ListRegistriesResponse secondPageResponse = createListRegistriesResponse(null, createRegistryListItem("Registry2", TEST_REGISTRY_DESCRIPTION));
+
+        Mockito.when(awsGlue.listRegistries(any(ListRegistriesRequest.class)))
+                .thenReturn(firstPageResponse)
+                .thenReturn(secondPageResponse);
+
+        ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, QUERY_ID, DEFAULT_SCHEMA);
+        ListSchemasResponse listSchemasResponse = amazonMskMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
+
+        List<String> expectedRegistries = java.util.Arrays.asList("Registry1", "Registry2");
+        assertEquals(new ArrayList<>(expectedRegistries), new ArrayList<>(listSchemasResponse.getSchemas()));
+    }
+
+    @Test
+    public void doListSchemaNames_whenNullDescription_returnsSchemas() {
+        ListRegistriesResponse response = createListRegistriesResponse(null,
+                createRegistryListItem("Registry1", null),
+                createRegistryListItem("Registry2", TEST_REGISTRY_DESCRIPTION));
+
+        Mockito.when(awsGlue.listRegistries(any(ListRegistriesRequest.class)))
+                .thenReturn(response);
+
+        ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, QUERY_ID, DEFAULT_SCHEMA);
+        ListSchemasResponse listSchemasResponse = amazonMskMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
+
+        List<String> expectedRegistries = java.util.Collections.singletonList("Registry2");
+        assertEquals(new ArrayList<>(expectedRegistries), new ArrayList<>(listSchemasResponse.getSchemas()));
+    }
+
+    @Test
+    public void doListTables_whenEmptyDescription_returnsTables() {
+        GetRegistryResponse getRegistryResponse = GetRegistryResponse.builder()
+                .registryName(TEST_REGISTRY)
+                .description("")
+                .build();
+
+        Mockito.when(awsGlue.getRegistry(any(GetRegistryRequest.class)))
+                .thenReturn(getRegistryResponse);
+
+        ListRegistriesResponse registriesResponse = createListRegistriesResponse(null, createRegistryListItem(TEST_REGISTRY, TEST_REGISTRY_DESCRIPTION));
+        Mockito.when(awsGlue.listRegistries(any(ListRegistriesRequest.class)))
+                .thenReturn(registriesResponse);
+
+        software.amazon.awssdk.services.glue.model.ListSchemasResponse schemasResponse = software.amazon.awssdk.services.glue.model.ListSchemasResponse.builder()
+                .schemas(SchemaListItem.builder().schemaName(TEST_SCHEMA).build())
+                .build();
+        Mockito.when(awsGlue.listSchemas(any(software.amazon.awssdk.services.glue.model.ListSchemasRequest.class)))
+                .thenReturn(schemasResponse);
+
+        ListTablesRequest listTablesRequest = new ListTablesRequest(
+                federatedIdentity,
+                QUERY_ID,
+                KAFKA_CATALOG,
+                TEST_REGISTRY,
+                TEST_SCHEMA,
+                DEFAULT_PAGE_SIZE
+        );
+
+        ListTablesResponse response = amazonMskMetadataHandler.doListTables(blockAllocator, listTablesRequest);
+        List<TableName> tables = new ArrayList<>(response.getTables());
+        assertEquals(1, tables.size());
+        assertEquals(TEST_REGISTRY, tables.get(0).getSchemaName());
+        assertEquals(TEST_SCHEMA, tables.get(0).getTableName());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetTable_whenGlueThrowsException_throwsRuntimeException() throws Exception {
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class)))
+                .thenThrow(new RuntimeException("Glue service unavailable"));
+
+        GetTableRequest getTableRequest = createGetTableRequest(TEST_REGISTRY, TEST_SCHEMA);
+
+        amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doListTables_whenGlueThrowsException_throwsRuntimeException() {
+        Mockito.when(awsGlue.listRegistries(any(ListRegistriesRequest.class)))
+                .thenThrow(new RuntimeException("Glue service unavailable"));
+
+        ListTablesRequest listTablesRequest = new ListTablesRequest(
+                federatedIdentity,
+                QUERY_ID,
+                KAFKA_CATALOG,
+                TEST_REGISTRY,
+                null,
+                DEFAULT_PAGE_SIZE
+        );
+
+        amazonMskMetadataHandler.doListTables(blockAllocator, listTablesRequest);
+    }
+
+    @Test
+    public void doGetTable_withEmptyAvroFields_returnsEmptySchema() throws Exception {
+        GetSchemaResponse getSchemaResponse = createGetSchemaResponse("arn:aws:glue:us-west-2:123456789101:schema/TestRegistry/emptyAvroSchema", "emptyAvroSchema");
+
+        String emptyAvroSchemaDefinition = "{\n" +
+                "  \"name\": \"EmptyRecord\",\n" +
+                "  \"type\": \"record\",\n" +
+                "  \"fields\": []\n" +
+                "}";
+
+        GetSchemaVersionResponse getSchemaVersionResponse = createGetSchemaVersionResponse("arn:aws:glue:us-west-2:123456789101:schema/TestRegistry/emptyAvroSchema", "AVRO", emptyAvroSchemaDefinition);
+
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
+
+        GetTableRequest getTableRequest = createGetTableRequest(TEST_REGISTRY, "emptyAvroSchema");
+
+        GetTableResponse getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
+
+        assertEquals(0, getTableResponse.getSchema().getFields().size());
+        assertEquals(AVRO_DATA_FORMAT, getTableResponse.getSchema().getCustomMetadata().get("dataFormat"));
+        assertEquals(TEST_REGISTRY, getTableResponse.getSchema().getCustomMetadata().get("glueRegistryName"));
+        assertEquals("emptyAvroSchema", getTableResponse.getSchema().getCustomMetadata().get("glueSchemaName"));
+    }
+
+    @Test
+    public void doGetTable_withEmptyProtobufFields_returnsEmptySchema() throws Exception {
+        GetSchemaResponse getSchemaResponse = createGetSchemaResponse("arn:aws:glue:us-west-2:123456789101:schema/TestRegistry/emptyProtobufSchema", "emptyProtobufSchema");
+
+        String emptyProtobufSchemaDefinition = "syntax = \"proto3\";\n" +
+                "message EmptyMessage {\n" +
+                "}";
+
+        GetSchemaVersionResponse getSchemaVersionResponse = createGetSchemaVersionResponse("arn:aws:glue:us-west-2:123456789101:schema/TestRegistry/emptyProtobufSchema", "PROTOBUF", emptyProtobufSchemaDefinition);
+
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
+
+        GetTableRequest getTableRequest = createGetTableRequest(TEST_REGISTRY, "emptyProtobufSchema");
+
+        GetTableResponse getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
+
+        assertEquals(0, getTableResponse.getSchema().getFields().size());
+        assertEquals(PROTOBUF_DATA_FORMAT, getTableResponse.getSchema().getCustomMetadata().get("dataFormat"));
+        assertEquals(TEST_REGISTRY, getTableResponse.getSchema().getCustomMetadata().get("glueRegistryName"));
+        assertEquals("emptyProtobufSchema", getTableResponse.getSchema().getCustomMetadata().get("glueSchemaName"));
+    }
+
+    private RegistryListItem createRegistryListItem(String registryName, String description) {
+        return RegistryListItem.builder()
+                .registryName(registryName)
+                .description(description)
+                .build();
+    }
+
+    private ListRegistriesResponse createListRegistriesResponse(String nextToken, RegistryListItem... items) {
+        return ListRegistriesResponse.builder()
+                .registries(java.util.Arrays.asList(items))
+                .nextToken(nextToken)
+                .build();
+    }
+
+    private GetSchemaResponse createGetSchemaResponse(String schemaArn, String schemaName) {
+        return GetSchemaResponse.builder()
+                .schemaArn(schemaArn)
+                .schemaName(schemaName)
+                .latestSchemaVersion(1L)
+                .build();
+    }
+
+    private GetSchemaVersionResponse createGetSchemaVersionResponse(String schemaArn, String dataFormat, String schemaDefinition) {
+        return GetSchemaVersionResponse.builder()
+                .schemaArn(schemaArn)
+                .schemaVersionId("1")
+                .dataFormat(DataFormat.fromValue(dataFormat))
+                .schemaDefinition(schemaDefinition)
+                .build();
+    }
+
+    private GetTableRequest createGetTableRequest(String schemaName, String tableName) {
+        return new GetTableRequest(
+                federatedIdentity,
+                QUERY_ID,
+                KAFKA_CATALOG,
+                new TableName(schemaName, tableName),
+                Collections.emptyMap()
+        );
     }
 }
