@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":9,"i1":9,"i2":9};
+var data = {"i0":9,"i1":9,"i2":9,"i3":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -165,13 +165,20 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </td>
 </tr>
 <tr id="i1" class="rowColor">
+<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getEnv()">getEnv</a></span>()</code></th>
+<td class="colLast">
+<div class="block">Extracted method for environment variables to allow mocking in tests.</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>protected static software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeGetMetricDataRequest(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest)">makeGetMetricDataRequest</a></span>&#8203;(<a href="../../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest)</code></th>
 <td class="colLast">
 <div class="block">Creates a Cloudwatch Metrics sample data request from the provided inputs</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected static void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#pushDownPredicate(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest.Builder)">pushDownPredicate</a></span>&#8203;(<a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
                  software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest.Builder&nbsp;listMetricsRequest)</code></th>
@@ -203,6 +210,16 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Method Detail</h3>
+<a id="getEnv()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getEnv</h4>
+<pre class="methodSignature">protected static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;getEnv()</pre>
+<div class="block">Extracted method for environment variables to allow mocking in tests.</div>
+</li>
+</ul>
 <a id="applyMetricConstraints(com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,software.amazon.awssdk.services.cloudwatch.model.Metric,java.lang.String)">
 <!--   -->
 </a>
