@@ -95,7 +95,7 @@ public class GeneratedRowWriter
     {
         this.extractors.putAll(builder.extractors);
         this.fieldWriterFactories.putAll(builder.fieldWriterFactories);
-        if (builder.constraints != null && builder.constraints.getSummary() != null) {
+        if (builder.constraints != null && builder.constraints.getQueryPlan() == null && builder.constraints.getSummary() != null) {
             for (Map.Entry<String, ValueSet> next : builder.constraints.getSummary().entrySet()) {
                 constraints.put(next.getKey(), makeConstraintProjector(next.getValue()));
             }
