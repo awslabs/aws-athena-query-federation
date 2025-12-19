@@ -148,7 +148,7 @@ public class VerticaMetadataHandler
     {
         logger.info("doListSchemaNames: {}", request.getCatalogName());
         List<String> schemas = new ArrayList<>();
-        try (Connection client = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection client = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet rs  = dbMetadata.getTables(null, null, null, TABLE_TYPES);
 
@@ -189,7 +189,7 @@ public class VerticaMetadataHandler
         queryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
         String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableRequest)))) {
             PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
             ResultSetMetaData metadata = preparedStatement.getMetaData();
             if (metadata == null) {
@@ -230,7 +230,7 @@ public class VerticaMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
         Set<String> partitionCols = new HashSet<>();
-        try(Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try(Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
 
             //build the schema as per columns in Vertica
             Schema schema = verticaSchemaUtils.buildTableSchema(connection, request.getTableName());
@@ -281,7 +281,7 @@ public class VerticaMetadataHandler
         String queryID = request.getQueryId().replace("-","").concat(randomStr);
 
         //Build the SQL query
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
 
             // if  QPT get input query from Athena console
             //else old logic
@@ -346,7 +346,7 @@ public class VerticaMetadataHandler
         //ToDo: implement use of a continuation token to use in case of larger queries
         Connection connection = null;
         try {
-            connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+            connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)));
         } catch (Exception e) {
             throw new RuntimeException("connection failed ", e);
         }
