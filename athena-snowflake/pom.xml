@@ -54,8 +54,30 @@
         </dependency>
         <dependency>
             <groupId>net.snowflake</groupId>
-            <artifactId>snowflake-jdbc</artifactId>
-            <version>3.27.1</version>
+            <artifactId>snowflake-jdbc-thin</artifactId>
+            <version>3.26.1</version>
+                  <exclusions>
+                        <exclusion>
+                            <groupId>com.google.api</groupId>
+                            <artifactId>gax</artifactId>
+                        </exclusion>
+                        <exclusion>
+                            <groupId>com.google.cloud</groupId>
+                            <artifactId>google-cloud-core</artifactId>
+                        </exclusion>
+                        <exclusion>
+                            <groupId>com.google.cloud</groupId>
+                            <artifactId>google-cloud-storage</artifactId>
+                        </exclusion>
+                        <exclusion>
+                            <groupId>com.microsoft.azure</groupId>
+                            <artifactId>azure-storage</artifactId>
+                        </exclusion>
+                        <!-- <exclusion>
+                            <groupId>com.amazonaws</groupId>
+                            <artifactId>*</artifactId>
+                        </exclusion> -->
+                    </exclusions>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
@@ -135,129 +157,71 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <configuration>
-                    <minimizeJar>false</minimizeJar>
-                    <createDependencyReducedPom>true</createDependencyReducedPom>
-                    
-                    <!-- Enhanced artifact exclusions -->
-                    <artifactSet>
-                        <excludes>
-                            <!-- Test dependencies -->
-                            <exclude>*:*:*:*:test</exclude>
-                            <exclude>*:*:*:*:provided</exclude>
-                            <exclude>*:*:*:sources:*</exclude>
-                            <exclude>*:*:*:javadoc:*</exclude>
-                            
-                            <!-- Exclude test-only AWS SDK components -->
-                            <exclude>software.amazon.awssdk:rds</exclude>
-                            <exclude>software.amazon.awscdk:rds</exclude>
-                            <exclude>org.mockito:*</exclude>
-                            
-                            <!-- Exclude integration test framework -->
-                            <exclude>com.amazonaws:athena-federation-integ-test</exclude>
-                        </excludes>
-                    </artifactSet>
-                    
-                    <filters>
-                        <!-- Snowflake JDBC - Remove shaded duplicates -->
-                        <filter>
-                            <artifact>net.snowflake:snowflake-jdbc</artifact>
-                            <excludes>
-                                <!-- Remove shaded/internal duplicates -->
-                                <exclude>net/snowflake/client/jdbc/internal/grpc/xds/shaded/**</exclude>
-                                <exclude>net/snowflake/client/jdbc/internal/io/netty/util/internal/shaded/**</exclude>
-                                <exclude>net/snowflake/client/jdbc/internal/opentelemetry/*/shaded/**</exclude>
-                                <exclude>net/snowflake/client/jdbc/internal/google/*/testing/**</exclude>
-                                <exclude>net/snowflake/client/jdbc/internal/amazonaws/*/testing/**</exclude>
-                                
-                                <!-- Remove test classes -->
-                                <exclude>**/*Test*.class</exclude>
-                                <exclude>**/*Mock*.class</exclude>
-                                <exclude>**/testing/**</exclude>
-                                
-                                <!-- Remove attestation classes (dev/test related) -->
-                                <exclude>**/auth/wif/*Attestation*.class</exclude>
-                            </excludes>
-                        </filter>
-                        
-                        <!-- Apache Arrow - Keep only essential classes -->
-                        <filter>
-                            <artifact>org.apache.arrow:*</artifact>
-                            <includes>
-                                <include>org/apache/arrow/vector/**</include>
-                                <include>org/apache/arrow/memory/**</include>
-                                <include>org/apache/arrow/dataset/**</include>
-                            </includes>
-                            <excludes>
-                                <exclude>**/*Test*.class</exclude>
-                                <exclude>**/testing/**</exclude>
-                            </excludes>
-                        </filter>
-                        
-                        <!-- AWS SDK - Remove unused services -->
-                        <filter>
-                            <artifact>software.amazon.awssdk:*</artifact>
-                            <excludes>
-                                <!-- Remove unused AWS services -->
-                                <exclude>software/amazon/awssdk/services/*/internal/**</exclude>
-                                <exclude>**/*Test*.class</exclude>
-                                <exclude>**/testing/**</exclude>
-                            </excludes>
-                        </filter>
-                        
-                        <!-- BouncyCastle - Keep only crypto essentials -->
-                        <filter>
-                            <artifact>org.bouncycastle:*</artifact>
-                            <includes>
-                                <include>org/bouncycastle/crypto/**</include>
-                                <include>org/bouncycastle/asn1/**</include>
-                                <include>org/bouncycastle/x509/**</include>
-                                <include>org/bouncycastle/jce/**</include>
-                            </includes>
-                            <excludes>
-                                <exclude>**/*Test*.class</exclude>
-                                <exclude>**/testing/**</exclude>
-                            </excludes>
-                        </filter>
-                        
-                        <!-- Google libraries - Remove testing utilities -->
-                        <filter>
-                            <artifact>com.google.*:*</artifact>
-                            <excludes>
-                                <exclude>**/testing/**</exclude>
-                                <exclude>**/*Test*.class</exclude>
-                                <exclude>**/*Mock*.class</exclude>
-                                <exclude>**/VisibleForTesting.class</exclude>
-                            </excludes>
-                        </filter>
-                        
-                        <!-- General cleanup for all artifacts -->
-                        <filter>
-                            <artifact>*:*</artifact>
-                            <excludes>
-                                <!-- Signature files -->
-                                <exclude>META-INF/*.SF</exclude>
-                                <exclude>META-INF/*.DSA</exclude>
-                                <exclude>META-INF/*.RSA</exclude>
-                                
-                                <!-- Documentation -->
-                                <exclude>META-INF/DEPENDENCIES</exclude>
-                                <exclude>META-INF/LICENSE*</exclude>
-                                <exclude>META-INF/NOTICE*</exclude>
-                                <exclude>META-INF/README*</exclude>
-                                <exclude>META-INF/CHANGELOG*</exclude>
-                                <exclude>**/*.md</exclude>
-                                <exclude>**/*.txt</exclude>
-                                <exclude>**/*.html</exclude>
-                                
-                                <!-- Build/development files -->
-                                <exclude>**/.gitignore</exclude>
-                                <exclude>**/pom.xml</exclude>
-                                <exclude>**/pom.properties</exclude>
-                            </excludes>
-                        </filter>
-                    </filters>
-                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <filters>
+                                <!-- Apache Arrow - Keep only essential classes for Linux ARM64 -->
+                                <filter>
+                                    <artifact>org.apache.arrow:*</artifact>
+                                    <excludes>
+                                        <exclude>**/arrow_dataset_jni/x86_64/**</exclude>
+                                        <exclude>**/arrow_dataset_jni/aarch_64/libarrow_dataset_jni.dylib</exclude>
+                                    </excludes>
+                                </filter>
+                                <!-- Snowflake JDBC - Keep only essential classes for Linux ARM64 -->
+                                <filter>
+                                    <artifact>net.snowflake:snowflake-jdbc</artifact>
+                                    <excludes>
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-osx-x86_64.dylib</exclude>
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-linux-x86_64.so</exclude>
+
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_osx_x86_64.jnilib</exclude>
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_linux_x86_64.so</exclude>
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_osx_aarch_64.jnilib</exclude>
+
+                                        <exclude>**/META-INF/native/net_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_windows_x86_64.dll</exclude>
+                                        <exclude>**/META-INF/native/net_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-windows-x86_64.dll</exclude>
+                                        <exclude>**/META-INF/native/net_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-windows-x86.dll</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <!-- Standard security exclusions for signed JARs -->
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <!-- CRITICAL FIX for CVE-2025-48924: Exclude problematic metadata -->
+                                        <!-- These POMs declare vulnerable commons-lang/commons-lang3 versions -->
+                                        <!-- 1. commons-lang 2.4 (direct vulnerability) -->
+                                        <exclude>META-INF/maven/commons-lang/commons-lang/pom.xml</exclude>
+                                        <exclude>META-INF/maven/commons-lang/commons-lang/pom.properties</exclude>
+                                        <!-- 2. uzaygezen-core declares commons-lang3 3.1 (< 3.18.0) -->
+                                        <exclude>META-INF/maven/com.google.uzaygezen/uzaygezen-core/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.google.uzaygezen/uzaygezen-core/pom.properties</exclude>
+                                        <!-- 3. aws-encryption-sdk-java declares old commons-lang3 -->
+                                        <exclude>META-INF/maven/com.amazonaws/aws-encryption-sdk-java/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.amazonaws/aws-encryption-sdk-java/pom.properties</exclude>
+                                        <!-- 4. commons-text declares commons-lang3 3.13.0 (< 3.18.0) -->
+                                        <exclude>META-INF/maven/org.apache.commons/commons-text/pom.xml</exclude>
+                                        <exclude>META-INF/maven/org.apache.commons/commons-text/pom.properties</exclude>
+                                        <!-- 5. Fix for CVE-2020-15250: json-simple declares old junit -->
+                                        <exclude>META-INF/maven/com.googlecode.json-simple/json-simple/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.googlecode.json-simple/json-simple/pom.properties</exclude>
+                                        <!-- 6. Exclude old junit POM metadata directly -->
+                                        <exclude>META-INF/maven/junit/junit/pom.xml</exclude>
+                                        <exclude>META-INF/maven/junit/junit/pom.properties</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
