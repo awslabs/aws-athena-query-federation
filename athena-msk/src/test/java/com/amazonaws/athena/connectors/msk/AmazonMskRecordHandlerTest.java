@@ -58,7 +58,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
-import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.After;
 import org.junit.Before;
@@ -105,6 +104,7 @@ public class AmazonMskRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(AmazonMskRecordHandlerTest.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String EARLIEST = "earliest";
     private MockedStatic<GlueClient> awsGlueClientBuilder;
 
     @Mock
@@ -145,27 +145,27 @@ public class AmazonMskRecordHandlerTest
     @Before
     public void setUp() throws Exception
     {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
 
-        consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        ConsumerRecord<String, TopicResultSet> record1 = createConsumerRecord("myTopic", 0, 0, "k1", createTopicResultSet("myTopic"));
-        ConsumerRecord<String, TopicResultSet> record2 = createConsumerRecord("myTopic", 0, 1, "k2", createTopicResultSet("myTopic"));
-        ConsumerRecord<String, TopicResultSet> nullValueRecord = createConsumerRecord("myTopic", 0, 2, "k3", null);
+        consumer = new MockConsumer<>(EARLIEST);
+        ConsumerRecord<String, TopicResultSet> record1 = createConsumerRecord(0, "k1", createTopicResultSet());
+        ConsumerRecord<String, TopicResultSet> record2 = createConsumerRecord(1, "k2", createTopicResultSet());
+        ConsumerRecord<String, TopicResultSet> nullValueRecord = createConsumerRecord(2, "k3", null);
         consumer.schedulePollTask(() -> {
             consumer.addRecord(record1);
             consumer.addRecord(record2);
             consumer.addRecord(nullValueRecord);
         });
-        avroConsumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        ConsumerRecord<String, GenericRecord> avroRecord = createAvroConsumerRecord("greetings", 0, 0, "k1", createGenericRecord("greetings"));
-        ConsumerRecord<String, GenericRecord> avroNullValueRecord = createAvroConsumerRecord("greetings", 0, 1, "k2", null);
+        avroConsumer = new MockConsumer<>(EARLIEST);
+        ConsumerRecord<String, GenericRecord> avroRecord = createAvroConsumerRecord(0, "k1", createGenericRecord());
+        ConsumerRecord<String, GenericRecord> avroNullValueRecord = createAvroConsumerRecord(1, "k2", null);
         avroConsumer.schedulePollTask(() -> {
             avroConsumer.addRecord(avroRecord);
             avroConsumer.addRecord(avroNullValueRecord);
         });
-        protobufConsumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        ConsumerRecord<String, DynamicMessage> protobufRecord = createProtobufConsumerRecord("protobuftest", 0, 0, "k1", createDynamicRecord());
-        ConsumerRecord<String, DynamicMessage> protobufNullValueRecord = createProtobufConsumerRecord("protobuftest", 0, 1, "k2", null);
+        protobufConsumer = new MockConsumer<>(EARLIEST);
+        ConsumerRecord<String, DynamicMessage> protobufRecord = createProtobufConsumerRecord(0, "k1", createDynamicRecord());
+        ConsumerRecord<String, DynamicMessage> protobufNullValueRecord = createProtobufConsumerRecord(1, "k2", null);
         protobufConsumer.schedulePollTask(() -> {
             protobufConsumer.addRecord(protobufRecord);
             protobufConsumer.addRecord(protobufNullValueRecord);
@@ -185,7 +185,7 @@ public class AmazonMskRecordHandlerTest
         mockedMskUtils = Mockito.mockStatic(AmazonMskUtils.class, Mockito.CALLS_REAL_METHODS);
         amazonMskRecordHandler = new AmazonMskRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
         awsGlueClientBuilder = Mockito.mockStatic(GlueClient.class);
-        awsGlueClientBuilder.when(()-> GlueClient.create()).thenReturn(awsGlue);
+        awsGlueClientBuilder.when(GlueClient::create).thenReturn(awsGlue);
     }
 
     @After
@@ -196,7 +196,7 @@ public class AmazonMskRecordHandlerTest
     }
 
     @Test
-    public void testForConsumeDataFromTopic() throws Exception
+    public void readWithConstraint_whenTopicHasCsvRecords_consumesAndSpillsData() throws Exception
     {
         HashMap<TopicPartition, Long> offsets;
         offsets = new HashMap<>();
@@ -224,7 +224,7 @@ public class AmazonMskRecordHandlerTest
         amazonMskRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
     }
     @Test
-    public void testForConsumeAvroDataFromTopic() throws Exception
+    public void readWithConstraint_whenTopicHasAvroRecords_consumesAndReturnsOneRow() throws Exception
     {
         HashMap<TopicPartition, Long> offsets;
         offsets = new HashMap<>();
@@ -254,7 +254,7 @@ public class AmazonMskRecordHandlerTest
     }
 
     @Test
-    public void testForConsumeProtobufDataFromTopic() throws Exception
+    public void readWithConstraint_whenTopicHasProtobufRecords_consumesAndReturnsOneRow() throws Exception
     {
         HashMap<TopicPartition, Long> offsets;
         offsets = new HashMap<>();
@@ -284,7 +284,7 @@ public class AmazonMskRecordHandlerTest
     }
 
     @Test
-    public void testForQueryStatusChecker() throws Exception
+    public void readWithConstraint_whenQueryNotRunning_completesWithoutSpiller() throws Exception
     {
         HashMap<TopicPartition, Long> offsets;
         offsets = new HashMap<>();
@@ -313,9 +313,9 @@ public class AmazonMskRecordHandlerTest
     }
 
     @Test
-    public void testForEndOffsetIsZero() throws Exception
+    public void readWithConstraint_whenEndOffsetIsZero_completesWithoutError() throws Exception
     {
-        consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
+        consumer = new MockConsumer<>(EARLIEST);
 
         HashMap<TopicPartition, Long> offsets;
         offsets = new HashMap<>();
@@ -340,9 +340,9 @@ public class AmazonMskRecordHandlerTest
     }
 
     @Test
-    public void testForContinuousEmptyDataFromTopic() throws Exception
+    public void readWithConstraint_whenTopicHasNoRecords_completesWithoutError() throws Exception
     {
-        consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
+        consumer = new MockConsumer<>(EARLIEST);
 
         HashMap<TopicPartition, Long> offsets;
         offsets = new HashMap<>();
@@ -368,7 +368,18 @@ public class AmazonMskRecordHandlerTest
         ReadRecordsRequest request = createReadRecordsRequest(schema);
         amazonMskRecordHandler.readWithConstraint(null, request, queryStatusChecker);
     }
+    
+    @Test
+    public void toString_whenTopicResultSetHasFields_returnsStringWithKeyFields()
+    {
+        TopicResultSet resultSet = createTopicResultSet();
+        
+        String asString = resultSet.toString();
 
+        String expected = "TopicResultSet{topicName='myTopic', dataFormat='csv', fields=[Field{name='id', mapping='0', type='INTEGER', formatHint='', value=1}, Field{name='name', mapping='1', type='VARCHAR', formatHint='', value=Smith}, Field{name='isActive', mapping='2', type='BOOLEAN', formatHint='', value=true}, Field{name='code', mapping='3', type='TINYINT', formatHint='', value=101}]}";
+        assertEquals(expected, asString);
+    }
+    
     private ReadRecordsRequest createReadRecordsRequest(Schema schema)
     {
         return new ReadRecordsRequest(
@@ -390,36 +401,36 @@ public class AmazonMskRecordHandlerTest
                 0);
     }
 
-    private ConsumerRecord<String, TopicResultSet> createConsumerRecord(String topic, int partition, long offset, String key, TopicResultSet data) throws Exception
+    private ConsumerRecord<String, TopicResultSet> createConsumerRecord(long offset, String key, TopicResultSet data)
     {
-        return new ConsumerRecord<>(topic, partition, offset, key, data);
+        return new ConsumerRecord<>("myTopic", 0, offset, key, data);
     }
 
-    private ConsumerRecord<String, GenericRecord> createAvroConsumerRecord(String topic, int partition, long offset, String key, GenericRecord data) throws Exception
+    private ConsumerRecord<String, GenericRecord> createAvroConsumerRecord(long offset, String key, GenericRecord data)
     {
-        return new ConsumerRecord<>(topic, partition, offset, key, data);
+        return new ConsumerRecord<>("greetings", 0, offset, key, data);
     }
 
-    private ConsumerRecord<String, DynamicMessage> createProtobufConsumerRecord(String topic, int partition, long offset, String key, DynamicMessage data) throws Exception
+    private ConsumerRecord<String, DynamicMessage> createProtobufConsumerRecord(long offset, String key, DynamicMessage data)
     {
-        return new ConsumerRecord<>(topic, partition, offset, key, data);
+        return new ConsumerRecord<>("protobuftest", 0, offset, key, data);
     }
 
-    private TopicResultSet createTopicResultSet(String topic)
+    private TopicResultSet createTopicResultSet()
     {
         TopicResultSet resultSet = new TopicResultSet();
-        resultSet.setTopicName(topic);
+        resultSet.setTopicName("myTopic");
         resultSet.setDataFormat(Message.DATA_FORMAT_CSV);
         resultSet.getFields().add(new MSKField("id", "0", "INTEGER", "", Integer.parseInt("1")));
-        resultSet.getFields().add(new MSKField("name", "1", "VARCHAR", "", new String("Smith")));
+        resultSet.getFields().add(new MSKField("name", "1", "VARCHAR", "", "Smith"));
         resultSet.getFields().add(new MSKField("isActive", "2", "BOOLEAN", "", Boolean.valueOf("true")));
         resultSet.getFields().add(new MSKField("code", "3", "TINYINT", "", Byte.parseByte("101")));
         return resultSet;
     }
-    private GenericRecord createGenericRecord(String topic)
+    private GenericRecord createGenericRecord()
     {
         org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
-        String schemaString = "{\"type\": \"record\",\"name\":\"" + topic + "\",\"fields\": [{\"name\": \"id\", \"type\": \"int\"},{\"name\": \"name\", \"type\": \"string\"},{\"name\": \"greeting\",\"type\": \"string\"}]}";
+        String schemaString = "{\"type\": \"record\",\"name\":\"" + "greetings" + "\",\"fields\": [{\"name\": \"id\", \"type\": \"int\"},{\"name\": \"name\", \"type\": \"string\"},{\"name\": \"greeting\",\"type\": \"string\"}]}";
         org.apache.avro.Schema schema = parser.parse(schemaString);
         GenericRecord record = new GenericData.Record(schema);
 
@@ -476,7 +487,7 @@ public class AmazonMskRecordHandlerTest
         return builder.build();
     }
 
-    private Schema createSchema(TopicSchema topicSchema) throws Exception
+    private Schema createSchema(TopicSchema topicSchema)
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         topicSchema.getMessage().getFields().forEach(it -> {
@@ -498,7 +509,7 @@ public class AmazonMskRecordHandlerTest
         return schemaBuilder.build();
     }
 
-    private Schema createAvroSchema(AvroTopicSchema avroTopicSchema) throws Exception
+    private Schema createAvroSchema(AvroTopicSchema avroTopicSchema)
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         avroTopicSchema.getFields().forEach(it -> {
