@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: OracleDB RDS - Single AZ with manual password and custom networking
+
+Parameters:
+  DBUsername:
+    Type: String
+    Description: Master username for the RDS instance
+
+  DBpwd:
+    Type: String
+    NoEcho: true
+    Description: Master password for the RDS instance
+
+Resources:
+  OracleDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: athenafederationintegoracle
+      DBInstanceClass: db.m6i.xlarge
+      Engine: oracle-ee
+      DBName: tpcds
+      EngineVersion: 19.0.0.0.ru-2025-04.rur-2025-04.r1
+      LicenseModel: "bring-your-own-license"
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBpwd
+      AllocatedStorage: 100
+      StorageEncrypted: false
+      BackupRetentionPeriod: 0  # disables automated backups
+      MultiAZ: false
+      PubliclyAccessible: false
+      VPCSecurityGroups:
+        - Fn::ImportValue: AthenaFederationIntegOpenSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DeletionProtection: false
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for AthenaFederationIntegOracle
+      SubnetIds:
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet1
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet2
+      DBSubnetGroupName: AthenaFederationIntegOracleSubnetGroup
+
+Outputs:
+  DBEndpoint:
+    Description: RDS endpoint
+    Value: !GetAtt OracleDBInstance.Endpoint.Address
