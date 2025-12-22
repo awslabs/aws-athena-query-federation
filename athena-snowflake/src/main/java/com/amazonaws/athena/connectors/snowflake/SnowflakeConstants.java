@@ -20,11 +20,19 @@
 
 package com.amazonaws.athena.connectors.snowflake;
 
+import com.google.common.collect.ImmutableMap;
+
+import java.util.Map;
+
 public final class SnowflakeConstants
 {
+    /**
+     * JDBC related config
+     */
     public static final String SNOWFLAKE_NAME = "snowflake";
     public static final String SNOWFLAKE_DRIVER_CLASS = "com.snowflake.client.jdbc.SnowflakeDriver";
     public static final int SNOWFLAKE_DEFAULT_PORT = 1025;
+    public static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA", "CLIENT_RESULT_COLUMN_CASE_INSENSITIVE", "true");
     /**
      * This constant limits the number of partitions. The default set to 50. A large number may cause a timeout issue.
      * We arrived at this number after performance testing with datasets of different size
@@ -34,7 +42,15 @@ public final class SnowflakeConstants
      * This constant limits the number of records to be returned in a single split.
      */
     public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
-    public static final String SNOWFLAKE_QUOTE_CHARACTER = "\"";
+    public static final String DOUBLE_QUOTE_CHAR = "\"";
+    public static final String SINGLE_QUOTE_CHAR = "\'";
+
+    /**
+     * Partition key
+     */
+    public static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
+    public static final String S3_ENHANCED_PARTITION_COLUMN_NAME = "s3_column_name_list";
+
     /**
      * A ssl file location constant to store the SSL certificate
      * The file location is fixed at /tmp directory
@@ -75,5 +91,44 @@ public final class SnowflakeConstants
     public static final String PASSWORD = "password";
     public static final String USER = "user";
 
+    /**
+     * S3 export related constant.
+     */
+    public static final String SNOWFLAKE_ENABLE_S3_EXPORT = "snowflake_enable_s3_export";
+    public static final String STORAGE_INTEGRATION_CONFIG_KEY = "snowflake_storage_integration_name";
+    public static final String DESCRIBE_STORAGE_INTEGRATION_TEMPLATE = "DESC STORAGE INTEGRATION %s";
+    public static final String STORAGE_INTEGRATION_PROPERTY_KEY = "property";
+    public static final String STORAGE_INTEGRATION_PROPERTY_VALUE_KEY = "property_value";
+    public static final String STORAGE_INTEGRATION_BUCKET_KEY = "STORAGE_ALLOWED_LOCATIONS";
+    public static final String STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY = "STORAGE_PROVIDER";
+
+    /**
+     * Snowflake metadata query
+     */
+    //fetching number of records in the table
+    public static final String COUNT_RECORDS_QUERY = "SELECT row_count\n" +
+            "FROM   information_schema.tables\n" +
+            "WHERE  table_type = 'BASE TABLE'\n" +
+            "AND table_schema= ?\n" +
+            "AND TABLE_NAME = ? ";
+    public static final String SHOW_PRIMARY_KEYS_QUERY = "SHOW PRIMARY KEYS IN ";
+    public static final String COPY_INTO_QUERY_TEMPLATE = "COPY INTO '%s' FROM (%s) STORAGE_INTEGRATION = %s " +
+            "HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') MAX_FILE_SIZE = 52428800";
+    public static final String LIST_PAGINATED_TABLES_QUERY =
+            "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" " +
+                    "FROM information_schema.tables " +
+                    "WHERE table_schema = ? " +
+                    "ORDER BY TABLE_NAME " +
+                    "LIMIT ? OFFSET ?";
+    /**
+     * Query to check view
+     */
+    public static final String VIEW_CHECK_QUERY = "SELECT * FROM information_schema.views WHERE table_schema = ? AND table_name = ?";
+
     private SnowflakeConstants() {}
+
+    public static boolean isS3ExportEnabled(Map<String, String> configOptions)
+    {
+        return Boolean.parseBoolean(configOptions.getOrDefault(SNOWFLAKE_ENABLE_S3_EXPORT, "false"));
+    }
 }
