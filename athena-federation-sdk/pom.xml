@@ -259,8 +259,8 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-             <!--- to meet engine version 3.19.0 -->
-            <version>3.19.0</version>
+             <!--- to meet engine version 3.20.0 -->
+            <version>3.20.0</version>
         </dependency>
         <dependency>
             <groupId>net.jqwik</groupId>
