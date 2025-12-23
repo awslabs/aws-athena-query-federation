@@ -14,7 +14,7 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.40.1</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.40.13</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
         <aws-sdk.version>1.12.792</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
@@ -31,7 +31,7 @@
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.4</surefire.failsafe.version>
-        <log4j2Version>2.25.2</log4j2Version>
+        <log4j2Version>2.25.3</log4j2Version>
         <apache.arrow.version>18.3.0</apache.arrow.version>
         <guava.version>33.4.8-jre</guava.version>
         <protobuf3.version>3.25.5</protobuf3.version>
@@ -106,7 +106,7 @@
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
-                <version>5.5.1</version>
+                <version>5.6</version>
             </dependency>
             <!-- Fix for CVE-2024-57699: Override json-smart version from transitive dependencies -->
             <dependency>
