@@ -58,7 +58,6 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
@@ -111,38 +110,22 @@ public abstract class RecordHandler
     }
 
     /**
-     * Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
-     * by the corresponding value of the secret in AWS Secrets Manager with that name. If no such secret is found
-     * the function throws.
-     *
-     * @param rawString The string in which you'd like to replace SecretsManager placeholders.
-     * (e.g. ThisIsA${Secret}Here - The ${Secret} would be replaced with the contents of an SecretsManager
-     * secret called Secret. If no such secret is found, the function throws. If no ${} are found in
-     * the input string, nothing is replaced and the original string is returned.
-     */
-    protected String resolveSecrets(String rawString)
-    {
-        return secretsManager.resolveSecrets(rawString);
-    }
-
-    protected String resolveWithDefaultCredentials(String rawString)
-    {
-        return secretsManager.resolveWithDefaultCredentials(rawString);
-    }
-
-    protected String getSecret(String secretName)
-    {
-        return secretsManager.getSecret(secretName);
-    }
-
-    /**
      * Gets the CachableSecretsManager instance used by this handler.
      * This is used by credential providers to reuse the same secrets manager instance.
      * @return The CachableSecretsManager instance
      */
-    protected CachableSecretsManager getCachableSecretsManager()
+    public CachableSecretsManager getCachableSecretsManager()
     {
         return secretsManager;
+    }
+
+    /**
+     * Gets the KmsEncryptionProvider instance used by this handler.
+     * @return The KmsEncryptionProvider instance
+     */
+    public KmsEncryptionProvider getKmsEncryptionProvider()
+    {
+        return kmsEncryptionProvider;
     }
 
     public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
@@ -232,11 +215,6 @@ public abstract class RecordHandler
                         spillConfig.getEncryptionKey());
             }
         }
-    }
-
-    public AwsRequestOverrideConfiguration getRequestOverrideConfig(Map<String, String> configOptions)
-    {
-        return getRequestOverrideConfig(configOptions, kmsEncryptionProvider);
     }
 
     /**
