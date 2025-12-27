@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
@@ -43,8 +44,11 @@ import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
+import com.amazonaws.athena.connector.substrait.util.LimitAndSortHelper;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.substrait.proto.Plan;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
@@ -58,7 +62,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Map;
+import java.util.List;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
@@ -111,38 +115,22 @@ public abstract class RecordHandler
     }
 
     /**
-     * Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
-     * by the corresponding value of the secret in AWS Secrets Manager with that name. If no such secret is found
-     * the function throws.
-     *
-     * @param rawString The string in which you'd like to replace SecretsManager placeholders.
-     * (e.g. ThisIsA${Secret}Here - The ${Secret} would be replaced with the contents of an SecretsManager
-     * secret called Secret. If no such secret is found, the function throws. If no ${} are found in
-     * the input string, nothing is replaced and the original string is returned.
-     */
-    protected String resolveSecrets(String rawString)
-    {
-        return secretsManager.resolveSecrets(rawString);
-    }
-
-    protected String resolveWithDefaultCredentials(String rawString)
-    {
-        return secretsManager.resolveWithDefaultCredentials(rawString);
-    }
-
-    protected String getSecret(String secretName)
-    {
-        return secretsManager.getSecret(secretName);
-    }
-
-    /**
      * Gets the CachableSecretsManager instance used by this handler.
      * This is used by credential providers to reuse the same secrets manager instance.
      * @return The CachableSecretsManager instance
      */
-    protected CachableSecretsManager getCachableSecretsManager()
+    public CachableSecretsManager getCachableSecretsManager()
     {
         return secretsManager;
+    }
+
+    /**
+     * Gets the KmsEncryptionProvider instance used by this handler.
+     * @return The KmsEncryptionProvider instance
+     */
+    public KmsEncryptionProvider getKmsEncryptionProvider()
+    {
+        return kmsEncryptionProvider;
     }
 
     public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
@@ -173,9 +161,9 @@ public abstract class RecordHandler
     }
 
     protected final void doHandleRequest(BlockAllocator allocator,
-            ObjectMapper objectMapper,
-            RecordRequest req,
-            OutputStream outputStream)
+                                         ObjectMapper objectMapper,
+                                         RecordRequest req,
+                                         OutputStream outputStream)
             throws Exception
     {
         logger.info("doHandleRequest: request[{}]", req);
@@ -217,8 +205,8 @@ public abstract class RecordHandler
         try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator,
                 request.getSchema(),
                 request.getConstraints());
-                S3BlockSpiller spiller = new S3BlockSpiller(s3Client, spillConfig, allocator, request.getSchema(), evaluator, configOptions);
-                QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athenaClient, athenaInvoker, request.getQueryId())
+             S3BlockSpiller spiller = new S3BlockSpiller(s3Client, spillConfig, allocator, request.getSchema(), evaluator, configOptions);
+             QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athenaClient, athenaInvoker, request.getQueryId())
         ) {
             readWithConstraint(spiller, request, queryStatusChecker);
 
@@ -232,11 +220,6 @@ public abstract class RecordHandler
                         spillConfig.getEncryptionKey());
             }
         }
-    }
-
-    public AwsRequestOverrideConfiguration getRequestOverrideConfig(Map<String, String> configOptions)
-    {
-        return getRequestOverrideConfig(configOptions, kmsEncryptionProvider);
     }
 
     /**
@@ -290,6 +273,22 @@ public abstract class RecordHandler
     protected void onPing(PingRequest request)
     {
         //NoOp
+    }
+
+    /**
+     * Determines if a LIMIT can be applied and extracts the limit value.
+     */
+    protected Pair<Boolean, Integer> getLimitFromPlan(Plan plan, Constraints constraints)
+    {
+        return LimitAndSortHelper.getLimit(plan, constraints);
+    }
+
+    /**
+     * Extracts sort information from Substrait plan for ORDER BY pushdown optimization.
+     */
+    protected Pair<Boolean, List<LimitAndSortHelper.GenericSortField>> getSortFromPlan(Plan plan)
+    {
+        return LimitAndSortHelper.getSortFromPlan(plan);
     }
 
     private void assertNotNull(FederationResponse response)
