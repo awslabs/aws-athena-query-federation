@@ -235,7 +235,7 @@ public abstract class MetadataHandler
         FederatedIdentity federatedIdentity = request.getIdentity();
         Map<String, String> configOptions = federatedIdentity.getConfigOptions();
         if (CollectionUtils.isNullOrEmpty(configOptions)) {
-            logger.debug("configOptions is empty from federation. Use default configOptions.");
+            logger.warn("configOptions is empty from federation. Use default configOptions.");
             configOptions = new HashMap<>(this.configOptions);
         }
         String queryId = request.getQueryId();
