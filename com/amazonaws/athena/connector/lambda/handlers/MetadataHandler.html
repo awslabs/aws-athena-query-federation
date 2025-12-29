@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":6,"i3":6,"i4":10,"i5":10,"i6":6,"i7":6,"i8":10,"i9":10,"i10":10,"i11":6,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10};
+var data = {"i0":10,"i1":10,"i2":6,"i3":6,"i4":10,"i5":10,"i6":6,"i7":6,"i8":10,"i9":10,"i10":10,"i11":10,"i12":6,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -325,13 +325,20 @@ implements <a href="FederationRequestHandler.html" title="interface in com.amazo
 </td>
 </tr>
 <tr id="i10" class="altColor">
-<td class="colFirst"><code>protected <a href="../security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security">CachableSecretsManager</a></code></td>
+<td class="colFirst"><code><a href="../security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security">CachableSecretsManager</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getCachableSecretsManager()">getCachableSecretsManager</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Gets the CachableSecretsManager instance used by this handler.</div>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
+<td class="colFirst"><code><a href="../security/KmsEncryptionProvider.html" title="class in com.amazonaws.athena.connector.lambda.security">KmsEncryptionProvider</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getKmsEncryptionProvider()">getKmsEncryptionProvider</a></span>()</code></th>
+<td class="colLast">
+<div class="block">Gets the KmsEncryptionProvider instance used by this handler.</div>
+</td>
+</tr>
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>abstract void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions</a></span>&#8203;(<a href="../data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
              <a href="../metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
@@ -340,59 +347,36 @@ implements <a href="FederationRequestHandler.html" title="interface in com.amazo
 <div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
-<td class="colFirst"><code>software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getRequestOverrideConfig(java.util.Map)">getRequestOverrideConfig</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
 <tr id="i13" class="rowColor">
-<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSecret(java.lang.String)">getSecret</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;secretName)</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr id="i14" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/InputStream.html?is-external=true" title="class or interface in java.io" class="externalLink">InputStream</a>&nbsp;inputStream,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/OutputStream.html?is-external=true" title="class or interface in java.io" class="externalLink">OutputStream</a>&nbsp;outputStream,
              com.amazonaws.services.lambda.runtime.Context&nbsp;context)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>protected <a href="../security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeEncryptionKey()">makeEncryptionKey</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>protected <a href="../security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeEncryptionKey(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">makeEncryptionKey</a></span>&#8203;(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;awsRequestOverrideConfiguration)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>protected <a href="../domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeSpillLocation(com.amazonaws.athena.connector.lambda.metadata.MetadataRequest)">makeSpillLocation</a></span>&#8203;(<a href="../metadata/MetadataRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">MetadataRequest</a>&nbsp;request)</code></th>
 <td class="colLast">
 <div class="block">Used to make a spill location for a split.</div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#onPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">onPing</a></span>&#8203;(<a href="../request/PingRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">PingRequest</a>&nbsp;request)</code></th>
 <td class="colLast">
 <div class="block">Provides you a signal that can be used to warm up your function.</div>
 </td>
-</tr>
-<tr id="i19" class="rowColor">
-<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resolveSecrets(java.lang.String)">resolveSecrets</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;rawString)</code></th>
-<td class="colLast">
-<div class="block">Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
- by the corresponding value of the secret in AWS Secrets Manager with that name.</div>
-</td>
-</tr>
-<tr id="i20" class="altColor">
-<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;rawString)</code></th>
-<td class="colLast">&nbsp;</td>
 </tr>
 </table>
 <ul class="blockList">
@@ -407,7 +391,7 @@ implements <a href="FederationRequestHandler.html" title="interface in com.amazo
 <!--   -->
 </a>
 <h3>Methods inherited from interface&nbsp;com.amazonaws.athena.connector.lambda.handlers.<a href="FederationRequestHandler.html" title="interface in com.amazonaws.athena.connector.lambda.handlers">FederationRequestHandler</a></h3>
-<code><a href="FederationRequestHandler.html#getAthenaClient(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.athena.AthenaClient)">getAthenaClient</a>, <a href="FederationRequestHandler.html#getRequestOverrideConfig(java.util.Map,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getRequestOverrideConfig</a>, <a href="FederationRequestHandler.html#getS3Client(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.s3.S3Client)">getS3Client</a>, <a href="FederationRequestHandler.html#getSessionCredentials(java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getSessionCredentials</a></code></li>
+<code><a href="FederationRequestHandler.html#createCredentialsProvider(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">createCredentialsProvider</a>, <a href="FederationRequestHandler.html#getAthenaClient(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.athena.AthenaClient)">getAthenaClient</a>, <a href="FederationRequestHandler.html#getCredentialProvider(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getCredentialProvider</a>, <a href="FederationRequestHandler.html#getDatabaseConnectionSecret()">getDatabaseConnectionSecret</a>, <a href="FederationRequestHandler.html#getRequestOverrideConfig(com.amazonaws.athena.connector.lambda.request.FederationRequest)">getRequestOverrideConfig</a>, <a href="FederationRequestHandler.html#getRequestOverrideConfig(java.util.Map)">getRequestOverrideConfig</a>, <a href="FederationRequestHandler.html#getRequestOverrideConfig(java.util.Map,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getRequestOverrideConfig</a>, <a href="FederationRequestHandler.html#getS3Client(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.s3.S3Client)">getS3Client</a>, <a href="FederationRequestHandler.html#getSecret(java.lang.String)">getSecret</a>, <a href="FederationRequestHandler.html#getSecret(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSecret</a>, <a href="FederationRequestHandler.html#getSessionCredentials(java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getSessionCredentials</a>, <a href="FederationRequestHandler.html#isRequestFederated(com.amazonaws.athena.connector.lambda.request.FederationRequest)">isRequestFederated</a>, <a href="FederationRequestHandler.html#resolveSecrets(java.lang.String)">resolveSecrets</a>, <a href="FederationRequestHandler.html#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials</a></code></li>
 </ul>
 </li>
 </ul>
@@ -542,55 +526,36 @@ implements <a href="FederationRequestHandler.html" title="interface in com.amazo
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="resolveSecrets(java.lang.String)">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>resolveSecrets</h4>
-<pre class="methodSignature">protected&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;resolveSecrets&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;rawString)</pre>
-<div class="block">Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
- by the corresponding value of the secret in AWS Secrets Manager with that name. If no such secret is found
- the function throws.</div>
-<dl>
-<dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>rawString</code> - The string in which you'd like to replace SecretsManager placeholders.
- (e.g. ThisIsA${Secret}Here - The ${Secret} would be replaced with the contents of an SecretsManager
- secret called Secret. If no such secret is found, the function throws. If no ${} are found in
- the input string, nothing is replaced and the original string is returned.</dd>
-</dl>
-</li>
-</ul>
-<a id="resolveWithDefaultCredentials(java.lang.String)">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>resolveWithDefaultCredentials</h4>
-<pre class="methodSignature">protected&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;resolveWithDefaultCredentials&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;rawString)</pre>
-</li>
-</ul>
-<a id="getSecret(java.lang.String)">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>getSecret</h4>
-<pre class="methodSignature">protected&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;getSecret&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;secretName)</pre>
-</li>
-</ul>
 <a id="getCachableSecretsManager()">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getCachableSecretsManager</h4>
-<pre class="methodSignature">protected&nbsp;<a href="../security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security">CachableSecretsManager</a>&nbsp;getCachableSecretsManager()</pre>
+<pre class="methodSignature">public&nbsp;<a href="../security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security">CachableSecretsManager</a>&nbsp;getCachableSecretsManager()</pre>
 <div class="block">Gets the CachableSecretsManager instance used by this handler.
  This is used by credential providers to reuse the same secrets manager instance.</div>
 <dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="FederationRequestHandler.html#getCachableSecretsManager()">getCachableSecretsManager</a></code>&nbsp;in interface&nbsp;<code><a href="FederationRequestHandler.html" title="interface in com.amazonaws.athena.connector.lambda.handlers">FederationRequestHandler</a></code></dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>The CachableSecretsManager instance</dd>
+</dl>
+</li>
+</ul>
+<a id="getKmsEncryptionProvider()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getKmsEncryptionProvider</h4>
+<pre class="methodSignature">public&nbsp;<a href="../security/KmsEncryptionProvider.html" title="class in com.amazonaws.athena.connector.lambda.security">KmsEncryptionProvider</a>&nbsp;getKmsEncryptionProvider()</pre>
+<div class="block">Gets the KmsEncryptionProvider instance used by this handler.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="FederationRequestHandler.html#getKmsEncryptionProvider()">getKmsEncryptionProvider</a></code>&nbsp;in interface&nbsp;<code><a href="FederationRequestHandler.html" title="interface in com.amazonaws.athena.connector.lambda.handlers">FederationRequestHandler</a></code></dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>The KmsEncryptionProvider instance</dd>
 </dl>
 </li>
 </ul>
@@ -882,7 +847,7 @@ implements <a href="FederationRequestHandler.html" title="interface in com.amazo
 <a id="onPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">
 <!--   -->
 </a>
-<ul class="blockList">
+<ul class="blockListLast">
 <li class="blockList">
 <h4>onPing</h4>
 <pre class="methodSignature">public&nbsp;void&nbsp;onPing&#8203;(<a href="../request/PingRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">PingRequest</a>&nbsp;request)</pre>
@@ -891,15 +856,6 @@ implements <a href="FederationRequestHandler.html" title="interface in com.amazo
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>request</code> - The PingRequest.</dd>
 </dl>
-</li>
-</ul>
-<a id="getRequestOverrideConfig(java.util.Map)">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>getRequestOverrideConfig</h4>
-<pre class="methodSignature">public&nbsp;software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;getRequestOverrideConfig&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
 </li>
 </ul>
 </li>
