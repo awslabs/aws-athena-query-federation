@@ -37,14 +37,6 @@ import static org.junit.Assert.assertEquals;
 
 public class ClouderaHiveEnvironmentPropertiesTest
 {
-    private static final String BASE_CONNECTION_STRING = "hive://jdbc:hive2://localhost:49100/default;";
-    private static final String HIVE_EXECUTION_ENGINE_MR = "hive.execution.engine=mr";
-    private static final String MAPREDUCE_QA = "mapreduce.job.queuename=qa";
-    private static final String ENV_QA = "env=qa";
-    private static final String MAPREDUCE_TESTING = "mapreduce.job.queuename=testing";
-    private static final String ENV_TEST = "env=test";
-    private static final String TEST_SECRET = "${testSecret}";
-    
     Map<String, String> connectionProperties;
     ClouderaHiveEnvironmentProperties clouderaHiveEnvironmentProperties;
 
@@ -64,56 +56,50 @@ public class ClouderaHiveEnvironmentPropertiesTest
     {
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
 
-        String expectedConnectionString = BASE_CONNECTION_STRING + TEST_SECRET;
-        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+        assertEquals("hive://jdbc:hive2://localhost:49100/default;${testSecret}", clouderaHiveConnectionProperties.get(DEFAULT));
     }
 
     @Test
     public void connectionPropertiesToEnvironment_WithSessionConfsOnly_ReturnsCorrectConnectionString()
     {
-        connectionProperties.put(SESSION_CONFS, HIVE_EXECUTION_ENGINE_MR);
+        connectionProperties.put(SESSION_CONFS, "hive.execution.engine=mr");
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + ";" + TEST_SECRET;
-        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+        assertEquals("hive://jdbc:hive2://localhost:49100/default;hive.execution.engine=mr;${testSecret}", clouderaHiveConnectionProperties.get(DEFAULT));
     }
 
     @Test
     public void connectionPropertiesToEnvironment_WithSessionAndHiveConfs_ReturnsCorrectConnectionString()
     {
-        connectionProperties.put(SESSION_CONFS, HIVE_EXECUTION_ENGINE_MR);
-        connectionProperties.put(HIVE_CONFS, MAPREDUCE_TESTING);
+        connectionProperties.put(SESSION_CONFS, "hive.execution.engine=mr");
+        connectionProperties.put(HIVE_CONFS, "mapreduce.job.queuename=testing");
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + ";" + MAPREDUCE_TESTING + ";" + TEST_SECRET;
-        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+        assertEquals("hive://jdbc:hive2://localhost:49100/default;hive.execution.engine=mr;mapreduce.job.queuename=testing;${testSecret}", clouderaHiveConnectionProperties.get(DEFAULT));
     }
 
     @Test
     public void connectionPropertiesToEnvironment_WithAllConfigs_ReturnsCorrectConnectionString()
     {
-        connectionProperties.put(SESSION_CONFS, HIVE_EXECUTION_ENGINE_MR);
-        connectionProperties.put(HIVE_CONFS, MAPREDUCE_TESTING);
-        connectionProperties.put(HIVE_VARS, ENV_TEST);
+        connectionProperties.put(SESSION_CONFS, "hive.execution.engine=mr");
+        connectionProperties.put(HIVE_CONFS, "mapreduce.job.queuename=testing");
+        connectionProperties.put(HIVE_VARS, "env=test");
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + ";" + MAPREDUCE_TESTING + ";" + ENV_TEST + ";" + TEST_SECRET;
-        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+        assertEquals("hive://jdbc:hive2://localhost:49100/default;hive.execution.engine=mr;mapreduce.job.queuename=testing;env=test;${testSecret}", clouderaHiveConnectionProperties.get(DEFAULT));
     }
 
     @Test
     public void connectionPropertiesToEnvironment_WithHiveVarsOnly_ReturnsCorrectConnectionString()
     {
-        connectionProperties.put(HIVE_VARS, ENV_TEST);
+        connectionProperties.put(HIVE_VARS, "env=test");
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expectedConnectionString = BASE_CONNECTION_STRING + ENV_TEST + ";" + TEST_SECRET;
-        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+        assertEquals("hive://jdbc:hive2://localhost:49100/default;env=test;${testSecret}", clouderaHiveConnectionProperties.get(DEFAULT));
     }
 
     @Test
     public void connectionPropertiesToEnvironment_WithHiveConfsAndVars_ReturnsCorrectConnectionString()
     {
-        connectionProperties.put(HIVE_CONFS, MAPREDUCE_QA);
-        connectionProperties.put(HIVE_VARS, ENV_QA);
+        connectionProperties.put(HIVE_CONFS, "mapreduce.job.queuename=qa");
+        connectionProperties.put(HIVE_VARS, "env=qa");
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expectedConnectionString = BASE_CONNECTION_STRING + MAPREDUCE_QA + ";" + ENV_QA + ";" + TEST_SECRET;
-        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+        assertEquals("hive://jdbc:hive2://localhost:49100/default;mapreduce.job.queuename=qa;env=qa;${testSecret}", clouderaHiveConnectionProperties.get(DEFAULT));
     }
 }
