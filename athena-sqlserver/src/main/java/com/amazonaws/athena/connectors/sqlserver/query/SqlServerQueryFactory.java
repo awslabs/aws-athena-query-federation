@@ -19,91 +19,18 @@
  */
 package com.amazonaws.athena.connectors.sqlserver.query;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.stringtemplate.v4.ST;
-import org.stringtemplate.v4.STGroupFile;
-
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-
-import static java.util.Objects.requireNonNull;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcQueryFactory;
 
 /**
  * Factory for creating SQL Server query builders with StringTemplate support.
  */
-public class SqlServerQueryFactory
+public class SqlServerQueryFactory extends JdbcQueryFactory
 {
-    private static final Logger logger = LoggerFactory.getLogger(SqlServerQueryFactory.class);
-
     private static final String TEMPLATE_FILE = "SqlServer.stg";
-    private static final String LOCAL_TEMPLATE_FILE = "/tmp/SqlServer.stg";
-    private static final String TEST_TEMPLATE = "test_template";
-    private volatile boolean useLocalFallback = false;
 
-    /**
-     * Due to a concurrency bug in StringTemplate, we are extracting creation of the template file.
-     *
-     * @return An STGroupFile instance for the given templateFile.
-     */
-    private STGroupFile createGroupFile()
+    public SqlServerQueryFactory()
     {
-        if (!useLocalFallback) {
-            try {
-                STGroupFile stGroupFile = new STGroupFile(TEMPLATE_FILE);
-                requireNonNull(stGroupFile.getInstanceOf(TEST_TEMPLATE), "Test template must not be null");
-                return stGroupFile;
-            }
-            catch (RuntimeException ex) {
-                logger.info("createGroupFile: Error while attempting to load STGroupFile.", ex);
-                return createLocalGroupFile();
-            }
-        }
-
-        STGroupFile stGroupFile = new STGroupFile(LOCAL_TEMPLATE_FILE);
-        requireNonNull(stGroupFile.getInstanceOf(TEST_TEMPLATE), "Test template must not be null");
-        return stGroupFile;
-    }
-
-    private STGroupFile createLocalGroupFile()
-    {
-        logger.info("createLocalGroupFile: Attempting STGroupFile fallback.");
-        InputStream in = this.getClass().getClassLoader().getResourceAsStream(TEMPLATE_FILE);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-        StringBuilder sb = new StringBuilder();
-        try {
-            String line = reader.readLine();
-            sb.append(line);
-            while (line != null) {
-                line = reader.readLine();
-                if (line != null) {
-                    sb.append(line);
-                }
-            }
-
-            BufferedWriter writer = new BufferedWriter(new FileWriter(LOCAL_TEMPLATE_FILE));
-            writer.write(sb.toString());
-            writer.close();
-        }
-        catch (IOException ex) {
-            logger.error("createLocalGroupFile: Exception ", ex);
-        }
-
-        useLocalFallback = true;
-        logger.info("createLocalGroupFile: {}", sb);
-
-        STGroupFile stGroupFile = new STGroupFile(LOCAL_TEMPLATE_FILE);
-        requireNonNull(stGroupFile.getInstanceOf(TEST_TEMPLATE), "Test template must not be null");
-        return stGroupFile;
-    }
-
-    public ST getQueryTemplate(String templateName)
-    {
-        return createGroupFile().getInstanceOf(templateName);
+        super(TEMPLATE_FILE);
     }
 
     public SqlServerQueryBuilder createQueryBuilder()

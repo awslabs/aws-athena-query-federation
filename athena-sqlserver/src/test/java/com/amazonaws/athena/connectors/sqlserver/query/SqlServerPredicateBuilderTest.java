@@ -295,7 +295,8 @@ public class SqlServerPredicateBuilderTest
     {
         Constraints constraints = new Constraints(constraintMap, Collections.emptyList(),
                 Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
-        List<String> conjuncts = SqlServerPredicateBuilder.buildConjuncts(fields, constraints, parameterValues, customSplit);
+        SqlServerPredicateBuilder predicateBuilder = new SqlServerPredicateBuilder();
+        List<String> conjuncts = predicateBuilder.buildConjuncts(fields, constraints, parameterValues, customSplit);
         assertNotNull("Conjuncts should not be null", conjuncts);
         return conjuncts;
     }

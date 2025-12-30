@@ -100,8 +100,8 @@ public class SqlServerSqlUtilsTest
         List<TypeAndValue> expectedParams = new ArrayList<>();
         expectedParams.add(new TypeAndValue(INT_TYPE, 10));
         expectedParams.add(new TypeAndValue(INT_TYPE, 20));
-        String expectedSql = "SELECT \"intCol\" FROM \"test_schema\".\"test_table\"  WHERE (\"intCol\" > ? AND \"intCol\" < ?)";
-        
+        String expectedSql = "SELECT \"intCol\" FROM \"test_schema\".\"test_table\"  WHERE ((\"intCol\" > ? AND \"intCol\" < ?))";
+
         executeAndVerify(constraints, schema, expectedParams, expectedSql);
     }
 

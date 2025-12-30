@@ -28,7 +28,6 @@ import com.amazonaws.athena.connectors.sqlserver.query.SqlServerQueryFactory;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Utilities that help with SQL operations using StringTemplate.
@@ -40,7 +39,18 @@ public class SqlServerSqlUtils
     private SqlServerSqlUtils()
     {
     }
-
+    
+    /**
+     * Gets the query factory instance for this connector.
+     * Used by classes that need to render templates directly via JdbcSqlUtils.
+     *
+     * @return The SqlServerQueryFactory instance
+     */
+    public static SqlServerQueryFactory getQueryFactory()
+    {
+        return queryFactory;
+    }
+    
     /**
      * Builds an SQL statement from the schema, table name, split and constraints that can be executable by
      * SQL Server using StringTemplate approach.
@@ -64,30 +74,13 @@ public class SqlServerSqlUtils
                 .withProjection(schema, split)
                 .withConjuncts(schema, constraints, split)
                 .withOrderByClause(constraints)
-                .withLimitClause()
+                .withLimitClause(constraints)
                 .build();
-        
+
         // Copy the parameter values from the builder to the provided list
         parameterValues.clear();
         parameterValues.addAll(queryBuilder.getParameterValues());
         
         return sql;
-    }
-    
-    /**
-     * Generic method to render any string template with parameters
-     *
-     * @param templateName The name of the template to render
-     * @param params Map of parameter key-value pairs
-     * @return The rendered template string
-     */
-    public static String renderTemplate(String templateName, Map<String, Object> params)
-    {
-        org.stringtemplate.v4.ST template = queryFactory.getQueryTemplate(templateName);
-        
-        // Add all parameters from the map
-        params.forEach(template::add);
-        
-        return template.render().trim();
     }
 }
