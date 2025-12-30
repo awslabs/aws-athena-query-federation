@@ -35,8 +35,6 @@ import static org.junit.Assert.assertEquals;
 @RunWith(MockitoJUnitRunner.class)
 public class Db2FederationExpressionParserTest
 {
-    private static final String VALUE_1 = "value1";
-    
     @Mock
     private ArrowType mockArrowType;
     
@@ -51,14 +49,14 @@ public class Db2FederationExpressionParserTest
     @Test
     public void writeArrayConstructorClause_whenSingleArgument_returnsSingleArgument()
     {
-        assertEquals(VALUE_1, parser.writeArrayConstructorClause(mockArrowType, Collections.singletonList(VALUE_1)));
+        assertEquals("value1", parser.writeArrayConstructorClause(mockArrowType, Collections.singletonList("value1")));
     }
 
     @Test
     public void writeArrayConstructorClause_whenMultipleArguments_returnsCommaSeparatedArguments()
     {
         assertEquals("value1, value2, value3", 
-            parser.writeArrayConstructorClause(mockArrowType, Arrays.asList(VALUE_1, "value2", "value3")));
+            parser.writeArrayConstructorClause(mockArrowType, Arrays.asList("value1", "value2", "value3")));
     }
 
     @Test
