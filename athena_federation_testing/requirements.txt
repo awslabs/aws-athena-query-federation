@@ -9,7 +9,7 @@ cffi==1.17.1
 charset-normalizer==3.4.1
 cryptography==44.0.2
 Events==0.5
-filelock==3.18.0
+filelock==3.20.1
 google-api-core==2.25.1
 google-auth==2.40.3
 google-cloud-bigquery==3.35.1
