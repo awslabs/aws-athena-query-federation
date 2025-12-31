@@ -160,9 +160,7 @@ public abstract class RecordHandler
         }
     }
 
-    protected final void doHandleRequest(BlockAllocator allocator,
-                                         ObjectMapper objectMapper,
-                                         RecordRequest req,
+    protected final void doHandleRequest(BlockAllocator allocator, ObjectMapper objectMapper, RecordRequest req,
                                          OutputStream outputStream)
             throws Exception
     {
@@ -214,10 +212,8 @@ public abstract class RecordHandler
                 return new ReadRecordsResponse(request.getCatalogName(), spiller.getBlock());
             }
             else {
-                return new RemoteReadRecordsResponse(request.getCatalogName(),
-                        request.getSchema(),
-                        spiller.getSpillLocations(),
-                        spillConfig.getEncryptionKey());
+                return new RemoteReadRecordsResponse(request.getCatalogName(), request.getSchema(),
+                        spiller.getSpillLocations(), spillConfig.getEncryptionKey());
             }
         }
     }
