@@ -157,8 +157,11 @@ public final class SubstraitSqlUtils
         if (type.hasTime()) {
             return new ArrowType.Time(TimeUnit.MICROSECOND, 64);
         }
-        if (type.hasTimestamp()) {
+        if (type.hasTimestamp() || type.hasPrecisionTimestamp()) {
             return new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
+        }
+        if (type.hasTimestampTz() || type.hasPrecisionTimestampTz()) {
+            return new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC");
         }
         if (type.hasDecimal()) {
             return new ArrowType.Decimal(type.getDecimal().getPrecision(), type.getDecimal().getScale(), 128);
@@ -171,9 +174,6 @@ public final class SubstraitSqlUtils
         }
         if (type.hasStruct()) {
             return new ArrowType.Struct();
-        }
-        if (type.hasPrecisionTimestamp()) {
-            return new ArrowType.Timestamp(TimeUnit.NANOSECOND, null);
         }
 
         LOGGER.warn("Unsupported Substrait type: {}, defaulting to Utf8", type);
