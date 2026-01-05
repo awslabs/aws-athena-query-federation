@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -187,12 +186,6 @@ public abstract class JdbcMetadataHandler
             return databaseConnectionConfig.getSecret();
         }
         return null;
-    }
-
-    @Override
-    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
-    {
-        return new DefaultCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
     }
 
     @Override

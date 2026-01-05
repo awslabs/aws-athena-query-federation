@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -73,7 +72,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -151,12 +149,6 @@ public abstract class JdbcRecordHandler
             return databaseConnectionConfig.getSecret();
         }
         return null;
-    }
-
-    @Override
-    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
-    {
-        return new DefaultCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
     }
 
     @Override
