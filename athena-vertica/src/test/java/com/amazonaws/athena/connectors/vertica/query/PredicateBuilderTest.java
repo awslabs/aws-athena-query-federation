@@ -151,10 +151,13 @@ public class PredicateBuilderTest {
         Constraints constraints = createConstraints(ImmutableMap.of("col1", inValues(col1Int.getType(), false, 10, 20, 30)));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertEquals(1, conjuncts.size());
-        assertEquals("(\"col1\" IN (<col1>,<col1>,<col1>))", conjuncts.get(0));
-        assertEquals(1, accumulator.size());
-        assertEquals(30, accumulator.get("col1").getValue());
-        assertEquals(col1Int.getType(), accumulator.get("col1").getType());
+        assertEquals("(\"col1\" IN (<col1_0>,<col1_1>,<col1_2>))", conjuncts.get(0));
+        assertEquals(3, accumulator.size());
+        assertEquals(10, accumulator.get("col1_0").getValue());
+        assertEquals(20, accumulator.get("col1_1").getValue());
+        assertEquals(30, accumulator.get("col1_2").getValue());
+
+
     }
 
     @Test
@@ -162,9 +165,10 @@ public class PredicateBuilderTest {
         Constraints constraints = createConstraints(ImmutableMap.of("col1", inValues(col1Int.getType(), true, 10, 20)));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertEquals(1, conjuncts.size());
-        assertEquals("((col1 IS NULL) OR \"col1\" IN (<col1>,<col1>))", conjuncts.get(0));
-        assertEquals(1, accumulator.size());
-        assertEquals(20, accumulator.get("col1").getValue());
+        assertEquals("((col1 IS NULL) OR \"col1\" IN (<col1_0>,<col1_1>))", conjuncts.get(0));
+        assertEquals(2, accumulator.size());
+        assertEquals(10, accumulator.get("col1_0").getValue());
+        assertEquals(20, accumulator.get("col1_1").getValue());
     }
 
     @Test
@@ -182,9 +186,10 @@ public class PredicateBuilderTest {
         Constraints constraints = createConstraints(ImmutableMap.of("col1", betweenInclusive(col1Int.getType())));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertEquals(1, conjuncts.size());
-        assertEquals("((\"col1\" >= <col1>  AND \"col1\" \\<= <col1> ))", conjuncts.get(0));
-        assertEquals(1, accumulator.size());
-        assertEquals(20, accumulator.get("col1").getValue());
+        assertEquals("((\"col1\" >= <col1>  AND \"col1\" \\<= <col1Pred1> ))", conjuncts.get(0));
+        assertEquals(2, accumulator.size());
+        assertEquals(10, accumulator.get("col1").getValue());
+        assertEquals(20, accumulator.get("col1Pred1").getValue());
     }
 
     @Test
