@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC with 2 public subnets, internet gateway, open security group, and services endpoints
+
+Resources:
+  AthenaFederationIntegVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: AthenaFederationIntegVPC
+
+  AthenaFederationIntegGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: AthenaFederationIntegGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref AthenaFederationIntegVPC
+      InternetGatewayId: !Ref AthenaFederationIntegGateway
+
+  AthenaFederationIntegPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref AthenaFederationIntegVPC
+      Tags:
+        - Key: Name
+          Value: AthenaFederationIntegPublicRouteTable
+
+  AthenaFederationIntegPublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref AthenaFederationIntegPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref AthenaFederationIntegGateway
+
+  AthenaFederationIntegPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AthenaFederationIntegVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: AthenaFederationIntegPublicSubnet1
+
+  AthenaFederationIntegPublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AthenaFederationIntegVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: AthenaFederationIntegPublicSubnet2
+
+  AthenaFederationIntegPublicSubnet1RouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AthenaFederationIntegPublicSubnet1
+      RouteTableId: !Ref AthenaFederationIntegPublicRouteTable
+
+  AthenaFederationIntegPublicSubnet2RouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AthenaFederationIntegPublicSubnet2
+      RouteTableId: !Ref AthenaFederationIntegPublicRouteTable
+
+  AthenaFederationIntegOpenSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow all inbound and outbound traffic
+      VpcId: !Ref AthenaFederationIntegVPC
+      SecurityGroupIngress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: AthenaFederationIntegOpenSecurityGroup
+
+  AthenaFederationIntegGlueVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref AthenaFederationIntegVPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.glue
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref AthenaFederationIntegPublicSubnet1
+        - !Ref AthenaFederationIntegPublicSubnet2
+      SecurityGroupIds:
+        - !Ref AthenaFederationIntegOpenSecurityGroup
+      PrivateDnsEnabled: true
+      Tags:
+        - Key: Name
+          Value: AthenaFederationIntegGlueVPCEndpoint
+
+  AthenaFederationIntegSecretsManagerVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref AthenaFederationIntegVPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.secretsmanager
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref AthenaFederationIntegPublicSubnet1
+        - !Ref AthenaFederationIntegPublicSubnet2
+      SecurityGroupIds:
+        - !Ref AthenaFederationIntegOpenSecurityGroup
+      PrivateDnsEnabled: true
+      Tags:
+        - Key: Name
+          Value: AthenaFederationIntegSecretsManagerVPCEndpoint
+
+  AthenaFederationIntegS3VPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref AthenaFederationIntegVPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref AthenaFederationIntegPublicRouteTable
+      Tags:
+        - Key: Name
+          Value: AthenaFederationIntegS3VPCEndpoint
+
+Outputs:
+  AthenaFederationIntegVPCId:
+    Description: Athena Federation integration test VPC ID
+    Value: !Ref AthenaFederationIntegVPC
+    Export:
+      Name: AthenaFederationIntegVPC
+
+  AthenaFederationIntegPublicSubnet1Id:
+    Description: Athena Federation integration test Public Subnet 1
+    Value: !Ref AthenaFederationIntegPublicSubnet1
+    Export:
+      Name: AthenaFederationIntegPublicSubnet1
+
+  AthenaFederationIntegPublicSubnet2Id:
+    Description: Athena Federation integration test Public Subnet 2
+    Value: !Ref AthenaFederationIntegPublicSubnet2
+    Export:
+      Name: AthenaFederationIntegPublicSubnet2
+
+  AthenaFederationIntegOpenSecurityGroupId:
+    Description: Athena Federation integration test security group ID
+    Value: !Ref AthenaFederationIntegOpenSecurityGroup
+    Export:
+      Name: AthenaFederationIntegOpenSecurityGroup

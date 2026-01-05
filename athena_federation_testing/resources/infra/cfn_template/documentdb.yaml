@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Amazon DocumentDB - Single AZ with manual password and custom networking
+
+Parameters:
+  DBUsername:
+    Type: String
+    Description: Master username for the DocumentDB cluster
+
+  DBpwd:
+    Type: String
+    NoEcho: true
+    Description: Master password for the DocumentDB cluster
+
+Resources:
+  DocumentDBCluster:
+    Type: AWS::DocDB::DBCluster
+    Properties:
+      DBClusterIdentifier: athenafederationintegdocdb
+      EngineVersion: "5.0"  # or latest available version
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBpwd
+      VpcSecurityGroupIds:
+        - Fn::ImportValue: AthenaFederationIntegOpenSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DeletionProtection: false
+      StorageEncrypted: true
+
+  DocumentDBInstance:
+    Type: AWS::DocDB::DBInstance
+    Properties:
+      DBInstanceIdentifier: athenafederationintegdocdbinstance
+      DBClusterIdentifier: !Ref DocumentDBCluster
+      DBInstanceClass: db.r6g.2xlarge
+      AutoMinorVersionUpgrade: true
+
+  DBSubnetGroup:
+    Type: AWS::DocDB::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for AthenaFederationIntegDocDB
+      SubnetIds:
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet1
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet2
+      DBSubnetGroupName: AthenaFederationIntegDocDBSubnetGroup
+
+Outputs:
+  DBEndpoint:
+    Description: DocumentDB Cluster endpoint
+    Value: !GetAtt DocumentDBCluster.Endpoint
