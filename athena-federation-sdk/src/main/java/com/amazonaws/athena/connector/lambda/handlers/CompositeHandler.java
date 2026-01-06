@@ -62,6 +62,7 @@ public class CompositeHandler
     private final RecordHandler recordHandler;
     //(Optional) The UserDefinedFunctionHandler to delegate UDF operations to.
     private final UserDefinedFunctionHandler udfhandler;
+    private final ConnectorExceptionHandler exceptionHandler;
 
     /**
      * Basic constructor that composes a MetadataHandler with a RecordHandler.
@@ -74,6 +75,15 @@ public class CompositeHandler
         this.metadataHandler = metadataHandler;
         this.recordHandler = recordHandler;
         this.udfhandler = null;
+        this.exceptionHandler = null;
+    }
+
+    public CompositeHandler(MetadataHandler metadataHandler, RecordHandler recordHandler, ConnectorExceptionHandler exceptionHandler)
+    {
+        this.metadataHandler = metadataHandler;
+        this.recordHandler = recordHandler;
+        this.udfhandler = null;
+        this.exceptionHandler = exceptionHandler;
     }
 
     /**
@@ -88,6 +98,7 @@ public class CompositeHandler
         this.metadataHandler = metadataHandler;
         this.recordHandler = recordHandler;
         this.udfhandler = udfhandler;
+        this.exceptionHandler = null;
     }
 
     /**
@@ -154,10 +165,22 @@ public class CompositeHandler
         }
 
         if (rawReq instanceof MetadataRequest) {
-            metadataHandler.doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
+            if (exceptionHandler != null) {
+                exceptionHandler.handle(() ->
+                        metadataHandler.doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream));
+            }
+            else {
+                metadataHandler.doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
+            }
         }
         else if (rawReq instanceof RecordRequest) {
-            recordHandler.doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
+            if (exceptionHandler != null) {
+                exceptionHandler.handle(() ->
+                        recordHandler.doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream));
+            }
+            else {
+                recordHandler.doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
+            }
         }
         else if (udfhandler != null && rawReq instanceof UserDefinedFunctionRequest) {
             udfhandler.doHandleRequest(allocator, objectMapper, (UserDefinedFunctionRequest) rawReq, outputStream);

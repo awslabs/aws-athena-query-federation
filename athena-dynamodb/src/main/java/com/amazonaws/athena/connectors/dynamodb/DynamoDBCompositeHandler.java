@@ -31,6 +31,7 @@ public class DynamoDBCompositeHandler
 {
     public DynamoDBCompositeHandler()
     {
-        super(new DynamoDBMetadataHandler(new EnvironmentProperties().createEnvironment()), new DynamoDBRecordHandler(new EnvironmentProperties().createEnvironment()));
+        super(new DynamoDBMetadataHandler(new EnvironmentProperties().createEnvironment()), new DynamoDBRecordHandler(new EnvironmentProperties().createEnvironment()),
+                new DynamoDBConnectorExceptionHandler());
     }
 }
