@@ -20,7 +20,11 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -31,7 +35,32 @@ public class DynamoDBCompositeHandler
 {
     public DynamoDBCompositeHandler()
     {
-        super(new DynamoDBMetadataHandler(new EnvironmentProperties().createEnvironment()), new DynamoDBRecordHandler(new EnvironmentProperties().createEnvironment()),
-                new DynamoDBConnectorExceptionHandler());
+        super(new DynamoDBMetadataHandler(new EnvironmentProperties().createEnvironment()), new DynamoDBRecordHandler(new EnvironmentProperties().createEnvironment()));
+    }
+
+    @Override
+    public Exception handleException(Exception e)
+    {
+        return handleDynamoDBException(super.handleException(e));
+    }
+
+    /**
+     * Transforms DynamoDB exceptions into AthenaConnectorException with appropriate error code.
+     * Returns other exceptions unchanged.
+     *
+     * @param e The exception to handle
+     * @return The transformed exception or original exception
+     */
+    public static Exception handleDynamoDBException(Exception e)
+    {
+        if (e instanceof DynamoDbException) {
+            return new AthenaConnectorException(
+                    e.getMessage(),
+                    ErrorDetails.builder()
+                            .errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString())
+                            .build()
+            );
+        }
+        return e;
     }
 }
