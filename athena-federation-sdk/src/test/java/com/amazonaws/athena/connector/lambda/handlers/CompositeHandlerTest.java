@@ -63,6 +63,7 @@ import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.kms.model.KmsException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -327,5 +328,28 @@ public class CompositeHandlerTest {
         assertEquals(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString(),
                 exception.getErrorDetails().errorCode());
         assertEquals(0, outputStream.size());
+    }
+
+    @Test
+    public void testHandleException_KmsException_TransformedToAthenaConnectorException() {
+        KmsException kmsException = (KmsException) KmsException.builder()
+                .message("KMS access denied")
+                .build();
+
+        Exception result = compositeHandler.handleException(kmsException);
+
+        assertNotNull(result);
+        assertEquals(AthenaConnectorException.class, result.getClass());
+        assertEquals(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString(),
+                ((AthenaConnectorException) result).getErrorDetails().errorCode());
+    }
+
+    @Test
+    public void testHandleException_NonKmsException_NotTransformed() {
+        RuntimeException runtimeException = new RuntimeException("Generic error");
+
+        Exception result = compositeHandler.handleException(runtimeException);
+
+        assertEquals(runtimeException, result);
     }
 }
