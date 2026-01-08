@@ -82,13 +82,17 @@ public abstract class JdbcPredicateBuilder
             if (valueSet.isNullAllowed()) {
                 disjuncts.add(JdbcSqlUtils.renderTemplate(queryFactory, "null_predicate", Map.of("columnName", quote(columnName), "isNull", true)));
             }
-
-            Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
-
-            if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return JdbcSqlUtils.renderTemplate(queryFactory, "null_predicate", Map.of("columnName", quote(columnName), "isNull", false));
+            
+            List<Range> rangeList = ((SortedRangeSet) valueSet).getOrderedRanges();
+            if (rangeList.size() == 1 && !valueSet.isNullAllowed() && rangeList.get(0).getLow().isLowerUnbounded() && rangeList.get(0).getHigh().isUpperUnbounded()) {
+                return JdbcSqlUtils.renderTemplate(
+                        queryFactory,
+                        "null_predicate",
+                        Map.of("columnName", quote(columnName), "isNull", false)
+                );
             }
-
+            
+            
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
                 if (range.isSingleValue()) {
                     singleValues.add(range.getLow().getValue());

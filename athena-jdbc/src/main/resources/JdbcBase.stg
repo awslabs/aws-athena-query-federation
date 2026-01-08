@@ -32,7 +32,7 @@ in_predicate(columnName, counts) ::= <%
  *@return A null predicate like "column" IS NULL or "column" IS NOT NULL
  */
 null_predicate(columnName, isNull) ::= <%
-    <columnName> IS <if(isNull)>NULL<else>NOT NULL<endif>
+    (<columnName> IS <if(isNull)>NULL<else>NOT NULL<endif>)
 %>
 
 /**

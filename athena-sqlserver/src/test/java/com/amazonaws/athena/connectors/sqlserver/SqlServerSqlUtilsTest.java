@@ -162,7 +162,7 @@ public class SqlServerSqlUtilsTest
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList());
         
         List<TypeAndValue> expectedParams = Collections.emptyList();
-        String expectedSql = "SELECT \"intCol\" FROM \"test_schema\".\"test_table\"  WHERE \"intCol\" IS NULL";
+        String expectedSql = "SELECT \"intCol\" FROM \"test_schema\".\"test_table\"  WHERE (\"intCol\" IS NULL)";
         
         executeAndVerify(constraints, schema, expectedParams, expectedSql);
     }
@@ -180,7 +180,7 @@ public class SqlServerSqlUtilsTest
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList());
         
         List<TypeAndValue> expectedParams = Collections.emptyList();
-        String expectedSql = "SELECT \"intCol\" FROM \"test_schema\".\"test_table\"  WHERE \"intCol\" IS NOT NULL";
+        String expectedSql = "SELECT \"intCol\" FROM \"test_schema\".\"test_table\"  WHERE (\"intCol\" IS NOT NULL)";
         
         executeAndVerify(constraints, schema, expectedParams, expectedSql);
     }
