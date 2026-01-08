@@ -2,6 +2,9 @@ name: Java CI Push
 
 on: [push, pull_request, workflow_dispatch]
 
+permissions:
+  contents: read
+
 jobs:
   # This is from: https://github.com/fkirc/skip-duplicate-actions#example-1-skip-entire-jobs
   pre_job:
