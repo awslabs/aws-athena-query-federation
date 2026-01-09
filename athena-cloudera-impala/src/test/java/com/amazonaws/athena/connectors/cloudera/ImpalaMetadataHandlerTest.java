@@ -36,6 +36,7 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -53,6 +54,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -81,8 +83,10 @@ import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUER
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.verify;
 
 public class ImpalaMetadataHandlerTest
         extends TestBase
@@ -93,6 +97,7 @@ public class ImpalaMetadataHandlerTest
     private static final String TEST_QUERY_ID = "testQueryId";
     private static final String TEST_SECRET = "testSecret";
     private static final String TEST_PARTITION = "partition";
+    private static final String BASE_CONNECTION_STRING = "impala://jdbc:impala://testHost:10000/default;AuthMech=3;";
 
     private DatabaseConnectionConfig databaseConnectionConfig;
     private ImpalaMetadataHandler impalaMetadataHandler;
@@ -113,7 +118,7 @@ public class ImpalaMetadataHandlerTest
     public void setup()
             throws Exception
     {
-        final String testImpalaConnectionString = "impala://jdbc:impala://localhost:10000/athena;{" + TEST_SECRET + "}";
+        final String testImpalaConnectionString = BASE_CONNECTION_STRING + "{" + TEST_SECRET + "}";
         this.blockAllocator = new BlockAllocatorImpl();
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
@@ -555,5 +560,48 @@ public class ImpalaMetadataHandlerTest
         // Should return ALL_PARTITIONS when tableType is not null
         assertEquals(List.of("[partition : *]"), expectedValues);
         assertEquals(tempTableName, getTableLayoutResponse.getTableName());
+    }
+
+    @Test
+    public void getCredentialProvider_withSecret_returnsImpalaCredentialsProvider() throws Exception
+    {
+        DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig(
+                TEST_CATALOG, ImpalaConstants.IMPALA_NAME,
+                BASE_CONNECTION_STRING + "{" + TEST_SECRET + "}", TEST_SECRET);
+
+        CredentialsProvider provider = captureCredentialsProvider(configWithSecret);
+
+        assertNotNull("CredentialsProvider should not be null when secret is configured", provider);
+        assertTrue("CredentialsProvider should be an instance of ImpalaCredentialsProvider",
+                provider instanceof ImpalaCredentialsProvider);
+    }
+
+    @Test
+    public void getCredentialProvider_withoutSecret_returnsNull() throws Exception
+    {
+        DatabaseConnectionConfig configWithoutSecret = new DatabaseConnectionConfig(
+                TEST_CATALOG, ImpalaConstants.IMPALA_NAME,
+                BASE_CONNECTION_STRING);
+
+        CredentialsProvider provider = captureCredentialsProvider(configWithoutSecret);
+
+        assertNull("CredentialsProvider should be null when no secret is configured", provider);
+    }
+
+    /**
+     * Captures the CredentialsProvider used by the JDBC connection factory
+     */
+    private CredentialsProvider captureCredentialsProvider(DatabaseConnectionConfig config) throws Exception
+    {
+        ImpalaMetadataHandler handler = new ImpalaMetadataHandler(
+                config, secretsManager, athena, jdbcConnectionFactory,
+                com.google.common.collect.ImmutableMap.of());
+
+        handler.doListSchemaNames(new BlockAllocatorImpl(),
+                new ListSchemasRequest(federatedIdentity, TEST_QUERY_ID, TEST_CATALOG));
+
+        ArgumentCaptor<CredentialsProvider> captor = ArgumentCaptor.forClass(CredentialsProvider.class);
+        verify(jdbcConnectionFactory).getConnection(captor.capture());
+        return captor.getValue();
     }
 }
