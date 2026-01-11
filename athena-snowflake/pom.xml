@@ -54,8 +54,30 @@
         </dependency>
         <dependency>
             <groupId>net.snowflake</groupId>
-            <artifactId>snowflake-jdbc</artifactId>
-            <version>3.27.1</version>
+            <artifactId>snowflake-jdbc-thin</artifactId>
+            <version>3.26.1</version>
+                  <exclusions>
+                        <exclusion>
+                            <groupId>com.google.api</groupId>
+                            <artifactId>gax</artifactId>
+                        </exclusion>
+                        <exclusion>
+                            <groupId>com.google.cloud</groupId>
+                            <artifactId>google-cloud-core</artifactId>
+                        </exclusion>
+                        <exclusion>
+                            <groupId>com.google.cloud</groupId>
+                            <artifactId>google-cloud-storage</artifactId>
+                        </exclusion>
+                        <exclusion>
+                            <groupId>com.microsoft.azure</groupId>
+                            <artifactId>azure-storage</artifactId>
+                        </exclusion>
+                        <!-- <exclusion>
+                            <groupId>com.amazonaws</groupId>
+                            <artifactId>*</artifactId>
+                        </exclusion> -->
+                    </exclusions>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
@@ -128,6 +150,75 @@
                                 <descriptor>assembly.xml</descriptor>
                             </descriptors>
                             <finalName>${project.artifactId}</finalName>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <filters>
+                                <!-- Apache Arrow - Keep only essential classes for Linux ARM64 -->
+                                <filter>
+                                    <artifact>org.apache.arrow:*</artifact>
+                                    <excludes>
+                                        <exclude>**/arrow_dataset_jni/x86_64/**</exclude>
+                                        <exclude>**/arrow_dataset_jni/aarch_64/libarrow_dataset_jni.dylib</exclude>
+                                    </excludes>
+                                </filter>
+                                <!-- Snowflake JDBC - Keep only essential classes for Linux ARM64 -->
+                                <filter>
+                                    <artifact>net.snowflake:snowflake-jdbc</artifact>
+                                    <excludes>
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-osx-x86_64.dylib</exclude>
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-linux-x86_64.so</exclude>
+
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_osx_x86_64.jnilib</exclude>
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_linux_x86_64.so</exclude>
+                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_osx_aarch_64.jnilib</exclude>
+
+                                        <exclude>**/META-INF/native/net_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_windows_x86_64.dll</exclude>
+                                        <exclude>**/META-INF/native/net_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-windows-x86_64.dll</exclude>
+                                        <exclude>**/META-INF/native/net_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-windows-x86.dll</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <!-- Standard security exclusions for signed JARs -->
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <!-- CRITICAL FIX for CVE-2025-48924: Exclude problematic metadata -->
+                                        <!-- These POMs declare vulnerable commons-lang/commons-lang3 versions -->
+                                        <!-- 1. commons-lang 2.4 (direct vulnerability) -->
+                                        <exclude>META-INF/maven/commons-lang/commons-lang/pom.xml</exclude>
+                                        <exclude>META-INF/maven/commons-lang/commons-lang/pom.properties</exclude>
+                                        <!-- 2. uzaygezen-core declares commons-lang3 3.1 (< 3.18.0) -->
+                                        <exclude>META-INF/maven/com.google.uzaygezen/uzaygezen-core/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.google.uzaygezen/uzaygezen-core/pom.properties</exclude>
+                                        <!-- 3. aws-encryption-sdk-java declares old commons-lang3 -->
+                                        <exclude>META-INF/maven/com.amazonaws/aws-encryption-sdk-java/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.amazonaws/aws-encryption-sdk-java/pom.properties</exclude>
+                                        <!-- 4. commons-text declares commons-lang3 3.13.0 (< 3.18.0) -->
+                                        <exclude>META-INF/maven/org.apache.commons/commons-text/pom.xml</exclude>
+                                        <exclude>META-INF/maven/org.apache.commons/commons-text/pom.properties</exclude>
+                                        <!-- 5. Fix for CVE-2020-15250: json-simple declares old junit -->
+                                        <exclude>META-INF/maven/com.googlecode.json-simple/json-simple/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.googlecode.json-simple/json-simple/pom.properties</exclude>
+                                        <!-- 6. Exclude old junit POM metadata directly -->
+                                        <exclude>META-INF/maven/junit/junit/pom.xml</exclude>
+                                        <exclude>META-INF/maven/junit/junit/pom.properties</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                 </executions>

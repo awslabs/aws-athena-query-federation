@@ -65,6 +65,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -422,7 +423,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @throws Exception
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
