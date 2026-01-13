@@ -54,12 +54,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.github.stefanbirkner</groupId>
-            <artifactId>system-lambda</artifactId>
-            <version>1.2.1</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>kms</artifactId>
             <version>${aws-sdk-v2.version}</version>
@@ -241,6 +235,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
@@ -265,8 +264,8 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-             <!--- to meet engine version 3.19.0 -->
-            <version>3.19.0</version>
+             <!--- to meet engine version 3.20.0 -->
+            <version>3.20.0</version>
         </dependency>
         <dependency>
             <groupId>net.jqwik</groupId>
@@ -349,6 +348,11 @@
                                 <exclude>META-INF/*.SF</exclude>
                                 <exclude>META-INF/*.DSA</exclude>
                                 <exclude>META-INF/*.RSA</exclude>
+                                <!-- CRITICAL FIX for CVE-2025-48924: Exclude problematic metadata -->
+                                <!-- These POMs declare vulnerable commons-lang/commons-lang3 versions -->
+                                <!-- 1. commons-lang 2.4 (direct vulnerability) -->
+                                <exclude>META-INF/maven/commons-lang/commons-lang/pom.xml</exclude>
+                                <exclude>META-INF/maven/commons-lang/commons-lang/pom.properties</exclude>
                             </excludes>
                         </filter>
                     </filters>

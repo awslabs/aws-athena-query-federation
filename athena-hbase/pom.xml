@@ -10,7 +10,7 @@
     <version>2022.47.1</version>
     <properties>
         <jetty.version>11.0.24</jetty.version>
-        <hbase.version>2.6.3-hadoop3</hbase.version>
+        <hbase.version>2.6.4-hadoop3</hbase.version>
     </properties>
     <dependencies>
         <dependency>
@@ -143,6 +143,10 @@
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
+                                        <!-- Fix for ALL CVEs related to META-INF path: Exclude all Maven POM metadata files -->
+                                        <!-- These POM files cause false-positive CVE alerts in AWS Inspector -->
+                                        <exclude>META-INF/maven/**/pom.xml</exclude>
+                                        <exclude>META-INF/maven/**/pom.properties</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

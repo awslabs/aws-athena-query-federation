@@ -37,6 +37,20 @@ while true; do
     esac
 done
 
+# Choose Java version
+echo ""
+echo "Which Java version would you like to install?"
+echo "1) Java 11"
+echo "2) Java 17"
+while true; do
+    read -p "Enter your choice (1 or 2): " java_choice
+    case $java_choice in
+        1 ) JAVA_VERSION=11; break;;
+        2 ) JAVA_VERSION=17; break;;
+        * ) echo "Please enter 1 or 2.";;
+    esac
+done
+
 set -e
 sudo wget https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz -O /tmp/apache-maven-3.9.6-bin.tar.gz
 sudo tar xf /tmp/apache-maven-3.9.6-bin.tar.gz -C /opt
@@ -45,13 +59,16 @@ echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.profile
 echo "export M2_HOME=/opt/apache-maven-3.9.6" >> ~/.bash_profile
 echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.bash_profile
 
-sudo yum -y install java-11-openjdk-devel
-# If using amazon linux 2 and the above doesn't work, you can try this line instead
-# sudo amazon-linux-extras install -y java-openjdk11
-# For amazon linux 2023, use the following line instead
-# sudo dnf install java-11-amazon-corretto
+# Install Java
+sudo yum -y install java-${JAVA_VERSION}-openjdk-devel
 
-echo "Set the default to the Java 11 installation"
+# On Amazon Linux 2, if yum install fails, try:
+#   sudo amazon-linux-extras install -y java-openjdk${JAVA_VERSION}
+#
+# On Amazon Linux 2023, use:
+#   sudo dnf install java-${JAVA_VERSION}-amazon-corretto
+
+echo "Set the default to the Java $JAVA_VERSION installation"
 sudo update-alternatives --config java
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
