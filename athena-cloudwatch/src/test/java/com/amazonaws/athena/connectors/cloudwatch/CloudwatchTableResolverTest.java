@@ -44,6 +44,7 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doReturn;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -149,7 +150,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void validateSchemaAndTable_withPagination_succeeds() {
+    public void validateSchemaAndTable_withPagination_returnsResults() {
             List<LogGroup> logGroups = new ArrayList<>();
             List<LogStream> logStreams = new ArrayList<>();
 
@@ -190,5 +191,84 @@ public class CloudwatchTableResolverTest {
             CloudwatchTableName tableResult = resolver.validateTable(new TableName(GROUP_15, STREAM_15));
             assertEquals(GROUP_15, tableResult.getLogGroupName());
             assertEquals(STREAM_15, tableResult.getLogStreamName());
+    }
+
+    @Test
+    public void validateTable_withCacheHit_usesCachedValue(){
+        String testSchema = "cached-schema";
+        String testTable = "cached-table";
+        
+        doReturn(DescribeLogGroupsResponse.builder()
+                .logGroups(LogGroup.builder().logGroupName(testSchema).build())
+                .build())
+                .when(mockAwsLogs).describeLogGroups(any(DescribeLogGroupsRequest.class));
+
+        doReturn(DescribeLogStreamsResponse.builder()
+                .logStreams(LogStream.builder().logStreamName(testTable).build())
+                .build())
+                .when(mockAwsLogs).describeLogStreams(any(DescribeLogStreamsRequest.class));
+
+        TableName tableName = new TableName(testSchema, testTable);
+        
+        // First call should hit the API
+        CloudwatchTableName firstResult = resolver.validateTable(tableName);
+        assertEquals(testSchema, firstResult.getLogGroupName());
+        assertEquals(testTable, firstResult.getLogStreamName());
+        
+        // Second call should use cache (verify API is not called again)
+        CloudwatchTableName secondResult = resolver.validateTable(tableName);
+        assertEquals(testSchema, secondResult.getLogGroupName());
+        assertEquals(testTable, secondResult.getLogStreamName());
+        
+        // Verify API was only called once for the table (cache hit on second call)
+        Mockito.verify(mockAwsLogs, Mockito.times(1)).describeLogStreams(any(DescribeLogStreamsRequest.class));
+    }
+
+    @Test
+    public void validateSchema_withCacheHit_usesCachedValue(){
+        String testSchema = "cached-schema-name";
+        
+        doReturn(DescribeLogGroupsResponse.builder()
+                .logGroups(LogGroup.builder().logGroupName(testSchema).build())
+                .build())
+                .when(mockAwsLogs).describeLogGroups(any(DescribeLogGroupsRequest.class));
+
+        // First call should hit the API
+        String firstResult = resolver.validateSchema(testSchema);
+        assertEquals(testSchema, firstResult);
+        
+        // Second call should use cache (verify API is not called again)
+        String secondResult = resolver.validateSchema(testSchema);
+        assertEquals(testSchema, secondResult);
+        
+        // Verify API was only called once (cache hit on second call)
+        Mockito.verify(mockAwsLogs, Mockito.times(1)).describeLogGroups(any(DescribeLogGroupsRequest.class));
+    }
+
+    @Test
+    public void validateTable_withLambdaPathCasingOptimization_handlesLatestPattern() {
+        String testSchema = "lambda-schema";
+        String lambdaFunctionName = "test-function";
+        String tableWithLatest = lambdaFunctionName + "$latest";
+        String actualLogStream = lambdaFunctionName + "$LATEST";
+        
+        doReturn(DescribeLogGroupsResponse.builder()
+                .logGroups(LogGroup.builder().logGroupName(testSchema).build())
+                .build())
+                .when(mockAwsLogs).describeLogGroups(any(DescribeLogGroupsRequest.class));
+
+        doReturn(DescribeLogStreamsResponse.builder()
+                .logStreams(LogStream.builder().logStreamName(actualLogStream).build())
+                .build())
+                .when(mockAwsLogs).describeLogStreams(any(DescribeLogStreamsRequest.class));
+
+        CloudwatchTableName result = resolver.validateTable(new TableName(testSchema, tableWithLatest));
+        assertEquals(testSchema, result.getLogGroupName());
+        assertEquals(actualLogStream, result.getLogStreamName());
+        
+        // Verify that the lambda pattern optimization was used (should use logStreamNamePrefix with $LATEST)
+        Mockito.verify(mockAwsLogs).describeLogStreams(argThat((DescribeLogStreamsRequest request) ->
+            request.logStreamNamePrefix() != null && request.logStreamNamePrefix().contains("$LATEST")
+        ));
     }
 }
