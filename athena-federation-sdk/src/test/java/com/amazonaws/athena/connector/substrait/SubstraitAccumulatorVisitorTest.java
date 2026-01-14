@@ -17,9 +17,8 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.visitor;
+package com.amazonaws.athena.connector.substrait;
 
-import com.amazonaws.athena.connectors.jdbc.manager.SubstraitTypeAndValue;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -35,9 +34,7 @@ import org.apache.calcite.util.NlsString;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

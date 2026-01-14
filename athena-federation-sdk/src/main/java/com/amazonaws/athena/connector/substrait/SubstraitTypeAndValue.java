@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.manager;
+package com.amazonaws.athena.connector.substrait;
 
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.Validate;
@@ -28,7 +28,7 @@ public class SubstraitTypeAndValue
     private final Object value;
     private final String columnName;
 
-    public SubstraitTypeAndValue(SqlTypeName type, Object value, String columnName)
+    public SubstraitTypeAndValue(final SqlTypeName type, final Object value, final String columnName)
     {
         this.type = Validate.notNull(type, "type is null");
         this.value = Validate.notNull(value, "value is null");

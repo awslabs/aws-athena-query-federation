@@ -17,8 +17,9 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.manager;
+package com.amazonaws.athena.connector.substrait;
 
+import com.amazonaws.athena.connector.substrait.SubstraitTypeAndValue;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 

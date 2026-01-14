@@ -17,9 +17,8 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.visitor;
+package com.amazonaws.athena.connector.substrait;
 
-import com.amazonaws.athena.connectors.jdbc.manager.SubstraitTypeAndValue;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -34,6 +33,7 @@ import org.apache.calcite.util.NlsString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -41,12 +41,12 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SubstraitAccumulatorVisitor.class);
 
-    private List<SubstraitTypeAndValue> accumulator;
-    private Map<String, String> splitProperties;
+    private final List<SubstraitTypeAndValue> accumulator;
+    private final Map<String, String> splitProperties;
     private final Schema schema;
     private String currentColumn;
 
-    public SubstraitAccumulatorVisitor(List<SubstraitTypeAndValue> accumulator, Map<String, String> splitProperties, Schema schema)
+    public SubstraitAccumulatorVisitor(final List<SubstraitTypeAndValue> accumulator, final Map<String, String> splitProperties, final Schema schema)
     {
         this.accumulator = accumulator;
         this.splitProperties = splitProperties;
@@ -54,7 +54,7 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
     }
 
     @Override
-    public SqlNode visit(SqlIdentifier id)
+    public SqlNode visit(final SqlIdentifier id)
     {
         if (id.isSimple()) {
             currentColumn = id.getSimple();
@@ -63,7 +63,7 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
     }
 
     @Override
-    public SqlNode visit(SqlLiteral literal)
+    public SqlNode visit(final SqlLiteral literal)
     {
         if (currentColumn == null) {
             // such as LIMIT
@@ -74,21 +74,16 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
         try {
             arrowField = schema.findField(currentColumn);
         }
-        catch (IllegalArgumentException e) {
-            LOGGER.warn("exact match for column {} not found. searching with prefixes", currentColumn);
-            for (Field field : schema.getFields()) {
-                if (field.getName().startsWith(currentColumn)) {
-                    arrowField = field;
-                    break;
-                }
-            }
+        catch (final IllegalArgumentException e) {
+            LOGGER.warn("exact match for column {} not found.", currentColumn);
+            arrowField = findMatchingField(currentColumn);
         }
 
         if (arrowField == null) {
             throw new IllegalArgumentException("field " + currentColumn + " not found in " + schema.getFields());
         }
 
-        SqlTypeName typeName = mapArrowTypeToSqlTypeName(arrowField.getType());
+        final SqlTypeName typeName = mapArrowTypeToSqlTypeName(arrowField.getType());
         if (literal.getValue() instanceof NlsString) {
             accumulator.add(new SubstraitTypeAndValue(typeName, ((NlsString) literal.getValue()).getValue(), currentColumn));
         }
@@ -98,17 +93,58 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
         return new SqlDynamicParam(0, literal.getParserPosition());
     }
 
-    private SqlTypeName mapArrowTypeToSqlTypeName(ArrowType arrowType)
+    /**
+     * Finds a matching field using case-insensitive exact match first, then case-sensitive prefix match (bidirectional).
+     * If multiple prefix matches are found, throws an exception to avoid ambiguity.
+     *
+     * @param columnName the column name to match
+     * @return the matching Field, or null if no match found
+     * @throws IllegalArgumentException if multiple prefix matches are found
+     */
+    private Field findMatchingField(final String columnName)
+    {
+        if (columnName == null || columnName.isEmpty()) {
+            return null;
+        }
+
+        // Strategy 1: Case-insensitive exact match
+        for (final Field field : schema.getFields()) {
+            if (field.getName().toLowerCase().equals(columnName.toLowerCase())) {
+                return field;
+            }
+        }
+
+        // Strategy 2: Case-sensitive prefix match
+        final List<String> prefixMatches = new ArrayList<>();
+        for (final Field field : schema.getFields()) {
+            if (field.getName().startsWith(columnName)) {
+                prefixMatches.add(field.getName());
+            }
+        }
+
+        if (prefixMatches.isEmpty()) {
+            return null;
+        }
+
+        if (prefixMatches.size() > 1) {
+            throw new IllegalArgumentException(String.format("Ambiguous column name '%s'. Multiple prefix matches found: %s",
+                columnName, prefixMatches));
+        }
+
+        return schema.findField(prefixMatches.get(0));
+    }
+
+    private SqlTypeName mapArrowTypeToSqlTypeName(final ArrowType arrowType)
     {
         if (arrowType instanceof ArrowType.Int) {
-            int bitWidth = ((ArrowType.Int) arrowType).getBitWidth();
+            final int bitWidth = ((ArrowType.Int) arrowType).getBitWidth();
             if (bitWidth <= 32) {
                 return SqlTypeName.INTEGER;
             }
             return SqlTypeName.BIGINT;
         }
         else if (arrowType instanceof ArrowType.FloatingPoint) {
-            ArrowType.FloatingPoint fp = (ArrowType.FloatingPoint) arrowType;
+            final ArrowType.FloatingPoint fp = (ArrowType.FloatingPoint) arrowType;
             if (fp.getPrecision() == FloatingPointPrecision.SINGLE) {
                 return SqlTypeName.FLOAT;
             }
