@@ -3,6 +3,16 @@ test_template() ::= <%
 %>
 
 /**
+ *@UsedBy: JdbcQueryBuilder.java and its subclasses (e.g., SqlServerQueryBuilder, PostGreSqlQueryBuilder)
+ *@Description: This template is used to build JDBC SELECT statements with constraints, ordering, and limits.
+ *@param builder An Instance of JdbcQueryBuilder or its subclass.
+ *@return A SQL query that can be executed by JDBC-compatible databases.
+ */
+select_query(builder) ::= <%
+    SELECT <if(builder.projection)><builder.projection:{col|<col>}; separator=", "><else>null<endif> FROM <if(builder.catalog)><builder.catalog>.<endif><if(builder.schemaName)><builder.schemaName>.<endif><builder.tableName><if(builder.partitionClause)> <builder.partitionClause><endif><if(builder.conjuncts)>  WHERE <builder.conjuncts:{conjunct|<conjunct>}; separator=" AND "><endif><if(builder.orderByClause)> <builder.orderByClause><endif><if(builder.limitClause)> <builder.limitClause><endif>
+%>
+
+/**
  *@UsedBy: JdbcPredicateBuilder.java
  *@Description: Template for simple comparison predicates (=, \>, \<, \>=, \<=, !=).
  *@param columnName The column name (with quotes).

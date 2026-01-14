@@ -43,6 +43,7 @@ public abstract class JdbcQueryBuilder<T extends JdbcQueryBuilder<T>>
     protected String catalog;
     protected String schemaName;
     protected String tableName;
+    protected String partitionClause;
     protected List<String> conjuncts;
     protected String orderByClause;
     protected String limitClause;
@@ -70,6 +71,12 @@ public abstract class JdbcQueryBuilder<T extends JdbcQueryBuilder<T>>
     {
         this.schemaName = tableName.getSchemaName();
         this.tableName = tableName.getTableName();
+        return (T) this;
+    }
+
+    public T withPartitionClause(String partitionClause)
+    {
+        this.partitionClause = partitionClause;
         return (T) this;
     }
 
@@ -126,6 +133,11 @@ public abstract class JdbcQueryBuilder<T extends JdbcQueryBuilder<T>>
     public String getTableName()
     {
         return quote(tableName);
+    }
+
+    public String getPartitionClause()
+    {
+        return (partitionClause != null && !partitionClause.isEmpty()) ? partitionClause : null;
     }
 
     public List<String> getConjuncts()
