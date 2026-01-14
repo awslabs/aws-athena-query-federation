@@ -1,0 +1,28 @@
+import "JdbcBase.stg"
+
+test_template() ::= <%
+    test template for validating file is accessible.
+%>
+
+/**
+ *@UsedBy: SqlServerQueryBuilder.java
+ *@Description: This template is used to build SQL Server SELECT statements with constraints, ordering, and limits.
+ *@param builder An Instance of SqlServerQueryBuilder.
+ *@return A SQL query that can be executed by SQL Server.
+ */
+select_query(builder) ::= <%
+    SELECT <if(builder.projection)><builder.projection:{col|<col>}; separator=", "><else>null<endif> FROM <if(builder.catalog)><builder.catalog>.<endif><if(builder.schemaName)><builder.schemaName>.<endif><builder.tableName><if(builder.conjuncts)>  WHERE <builder.conjuncts:{conjunct|<conjunct>}; separator=" AND "><endif><if(builder.orderByClause)> <builder.orderByClause><endif><if(builder.limitClause)> <builder.limitClause><endif>
+%>
+
+/**
+ *@UsedBy: SqlServerQueryBuilder.java
+ *@Description: Template for SQL Server $PARTITION function clause used in WHERE conditions.
+ *@param partitionFunction The partition function name.
+ *@param partitioningColumn The column used for partitioning.
+ *@param partitionNumber The partition number to filter on.
+ *@return A partition clause like $PARTITION.pf(column) = 1
+ */
+partition_clause(partitionFunction, partitioningColumn, partitionNumber) ::= <%
+$PARTITION.<partitionFunction>(<partitioningColumn>) = <partitionNumber>
+%>
+
