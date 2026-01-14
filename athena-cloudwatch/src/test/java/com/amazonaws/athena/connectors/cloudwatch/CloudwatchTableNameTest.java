@@ -30,7 +30,7 @@ public class CloudwatchTableNameTest {
     private static final String LOG_STREAM = "TestStream";
 
     @Test
-    public void constructorAndGetters_withValidInput_succeeds() {
+    public void constructorAndGetters_withValidInput_setsFields() {
         CloudwatchTableName tableName = new CloudwatchTableName(LOG_GROUP, LOG_STREAM);
         assertEquals(LOG_GROUP, tableName.getLogGroupName());
         assertEquals(LOG_STREAM, tableName.getLogStreamName());

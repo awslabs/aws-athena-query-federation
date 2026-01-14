@@ -270,7 +270,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint_withPassthrough() throws InterruptedException, TimeoutException {
+    public void readWithConstraint_withPassthroughArgs_returnsRecords() throws InterruptedException, TimeoutException {
         CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);
         BlockSpiller mockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest mockRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -343,7 +343,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test(expected = NullPointerException.class)
-    public void readRecords_withNullConstraints_throwsException() {
+    public void doReadRecords_withNullConstraints_throwsException() {
         // ReadRecordsRequest constructor will throw NPE for null constraints
         new ReadRecordsRequest(identity,
                 "catalog",
@@ -406,6 +406,77 @@ public class CloudwatchRecordHandlerTest
 
     private Constraints createPassthroughConstraints(Map<String, String> passthroughArgs) {
         return new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, passthroughArgs, null);
+    }
+
+    @Test
+    public void doReadRecords_withEmptyLogEvents_returnsEmptyRecords()
+            throws Exception
+    {
+        Mockito.doAnswer((InvocationOnMock invocationOnMock) -> {
+            GetLogEventsResponse.Builder responseBuilder = GetLogEventsResponse.builder();
+            responseBuilder.events(Collections.emptyList());
+            responseBuilder.nextForwardToken(null);
+            return responseBuilder.build();
+        }).when(mockAwsLogs).getLogEvents(nullable(GetLogEventsRequest.class));
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("time", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
+                ImmutableList.of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 100L)), false));
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
+        ReadRecordsRequest request = createReadRecordsRequest(constraints, BLOCK_SIZE, BLOCK_SIZE);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        // Should have 0 records when log events are empty
+        assertEquals(0, response.getRecords().getRowCount());
+
+        verify(mockAwsLogs, atLeastOnce()).getLogEvents(nullable(GetLogEventsRequest.class));
+    }
+
+    @Test
+    public void readWithConstraint_withPassthroughEmptyResults_returnsEmptyObject() throws InterruptedException, TimeoutException {
+        
+        CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);
+        BlockSpiller mockSpiller = Mockito.mock(BlockSpiller.class);
+        ReadRecordsRequest mockRequest = Mockito.mock(ReadRecordsRequest.class);
+        QueryStatusChecker mockChecker = Mockito.mock(QueryStatusChecker.class);
+            
+        Map<String, String> passthroughArgs = new HashMap<>();
+        passthroughArgs.put(CloudwatchQueryPassthrough.ENDTIME, "1000");
+        passthroughArgs.put(CloudwatchQueryPassthrough.STARTTIME, "0");
+        passthroughArgs.put(CloudwatchQueryPassthrough.QUERYSTRING, "fields @message");
+        passthroughArgs.put(CloudwatchQueryPassthrough.LOGGROUPNAMES, "group1");
+        passthroughArgs.put(CloudwatchQueryPassthrough.LIMIT, "1");
+        passthroughArgs.put("schemaFunctionName", "SYSTEM.QUERY");
+            
+        Constraints constraints = createPassthroughConstraints(passthroughArgs);
+        Mockito.when(mockRequest.getConstraints()).thenReturn(constraints);
+
+        GetQueryResultsResponse emptyResultsResponse = GetQueryResultsResponse.builder()
+                .status(software.amazon.awssdk.services.cloudwatchlogs.model.QueryStatus.COMPLETE)
+                .results(Collections.emptyList())
+                .build();
+        
+        Mockito.when(mockAwsLogs.getQueryResults(any(software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsRequest.class)))
+                .thenReturn(emptyResultsResponse);
+
+        // Should complete without throwing an exception
+        handlerSpy.readWithConstraint(mockSpiller, mockRequest, mockChecker);
+        
+        // Verify query was started and results were fetched
+        Mockito.verify(mockAwsLogs).startQuery(any(software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest.class));
+        Mockito.verify(mockAwsLogs).getQueryResults(any(software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsRequest.class));
+        
+        // Verify that writeRows was never called since there are no results to write
+        Mockito.verify(mockSpiller, Mockito.never()).writeRows(any());
+
+        assertEquals(software.amazon.awssdk.services.cloudwatchlogs.model.QueryStatus.COMPLETE, emptyResultsResponse.status());
+        assertTrue("Results should be empty", emptyResultsResponse.results().isEmpty());
     }
 
     private class ByteHolder

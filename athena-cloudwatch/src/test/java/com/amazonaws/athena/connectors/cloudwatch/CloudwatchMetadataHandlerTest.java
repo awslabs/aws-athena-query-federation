@@ -140,7 +140,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doListSchemaNames()
+    public void doListSchemaNames_withDefaultCatalog_returnsSchemaNames()
             throws TimeoutException
     {
         logger.info("doListSchemas - enter");
@@ -189,7 +189,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doListTables()
+    public void doListTables_withValidSchema_returnsTables()
             throws TimeoutException
     {
         logger.info("doListTables - enter");
@@ -280,7 +280,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_withValidTableName_returnsTableSchemaWithColumns()
     {
         logger.info("doGetTable - enter");
         String expectedSchema = "schema-20";
@@ -331,7 +331,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_withValidRequest_returnsTableLayout()
             throws Exception
     {
         logger.info("doGetTableLayout - enter");
@@ -401,7 +401,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_withValidRequest_returnsSplits()
     {
         logger.info("doGetSplits: enter");
 
@@ -503,7 +503,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doGetDataSourceCapabilities_returnsSupportedCapabilities() {
+    public void doGetDataSourceCapabilities_withValidRequest_returnsSupportedCapabilities() {
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(identity, QUERY_ID, CATALOG_NAME);
         GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(allocator, request);
         assertNotNull(response);
@@ -520,7 +520,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doGetQueryPassthroughSchema_returnsSchema() throws Exception {
+    public void doGetQueryPassthroughSchema_withValidArguments_returnsSchema() throws Exception {
             TableName tableName = new TableName("schema-1", "qpt_table");
             Map<String, String> qptArguments = new HashMap<>();
             qptArguments.put(CloudwatchQueryPassthrough.STARTTIME, "0");
@@ -570,5 +570,84 @@ public class CloudwatchMetadataHandlerTest
             assertEquals(0, res.getSchema().getFields().size());
 
             verify(mockAwsLogs, times(2)).getQueryResults(nullable(software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsRequest.class));
+    }
+
+    @Test
+    public void doListTables_withEmptyLogStreams_returnsOnlyAllLogStreamsTable()
+            throws TimeoutException
+    {
+        when(mockAwsLogs.describeLogStreams(nullable(DescribeLogStreamsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            DescribeLogStreamsResponse.Builder responseBuilder = DescribeLogStreamsResponse.builder();
+            // Return empty log streams list
+            responseBuilder.logStreams(Collections.emptyList());
+            return responseBuilder.build();
+        });
+
+        ListTablesRequest req = new ListTablesRequest(identity, QUERY_ID, CATALOG_NAME,
+                "schema-1", null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesResponse res = handler.doListTables(allocator, req);
+
+        // Should only contain the special all_log_streams table
+        assertEquals(1, res.getTables().size());
+        assertTrue(res.getTables().contains(new TableName("schema-1", "all_log_streams")));
+
+        verify(mockAwsLogs, times(1)).describeLogStreams(nullable(DescribeLogStreamsRequest.class));
+        verify(mockAwsLogs, times(1)).describeLogGroups(nullable(DescribeLogGroupsRequest.class));
+        verifyNoMoreInteractions(mockAwsLogs);
+    }
+
+    @Test
+    public void doGetTableLayout_withEmptyPartitions_returnsEmptyPartitions()
+            throws Exception
+    {
+        when(mockAwsLogs.describeLogStreams(nullable(DescribeLogStreamsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            DescribeLogStreamsResponse.Builder responseBuilder = DescribeLogStreamsResponse.builder();
+            // Return empty log streams list
+            responseBuilder.logStreams(Collections.emptyList());
+            return responseBuilder.build();
+        });
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("log_stream",
+                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                        .add("non-existent-stream").build());
+
+        Schema schema = SchemaBuilder.newBuilder().addStringField("log_stream").build();
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
+                QUERY_ID,
+                CATALOG_NAME,
+                new TableName("schema-1", "all_log_streams"),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                schema,
+                Collections.singleton("log_stream"));
+
+        GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
+        assertNotNull(res.getPartitions().getSchema().findField("log_stream"));
+        assertEquals(0, res.getPartitions().getRowCount());
+
+        verify(mockAwsLogs, times(1)).describeLogStreams(nullable(DescribeLogStreamsRequest.class));
+    }
+
+
+    @Test(expected = RuntimeException.class)
+    public void doListSchemaNames_withMaxResultsExceeded_throwsException()
+            throws TimeoutException
+    {
+        when(mockAwsLogs.describeLogGroups(nullable(DescribeLogGroupsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            DescribeLogGroupsResponse.Builder responseBuilder = DescribeLogGroupsResponse.builder();
+            List<LogGroup> logGroups = new ArrayList<>();
+            // Return enough log groups to exceed MAX_RESULTS (100,000)
+            for (int i = 0; i < 50_000; i++) {
+                logGroups.add(LogGroup.builder().logGroupName("schema-" + i).build());
+            }
+            responseBuilder.logGroups(logGroups);
+            // Return a token to continue pagination
+            responseBuilder.nextToken("continue-token");
+            return responseBuilder.build();
+        });
+
+        ListSchemasRequest req = new ListSchemasRequest(identity, QUERY_ID, CATALOG_NAME);
+        handler.doListSchemaNames(allocator, req);
     }
 }

@@ -143,4 +143,62 @@ public class CloudwatchUtilsTest {
         assertNull(response);
         verify(mockAwsLogs).getQueryResults(any(GetQueryResultsRequest.class));
     }
+
+    @Test
+    public void startQueryRequest_withInvalidTimeRange_createsRequest() {
+        Map<String, String> invalidTimeRangeArgs = new HashMap<>();
+        // End time is before start time (invalid range)
+        invalidTimeRangeArgs.put(CloudwatchQueryPassthrough.STARTTIME, String.valueOf(TEST_END_TIME));
+        invalidTimeRangeArgs.put(CloudwatchQueryPassthrough.ENDTIME, String.valueOf(TEST_START_TIME));
+        invalidTimeRangeArgs.put(CloudwatchQueryPassthrough.QUERYSTRING, TEST_QUERY_STRING);
+        invalidTimeRangeArgs.put(CloudwatchQueryPassthrough.LOGGROUPNAMES, TEST_LOG_GROUPS);
+
+        // Should still create the request (validation happens at CloudWatch API level)
+        StartQueryRequest request = CloudwatchUtils.startQueryRequest(invalidTimeRangeArgs);
+        assertNotNull(request);
+        assertEquals(TEST_END_TIME, (long) request.startTime());
+        assertEquals(TEST_START_TIME, (long) request.endTime());
+    }
+
+    @Test
+    public void startQueryRequest_withEmptyLogGroupNames_handlesEmptyString() {
+        Map<String, String> emptyLogGroupArgs = new HashMap<>();
+        emptyLogGroupArgs.put(CloudwatchQueryPassthrough.STARTTIME, String.valueOf(TEST_START_TIME));
+        emptyLogGroupArgs.put(CloudwatchQueryPassthrough.ENDTIME, String.valueOf(TEST_END_TIME));
+        emptyLogGroupArgs.put(CloudwatchQueryPassthrough.QUERYSTRING, TEST_QUERY_STRING);
+        emptyLogGroupArgs.put(CloudwatchQueryPassthrough.LOGGROUPNAMES, "");
+
+        // Should handle empty log group names gracefully
+        StartQueryRequest request = CloudwatchUtils.startQueryRequest(emptyLogGroupArgs);
+        assertNotNull(request);
+        assertNotNull(request.logGroupNames());
+        assertEquals(1, request.logGroupNames().size());
+    }
+
+    @Test
+    public void startQueryRequest_withSingleLogGroup_handlesCorrectly() {
+        Map<String, String> singleLogGroupArgs = new HashMap<>();
+        singleLogGroupArgs.put(CloudwatchQueryPassthrough.STARTTIME, String.valueOf(TEST_START_TIME));
+        singleLogGroupArgs.put(CloudwatchQueryPassthrough.ENDTIME, String.valueOf(TEST_END_TIME));
+        singleLogGroupArgs.put(CloudwatchQueryPassthrough.QUERYSTRING, TEST_QUERY_STRING);
+        singleLogGroupArgs.put(CloudwatchQueryPassthrough.LOGGROUPNAMES, "\"/aws/lambda/single\"");
+
+        StartQueryRequest request = CloudwatchUtils.startQueryRequest(singleLogGroupArgs);
+        assertNotNull(request);
+        assertEquals(1, request.logGroupNames().size());
+        assertEquals("/aws/lambda/single", request.logGroupNames().get(0));
+    }
+
+    @Test
+    public void startQueryRequest_withEmptyQueryString_handlesCorrectly() {
+        Map<String, String> emptyQueryArgs = new HashMap<>();
+        emptyQueryArgs.put(CloudwatchQueryPassthrough.STARTTIME, String.valueOf(TEST_START_TIME));
+        emptyQueryArgs.put(CloudwatchQueryPassthrough.ENDTIME, String.valueOf(TEST_END_TIME));
+        emptyQueryArgs.put(CloudwatchQueryPassthrough.QUERYSTRING, "");
+        emptyQueryArgs.put(CloudwatchQueryPassthrough.LOGGROUPNAMES, TEST_LOG_GROUPS);
+
+        StartQueryRequest request = CloudwatchUtils.startQueryRequest(emptyQueryArgs);
+        assertNotNull(request);
+        assertEquals("", request.queryString());
+    }
 }
