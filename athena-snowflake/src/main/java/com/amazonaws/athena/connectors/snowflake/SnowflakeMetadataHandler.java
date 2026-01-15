@@ -179,7 +179,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
 
     @VisibleForTesting
-    protected SnowflakeMetadataHandler(
+    public SnowflakeMetadataHandler(
             DatabaseConnectionConfig databaseConnectionConfig,
             SecretsManagerClient secretsManager,
             AthenaClient athena,
@@ -277,13 +277,13 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         LOGGER.debug("getPartitions: {}: Schema {}, table {}", queryID, tableName.getSchemaName(),
                 tableName.getTableName());
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             /**
              * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
              * this is to handle timeout issues because of huge partitions
              */
             LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
-            boolean viewFlag = checkForView(tableName);
+            boolean viewFlag = checkForView(tableName, request);
             //if the input table is a view , there will be single split
             if (viewFlag) {
                 blockWriter.writeRows((Block block, int rowNum) -> {
@@ -305,7 +305,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     totalRecordCount = rs.getLong(1);
                 }
                 if (totalRecordCount > 0) {
-                    Optional<String> primaryKey = getPrimaryKey(tableName);
+                    Optional<String> primaryKey = getPrimaryKey(tableName, request);
                     long recordsInPartition = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
                     long partitionRecordCount = (totalRecordCount <= SINGLE_SPLIT_LIMIT_COUNT || !primaryKey.isPresent()) ? (long) totalRecordCount : recordsInPartition;
                     LOGGER.info(" Total Page Count: " + partitionRecordCount);
@@ -355,7 +355,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         }
         LOGGER.debug("Integration Name {}", integrationName);
 
-        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)));
 
         // Check and create S3 integration if needed
         if (!checkIntegration(connection, integrationName)) {
@@ -521,7 +521,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         FieldReader fieldReaderPreparedStmt = request.getPartitions().getFieldReader(PREPARED_STMT);
         String preparedStmt = fieldReaderPreparedStmt.readText().toString();
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)));
              PreparedStatement preparedStatement = new PreparedStatementBuilder()
                      .withConnection(connection)
                      .withQuery(preparedStmt)
@@ -638,7 +638,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             stmt.setString(1, tableName.getSchemaName());
             stmt.setString(2, tableName.getTableName());
@@ -737,11 +737,11 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         return schemaBuilder.build();
     }
 
-    private Optional<String> getPrimaryKey(TableName tableName) throws Exception
+    private Optional<String> getPrimaryKey(TableName tableName, GetTableLayoutRequest request) throws Exception
     {
         LOGGER.debug("getPrimaryKey tableName: " + tableName);
         List<String> primaryKeys = new ArrayList<String>();
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
@@ -751,7 +751,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             }
 
             String primaryKeyString = primaryKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
-            if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString)) {
+            if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString, request)) {
                 return Optional.of(primaryKeyString);
             }
         }
@@ -762,9 +762,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * Snowflake does not enforce primary key constraints, so we double-check user has unique primary key
      * before partitioning.
      */
-    private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception
+    private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey, GetTableLayoutRequest request) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
@@ -783,11 +783,11 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     /*
      * Check if the input table is a view and returns viewflag accordingly
      */
-    private boolean checkForView(TableName tableName) throws Exception
+    private boolean checkForView(TableName tableName, GetTableLayoutRequest request) throws Exception
     {
         boolean viewFlag = false;
         List<String> viewparameters = Arrays.asList(tableName.getSchemaName(), tableName.getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(viewparameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
@@ -822,13 +822,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
 
     @Override
-    protected CredentialsProvider getCredentialProvider()
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
-        final String secretName = getDatabaseConnectionConfig().getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            return new SnowflakeCredentialsProvider(secretName);
-        }
-
-        return null;
+        return new SnowflakeCredentialsProvider(secretName, requestOverrideConfiguration);
     }
 }

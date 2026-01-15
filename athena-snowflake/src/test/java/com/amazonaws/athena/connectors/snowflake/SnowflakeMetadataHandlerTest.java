@@ -1133,11 +1133,19 @@ public class SnowflakeMetadataHandlerTest
         when(connection.prepareStatement(contains("SELECT"))).thenReturn(countStmt);
         when(countStmt.executeQuery()).thenReturn(countResultSet);
 
+        // Create a mock GetTableLayoutRequest
+        GetTableLayoutRequest mockRequest = new GetTableLayoutRequest(
+            this.federatedIdentity, QUERY_ID, DEFAULT_CATALOG,
+            tableName,
+            new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+            SchemaBuilder.newBuilder().build(),
+            new HashSet<>());
+
         // Use reflection to test private method
-        java.lang.reflect.Method getPrimaryKeyMethod = SnowflakeMetadataHandler.class.getDeclaredMethod("getPrimaryKey", TableName.class);
+        java.lang.reflect.Method getPrimaryKeyMethod = SnowflakeMetadataHandler.class.getDeclaredMethod("getPrimaryKey", TableName.class, GetTableLayoutRequest.class);
         getPrimaryKeyMethod.setAccessible(true);
 
-        Optional<String> primaryKey = (Optional<String>) getPrimaryKeyMethod.invoke(snowflakeMetadataHandler, tableName);
+        Optional<String> primaryKey = (Optional<String>) getPrimaryKeyMethod.invoke(snowflakeMetadataHandler, tableName, mockRequest);
 
         assertTrue(primaryKey.isPresent());
         assertEquals("\"id\"", primaryKey.get());
@@ -1156,11 +1164,19 @@ public class SnowflakeMetadataHandlerTest
         when(connection.prepareStatement(any())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenReturn(resultSet);
 
+        // Create a mock GetTableLayoutRequest
+        GetTableLayoutRequest mockRequest = new GetTableLayoutRequest(
+            this.federatedIdentity, QUERY_ID, DEFAULT_CATALOG,
+            tableName,
+            new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+            SchemaBuilder.newBuilder().build(),
+            new HashSet<>());
+
         // Use reflection to test private method
-        java.lang.reflect.Method getPrimaryKeyMethod = SnowflakeMetadataHandler.class.getDeclaredMethod("getPrimaryKey", TableName.class);
+        java.lang.reflect.Method getPrimaryKeyMethod = SnowflakeMetadataHandler.class.getDeclaredMethod("getPrimaryKey", TableName.class, GetTableLayoutRequest.class);
         getPrimaryKeyMethod.setAccessible(true);
 
-        Optional<String> primaryKey = (Optional<String>) getPrimaryKeyMethod.invoke(snowflakeMetadataHandler, tableName);
+        Optional<String> primaryKey = (Optional<String>) getPrimaryKeyMethod.invoke(snowflakeMetadataHandler, tableName, mockRequest);
 
         assertFalse(primaryKey.isPresent());
     }
@@ -1178,11 +1194,19 @@ public class SnowflakeMetadataHandlerTest
         when(connection.prepareStatement(contains("SELECT"))).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenReturn(resultSet);
 
+        // Create a mock GetTableLayoutRequest
+        GetTableLayoutRequest mockRequest = new GetTableLayoutRequest(
+            this.federatedIdentity, QUERY_ID, DEFAULT_CATALOG,
+            tableName,
+            new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+            SchemaBuilder.newBuilder().build(),
+            new HashSet<>());
+
         // Use reflection to test private method
-        java.lang.reflect.Method hasUniquePrimaryKeyMethod = SnowflakeMetadataHandler.class.getDeclaredMethod("hasUniquePrimaryKey", TableName.class, String.class);
+        java.lang.reflect.Method hasUniquePrimaryKeyMethod = SnowflakeMetadataHandler.class.getDeclaredMethod("hasUniquePrimaryKey", TableName.class, String.class, GetTableLayoutRequest.class);
         hasUniquePrimaryKeyMethod.setAccessible(true);
 
-        boolean hasUniqueKey = (Boolean) hasUniquePrimaryKeyMethod.invoke(snowflakeMetadataHandler, tableName, "id");
+        boolean hasUniqueKey = (Boolean) hasUniquePrimaryKeyMethod.invoke(snowflakeMetadataHandler, tableName, "id", mockRequest);
 
         assertFalse(hasUniqueKey);
     }
@@ -1232,22 +1256,24 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void getCredentialProvider_WithSecret_ReturnsSnowflakeCredentialsProvider() throws Exception {
+    public void createCredentialsProvider_WithSecret_ReturnsSnowflakeCredentialsProvider() throws Exception {
         // Mock database connection config with secret
         DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig("testCatalog", SnowflakeConstants.SNOWFLAKE_NAME,
                 "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx", "testSecret");
 
         SnowflakeMetadataHandler handlerWithSecret = new SnowflakeMetadataHandler(configWithSecret, secretsManager, athena, mockS3, jdbcConnectionFactory, Collections.emptyMap());
 
-        CredentialsProvider provider = handlerWithSecret.getCredentialProvider();
+        // Call the public createCredentialsProvider method
+        CredentialsProvider provider = handlerWithSecret.createCredentialsProvider("testSecret", null);
         assertNotNull(provider);
         assertTrue(provider instanceof SnowflakeCredentialsProvider);
     }
 
-    @Test
-    public void getCredentialProvider_WithoutSecret_ReturnsNull() {
-        CredentialsProvider provider = snowflakeMetadataHandler.getCredentialProvider();
-        assertNull(provider);
+    @Test(expected = NullPointerException.class)
+    public void createCredentialsProvider_WithNullSecret_ThrowsNullPointerException() throws Exception {
+        // The createCredentialsProvider method requires a non-null secret name
+        // This test verifies that it throws NullPointerException when passed null
+        snowflakeMetadataHandler.createCredentialsProvider(null, null);
     }
 
     @Test

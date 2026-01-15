@@ -119,7 +119,7 @@ public class SnowflakeRecordHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(SnowflakeRecordHandlerTest.class);
-    
+
     // Test Configuration Constants
     private static final String TEST_CATALOG = "testCatalog";
     private static final String TEST_QUERY_ID = "query_id";
@@ -133,12 +133,12 @@ public class SnowflakeRecordHandlerTest
     private static final String TEST_USER = "xxx";
     private static final String TEST_PASSWORD = "xxx";
     private static final String TEST_HOST = "hostname";
-    
+
     // Connection String Constants
     private static final String CONNECTION_STRING_TEMPLATE = "snowflake://jdbc:snowflake://%s/?warehouse=%s&db=%s&schema=%s&user=%s&password=%s";
-    private static final String FULL_CONNECTION_STRING = String.format(CONNECTION_STRING_TEMPLATE, 
+    private static final String FULL_CONNECTION_STRING = String.format(CONNECTION_STRING_TEMPLATE,
         TEST_HOST, TEST_WAREHOUSE, TEST_DB, TEST_SCHEMA, TEST_USER, TEST_PASSWORD);
-    
+
     // Test Data Constants
     private static final long TEST_CONSTRAINT_TIME = 100L;
     private static final long TEST_SPILL_SIZE = 1_500_000L; // ~1.5MB
@@ -157,7 +157,7 @@ public class SnowflakeRecordHandlerTest
     private static final String EXPECTED_EXCEPTION_NOT_THROWN = "Expected exception was not thrown";
     private static final String TEST_NAME_JOHN = "John";
     private static final String TEST_NAME_JANE = "Jane";
-    
+
     // Column Name Constants
     private static final String COLUMN_ID = "id";
     private static final String COLUMN_NAME = "name";
@@ -174,7 +174,7 @@ public class SnowflakeRecordHandlerTest
     private static final String COLUMN_HIRE_DATE = "hire_date";
     private static final String COLUMN_IS_MANAGER = "is_manager";
     private static final String COLUMN_VALUE = "value";
-    
+
     // Vector Test Values
     private static final byte TEST_TINY_INT_1 = (byte) 10;
     private static final byte TEST_TINY_INT_2 = (byte) 20;
@@ -205,7 +205,7 @@ public class SnowflakeRecordHandlerTest
     private BlockAllocator allocator;
     private S3BlockSpillReader spillReader;
     private JdbcConnectionFactory jdbcConnectionFactory;
-    private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
+    private SnowflakeQueryStringBuilder jdbcSplitQueryBuilder;
     private S3Client amazonS3;
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
@@ -228,20 +228,20 @@ public class SnowflakeRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         this.mockS3Storage = new ArrayList<>();
     }
-    
+
     private void initializeTestData() throws Exception {
         this.identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
         this.keyFactory = new LocalKeyFactory();
         this.allocator = new BlockAllocatorImpl();
         this.spillReader = new S3BlockSpillReader(amazonS3, allocator);
-        
+
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
-        this.jdbcSplitQueryBuilder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, 
+        this.jdbcSplitQueryBuilder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER,
             new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
-        
+
         setupMockS3Behavior();
     }
-    
+
     private void setupMockS3Behavior() {
         Mockito.lenient().when(amazonS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
@@ -266,14 +266,14 @@ public class SnowflakeRecordHandlerTest
                     return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
                 });
     }
-    
+
     private void initializeHandler() {
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(
             TEST_CATALOG, SnowflakeConstants.SNOWFLAKE_NAME, FULL_CONNECTION_STRING);
-        this.handler = new SnowflakeRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, 
+        this.handler = new SnowflakeRecordHandler(databaseConnectionConfig, amazonS3, secretsManager,
             athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, Collections.emptyMap());
     }
-    
+
     private S3SpillLocation createTestS3SpillLocation() {
         return S3SpillLocation.newBuilder()
                 .withBucket(UUID.randomUUID().toString())
@@ -282,25 +282,25 @@ public class SnowflakeRecordHandlerTest
                 .withIsDirectory(true)
                 .build();
     }
-    
+
     private Split.Builder createTestSplitBuilder(S3SpillLocation splitLoc, String objectKey) {
         return Split.newBuilder(splitLoc, keyFactory.create())
                 .add(SNOWFLAKE_SPLIT_QUERY_ID, TEST_QUERY_ID)
                 .add(SNOWFLAKE_SPLIT_EXPORT_BUCKET, TEST_EXPORT_BUCKET)
                 .add(SNOWFLAKE_SPLIT_OBJECT_KEY, objectKey);
     }
-    
+
     private ReadRecordsRequest createTestReadRecordsRequest(Split split, long maxBlockSize, long maxInlineBlockSize) {
         VectorSchemaRoot schemaRoot = createRoot();
         return new ReadRecordsRequest(identity, DEFAULT_CATALOG, TEST_QUERY_ID, TABLE_NAME,
                 schemaRoot.getSchema(), split, createTestConstraints(), maxBlockSize, maxInlineBlockSize);
     }
-    
+
     private Constraints createTestConstraints() {
-        return new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+        return new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
             DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
     }
-    
+
     private ArrowReader createMockArrowReader(VectorSchemaRoot schemaRoot, boolean hasData) {
         ArrowReader mockReader = mock(ArrowReader.class);
         try {
@@ -312,7 +312,7 @@ public class SnowflakeRecordHandlerTest
         }
         return mockReader;
     }
-    
+
     private void setupMockDatabaseConnection() throws SQLException {
         java.sql.DatabaseMetaData mockMetaData = mock(java.sql.DatabaseMetaData.class);
         when(mockMetaData.getDatabaseProductName()).thenReturn("Snowflake");
@@ -325,17 +325,17 @@ public class SnowflakeRecordHandlerTest
         when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
         when(mockResultSet.next()).thenReturn(false); // No rows
     }
-    
+
     private DatabaseConnectionConfig createDatabaseConnectionConfig(String secretId) {
         if (secretId != null) {
-            return new DatabaseConnectionConfig(TEST_CATALOG, SnowflakeConstants.SNOWFLAKE_NAME, 
+            return new DatabaseConnectionConfig(TEST_CATALOG, SnowflakeConstants.SNOWFLAKE_NAME,
                 FULL_CONNECTION_STRING, secretId);
         } else {
-            return new DatabaseConnectionConfig(TEST_CATALOG, SnowflakeConstants.SNOWFLAKE_NAME, 
+            return new DatabaseConnectionConfig(TEST_CATALOG, SnowflakeConstants.SNOWFLAKE_NAME,
                 FULL_CONNECTION_STRING);
         }
     }
-    
+
     /**
      * Creates a schema with specified fields
      */
@@ -398,14 +398,14 @@ public class SnowflakeRecordHandlerTest
         }
         return builder.build();
     }
-    
+
     /**
      * Creates a table name with default schema and table
      */
     private TableName createTableName() {
         return new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME);
     }
-    
+
     /**
      * Creates a basic split for testing
      */
@@ -414,14 +414,16 @@ public class SnowflakeRecordHandlerTest
                 .withBucket(TEST_BUCKET_NAME)
                 .withSplitId(TEST_SPLIT_ID)
                 .withQueryId(TEST_QUERY_ID_VALUE)
-                .build(), keyFactory.create()).build();
+                .build(), keyFactory.create())
+                .add("partition", "p-primary--limit-1000-offset-0")
+                .build();
     }
-    
+
     /**
      * Creates constraints with specified summary, order by, and limit
      */
     private Constraints createConstraints(Map<String, ValueSet> summary, List<OrderByField> orderBy, Long limit) {
-        return new Constraints(summary, Collections.emptyList(), orderBy, 
+        return new Constraints(summary, Collections.emptyList(), orderBy,
                 limit != null ? limit : DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
     }
 
@@ -433,56 +435,56 @@ public class SnowflakeRecordHandlerTest
         when(mockConnection.prepareStatement(expectedSql)).thenReturn(mockPreparedStatement);
         return mockPreparedStatement;
     }
-    
+
     /**
      * Common test execution pattern for buildSplitSql tests
      */
-    private void executeBuildSplitSqlTest(Connection mockConnection, TableName tableName, Schema schema, 
+    private void executeBuildSplitSqlTest(Connection mockConnection, TableName tableName, Schema schema,
                                         Constraints constraints, Split split, String expectedSql) throws Exception {
         PreparedStatement mockPreparedStatement = setupMockConnectionAndStatement(mockConnection, expectedSql);
-        
+
         PreparedStatement result = handler.buildSplitSql(mockConnection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
-        
+
         assertEquals(mockPreparedStatement, result);
         Mockito.verify(mockPreparedStatement).setFetchSize(TEST_FETCH_SIZE);
     }
-    
+
     /**
      * Common test execution pattern for buildSplitSql tests with any string matcher
      */
-    private void executeBuildSplitSqlTestWithAnyString(Connection mockConnection, TableName tableName, Schema schema, 
+    private void executeBuildSplitSqlTestWithAnyString(Connection mockConnection, TableName tableName, Schema schema,
                                                      Constraints constraints, Split split) throws Exception {
         PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
         when(mockConnection.prepareStatement(any(String.class))).thenReturn(mockPreparedStatement);
-        
+
         PreparedStatement result = handler.buildSplitSql(mockConnection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
-        
+
         assertEquals(mockPreparedStatement, result);
         Mockito.verify(mockPreparedStatement).setFetchSize(TEST_FETCH_SIZE);
     }
-    
+
     /**
      * Common test execution pattern for buildSplitSql tests with contains matcher
      */
-    private void executeBuildSplitSqlTestWithContains(Connection mockConnection, TableName tableName, Schema schema, 
+    private void executeBuildSplitSqlTestWithContains(Connection mockConnection, TableName tableName, Schema schema,
                                                     Constraints constraints, Split split, String expectedSql) throws Exception {
         PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
         when(mockConnection.prepareStatement(Mockito.contains(expectedSql))).thenReturn(mockPreparedStatement);
-        
+
         PreparedStatement result = handler.buildSplitSql(mockConnection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
-        
+
         assertEquals(mockPreparedStatement, result);
         Mockito.verify(mockPreparedStatement).setFetchSize(TEST_FETCH_SIZE);
     }
-    
+
     /**
      * Creates a range constraint for integer values
      */
     private ValueSet createIntRangeConstraint(long min, boolean minInclusive, long max, boolean maxInclusive) {
-        return SortedRangeSet.copyOf(Types.MinorType.INT.getType(), 
+        return SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
                 List.of(Range.range(allocator, Types.MinorType.INT.getType(), min, minInclusive, max, maxInclusive)), false);
     }
-    
+
     /**
      * Creates an IN constraint for string values
      */
@@ -493,7 +495,7 @@ public class SnowflakeRecordHandlerTest
         }
         return SortedRangeSet.copyOf(Types.MinorType.VARCHAR.getType(), ranges, false);
     }
-    
+
     /**
      * Creates an IN constraint for integer values
      */
@@ -504,7 +506,7 @@ public class SnowflakeRecordHandlerTest
         }
         return SortedRangeSet.copyOf(Types.MinorType.INT.getType(), ranges, false);
     }
-    
+
     /**
      * Creates an IN constraint for float values
      */
@@ -515,43 +517,43 @@ public class SnowflakeRecordHandlerTest
         }
         return SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(), ranges, false);
     }
-    
+
     /**
      * Creates a greater than constraint for float values
      */
     private ValueSet createFloatGreaterThanConstraint(double value) {
-        return SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(), 
+        return SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
                 List.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), value)), false);
     }
-    
+
     /**
      * Creates a range constraint for float values
      */
     private ValueSet createFloatRangeConstraint(double min, boolean minInclusive, double max, boolean maxInclusive) {
-        return SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(), 
+        return SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
                 List.of(Range.range(allocator, Types.MinorType.FLOAT8.getType(), min, minInclusive, max, maxInclusive)), false);
     }
-    
+
     /**
      * Creates a boolean equality constraint
      */
     private ValueSet createBooleanConstraint(boolean value, boolean allowNull) {
-        return SortedRangeSet.copyOf(Types.MinorType.BIT.getType(), 
+        return SortedRangeSet.copyOf(Types.MinorType.BIT.getType(),
                 List.of(Range.equal(allocator, Types.MinorType.BIT.getType(), value)), allowNull);
     }
-    
+
     /**
      * Creates a NULL constraint
      */
     private ValueSet createNullConstraint() {
         return SortedRangeSet.copyOf(Types.MinorType.VARCHAR.getType(), Collections.emptyList(), true);
     }
-    
+
     /**
      * Creates a NOT NULL constraint
      */
     private ValueSet createNotNullConstraint() {
-        return SortedRangeSet.copyOf(Types.MinorType.INT.getType(), 
+        return SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
                 List.of(Range.all(allocator, Types.MinorType.INT.getType())), false);
     }
 
@@ -572,7 +574,7 @@ public class SnowflakeRecordHandlerTest
             S3SpillLocation splitLoc = createTestS3SpillLocation();
             Split split = createTestSplitBuilder(splitLoc, TEST_S3_OBJECT_KEY).build();
             ReadRecordsRequest request = createTestReadRecordsRequest(split, TEST_NO_SPILL_SIZE, TEST_NO_SPILL_SIZE);
-            
+
             RecordResponse rawResponse = handlerSpy.doReadRecords(allocator, request);
 
             assertTrue(rawResponse instanceof ReadRecordsResponse);
@@ -609,7 +611,7 @@ public class SnowflakeRecordHandlerTest
             S3SpillLocation splitLoc = createTestS3SpillLocation();
             Split split = createTestSplitBuilder(splitLoc, TEST_S3_OBJECT_KEY).build();
             ReadRecordsRequest request = createTestReadRecordsRequest(split, TEST_SPILL_SIZE, 0L);
-            
+
             RecordResponse rawResponse = handlerSpy.doReadRecords(allocator, request);
 
             assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
@@ -683,7 +685,7 @@ public class SnowflakeRecordHandlerTest
             // The parent class handles the actual implementation
             // Verify that the handler attempted to read from the database directly
             Mockito.verify(connection).prepareStatement(any(String.class));
-            
+
             // Since we're using mocks, we need to verify the interactions differently
             // The setupMockDatabaseConnection method already sets up the mocks
             // We just need to verify that the connection was used
@@ -779,7 +781,7 @@ public class SnowflakeRecordHandlerTest
         TableName tableName = new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME);
         Schema schema = SchemaBuilder.newBuilder().addStringField(TEST_FIELD_NAME).build();
         Constraints constraints = createTestConstraints();
-        Split split = Split.newBuilder(S3SpillLocation.newBuilder().withBucket(TEST_BUCKET_NAME).withSplitId(TEST_SPLIT_ID).withQueryId(TEST_QUERY_ID_VALUE).build(), keyFactory.create()).build();
+        Split split = createBasicSplit();
 
         when(mockConnection.prepareStatement(any(String.class))).thenThrow(new SQLException(TEST_SQL_EXCEPTION_MESSAGE));
 
@@ -792,27 +794,35 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void getCredentialProvider_WithSecret_ReturnsSnowflakeCredentialsProvider()
+    public void getCredentialProvider_WithSecret_ReturnsSnowflakeCredentialsProvider() throws Exception
     {
         DatabaseConnectionConfig configWithSecret = createDatabaseConnectionConfig("test-secret");
-        
+
         SnowflakeRecordHandler handlerWithSecret = new SnowflakeRecordHandler(configWithSecret, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, Collections.emptyMap());
-        
-        CredentialsProvider result = handlerWithSecret.getCredentialProvider();
-        
+
+        // Use reflection to access protected method
+        java.lang.reflect.Method getCredentialProviderMethod = handlerWithSecret.getClass().getSuperclass().getDeclaredMethod("getCredentialProvider");
+        getCredentialProviderMethod.setAccessible(true);
+
+        CredentialsProvider result = (CredentialsProvider) getCredentialProviderMethod.invoke(handlerWithSecret);
+
         assertNotNull(result);
         assertTrue(result instanceof SnowflakeCredentialsProvider);
     }
 
     @Test
-    public void getCredentialProvider_WithoutSecret_ReturnsNull()
+    public void getCredentialProvider_WithoutSecret_ReturnsNull() throws Exception
     {
         DatabaseConnectionConfig configWithoutSecret = createDatabaseConnectionConfig(null);
-        
+
         SnowflakeRecordHandler handlerWithoutSecret = new SnowflakeRecordHandler(configWithoutSecret, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, Collections.emptyMap());
-        
-        CredentialsProvider result = handlerWithoutSecret.getCredentialProvider();
-        
+
+        // Use reflection to access protected method
+        java.lang.reflect.Method getCredentialProviderMethod = handlerWithoutSecret.getClass().getSuperclass().getDeclaredMethod("getCredentialProvider");
+        getCredentialProviderMethod.setAccessible(true);
+
+        CredentialsProvider result = (CredentialsProvider) getCredentialProviderMethod.invoke(handlerWithoutSecret);
+
         // Should return null when no secret is configured
         assertTrue(result == null);
     }
@@ -823,12 +833,12 @@ public class SnowflakeRecordHandlerTest
         // Mock S3 client to avoid AWS access issues
         S3Client mockS3Client = mock(S3Client.class);
         SnowflakeRecordHandler handlerWithMockS3 = new SnowflakeRecordHandler(
-            createDatabaseConnectionConfig(null), mockS3Client, secretsManager, athena, 
+            createDatabaseConnectionConfig(null), mockS3Client, secretsManager, athena,
             jdbcConnectionFactory, jdbcSplitQueryBuilder, Collections.emptyMap());
-        
+
         // Test with a simple URI that doesn't require S3 access
         String testUri = "file:///tmp/test.parquet";
-        
+
         try {
             ArrowReader reader = handlerWithMockS3.constructArrowReader(testUri);
             assertNotNull(reader);
@@ -845,7 +855,7 @@ public class SnowflakeRecordHandlerTest
         Map<String, String> configOptions = new HashMap<>();
         configOptions.put("test-key", "test-value");
         configOptions.put("default", FULL_CONNECTION_STRING);
-        
+
         try {
             SnowflakeRecordHandler handlerWithConfig = new SnowflakeRecordHandler(configOptions);
             assertNotNull(handlerWithConfig);
@@ -860,9 +870,9 @@ public class SnowflakeRecordHandlerTest
     {
         DatabaseConnectionConfig databaseConnectionConfig = createDatabaseConnectionConfig(null);
         Map<String, String> configOptions = new HashMap<>();
-        
+
         SnowflakeRecordHandler handlerWithConfig = new SnowflakeRecordHandler(databaseConnectionConfig, configOptions);
-        
+
         assertNotNull(handlerWithConfig);
     }
 
@@ -872,9 +882,9 @@ public class SnowflakeRecordHandlerTest
         DatabaseConnectionConfig databaseConnectionConfig = createDatabaseConnectionConfig(null);
         Map<String, String> configOptions = new HashMap<>();
         GenericJdbcConnectionFactory mockFactory = mock(GenericJdbcConnectionFactory.class);
-        
+
         SnowflakeRecordHandler handlerWithFactory = new SnowflakeRecordHandler(databaseConnectionConfig, mockFactory, configOptions);
-        
+
         assertNotNull(handlerWithFactory);
     }
 
@@ -889,13 +899,13 @@ public class SnowflakeRecordHandlerTest
             Connection mockConnection = mock(Connection.class);
             TableName tableName = createTableName();
             Schema schema = createSchema(COLUMN_ID, COLUMN_NAME, COLUMN_PRICE, COLUMN_CREATED_DATE);
-            
+
             // Create constraints with complex range predicates
             Map<String, ValueSet> summary = new HashMap<>();
             summary.put(COLUMN_ID, createIntRangeConstraint(10L, true, 100L, false));
             summary.put(COLUMN_PRICE, createFloatGreaterThanConstraint(50.0));
             summary.put(COLUMN_NAME, createStringInConstraint(TEST_NAME_JOHN, TEST_NAME_JANE));
-            
+
             Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
             Split split = createBasicSplit();
 
@@ -915,7 +925,7 @@ public class SnowflakeRecordHandlerTest
             Connection mockConnection = mock(Connection.class);
             TableName tableName = createTableName();
             Schema schema = createSchema(COLUMN_NAME, COLUMN_SCORE);
-            
+
             // Create constraints with Top N scenario (ORDER BY + LIMIT)
             List<OrderByField> orderBy = List.of(new OrderByField(COLUMN_NAME, OrderByField.Direction.ASC_NULLS_FIRST));
             Constraints constraints = createConstraints(Collections.emptyMap(), orderBy, 10L);
@@ -937,7 +947,7 @@ public class SnowflakeRecordHandlerTest
             Connection mockConnection = mock(Connection.class);
             TableName tableName = createTableName();
             Schema schema = createSchema(COLUMN_NAME);
-            
+
             // Test limit values
             long limitValues = 10L;
 
@@ -960,7 +970,7 @@ public class SnowflakeRecordHandlerTest
             Connection mockConnection = mock(Connection.class);
             TableName tableName = createTableName();
             Schema schema = createSchema(COLUMN_NAME, COLUMN_AGE, COLUMN_SALARY);
-            
+
             // Test different ORDER BY scenarios
             List<List<OrderByField>> orderByScenarios = List.of(
                     // Single column ASC
@@ -978,7 +988,7 @@ public class SnowflakeRecordHandlerTest
                             new OrderByField(COLUMN_SALARY, OrderByField.Direction.DESC_NULLS_FIRST)
                     )
             );
-            
+
             for (List<OrderByField> orderByClause : orderByScenarios) {
                 Constraints constraints = createConstraints(Collections.emptyMap(), orderByClause, DEFAULT_NO_LIMIT);
                 Split split = createBasicSplit();
@@ -1000,12 +1010,12 @@ public class SnowflakeRecordHandlerTest
             Connection mockConnection = mock(Connection.class);
             TableName tableName = createTableName();
             Schema schema = createSchema(COLUMN_ID, COLUMN_PRICE, COLUMN_DATE);
-            
+
             // Test BETWEEN predicates for different data types
             Map<String, ValueSet> summary = new HashMap<>();
             summary.put(COLUMN_ID, createIntRangeConstraint(10L, true, 50L, true));
             summary.put(COLUMN_PRICE, createFloatRangeConstraint(10.5, true, 99.9, true));
-            
+
             Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
             Split split = createBasicSplit();
 
@@ -1025,13 +1035,13 @@ public class SnowflakeRecordHandlerTest
             Connection mockConnection = mock(Connection.class);
             TableName tableName = createTableName();
             Schema schema = createSchema(COLUMN_STATUS, COLUMN_CATEGORY_ID, COLUMN_RATING);
-            
+
             // Test IN predicates for different data types
             Map<String, ValueSet> summary = new HashMap<>();
             summary.put(COLUMN_STATUS, createStringInConstraint("ACTIVE", "PENDING", "COMPLETED"));
             summary.put(COLUMN_CATEGORY_ID, createIntInConstraint(1L, 5L, 10L));
             summary.put(COLUMN_RATING, createFloatInConstraint(4.5, 4.8, 5.0));
-            
+
             Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
             Split split = createBasicSplit();
 
@@ -1051,13 +1061,13 @@ public class SnowflakeRecordHandlerTest
             Connection mockConnection = mock(Connection.class);
             TableName tableName = createTableName();
             Schema schema = createSchema(COLUMN_NAME, COLUMN_AGE, COLUMN_IS_ACTIVE);
-            
+
             // Test NULL and NOT NULL predicates
             Map<String, ValueSet> summary = new HashMap<>();
             summary.put(COLUMN_NAME, createNullConstraint());
             summary.put(COLUMN_AGE, createNotNullConstraint());
             summary.put(COLUMN_IS_ACTIVE, createBooleanConstraint(true, true));
-            
+
             Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
             Split split = createBasicSplit();
 
@@ -1077,14 +1087,14 @@ public class SnowflakeRecordHandlerTest
             Connection mockConnection = mock(Connection.class);
             TableName tableName = createTableName();
             Schema schema = createSchema(COLUMN_NAME, COLUMN_AGE, COLUMN_SALARY, COLUMN_HIRE_DATE, COLUMN_IS_MANAGER);
-            
+
             // Complex combined predicates
             Map<String, ValueSet> summary = new HashMap<>();
             summary.put(COLUMN_NAME, createStringInConstraint(TEST_NAME_JOHN, TEST_NAME_JANE, "Bob"));
             summary.put(COLUMN_AGE, createIntRangeConstraint(25L, true, 65L, false));
             summary.put(COLUMN_SALARY, createFloatGreaterThanConstraint(50000.0));
             summary.put(COLUMN_IS_MANAGER, createBooleanConstraint(true, false));
-            
+
             Constraints constraints = createConstraints(summary, Collections.emptyList(), 100L);
             Split split = createBasicSplit();
 
@@ -1104,13 +1114,13 @@ public class SnowflakeRecordHandlerTest
             Connection mockConnection = mock(Connection.class);
             TableName tableName = createTableName();
             Schema schema = createSchema(COLUMN_NAME, COLUMN_ID, COLUMN_VALUE);
-            
+
             // Edge cases: empty ranges, single values, boundary values
             Map<String, ValueSet> summary = new HashMap<>();
             summary.put(COLUMN_ID, createIntInConstraint(42L));
             summary.put(COLUMN_VALUE, createFloatInConstraint(0.0, Double.MAX_VALUE));
             summary.put(COLUMN_NAME, createStringInConstraint(""));
-            
+
             Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
             Split split = createBasicSplit();
 
