@@ -109,36 +109,4 @@ public class MySqlQueryStringBuilder
     {
         return MysqlSqlDialect.DEFAULT;
     }
-
-    @Override
-    protected String appendLimitOffset(Split split)
-    {
-        if (split == null) {
-            return "";
-        }
-
-        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next());
-        if (!partitionVal.contains("-")) {
-            return "";
-        }
-
-        String[] arr = partitionVal.split("-");
-        String primaryKey = arr[2];
-        String xLimit = arr[4];
-        String xOffset = arr[6];
-
-        if (primaryKey.equals("")) {
-            return "";
-        }
-        return "ORDER BY " + primaryKey + " " +  appendLimitOffsetWithValue(xLimit, xOffset);
-    }
-
-    @Override
-    protected String appendLimitOffsetWithValue(String limit, String offset)
-    {
-        if (offset == null) {
-            return " limit " + limit;
-        }
-        return " limit " + limit + " offset " + offset;
-    }
 }
