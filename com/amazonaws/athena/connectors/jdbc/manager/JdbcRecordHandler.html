@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":6,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10};
+var data = {"i0":10,"i1":6,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -273,11 +273,18 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i6" class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getDatabaseConnectionSecret()">getDatabaseConnectionSecret</a></span>()</code></th>
+<td class="colLast">
+<div class="block">Gets the database connection secret name.</div>
+</td>
+</tr>
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>protected <a href="../connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getJdbcConnectionFactory()">getJdbcConnectionFactory</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>protected <a href="../../../connector/lambda/data/writers/extractors/Extractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors">Extractor</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeExtractor(org.apache.arrow.vector.types.pojo.Field,java.sql.ResultSet,java.util.Map)">makeExtractor</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Field&nbsp;field,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/ResultSet.html?is-external=true" title="class or interface in java.sql" class="externalLink">ResultSet</a>&nbsp;resultSet,
@@ -286,14 +293,14 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <div class="block">Creates an Extractor for the given field.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>protected <a href="../../../connector/lambda/data/writers/fieldwriters/FieldWriterFactory.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">FieldWriterFactory</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeFactory(org.apache.arrow.vector.types.pojo.Field)">makeFactory</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Field&nbsp;field)</code></th>
 <td class="colLast">
 <div class="block">Create a field extractor for complex List type.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></span>&#8203;(<a href="../../../connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;blockSpiller,
                   <a href="../../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest,
@@ -322,7 +329,7 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <!--   -->
 </a>
 <h3>Methods inherited from interface&nbsp;com.amazonaws.athena.connector.lambda.handlers.<a href="../../../connector/lambda/handlers/FederationRequestHandler.html" title="interface in com.amazonaws.athena.connector.lambda.handlers">FederationRequestHandler</a></h3>
-<code><a href="../../../connector/lambda/handlers/FederationRequestHandler.html#createCredentialsProvider(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">createCredentialsProvider</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getAthenaClient(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.athena.AthenaClient)">getAthenaClient</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getCredentialProvider(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getCredentialProvider</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getDatabaseConnectionSecret()">getDatabaseConnectionSecret</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getRequestOverrideConfig(com.amazonaws.athena.connector.lambda.request.FederationRequest)">getRequestOverrideConfig</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getRequestOverrideConfig(java.util.Map)">getRequestOverrideConfig</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getRequestOverrideConfig(java.util.Map,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getRequestOverrideConfig</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getS3Client(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.s3.S3Client)">getS3Client</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getSecret(java.lang.String)">getSecret</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getSecret(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSecret</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getSessionCredentials(java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getSessionCredentials</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#isRequestFederated(com.amazonaws.athena.connector.lambda.request.FederationRequest)">isRequestFederated</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#resolveSecrets(java.lang.String)">resolveSecrets</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials</a></code></li>
+<code><a href="../../../connector/lambda/handlers/FederationRequestHandler.html#createCredentialsProvider(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">createCredentialsProvider</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getAthenaClient(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.athena.AthenaClient)">getAthenaClient</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getCredentialProvider(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getCredentialProvider</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getRequestOverrideConfig(com.amazonaws.athena.connector.lambda.request.FederationRequest)">getRequestOverrideConfig</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getRequestOverrideConfig(java.util.Map)">getRequestOverrideConfig</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getRequestOverrideConfig(java.util.Map,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getRequestOverrideConfig</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getS3Client(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.s3.S3Client)">getS3Client</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getSecret(java.lang.String)">getSecret</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getSecret(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSecret</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getSessionCredentials(java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getSessionCredentials</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#isRequestFederated(com.amazonaws.athena.connector.lambda.request.FederationRequest)">isRequestFederated</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#resolveSecrets(java.lang.String)">resolveSecrets</a>, <a href="../../../connector/lambda/handlers/FederationRequestHandler.html#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials</a></code></li>
 </ul>
 </li>
 </ul>
@@ -419,6 +426,22 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <li class="blockList">
 <h4>getCredentialProvider</h4>
 <pre class="methodSignature">protected&nbsp;<a href="../../../connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a>&nbsp;getCredentialProvider()</pre>
+</li>
+</ul>
+<a id="getDatabaseConnectionSecret()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getDatabaseConnectionSecret</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;getDatabaseConnectionSecret()</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../../../connector/lambda/handlers/FederationRequestHandler.html#getDatabaseConnectionSecret()">FederationRequestHandler</a></code></span></div>
+<div class="block">Gets the database connection secret name. Subclasses that use database credentials
+ should override this method to provide the secret name from their configuration.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>The secret name, or null if not applicable</dd>
+</dl>
 </li>
 </ul>
 <a id="readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">

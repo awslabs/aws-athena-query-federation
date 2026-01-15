@@ -862,18 +862,20 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">HiveMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/cloudera/HiveMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">HiveMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/cloudera/HiveMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Used to convert Hive data types to Apache arrow data types</div>
 </td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">ImpalaMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/cloudera/ImpalaMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">ImpalaMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/cloudera/ImpalaMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Used to convert Impala data types to Apache arrow data types</div>
 </td>
@@ -946,9 +948,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">DataLakeGen2MetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/datalakegen2/DataLakeGen2MetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">DataLakeGen2MetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/datalakegen2/DataLakeGen2MetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Appropriate datatype to arrow type conversions will be done by fetching data types of columns</div>
 </td>
@@ -1010,9 +1013,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">Db2MetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/db2/Db2MetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">Db2MetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/db2/Db2MetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Appropriate data type to arrow type conversions will be done by fetching data types of columns.</div>
 </td>
@@ -1048,9 +1052,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">Db2As400MetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/db2as400/Db2As400MetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">Db2As400MetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/db2as400/Db2As400MetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Appropriate data type to arrow type conversions will be done by fetching data types of columns.</div>
 </td>
@@ -1263,9 +1268,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">HiveMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/hortonworks/HiveMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">HiveMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/hortonworks/HiveMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Used to convert Hive data types to Apache arrow data types</div>
 </td>
@@ -1378,10 +1384,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">JdbcMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">JdbcMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
-<td class="colLast">&nbsp;</td>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
+<td class="colLast">
+<div class="block">Gets the schema for a table with optional request override configuration.</div>
+</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
@@ -1541,9 +1550,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">OracleMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/oracle/OracleMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">OracleMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/oracle/OracleMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -1669,9 +1679,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">SaphanaMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/saphana/SaphanaMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">SaphanaMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/saphana/SaphanaMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -1721,9 +1732,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -1810,9 +1822,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">SqlServerMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/sqlserver/SqlServerMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">SqlServerMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/sqlserver/SqlServerMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Appropriate datatype to arrow type conversions will be done by fetching data types of columns</div>
 </td>
@@ -1846,9 +1859,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">SynapseMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/synapse/SynapseMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">SynapseMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/synapse/SynapseMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Appropriate datatype to arrow type conversions will be done by fetching data types of columns</div>
 </td>
@@ -1882,9 +1896,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">TeradataMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/teradata/TeradataMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+<th class="colSecond" scope="row"><span class="typeNameLabel">TeradataMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/teradata/TeradataMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema,
+         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
