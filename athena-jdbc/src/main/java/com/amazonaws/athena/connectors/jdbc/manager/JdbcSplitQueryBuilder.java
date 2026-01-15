@@ -422,7 +422,15 @@ public abstract class JdbcSplitQueryBuilder
 
             PreparedStatement statement = jdbcConnection.prepareStatement(root.toSqlString(sqlDialect).getSql());
 
-            handleDataTypesForPreparedStatement(statement, accumulator, tableSchema);
+            int parameterCount = statement.getParameterMetaData().getParameterCount();
+            if (parameterCount != accumulator.size()) {
+                LOGGER.error("Parameter count mismatch: SQL has {} parameters, accumulator has {}. Skipping parameter binding.",
+                        parameterCount, accumulator.size());
+            }
+            else {
+                handleDataTypesForPreparedStatement(statement, accumulator, tableSchema);
+            }
+
             LOGGER.debug("CalciteSql prepared statement: {}", statement);
 
             return statement;

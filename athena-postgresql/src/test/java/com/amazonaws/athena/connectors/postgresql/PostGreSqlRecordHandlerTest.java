@@ -32,7 +32,6 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -70,7 +69,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
     private PostGreSqlRecordHandler postGreSqlRecordHandler;
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
-    private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
+    private PostGreSqlQueryStringBuilder jdbcSplitQueryBuilder;
     private S3Client amazonS3;
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;

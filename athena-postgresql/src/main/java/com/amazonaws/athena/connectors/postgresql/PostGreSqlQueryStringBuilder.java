@@ -25,6 +25,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.PostgresqlSqlDialect;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -112,5 +114,43 @@ public class PostGreSqlQueryStringBuilder
         }
 
         return Collections.emptyList();
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return PostgresqlSqlDialect.DEFAULT;
+    }
+
+    @Override
+    protected String appendLimitOffset(Split split)
+    {
+        if (split == null) {
+            return "";
+        }
+
+        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next());
+        if (!partitionVal.contains("-")) {
+            return "";
+        }
+
+        String[] arr = partitionVal.split("-");
+        String primaryKey = arr[2];
+        String xLimit = arr[4];
+        String xOffset = arr[6];
+
+        if (primaryKey.equals("")) {
+            return "";
+        }
+        return "ORDER BY " + primaryKey + " " +  appendLimitOffsetWithValue(xLimit, xOffset);
+    }
+
+    @Override
+    protected String appendLimitOffsetWithValue(String limit, String offset)
+    {
+        if (offset == null) {
+            return " limit " + limit;
+        }
+        return " LIMIT " + limit + " OFFSET " + offset;
     }
 }
