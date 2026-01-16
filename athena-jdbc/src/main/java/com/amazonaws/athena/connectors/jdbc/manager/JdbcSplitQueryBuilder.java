@@ -54,6 +54,7 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
+import java.sql.ParameterMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -422,10 +423,10 @@ public abstract class JdbcSplitQueryBuilder
 
             PreparedStatement statement = jdbcConnection.prepareStatement(root.toSqlString(sqlDialect).getSql());
 
-            int parameterCount = statement.getParameterMetaData().getParameterCount();
-            if (parameterCount != accumulator.size()) {
+            ParameterMetaData metaData = statement.getParameterMetaData();
+            if (metaData != null && metaData.getParameterCount() != accumulator.size()) {
                 LOGGER.error("Parameter count mismatch: SQL has {} parameters, accumulator has {}. Skipping parameter binding.",
-                        parameterCount, accumulator.size());
+                        metaData.getParameterCount(), accumulator.size());
             }
             else {
                 handleDataTypesForPreparedStatement(statement, accumulator, tableSchema);
