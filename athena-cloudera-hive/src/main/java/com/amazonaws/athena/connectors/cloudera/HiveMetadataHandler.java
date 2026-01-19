@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudera;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -43,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Lim
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
@@ -87,7 +89,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
     }
     public HiveMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new HiveJdbcConnectionFactory(databaseConnectionConfig, HiveConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(HiveConstants.HIVE_DRIVER_CLASS, HiveConstants.HIVE_DEFAULT_PORT)), configOptions);
+        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, HiveConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(HiveConstants.HIVE_DRIVER_CLASS, HiveConstants.HIVE_DEFAULT_PORT)), configOptions);
     }
 
     @VisibleForTesting
@@ -382,5 +384,11 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
             }
         }
         return columnHashMap;
+    }
+
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return new HiveCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
     }
 }

@@ -41,4 +41,6 @@ public class HiveConstants
     public static final int HIVE_DEFAULT_PORT = 10000;
     public static final String METADATA_COLUMN_NAME = "col_name";
     public static final String METADATA_COLUMN_TYPE = "data_type";
+    public static final String USER = "UID";
+    public static final String PASSWORD = "PWD";
 }
