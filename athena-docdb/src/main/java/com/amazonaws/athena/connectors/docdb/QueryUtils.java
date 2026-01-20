@@ -174,7 +174,7 @@ public final class QueryUtils
                 fieldReader.setPosition(i);
                 Object value = fieldReader.readObject();
                 nextEqVal.put(EQ_OP, convert(value));
-                singleValues.add(singleValues);
+                singleValues.add(nextEqVal);
             }
 
             return orPredicate(singleValues.stream()
