@@ -35,6 +35,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
@@ -49,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -344,6 +346,23 @@ public class S3BlockSpiller
     }
 
     /**
+     * Creates an AwsRequestOverrideConfiguration with custom headers from the environment
+     */
+    private Optional<AwsRequestOverrideConfiguration> createRequestOverrideConfig()
+    {
+        Map<String, String> headers = getRequestHeadersFromEnv();
+        if (headers.isEmpty()) {
+            return Optional.empty();
+        }
+
+        AwsRequestOverrideConfiguration.Builder overrideConfigBuilder = AwsRequestOverrideConfiguration.builder();
+        for (Map.Entry<String, String> header : headers.entrySet()) {
+            overrideConfigBuilder.putHeader(header.getKey(), header.getValue());
+        }
+        return Optional.of(overrideConfigBuilder.build());
+    }
+
+    /**
      * Writes (aka spills) a Block.
      */
     protected SpillLocation write(Block block)
@@ -361,12 +380,15 @@ public class S3BlockSpiller
 
             // Set the contentLength otherwise the s3 client will buffer again since it
             // only sees the InputStream wrapper.
-            PutObjectRequest request = PutObjectRequest.builder()
+            PutObjectRequest.Builder requestBuilder = PutObjectRequest.builder()
                     .bucket(spillLocation.getBucket())
                     .key(spillLocation.getKey())
-                    .contentLength((long) bytes.length)
-                    .metadata(getRequestHeadersFromEnv())
-                    .build();
+                    .contentLength((long) bytes.length);
+
+            // Set request headers via overrideConfiguration instead of metadata
+            createRequestOverrideConfig().ifPresent(requestBuilder::overrideConfiguration);
+
+            PutObjectRequest request = requestBuilder.build();
             amazonS3.putObject(request, RequestBody.fromBytes(bytes));
             logger.info("write: Completed spilling block of size {} bytes", bytes.length);
 
