@@ -260,19 +260,19 @@ public class DocDBMetadataHandler
     @Override
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request) throws Exception
     {
-        logger.info("Getting tables in {}", request.getSchemaName());
+        logger.info("ARFARAJ ---- TESTING ---- Getting tables in {}", request.getSchemaName());
         Set<TableName> combinedTables = new LinkedHashSet<>();
         String token = request.getNextToken();
         if (token == null && glue != null) {
             try {
-                combinedTables.addAll(super.doListTables(blockAllocator, new ListTablesRequest(request.getIdentity(), request.getQueryId(), 
+                combinedTables.addAll(super.doListTables(blockAllocator, new ListTablesRequest(request.getIdentity(), request.getQueryId(),
                     request.getCatalogName(), request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE), TABLE_FILTER).getTables());
             }
             catch (RuntimeException e) {
                 logger.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
             }
         }
-    
+
         MongoClient client = getOrCreateConn(request);
         Stream<String> tableNames = doListTablesWithCommand(client, request);
         int startToken = request.getNextToken() != null ? Integer.parseInt(request.getNextToken()) : 0;
@@ -286,7 +286,12 @@ public class DocDBMetadataHandler
         }
 
         List<TableName> paginatedTables = tableNames.map(tableName -> new TableName(request.getSchemaName(), tableName)).collect(Collectors.toList());
+        //todo; make the next token null if the combined table size is zero.
         combinedTables.addAll(paginatedTables);
+        logger.error("ARFARAJ: combinedTables:{}, pageSize:{}", combinedTables.size(), pageSize);
+        if (combinedTables.isEmpty() || pageSize < 0 || combinedTables.size() < pageSize) {
+            nextToken = null;
+        }
         logger.info("doListTables returned {} tables. Next token is {}", paginatedTables.size(), nextToken);
         return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), nextToken);
     }
@@ -360,8 +365,7 @@ public class DocDBMetadataHandler
         catch (RuntimeException ex) {
             logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
                     request.getTableName().getSchemaName(),
-                    request.getTableName().getTableName(),
-                    ex);
+                    request.getTableName().getTableName());
         }
 
         if (schema == null) {

@@ -296,6 +296,7 @@ public abstract class GlueMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
             throws Exception
     {
+        logger.error("TEST TEST ARFARAJ");
         return doListTables(blockAllocator, request, null);
     }
 

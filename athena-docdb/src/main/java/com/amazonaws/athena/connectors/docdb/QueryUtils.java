@@ -328,7 +328,6 @@ public final class QueryUtils
         }
         return new Document();
     }
-
     /**
      * Converts a LogicalExpression tree to MongoDB filter Document while preserving logical structure
      * Example: OR(EQUAL(job_title, 'A'), EQUAL(job_title, 'B')) → {"$or": [{"job_title": {"$eq": "A"}}, {"job_title": {"$eq": "B"}}]}

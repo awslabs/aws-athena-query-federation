@@ -26,15 +26,14 @@ import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import io.substrait.proto.Expression;
 import io.substrait.proto.FetchRel;
 import io.substrait.proto.Plan;
-import io.substrait.proto.SortRel;
 import io.substrait.proto.SortField.SortDirection;
-import org.apache.commons.lang3.tuple.Pair;
+import io.substrait.proto.SortRel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Utility class for Substrait plan processing operations like LIMIT and SORT pushdown.
@@ -49,7 +48,7 @@ public final class LimitAndSortHelper
      * Determines if a LIMIT can be applied and extracts the limit value from either
      * the Substrait plan or constraints.
      */
-    public static Pair<Boolean, Integer> getLimit(Plan plan, Constraints constraints)
+    public static Optional<Integer> getLimit(Plan plan, Constraints constraints)
     {
         SubstraitRelModel substraitRelModel = null;
         boolean useQueryPlan = false;
@@ -60,36 +59,36 @@ public final class LimitAndSortHelper
         if (canApplyLimit(constraints, substraitRelModel, useQueryPlan)) {
             if (useQueryPlan) {
                 int limit = getLimit(substraitRelModel);
-                return Pair.of(true, limit);
+                return Optional.of(limit);
             }
             else {
-                return Pair.of(true, (int) constraints.getLimit());
+                return Optional.of((int) (constraints.getLimit()));
             }
         }
-        return Pair.of(false, -1);
+        return Optional.empty();
     }
 
     /**
      * Extracts sort information from Substrait plan for ORDER BY pushdown optimization.
      */
-    public static Pair<Boolean, List<GenericSortField>> getSortFromPlan(Plan plan)
+    public static Optional<List<GenericSortField>> getSortFromPlan(Plan plan)
     {
         if (plan == null || plan.getRelationsList().isEmpty()) {
-            return Pair.of(false, Collections.emptyList());
+            return Optional.empty();
         }
         try {
             SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
                     plan.getRelations(0).getRoot().getInput());
             if (substraitRelModel.getSortRel() == null) {
-                return Pair.of(false, Collections.emptyList());
+                return Optional.empty();
             }
             List<String> tableColumns = SubstraitMetadataParser.getTableColumns(substraitRelModel);
             List<GenericSortField> sortFields = extractGenericSortFields(substraitRelModel.getSortRel(), tableColumns);
-            return Pair.of(true, sortFields);
+            return Optional.of(sortFields);
         }
         catch (Exception e) {
             logger.warn("Failed to extract sort from plan{}", e);
-            return Pair.of(false, Collections.emptyList());
+            return Optional.empty();
         }
     }
 

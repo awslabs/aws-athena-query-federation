@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
@@ -40,7 +39,6 @@ import io.substrait.proto.Plan;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.commons.lang3.tuple.Pair;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,11 +48,14 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connector.substrait.SubstraitRelUtils.deserializeSubstraitPlan;
+import static com.amazonaws.athena.connector.substrait.util.LimitAndSortHelper.getLimit;
+import static com.amazonaws.athena.connector.substrait.util.LimitAndSortHelper.getSortFromPlan;
 import static com.amazonaws.athena.connectors.docdb.DocDBFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
 
@@ -123,7 +124,6 @@ public class DocDBRecordHandler
 
     private static Map<String, Object> documentAsMap(Document document, boolean caseInsensitive)
     {
-        logger.info("documentAsMap: caseInsensitive: {}", caseInsensitive);
         Map<String, Object> documentAsMap = (Map<String, Object>) document;
         if (!caseInsensitive) {
             return documentAsMap;
@@ -136,8 +136,7 @@ public class DocDBRecordHandler
 
     /**
      * Scans DocumentDB using the scan settings set on the requested Split by DocDBMetadataHandler.
-     * This method handles query execution with various optimizations including predicate pushdown,
-     * limit pushdown, sort pushdown, and projection optimization.
+     * This method delegates to specific query execution methods based on query type.
      *
      * @param spiller The BlockSpiller to write results to
      * @param recordsRequest The ReadRecordsRequest containing query details and constraints
@@ -153,99 +152,84 @@ public class DocDBRecordHandler
                 SOURCE_TABLE_PROPERTY, tableNameObj.getTableName());
 
         logger.info("Starting readWithConstraint for schema: {}, table: {}", schemaName, tableName);
-
-        final Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
-        logger.info("Processing {} constraints", constraintSummary.size());
-
         final MongoClient client = getOrCreateConn(recordsRequest.getSplit());
-        final MongoDatabase db;
-        final MongoCollection<Document> table;
-        Document query;
 
-        // ---------------------- Substrait Plan extraction ----------------------
-        final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
-        final Plan plan;
-        final boolean hasQueryPlan;
-        if (queryPlan != null) {
-            hasQueryPlan = true;
-            plan = deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
-            logger.info("Using Substrait query plan for optimization");
-        }
-        else {
-            hasQueryPlan = false;
-            plan = null;
-            logger.info("No Substrait query plan available, using constraint-based filtering");
-        }
-
-        // ---------------------- LIMIT pushdown support ----------------------
-        final Pair<Boolean, Integer> limitPair = getLimitFromPlan(plan, recordsRequest.getConstraints());
-        final boolean hasLimit = limitPair.getLeft();
-        final int limit = limitPair.getRight();
-        if (hasLimit) {
-            logger.info("LIMIT pushdown enabled with limit: {}", limit);
-        }
-
-        // ---------------------- SORT pushdown support ----------------------
-        final Pair<Boolean, List<LimitAndSortHelper.GenericSortField>> sortPair = getSortFromPlan(plan);
-        final boolean hasSort = sortPair.getLeft();
-        final Document sortDoc = convertToMongoSort(sortPair.getRight());
-
-        // ---------------------- Query construction ----------------------
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
-            final Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
-            queryPassthrough.verify(qptArguments);
-            db = client.getDatabase(qptArguments.get(DocDBQueryPassthrough.DATABASE));
-            table = db.getCollection(qptArguments.get(DocDBQueryPassthrough.COLLECTION));
-            query = QueryUtils.parseFilter(qptArguments.get(DocDBQueryPassthrough.FILTER));
+            executeQueryPassthrough(spiller, recordsRequest, queryStatusChecker, client);
         }
         else {
-            db = client.getDatabase(schemaName);
-            table = db.getCollection(tableName);
+            //executeConstraintBased(spiller, recordsRequest, queryStatusChecker, client, schemaName, tableName);
+            final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
+            final Plan plan = queryPlan != null ? deserializeSubstraitPlan(queryPlan.getSubstraitPlan()) : null;
+
+            final MongoDatabase db = client.getDatabase(schemaName);
+            final MongoCollection<Document> table = db.getCollection(tableName);
+
             final Map<String, List<ColumnPredicate>> columnPredicateMap = QueryUtils.buildFilterPredicatesFromPlan(plan);
-            if (!columnPredicateMap.isEmpty()) {
-                // Use enhanced query generation that preserves AND/OR logical structure from SQL via the Query Plan
+            final Document query;
+            if (plan != null) {
+                //Found Substrait-based predicated; making query from the plan
                 query = QueryUtils.makeEnhancedQueryFromPlan(plan);
             }
             else {
+                //otherwise; make query from Constraint
                 query = QueryUtils.makeQuery(recordsRequest.getSchema(), recordsRequest.getConstraints().getSummary());
             }
+
+            final boolean disableProjectionAndCasing = getDisableProjectionAndCasing();
+            final Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
+
+            // LIMIT and SORT pushdown
+            // todo; confirm we might still need this in case of QPT
+            final Optional<Integer> limit = getLimit(plan, recordsRequest.getConstraints());
+            final Optional<List<LimitAndSortHelper.GenericSortField>> sort = getSortFromPlan(plan);
+            FindIterable<Document> findIterable = table.find(query).projection(projection);
+
+            executeMongoQuery(spiller, recordsRequest, queryStatusChecker, findIterable, limit, sort);
         }
+    }
 
-        final String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
-        final boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
-        logger.info("Projection and casing configuration - environment value: {}, resolved: {}",
-                disableProjectionAndCasingEnvValue, disableProjectionAndCasing);
+    private void executeQueryPassthrough(BlockSpiller spiller, ReadRecordsRequest recordsRequest, 
+                                       QueryStatusChecker queryStatusChecker, MongoClient client)
+    {
+        final Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
+        queryPassthrough.verify(qptArguments);
+        
+        final MongoDatabase db = client.getDatabase(qptArguments.get(DocDBQueryPassthrough.DATABASE));
+        final MongoCollection<Document> table = db.getCollection(qptArguments.get(DocDBQueryPassthrough.COLLECTION));
+        final Document query = QueryUtils.parseFilter(qptArguments.get(DocDBQueryPassthrough.FILTER));
+        FindIterable<Document> findIterable = table.find(query);
+        
+        executeMongoQuery(spiller, recordsRequest, queryStatusChecker, findIterable, Optional.empty(), Optional.empty());
+    }
 
-        // TODO: Currently AWS DocumentDB does not support collation, which is required for case insensitive indexes:
-        // https://www.mongodb.com/docs/manual/core/index-case-insensitive/
-        // Once AWS DocumentDB supports collation, then projections do not have to be disabled anymore because case
-        // insensitive indexes allows for case insensitive projections.
-        final Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
-        logger.info("readWithConstraint: query[{}] projection[{}]", query, projection);
-
-        // ---------------------- Build and execute query ----------------------
-        FindIterable<Document> findIterable = table.find(query).projection(projection);
-
-        // Apply SORT pushdown first (should be before LIMIT for correct semantics)
-        if (hasSort && !sortDoc.isEmpty()) {
-            findIterable = findIterable.sort(sortDoc);
-            logger.info("Applied ORDER BY pushdown");
-        }
-
-        // Apply LIMIT pushdown after SORT
-        if (hasLimit) {
-            findIterable = findIterable.limit(limit);
-            logger.info("Applied LIMIT pushdown: {}", limit);
-        }
+    private void executeMongoQuery(
+            BlockSpiller spiller,
+            ReadRecordsRequest recordsRequest,
+            QueryStatusChecker queryStatusChecker,
+            FindIterable<Document> findIterable,
+            Optional<Integer> limit,
+            Optional<List<LimitAndSortHelper.GenericSortField>> sort)
+    {
+        //Apply Sort if it exists
+        sort.map(this::convertToMongoSort)
+                .filter(sortDoc -> !sortDoc.isEmpty())
+                .ifPresent(findIterable::sort);
+        //Then Apply Limit if it exists
+        limit.ifPresent(findIterable::limit);
 
         final MongoCursor<Document> iterable = findIterable.batchSize(MONGO_QUERY_BATCH_SIZE).iterator();
+        final boolean disableProjectionAndCasing = getDisableProjectionAndCasing();
 
         long numRows = 0;
         final AtomicLong numResultRows = new AtomicLong(0);
         while (iterable.hasNext() && queryStatusChecker.isQueryRunning()) {
-            if (hasLimit && numRows >= limit) {
-                logger.info("Reached configured limit of {} rows, stopping iteration", limit);
-                break;
+            if (limit.isPresent()) {
+                int l = limit.get();
+                if (numRows >= l) {
+                    logger.info("Reached configured limit of {} rows, stopping iteration", l);
+                    break;
+                }
             }
             numRows++;
 
@@ -256,7 +240,6 @@ public class DocDBRecordHandler
                 for (final Field nextField : recordsRequest.getSchema().getFields()) {
                     final Object value = TypeUtils.coerce(nextField, doc.get(nextField.getName()));
                     final Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
-
                     try {
                         switch (fieldType) {
                             case LIST:
@@ -264,7 +247,7 @@ public class DocDBRecordHandler
                                 matched &= block.offerComplexValue(nextField.getName(), rowNum, DEFAULT_FIELD_RESOLVER, value);
                                 break;
                             default:
-                                matched &= block.offerValue(nextField.getName(), rowNum, value, hasQueryPlan);
+                                matched &= block.offerValue(nextField.getName(), rowNum, value);
                                 break;
                         }
                         if (!matched) {
@@ -282,6 +265,15 @@ public class DocDBRecordHandler
         }
 
         logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
+    }
+
+    private boolean getDisableProjectionAndCasing()
+    {
+        final String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
+        final boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
+        logger.info("Projection and casing configuration - environment value: {}, resolved: {}",
+                disableProjectionAndCasingEnvValue, disableProjectionAndCasing);
+        return disableProjectionAndCasing;
     }
 
     /**
