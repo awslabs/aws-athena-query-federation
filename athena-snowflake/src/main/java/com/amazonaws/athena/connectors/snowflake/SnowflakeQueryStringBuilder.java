@@ -343,8 +343,8 @@ public class SnowflakeQueryStringBuilder
     protected String appendLimitOffsetWithValue(String limit, String offset)
     {
         if (offset == null) {
-            return " limit " + limit;
+            return " LIMIT " + limit;
         }
-        return " limit " + limit + " offset " + offset;
+        return " LIMIT " + limit + " OFFSET " + offset;
     }
 }
