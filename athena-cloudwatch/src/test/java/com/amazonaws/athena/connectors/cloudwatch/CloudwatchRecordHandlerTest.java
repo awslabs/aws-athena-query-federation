@@ -32,6 +32,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
@@ -65,6 +66,10 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsResponse;
+import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -74,17 +79,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.ArgumentMatchers.argThat;
+import com.amazonaws.athena.connectors.cloudwatch.qpt.CloudwatchQueryPassthrough;
+import software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CloudwatchRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudwatchRecordHandlerTest.class);
+    private static final Long BLOCK_SIZE = 100_000_000L;
 
     private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private List<ByteHolder> mockS3Storage;
@@ -108,7 +120,6 @@ public class CloudwatchRecordHandlerTest
 
     @Before
     public void setUp()
-            throws Exception
     {
         schemaForRead = CloudwatchMetadataHandler.CLOUDWATCH_SCHEMA;
 
@@ -179,17 +190,22 @@ public class CloudwatchRecordHandlerTest
 
             return responseBuilder.build();
         });
+
+        // Mock CloudWatchLogsClient for passthrough
+        StartQueryResponse mockStartQueryResponse = StartQueryResponse.builder().queryId("test-query-id").build();
+        Mockito.when(mockAwsLogs.startQuery(any(software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest.class))).thenReturn(mockStartQueryResponse);
+        GetQueryResultsResponse mockResultsResponse = GetQueryResultsResponse.builder().status(software.amazon.awssdk.services.cloudwatchlogs.model.QueryStatus.COMPLETE).build();
+        Mockito.when(mockAwsLogs.getQueryResults(any(software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsRequest.class))).thenReturn(mockResultsResponse);
     }
 
     @After
     public void tearDown()
-            throws Exception
     {
         allocator.close();
     }
 
     @Test
-    public void doReadRecordsNoSpill()
+    public void doReadRecords_withoutSpill_returnsReadRecordsResponse()
             throws Exception
     {
         logger.info("doReadRecordsNoSpill: enter");
@@ -197,23 +213,9 @@ public class CloudwatchRecordHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("time", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
                 ImmutableList.of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 100L)), false));
-
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("schema", "table"),
-                schemaForRead,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create()).add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table").build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                100_000_000_000L,
-                100_000_000_000L//100GB don't expect this to spill
-        );
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
+        ReadRecordsRequest request = createReadRecordsRequest(constraints, BLOCK_SIZE, BLOCK_SIZE);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -222,14 +224,14 @@ public class CloudwatchRecordHandlerTest
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
         logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
 
-        assertTrue(response.getRecords().getRowCount() == 3);
+        assertEquals(3, response.getRecords().getRowCount());
         logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
 
         logger.info("doReadRecordsNoSpill: exit");
     }
 
     @Test
-    public void doReadRecordsSpill()
+    public void doReadRecords_withSpill_spillsToMultipleRemoteBlocks()
             throws Exception
     {
         logger.info("doReadRecordsSpill: enter");
@@ -237,23 +239,9 @@ public class CloudwatchRecordHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("time", SortedRangeSet.of(
                 Range.range(allocator, Types.MinorType.BIGINT.getType(), 100L, true, 100_000_000L, true)));
-
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("schema", "table"),
-                schemaForRead,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create()).add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table").build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                1_500_000L, //~1.5MB so we should see some spill
-                0
-        );
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
+        ReadRecordsRequest request = createReadRecordsRequest(constraints, 1_500_000L, 0);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -279,6 +267,216 @@ public class CloudwatchRecordHandlerTest
         }
 
         logger.info("doReadRecordsSpill: exit");
+    }
+
+    @Test
+    public void readWithConstraint_withPassthroughArgs_startsCloudwatchQuery() throws InterruptedException, TimeoutException {
+        CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);
+        BlockSpiller mockSpiller = Mockito.mock(BlockSpiller.class);
+        ReadRecordsRequest mockRequest = Mockito.mock(ReadRecordsRequest.class);
+        QueryStatusChecker mockChecker = Mockito.mock(QueryStatusChecker.class);
+            
+        Map<String, String> passthroughArgs = new HashMap<>();
+        passthroughArgs.put(CloudwatchQueryPassthrough.ENDTIME, "1000");
+        passthroughArgs.put(CloudwatchQueryPassthrough.STARTTIME, "0");
+        passthroughArgs.put(CloudwatchQueryPassthrough.QUERYSTRING, "fields @message");
+        passthroughArgs.put(CloudwatchQueryPassthrough.LOGGROUPNAMES, "group1");
+        passthroughArgs.put(CloudwatchQueryPassthrough.LIMIT, "1");
+        passthroughArgs.put("schemaFunctionName", "SYSTEM.QUERY");
+            
+        Constraints constraints = createPassthroughConstraints(passthroughArgs);
+        Mockito.when(mockRequest.getConstraints()).thenReturn(constraints);
+
+        handlerSpy.readWithConstraint(mockSpiller, mockRequest, mockChecker);
+        Mockito.verify(mockAwsLogs).startQuery(any(software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest.class));
+    }
+
+    @Test
+    public void pushDownConstraints_withEqualTimeConstraint_pushesDownConstraint() throws Exception {
+        
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put(CloudwatchMetadataHandler.LOG_TIME_FIELD,
+                SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
+                        ImmutableList.of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 1000L)), false));
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
+        ReadRecordsRequest request = createReadRecordsRequest(constraints, BLOCK_SIZE, 0);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue("Expected RemoteReadRecordsResponse for equal time constraint",
+                  rawResponse instanceof RemoteReadRecordsResponse);
+        
+        RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse;
+        assertNotNull("Response should not be null", response);
+        assertTrue("Should have at least one remote block", response.getNumberBlocks() > 0);
+        assertNotNull("Schema should not be null", response.getSchema());
+        
+        verify(mockAwsLogs, atLeastOnce()).getLogEvents(argThat((GetLogEventsRequest logRequest) ->
+            logRequest.startTime() != null && logRequest.endTime() != null &&
+            logRequest.startTime().equals(1000L) && logRequest.endTime().equals(1000L)
+        ));
+    }
+
+    @Test
+    public void pushDownConstraints_withRangeTimeConstraint_pushesDownConstraint() throws Exception {
+        
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put(CloudwatchMetadataHandler.LOG_TIME_FIELD,
+                SortedRangeSet.of(Range.range(allocator, Types.MinorType.BIGINT.getType(), 1000L, true, 5000L, true)));
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
+        ReadRecordsRequest request = createReadRecordsRequest(constraints, BLOCK_SIZE, 0);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue("Expected RemoteReadRecordsResponse for range time constraint",
+                  rawResponse instanceof RemoteReadRecordsResponse);
+        
+        RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse;
+        assertNotNull("Response should not be null", response);
+        assertNotNull("Schema should not be null", response.getSchema());
+        assertTrue("Should have at least one remote block", response.getNumberBlocks() > 0);
+        
+        verify(mockAwsLogs, atLeastOnce()).getLogEvents(argThat((GetLogEventsRequest logRequest) ->
+            logRequest.startTime() != null && logRequest.endTime() != null &&
+            logRequest.startTime().equals(1000L) && logRequest.endTime().equals(5000L)
+        ));
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void doReadRecords_withNullConstraints_throwsException() {
+        // ReadRecordsRequest constructor will throw NPE for null constraints
+        new ReadRecordsRequest(identity,
+                "catalog",
+                "queryId-" + System.currentTimeMillis(),
+                new TableName("schema", "table"),
+                schemaForRead,
+                Split.newBuilder(S3SpillLocation.newBuilder()
+                                .withBucket(UUID.randomUUID().toString())
+                                .withSplitId(UUID.randomUUID().toString())
+                                .withQueryId(UUID.randomUUID().toString())
+                                .withIsDirectory(true)
+                                .build(),
+                        keyFactory.create()).add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table").build(),
+                null,
+                BLOCK_SIZE,
+                0
+        );
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void readWithConstraint_withPassthroughAndMissingArgs_throwsException() throws InterruptedException, TimeoutException {
+        logger.info("testReadWithConstraint_PassthroughMissingArgs: enter");
+        
+        CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);
+        BlockSpiller mockSpiller = Mockito.mock(BlockSpiller.class);
+        ReadRecordsRequest mockRequest = Mockito.mock(ReadRecordsRequest.class);
+        QueryStatusChecker mockChecker = Mockito.mock(QueryStatusChecker.class);
+        
+        Map<String, String> passthroughArgs = new HashMap<>();
+        passthroughArgs.put(CloudwatchQueryPassthrough.ENDTIME, "1000");
+        // Missing STARTTIME, QUERYSTRING, LOGGROUPNAMES, LIMIT
+        passthroughArgs.put("schemaFunctionName", "SYSTEM.QUERY");
+        
+        Constraints constraints = createPassthroughConstraints(passthroughArgs);
+        Mockito.when(mockRequest.getConstraints()).thenReturn(constraints);
+
+        // Should throw an exception due to missing required arguments
+        handlerSpy.readWithConstraint(mockSpiller, mockRequest, mockChecker);
+    }
+
+    private ReadRecordsRequest createReadRecordsRequest(Constraints constraints, long maxBlockSize, long maxInlineBlockSize) {
+        return new ReadRecordsRequest(identity,
+                "catalog",
+                "queryId-" + System.currentTimeMillis(),
+                new TableName("schema", "table"),
+                schemaForRead,
+                Split.newBuilder(S3SpillLocation.newBuilder()
+                                        .withBucket(UUID.randomUUID().toString())
+                                        .withSplitId(UUID.randomUUID().toString())
+                                        .withQueryId(UUID.randomUUID().toString())
+                                        .withIsDirectory(true)
+                                        .build(),
+                                keyFactory.create())
+                        .add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table")
+                        .build(),
+                constraints,
+                maxBlockSize,
+                maxInlineBlockSize);
+    }
+
+    private Constraints createPassthroughConstraints(Map<String, String> passthroughArgs) {
+        return new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, passthroughArgs, null);
+    }
+
+    @Test
+    public void doReadRecords_withEmptyLogEvents_returnsEmptyRecords()
+            throws Exception
+    {
+        Mockito.doAnswer((InvocationOnMock invocationOnMock) -> {
+            GetLogEventsResponse.Builder responseBuilder = GetLogEventsResponse.builder();
+            responseBuilder.events(Collections.emptyList());
+            responseBuilder.nextForwardToken(null);
+            return responseBuilder.build();
+        }).when(mockAwsLogs).getLogEvents(nullable(GetLogEventsRequest.class));
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("time", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
+                ImmutableList.of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 100L)), false));
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
+        ReadRecordsRequest request = createReadRecordsRequest(constraints, BLOCK_SIZE, BLOCK_SIZE);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        // Should have 0 records when log events are empty
+        assertEquals(0, response.getRecords().getRowCount());
+
+        verify(mockAwsLogs, atLeastOnce()).getLogEvents(nullable(GetLogEventsRequest.class));
+    }
+
+    @Test
+    public void readWithConstraint_withPassthroughEmptyResults_completesWithoutWritingRows() throws InterruptedException, TimeoutException {
+        
+        CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);
+        BlockSpiller mockSpiller = Mockito.mock(BlockSpiller.class);
+        ReadRecordsRequest mockRequest = Mockito.mock(ReadRecordsRequest.class);
+        QueryStatusChecker mockChecker = Mockito.mock(QueryStatusChecker.class);
+            
+        Map<String, String> passthroughArgs = new HashMap<>();
+        passthroughArgs.put(CloudwatchQueryPassthrough.ENDTIME, "1000");
+        passthroughArgs.put(CloudwatchQueryPassthrough.STARTTIME, "0");
+        passthroughArgs.put(CloudwatchQueryPassthrough.QUERYSTRING, "fields @message");
+        passthroughArgs.put(CloudwatchQueryPassthrough.LOGGROUPNAMES, "group1");
+        passthroughArgs.put(CloudwatchQueryPassthrough.LIMIT, "1");
+        passthroughArgs.put("schemaFunctionName", "SYSTEM.QUERY");
+            
+        Constraints constraints = createPassthroughConstraints(passthroughArgs);
+        Mockito.when(mockRequest.getConstraints()).thenReturn(constraints);
+
+        GetQueryResultsResponse emptyResultsResponse = GetQueryResultsResponse.builder()
+                .status(software.amazon.awssdk.services.cloudwatchlogs.model.QueryStatus.COMPLETE)
+                .results(Collections.emptyList())
+                .build();
+        
+        Mockito.when(mockAwsLogs.getQueryResults(any(software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsRequest.class)))
+                .thenReturn(emptyResultsResponse);
+
+        // Should complete without throwing an exception
+        handlerSpy.readWithConstraint(mockSpiller, mockRequest, mockChecker);
+        
+        // Verify query was started and results were fetched
+        Mockito.verify(mockAwsLogs).startQuery(any(software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest.class));
+        Mockito.verify(mockAwsLogs).getQueryResults(any(software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsRequest.class));
+        
+        // Verify that writeRows was never called since there are no results to write
+        Mockito.verify(mockSpiller, Mockito.never()).writeRows(any());
+
+        assertEquals(software.amazon.awssdk.services.cloudwatchlogs.model.QueryStatus.COMPLETE, emptyResultsResponse.status());
+        assertTrue("Results should be empty", emptyResultsResponse.results().isEmpty());
     }
 
     private class ByteHolder
