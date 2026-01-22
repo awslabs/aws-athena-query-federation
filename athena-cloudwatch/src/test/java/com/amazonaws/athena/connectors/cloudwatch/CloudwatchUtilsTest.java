@@ -76,7 +76,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void startQueryRequest_withValidArguments_returnsRequest() {
+    public void startQueryRequest_withValidArguments_setsTimeRangeQueryStringAndLogGroups() {
         StartQueryRequest request = CloudwatchUtils.startQueryRequest(qptArguments);
 
         assertNotNull(request);
@@ -88,7 +88,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void getQueryResult_withValidRequest_returnsResponse() {
+    public void getQueryResult_withValidRequest_returnsResponseWithQueryId() {
         StartQueryRequest request = CloudwatchUtils.startQueryRequest(qptArguments);
         StartQueryResponse mockResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
 
@@ -102,7 +102,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void getQueryResults_withValidRequest_returnsResults() {
+    public void getQueryResults_withValidRequest_returnsCompleteStatus() {
         StartQueryResponse startQueryResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
         GetQueryResultsResponse mockResults = GetQueryResultsResponse.builder()
                 .status(QueryStatus.COMPLETE)
@@ -118,7 +118,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void getResult_withValidArguments_returnsResults() throws TimeoutException, InterruptedException {
+    public void getResult_withValidArguments_returnsCompleteStatusAfterInvocation() throws TimeoutException, InterruptedException {
             StartQueryResponse startQueryResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
             GetQueryResultsResponse mockResults = GetQueryResultsResponse.builder()
                     .status(QueryStatus.COMPLETE)
@@ -145,7 +145,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void startQueryRequest_withInvalidTimeRange_createsRequest() {
+    public void startQueryRequest_withEndTimeBeforeStartTime_passesTimesWithoutValidation() {
         Map<String, String> invalidTimeRangeArgs = new HashMap<>();
         // End time is before start time (invalid range)
         invalidTimeRangeArgs.put(CloudwatchQueryPassthrough.STARTTIME, String.valueOf(TEST_END_TIME));
@@ -161,7 +161,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void startQueryRequest_withEmptyLogGroupNames_handlesEmptyString() {
+    public void startQueryRequest_withEmptyLogGroupNames_createsRequestWithSingleEmptyLogGroup() {
         Map<String, String> emptyLogGroupArgs = new HashMap<>();
         emptyLogGroupArgs.put(CloudwatchQueryPassthrough.STARTTIME, String.valueOf(TEST_START_TIME));
         emptyLogGroupArgs.put(CloudwatchQueryPassthrough.ENDTIME, String.valueOf(TEST_END_TIME));
@@ -176,7 +176,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void startQueryRequest_withSingleLogGroup_handlesCorrectly() {
+    public void startQueryRequest_withSingleLogGroup_removesLeadingAndTrailingQuotes() {
         Map<String, String> singleLogGroupArgs = new HashMap<>();
         singleLogGroupArgs.put(CloudwatchQueryPassthrough.STARTTIME, String.valueOf(TEST_START_TIME));
         singleLogGroupArgs.put(CloudwatchQueryPassthrough.ENDTIME, String.valueOf(TEST_END_TIME));
@@ -190,7 +190,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void startQueryRequest_withEmptyQueryString_handlesCorrectly() {
+    public void startQueryRequest_withEmptyQueryString_createsRequestWithEmptyQueryString() {
         Map<String, String> emptyQueryArgs = new HashMap<>();
         emptyQueryArgs.put(CloudwatchQueryPassthrough.STARTTIME, String.valueOf(TEST_START_TIME));
         emptyQueryArgs.put(CloudwatchQueryPassthrough.ENDTIME, String.valueOf(TEST_END_TIME));
