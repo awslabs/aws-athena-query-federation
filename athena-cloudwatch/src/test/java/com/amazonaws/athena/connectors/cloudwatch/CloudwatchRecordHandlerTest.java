@@ -205,7 +205,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void doReadRecords_withoutSpill_returnsRecords()
+    public void doReadRecords_withoutSpill_returnsReadRecordsResponse()
             throws Exception
     {
         logger.info("doReadRecordsNoSpill: enter");
@@ -231,7 +231,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void doReadRecords_withSpill_returnsRecords()
+    public void doReadRecords_withSpill_spillsToMultipleRemoteBlocks()
             throws Exception
     {
         logger.info("doReadRecordsSpill: enter");
@@ -270,7 +270,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint_withPassthroughArgs_returnsRecords() throws InterruptedException, TimeoutException {
+    public void readWithConstraint_withPassthroughArgs_startsCloudwatchQuery() throws InterruptedException, TimeoutException {
         CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);
         BlockSpiller mockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest mockRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -439,7 +439,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint_withPassthroughEmptyResults_returnsEmptyObject() throws InterruptedException, TimeoutException {
+    public void readWithConstraint_withPassthroughEmptyResults_completesWithoutWritingRows() throws InterruptedException, TimeoutException {
         
         CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);
         BlockSpiller mockSpiller = Mockito.mock(BlockSpiller.class);
