@@ -140,7 +140,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doListSchemaNames_withDefaultCatalog_returnsSchemaNames()
+    public void doListSchemaNames_withDefaultCatalog_returnsAllSchemasFromPaginatedResults()
             throws TimeoutException
     {
         logger.info("doListSchemas - enter");
@@ -189,7 +189,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doListTables_withValidSchema_returnsTables()
+    public void doListTables_withValidSchema_returnsAllLogStreamsTablePlusPaginatedResults()
             throws TimeoutException
     {
         logger.info("doListTables - enter");
@@ -331,7 +331,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout_withValidRequest_returnsTableLayout()
+    public void doGetTableLayout_withValidRequest_returnsOnePartitionMatchingConstraint()
             throws Exception
     {
         logger.info("doGetTableLayout - enter");
@@ -401,7 +401,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits_withValidRequest_returnsSplits()
+    public void doGetSplits_withValidRequest_paginatesThroughAllPartitions()
     {
         logger.info("doGetSplits: enter");
 
@@ -503,7 +503,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doGetDataSourceCapabilities_withValidRequest_returnsSupportedCapabilities() {
+    public void doGetDataSourceCapabilities_withValidRequest_returnsQueryPassthroughCapability() {
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(identity, QUERY_ID, CATALOG_NAME);
         GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(allocator, request);
         assertNotNull(response);
@@ -520,7 +520,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void doGetQueryPassthroughSchema_withValidArguments_returnsSchema() throws Exception {
+    public void doGetQueryPassthroughSchema_withValidArguments_returnsSchemaWithFieldsFromQueryResults() throws Exception {
             TableName tableName = new TableName("schema-1", "qpt_table");
             Map<String, String> qptArguments = new HashMap<>();
             qptArguments.put(CloudwatchQueryPassthrough.STARTTIME, "0");
