@@ -86,7 +86,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void validateTable_withLambdaLogStreamPattern_returnsCorrectTableName() {
+    public void validateTable_withLowercaseLatest_resolvesToActualLambdaLogStreamName() {
             doReturn(DescribeLogGroupsResponse.builder()
                     .logGroups(LogGroup.builder().logGroupName(TEST_LOG_GROUP).build())
                     .build())
@@ -102,7 +102,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void validateTable_withCaseInsensitiveMatching_returnsCorrectTableName() {
+    public void validateTable_withCaseInsensitiveMatching_returnsActualCasingFromCloudwatch() {
             doReturn(DescribeLogGroupsResponse.builder()
                     .logGroups(LogGroup.builder().logGroupName(TEST_LOG_GROUP).build())
                     .build())
@@ -150,7 +150,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void validateSchemaAndTable_withPagination_returnsResults() {
+    public void validateSchemaAndTable_withPagination_findsItemsAcrossMultiplePages() {
             List<LogGroup> logGroups = new ArrayList<>();
             List<LogStream> logStreams = new ArrayList<>();
 
@@ -246,7 +246,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void validateTable_withLambdaPathCasingOptimization_handlesLatestPattern() {
+    public void validateTable_withLambdaPathCasingOptimization_usesLatestPrefixInApiCall() {
         String testSchema = "lambda-schema";
         String lambdaFunctionName = "test-function";
         String tableWithLatest = lambdaFunctionName + "$latest";
