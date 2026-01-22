@@ -140,11 +140,6 @@ public abstract class JdbcSplitQueryBuilder
             final String columnNames,
             List<TypeAndValue> accumulator)
     {
-        if (constraints.getQueryPlan() != null) {
-            SqlDialect sqlDialect = getSqlDialect();
-            return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
-        }
-
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT ");
         sql.append(columnNames);
@@ -188,6 +183,10 @@ public abstract class JdbcSplitQueryBuilder
             final String columnNames)
             throws SQLException
     {
+        if (constraints.getQueryPlan() != null) {
+            SqlDialect sqlDialect = getSqlDialect();
+            return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
+        }
         List<TypeAndValue> accumulator = new ArrayList<>();
         PreparedStatement statement = jdbcConnection.prepareStatement(
                 this.buildSQLStringLiteral(catalog, schema, table, tableSchema, constraints, split, columnNames, accumulator));

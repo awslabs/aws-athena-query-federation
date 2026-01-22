@@ -154,7 +154,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         String s3ObjectKey = split.getProperty(SNOWFLAKE_SPLIT_OBJECT_KEY);
 
         if (s3ObjectKey.isEmpty()) {
-            LOGGER.info("S3 object key is empty from request, skip read from S3");
+            LOGGER.debug("S3 object key is empty from request, skip read from S3");
             return;
         }
 

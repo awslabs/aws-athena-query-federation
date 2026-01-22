@@ -341,7 +341,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
-
         if (SnowflakeConstants.isS3ExportEnabled(configOptions)) {
             return handleS3ExportSplits(request);
         }
@@ -765,7 +764,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         // Check if integration name is provided in the config.
         return this.getSFStorageIntegrationNameFromConfig().orElseThrow(() -> {
-            return new AthenaConnectorException("Snowflake storage integration name is missing from properties",
+            return new AthenaConnectorException("Snowflake storage integration name not found",
                     ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         });
     }
