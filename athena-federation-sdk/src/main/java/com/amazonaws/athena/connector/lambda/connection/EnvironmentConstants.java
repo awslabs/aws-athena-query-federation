@@ -52,6 +52,8 @@ public final class EnvironmentConstants
     public static final String CUSTOM_AUTH_TYPE = "CUSTOM_AUTH_TYPE";
     public static final String GLUE_CERTIFICATES_S3_REFERENCE = "CERTIFICATE_S3_REFERENCE";
     public static final String ENFORCE_SSL = "ENFORCE_SSL";
+    public static final String CATALOG_CASING_FILTER = "CATALOG_CASING_FILTER";
+    public static final String UPPERCASE_ONLY = "UPPERCASE_ONLY";
 
     public static final String FAS_TOKEN = "fas_token";
     public static final String SERVICE_KMS = "service_kms_key_id";
