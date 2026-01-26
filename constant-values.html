@@ -3750,18 +3750,60 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast"><code>"authenticator"</code></td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#BLOCK_PARTITION_COLUMN_NAME">BLOCK_PARTITION_COLUMN_NAME</a></code></th>
+<td class="colLast"><code>"partition"</code></td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.CLIENT_ID">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#CLIENT_ID">CLIENT_ID</a></code></th>
 <td class="colLast"><code>"client_id"</code></td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.CLIENT_SECRET">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#CLIENT_SECRET">CLIENT_SECRET</a></code></th>
 <td class="colLast"><code>"client_secret"</code></td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COPY_INTO_QUERY_TEMPLATE">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#COPY_INTO_QUERY_TEMPLATE">COPY_INTO_QUERY_TEMPLATE</a></code></th>
+<td class="colLast"><code>"COPY INTO \'%s\' FROM (%s) STORAGE_INTEGRATION = %s HEADER = TRUE FILE_FORMAT = (TYPE = \'PARQUET\', COMPRESSION = \'SNAPPY\') MAX_FILE_SIZE = 52428800"</code></td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COUNT_RECORDS_QUERY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#COUNT_RECORDS_QUERY">COUNT_RECORDS_QUERY</a></code></th>
+<td class="colLast"><code>"SELECT row_count\nFROM   information_schema.tables\nWHERE  table_type = \'BASE TABLE\'\nAND table_schema= ?\nAND TABLE_NAME = ? "</code></td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DESCRIBE_STORAGE_INTEGRATION_TEMPLATE">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#DESCRIBE_STORAGE_INTEGRATION_TEMPLATE">DESCRIBE_STORAGE_INTEGRATION_TEMPLATE</a></code></th>
+<td class="colLast"><code>"DESC STORAGE INTEGRATION %s"</code></td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#DOUBLE_QUOTE_CHAR">DOUBLE_QUOTE_CHAR</a></code></th>
+<td class="colLast"><code>"\""</code></td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.LIST_PAGINATED_TABLES_QUERY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#LIST_PAGINATED_TABLES_QUERY">LIST_PAGINATED_TABLES_QUERY</a></code></th>
+<td class="colLast"><code>"SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ? ORDER BY TABLE_NAME LIMIT ? OFFSET ?"</code></td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT">
@@ -3806,32 +3848,60 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast"><code>"redirect_uri"</code></td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#S3_ENHANCED_PARTITION_COLUMN_NAME">S3_ENHANCED_PARTITION_COLUMN_NAME</a></code></th>
+<td class="colLast"><code>"s3_column_name_list"</code></td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SF_USER">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SF_USER">SF_USER</a></code></th>
 <td class="colLast"><code>"sfUser"</code></td>
 </tr>
+<tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SHOW_PRIMARY_KEYS_QUERY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SHOW_PRIMARY_KEYS_QUERY">SHOW_PRIMARY_KEYS_QUERY</a></code></th>
+<td class="colLast"><code>"SHOW PRIMARY KEYS IN "</code></td>
+</tr>
 <tr class="rowColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_QUOTE_CHAR">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SINGLE_QUOTE_CHAR">SINGLE_QUOTE_CHAR</a></code></th>
+<td class="colLast"><code>"\'"</code></td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;int</code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SINGLE_SPLIT_LIMIT_COUNT">SINGLE_SPLIT_LIMIT_COUNT</a></code></th>
 <td class="colLast"><code>10000</code></td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;int</code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_DEFAULT_PORT">SNOWFLAKE_DEFAULT_PORT</a></code></th>
 <td class="colLast"><code>1025</code></td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_DRIVER_CLASS">SNOWFLAKE_DRIVER_CLASS</a></code></th>
 <td class="colLast"><code>"com.snowflake.client.jdbc.SnowflakeDriver"</code></td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_ENABLE_S3_EXPORT">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_ENABLE_S3_EXPORT">SNOWFLAKE_ENABLE_S3_EXPORT</a></code></th>
+<td class="colLast"><code>"snowflake_enable_s3_export"</code></td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_NAME">
@@ -3841,46 +3911,74 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast"><code>"snowflake"</code></td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER">
-<!--   -->
-</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_QUOTE_CHARACTER">SNOWFLAKE_QUOTE_CHARACTER</a></code></th>
-<td class="colLast"><code>"\""</code></td>
-</tr>
-<tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_EXPORT_BUCKET">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_SPLIT_EXPORT_BUCKET">SNOWFLAKE_SPLIT_EXPORT_BUCKET</a></code></th>
 <td class="colLast"><code>"exportBucket"</code></td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_OBJECT_KEY">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_SPLIT_OBJECT_KEY">SNOWFLAKE_SPLIT_OBJECT_KEY</a></code></th>
 <td class="colLast"><code>"s3ObjectKey"</code></td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_QUERY_ID">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_SPLIT_QUERY_ID">SNOWFLAKE_SPLIT_QUERY_ID</a></code></th>
 <td class="colLast"><code>"query_id"</code></td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SSL_CERT_FILE_LOCATION">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SSL_CERT_FILE_LOCATION">SSL_CERT_FILE_LOCATION</a></code></th>
 <td class="colLast"><code>"SSL_CERT_FILE"</code></td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SSL_CERT_FILE_LOCATION_VALUE">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SSL_CERT_FILE_LOCATION_VALUE">SSL_CERT_FILE_LOCATION_VALUE</a></code></th>
 <td class="colLast"><code>"/tmp/cacert.pem"</code></td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_BUCKET_KEY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#STORAGE_INTEGRATION_BUCKET_KEY">STORAGE_INTEGRATION_BUCKET_KEY</a></code></th>
+<td class="colLast"><code>"STORAGE_ALLOWED_LOCATIONS"</code></td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_CONFIG_KEY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#STORAGE_INTEGRATION_CONFIG_KEY">STORAGE_INTEGRATION_CONFIG_KEY</a></code></th>
+<td class="colLast"><code>"snowflake_storage_integration_name"</code></td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_PROPERTY_KEY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#STORAGE_INTEGRATION_PROPERTY_KEY">STORAGE_INTEGRATION_PROPERTY_KEY</a></code></th>
+<td class="colLast"><code>"property"</code></td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_PROPERTY_VALUE_KEY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#STORAGE_INTEGRATION_PROPERTY_VALUE_KEY">STORAGE_INTEGRATION_PROPERTY_VALUE_KEY</a></code></th>
+<td class="colLast"><code>"property_value"</code></td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY">STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY</a></code></th>
+<td class="colLast"><code>"STORAGE_PROVIDER"</code></td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.TOKEN_URL">
@@ -3902,6 +4000,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#USERNAME">USERNAME</a></code></th>
 <td class="colLast"><code>"username"</code></td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.VIEW_CHECK_QUERY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#VIEW_CHECK_QUERY">VIEW_CHECK_QUERY</a></code></th>
+<td class="colLast"><code>"SELECT * FROM information_schema.views WHERE table_schema = ? AND table_name = ?"</code></td>
 </tr>
 </tbody>
 </table>
@@ -3946,9 +4051,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tbody>
 </table>
 </li>
+</ul>
+<ul class="blockList">
 <li class="blockList">
 <table class="constantsSummary">
-<caption><span>com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeEnvironmentProperties.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeEnvironmentProperties</a></span><span class="tabEnd">&nbsp;</span></caption>
+<caption><span>com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeArrowTypeConverter.html" title="class in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeArrowTypeConverter</a></span><span class="tabEnd">&nbsp;</span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colSecond" scope="col">Constant Field</th>
@@ -3956,44 +4063,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeEnvironmentProperties.ENABLE_S3_EXPORT">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.utils.SnowflakeArrowTypeConverter.DEFAULT_PRECISION">
 <!--   -->
-</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeEnvironmentProperties.html#ENABLE_S3_EXPORT">ENABLE_S3_EXPORT</a></code></th>
-<td class="colLast"><code>"SNOWFLAKE_ENABLE_S3_EXPORT"</code></td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList">
-<table class="constantsSummary">
-<caption><span>com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeMetadataHandler.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeMetadataHandler</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colSecond" scope="col">Constant Field</th>
-<th class="colLast" scope="col">Value</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.PREPARED_STMT">
-<!--   -->
-</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeMetadataHandler.html#PREPARED_STMT">PREPARED_STMT</a></code></th>
-<td class="colLast"><code>"preparedStmt"</code></td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.QUERY_ID">
-<!--   -->
-</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeMetadataHandler.html#QUERY_ID">QUERY_ID</a></code></th>
-<td class="colLast"><code>"queryId"</code></td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a id="com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.SEPARATOR">
-<!--   -->
-</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeMetadataHandler.html#SEPARATOR">SEPARATOR</a></code></th>
-<td class="colLast"><code>"/"</code></td>
+</a><code>public&nbsp;static&nbsp;final&nbsp;int</code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeArrowTypeConverter.html#DEFAULT_PRECISION">DEFAULT_PRECISION</a></code></th>
+<td class="colLast"><code>38</code></td>
 </tr>
 </tbody>
 </table>

@@ -27,8 +27,8 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":9,"i3":10,"i4":10,"i5":10,"i6":10};
-var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
+var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -195,7 +195,7 @@ extends <a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t1" class="tableTab"><span><a href="javascript:show(1);">Static Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colSecond" scope="col">Method</th>
@@ -203,13 +203,11 @@ extends <a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#buildSqlString(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSqlString</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
-              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
-              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;schema,
-              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;table,
-              org.apache.arrow.vector.types.pojo.Schema&nbsp;tableSchema,
-              <a href="../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
-              <a href="../../connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getBaseExportSQLString(java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">getBaseExportSQLString</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
+                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;schema,
+                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;table,
+                      org.apache.arrow.vector.types.pojo.Schema&nbsp;tableSchema,
+                      <a href="../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i1" class="rowColor">
@@ -221,33 +219,18 @@ extends <a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getObjectForWhereClause(java.lang.String,java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType)">getObjectForWhereClause</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;columnName,
-                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value,
-                       org.apache.arrow.vector.types.pojo.ArrowType&nbsp;arrowType)</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionWhereClauses(com.amazonaws.athena.connector.lambda.domain.Split)">getPartitionWhereClauses</a></span>&#8203;(<a href="../../connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#quote(java.lang.String)">quote</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;name)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#singleQuote(java.lang.String)">singleQuote</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;name)</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr id="i6" class="altColor">
-<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#toPredicate(java.lang.String,java.lang.String,java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType)">toPredicate</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;columnName,
-           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;operator,
-           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value,
-           org.apache.arrow.vector.types.pojo.ArrowType&nbsp;type)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -256,7 +239,7 @@ extends <a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.amazonaws.athena.connectors.jdbc.manager.<a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcSplitQueryBuilder</a></h3>
-<code><a href="../jdbc/manager/JdbcSplitQueryBuilder.html#appendLimitOffset(com.amazonaws.athena.connector.lambda.domain.Split)">appendLimitOffset</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#appendLimitOffset(com.amazonaws.athena.connector.lambda.domain.Split,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">appendLimitOffset</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#appendLimitOffsetWithValue(java.lang.String,java.lang.String)">appendLimitOffsetWithValue</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#buildSql(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSql</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#extractOrderByClause(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">extractOrderByClause</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#getSqlDialect()">getSqlDialect</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#prepareStatementWithCalciteSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,org.apache.calcite.sql.SqlDialect,com.amazonaws.athena.connector.lambda.domain.Split)">prepareStatementWithCalciteSql</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#prepareStatementWithSql(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split,java.lang.String)">prepareStatementWithSql</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#toPredicate(java.lang.String,java.lang.String,java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType,java.util.List)">toPredicate</a></code></li>
+<code><a href="../jdbc/manager/JdbcSplitQueryBuilder.html#appendLimitOffset(com.amazonaws.athena.connector.lambda.domain.Split)">appendLimitOffset</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#appendLimitOffset(com.amazonaws.athena.connector.lambda.domain.Split,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">appendLimitOffset</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#appendLimitOffsetWithValue(java.lang.String,java.lang.String)">appendLimitOffsetWithValue</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#buildSql(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSql</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#buildSQLStringLiteral(java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split,java.lang.String,java.util.List)">buildSQLStringLiteral</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#extractOrderByClause(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">extractOrderByClause</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#getSqlDialect()">getSqlDialect</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#prepareStatementWithCalciteSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,org.apache.calcite.sql.SqlDialect,com.amazonaws.athena.connector.lambda.domain.Split)">prepareStatementWithCalciteSql</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#prepareStatementWithSql(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split,java.lang.String)">prepareStatementWithSql</a>, <a href="../jdbc/manager/JdbcSplitQueryBuilder.html#toPredicate(java.lang.String,java.lang.String,java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType,java.util.List)">toPredicate</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.java.lang.Object">
@@ -330,20 +313,18 @@ extends <a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com
 </dl>
 </li>
 </ul>
-<a id="buildSqlString(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">
+<a id="getBaseExportSQLString(java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>buildSqlString</h4>
-<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;buildSqlString&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
-                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
-                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;schema,
-                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;table,
-                             org.apache.arrow.vector.types.pojo.Schema&nbsp;tableSchema,
-                             <a href="../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
-                             <a href="../../connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)
-                      throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></pre>
+<h4>getBaseExportSQLString</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;getBaseExportSQLString&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
+                                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;schema,
+                                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;table,
+                                     org.apache.arrow.vector.types.pojo.Schema&nbsp;tableSchema,
+                                     <a href="../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)
+                              throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></pre>
 <dl>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></code></dd>
@@ -366,33 +347,10 @@ extends <a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com
 <a id="singleQuote(java.lang.String)">
 <!--   -->
 </a>
-<ul class="blockList">
+<ul class="blockListLast">
 <li class="blockList">
 <h4>singleQuote</h4>
 <pre class="methodSignature">protected&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;singleQuote&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;name)</pre>
-</li>
-</ul>
-<a id="toPredicate(java.lang.String,java.lang.String,java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType)">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>toPredicate</h4>
-<pre class="methodSignature">protected&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;toPredicate&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;columnName,
-                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;operator,
-                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value,
-                             org.apache.arrow.vector.types.pojo.ArrowType&nbsp;type)</pre>
-</li>
-</ul>
-<a id="getObjectForWhereClause(java.lang.String,java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType)">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>getObjectForWhereClause</h4>
-<pre class="methodSignature">protected static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;getObjectForWhereClause&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;columnName,
-                                                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value,
-                                                org.apache.arrow.vector.types.pojo.ArrowType&nbsp;arrowType)</pre>
 </li>
 </ul>
 </li>

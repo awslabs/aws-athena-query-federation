@@ -240,7 +240,8 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.ipc.ArrowReader</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#constructArrowReader(java.lang.String)">constructArrowReader</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;uri)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#constructArrowReader(java.lang.String,org.apache.arrow.vector.types.pojo.Schema)">constructArrowReader</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;uri,
+                    org.apache.arrow.vector.types.pojo.Schema&nbsp;schema)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
@@ -374,13 +375,14 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 </dl>
 </li>
 </ul>
-<a id="constructArrowReader(java.lang.String)">
+<a id="constructArrowReader(java.lang.String,org.apache.arrow.vector.types.pojo.Schema)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>constructArrowReader</h4>
-<pre class="methodSignature">protected&nbsp;org.apache.arrow.vector.ipc.ArrowReader&nbsp;constructArrowReader&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;uri)</pre>
+<pre class="methodSignature">protected&nbsp;org.apache.arrow.vector.ipc.ArrowReader&nbsp;constructArrowReader&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;uri,
+                                                                       org.apache.arrow.vector.types.pojo.Schema&nbsp;schema)</pre>
 </li>
 </ul>
 <a id="buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">
