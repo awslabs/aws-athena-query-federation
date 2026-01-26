@@ -82,6 +82,7 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -237,6 +238,60 @@ public class DocDBMetadataHandlerTest
             assertTrue(tableNames.contains(next.getTableName()));
         }
         assertEquals(tableNames.size(), res.getTables().size());
+    }
+
+    @Test
+    public void doListTablesWithNextPageToken() throws Exception
+    {
+        List<String> tableNames = new ArrayList<>();
+        tableNames.add(TABLE1);
+        tableNames.add(TABLE2);
+        tableNames.add(TABLE3);
+
+        Document tableNamesDocument = new Document(CURSOR_KEY,
+                new Document(FIRST_BATCH_KEY,
+                        Arrays.asList(new Document(NAME_KEY, TABLE1),
+                                new Document(NAME_KEY, TABLE2),
+                                new Document(NAME_KEY, TABLE3))));
+
+        MongoDatabase mockDatabase = mock(MongoDatabase.class);
+        when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
+        when(mockDatabase.runCommand(any())).thenReturn(tableNamesDocument);
+
+        ListTablesRequest req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, DEFAULT_SCHEMA,
+                null, 3);
+
+        ListTablesResponse res = handler.doListTables(allocator, req);
+
+        logger.info("doListTables - {}", res.getTables());
+
+        for (TableName next : res.getTables()) {
+            assertEquals(DEFAULT_SCHEMA, next.getSchemaName());
+            assertTrue(tableNames.contains(next.getTableName()));
+        }
+        assertEquals(tableNames.size(), res.getTables().size());
+        assertNotNull(res.getNextToken());
+    }
+
+    @Test
+    public void doListTablesWithNoNextPage() throws Exception
+    {
+        Document tableNamesDocument = new Document(CURSOR_KEY,
+                new Document(FIRST_BATCH_KEY, Collections.emptyList()));
+
+        MongoDatabase mockDatabase = mock(MongoDatabase.class);
+        when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
+        when(mockDatabase.runCommand(any())).thenReturn(tableNamesDocument);
+
+        ListTablesRequest req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, DEFAULT_SCHEMA,
+                null, 100);
+
+        ListTablesResponse res = handler.doListTables(allocator, req);
+
+        logger.info("doListTables - {}", res.getTables());
+
+        assertEquals(0, res.getTables().size());
+        assertNull(res.getNextToken());
     }
 
     @Test
