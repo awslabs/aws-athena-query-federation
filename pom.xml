@@ -47,7 +47,7 @@
         <mvn.shade.plugin.version>3.6.1</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.4.0</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.12.0</mvn.javadoc.plugin.version>
-        <mvn.jar.plugin.version>3.4.2</mvn.jar.plugin.version>
+        <mvn.jar.plugin.version>3.5.0</mvn.jar.plugin.version>
         <io.substrait.version>0.65.0</io.substrait.version>
         <org.apache.calcite.version>1.40.0</org.apache.calcite.version>
         <com.google.protobuf.version>4.33.4</com.google.protobuf.version>
