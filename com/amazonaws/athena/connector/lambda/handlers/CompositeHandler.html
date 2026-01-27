@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10};
+var data = {"i0":10,"i1":10,"i2":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -205,6 +205,11 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleException(java.lang.Exception)">handleException</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a>&nbsp;e)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleRequest(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.request.FederationRequest,java.io.OutputStream,com.fasterxml.jackson.databind.ObjectMapper)">handleRequest</a></span>&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
              <a href="../request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a>&nbsp;rawReq,
@@ -214,7 +219,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <div class="block">Handles routing the request to the appropriate Handler, either MetadataHandler or RecordHandler.</div>
 </td>
 </tr>
-<tr id="i1" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/InputStream.html?is-external=true" title="class or interface in java.io" class="externalLink">InputStream</a>&nbsp;inputStream,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/OutputStream.html?is-external=true" title="class or interface in java.io" class="externalLink">OutputStream</a>&nbsp;outputStream,
@@ -314,7 +319,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <a id="handleRequest(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.request.FederationRequest,java.io.OutputStream,com.fasterxml.jackson.databind.ObjectMapper)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>handleRequest</h4>
 <pre class="methodSignature">public final&nbsp;void&nbsp;handleRequest&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
@@ -332,6 +337,15 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
 </dl>
+</li>
+</ul>
+<a id="handleException(java.lang.Exception)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>handleException</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a>&nbsp;handleException&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a>&nbsp;e)</pre>
 </li>
 </ul>
 </li>
