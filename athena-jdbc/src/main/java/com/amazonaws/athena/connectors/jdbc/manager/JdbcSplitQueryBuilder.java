@@ -35,7 +35,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.arrow.vector.types.DateUnit;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -57,15 +56,14 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static com.amazonaws.athena.connectors.jdbc.manager.JdbcSqlUtils.setParameters;
 
 /**
  * Query builder for database table split.
@@ -168,7 +166,7 @@ public abstract class JdbcSplitQueryBuilder
         else {
             sql.append(appendLimitOffset(split)); // legacy method to preserve functionality of existing connector impls
         }
-        LOGGER.info("Generated SQL : {}", sql.toString());
+        LOGGER.info("Generated SQL : {}", sql);
         return sql.toString();
     }
 
@@ -191,65 +189,7 @@ public abstract class JdbcSplitQueryBuilder
         PreparedStatement statement = jdbcConnection.prepareStatement(
                 this.buildSQLStringLiteral(catalog, schema, table, tableSchema, constraints, split, columnNames, accumulator));
         // TODO all types, converts Arrow values to JDBC.
-        for (int i = 0; i < accumulator.size(); i++) {
-            TypeAndValue typeAndValue = accumulator.get(i);
-
-            Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(typeAndValue.getType());
-
-            switch (minorTypeForArrowType) {
-                case BIGINT:
-                    statement.setLong(i + 1, (long) typeAndValue.getValue());
-                    break;
-                case INT:
-                    statement.setInt(i + 1, ((Number) typeAndValue.getValue()).intValue());
-                    break;
-                case SMALLINT:
-                    statement.setShort(i + 1, ((Number) typeAndValue.getValue()).shortValue());
-                    break;
-                case TINYINT:
-                    statement.setByte(i + 1, ((Number) typeAndValue.getValue()).byteValue());
-                    break;
-                case FLOAT8:
-                    statement.setDouble(i + 1, (double) typeAndValue.getValue());
-                    break;
-                case FLOAT4:
-                    statement.setFloat(i + 1, (float) typeAndValue.getValue());
-                    break;
-                case BIT:
-                    statement.setBoolean(i + 1, (boolean) typeAndValue.getValue());
-                    break;
-                case DATEDAY:
-                    //we received value in "UTC" time with DAYS only, appended it to timeMilli in UTC
-                    long utcMillis = TimeUnit.DAYS.toMillis(((Number) typeAndValue.getValue()).longValue());
-                    //Get the default timezone offset and offset it.
-                    //This is because sql.Date will parse millis into localtime zone
-                    //ex system timezone in GMT-5, sql.Date will think the utcMillis is in GMT-5, we need to add offset(eg. -18000000) .
-                    //ex system timezone in GMT+9, sql.Date will think the utcMillis is in GMT+9, we need to remove offset(eg. 32400000).
-                    TimeZone aDefault = TimeZone.getDefault();
-                    int offset = aDefault.getOffset(utcMillis);
-                    utcMillis -= offset;
-
-                    statement.setDate(i + 1, new Date(utcMillis));
-                    break;
-                case DATEMILLI:
-                    LocalDateTime timestamp = ((LocalDateTime) typeAndValue.getValue());
-                    statement.setTimestamp(i + 1, new Timestamp(timestamp.toInstant(ZoneOffset.UTC).toEpochMilli()));
-                    break;
-                case VARCHAR:
-                    statement.setString(i + 1, String.valueOf(typeAndValue.getValue()));
-                    break;
-                case VARBINARY:
-                    statement.setBytes(i + 1, (byte[]) typeAndValue.getValue());
-                    break;
-                case DECIMAL:
-                    statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
-                    break;
-                default:
-                    throw new AthenaConnectorException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), minorTypeForArrowType),
-                            ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
-            }
-        }
-
+        setParameters(statement, accumulator);
         return statement;
     }
 
