@@ -183,7 +183,7 @@ public abstract class JdbcQueryBuilder<T extends JdbcQueryBuilder<T>>
     public T withLimitClause(Constraints constraints)
     {
         if (constraints.getLimit() > 0) {
-            this.limitClause = " LIMIT " + constraints.getLimit();
+            this.limitClause = "LIMIT " + constraints.getLimit();
         }
         return (T) this;
     }

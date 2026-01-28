@@ -103,7 +103,7 @@ public class JdbcQueryBuilderTest
                 .withLimitClause(constraints)
                 .build();
 
-        String expectedSql = "SELECT \"col1\", \"col2\" FROM \"my_catalog\".\"my_schema\".\"my_table\" WHERE \"col2\" = ? ORDER BY \"col1\" ASC NULLS LAST  LIMIT 100";
+        String expectedSql = "SELECT \"col1\", \"col2\" FROM \"my_catalog\".\"my_schema\".\"my_table\" WHERE \"col2\" = ? ORDER BY \"col1\" ASC NULLS LAST LIMIT 100";
         Assert.assertEquals(expectedSql, sql);
     }
 
@@ -179,7 +179,7 @@ public class JdbcQueryBuilderTest
                 .withLimitClause(constraints)
                 .build();
 
-        String expectedSql = "SELECT \"col1\" FROM \"my_schema\".\"my_table\"  LIMIT 50";
+        String expectedSql = "SELECT \"col1\" FROM \"my_schema\".\"my_table\" LIMIT 50";
         Assert.assertEquals(expectedSql, sql);
     }
 
@@ -202,7 +202,7 @@ public class JdbcQueryBuilderTest
                 .withLimitClause(constraints)
                 .build();
 
-        String expectedSql = "SELECT \"col1\", \"col2\" FROM \"my_schema\".\"my_table\" WHERE \"col1\" > ?  LIMIT 25";
+        String expectedSql = "SELECT \"col1\", \"col2\" FROM \"my_schema\".\"my_table\" WHERE \"col1\" > ? LIMIT 25";
         Assert.assertEquals(expectedSql, sql);
     }
 
