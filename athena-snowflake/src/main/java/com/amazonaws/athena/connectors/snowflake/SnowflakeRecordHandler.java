@@ -58,6 +58,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.VectorAppender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -110,7 +111,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     }
 
     @VisibleForTesting
-    SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
+    public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcConnectionFactory = jdbcConnectionFactory;
@@ -295,5 +296,11 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         resultVector.setValueCount(rowCount);
 
         return resultVector;
+    }
+
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return new SnowflakeCredentialsProvider(secretName, requestOverrideConfiguration);
     }
 }
