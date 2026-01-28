@@ -36,6 +36,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -355,5 +356,11 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
     {
         accumulator.add(new TypeAndValue(type, value));
         return quote(columnName) + " " + operator + " ?";
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return SAPHanaSqlDialect.DEFAULT;
     }
 }

@@ -198,4 +198,27 @@ public class CredentialsProviderFactoryTest
             assertTrue(e.getMessage().contains("Failed to create OAuth provider"));
         }
     }
+
+    @Test
+    public void testCreateCredentialProvider_withRequestOverrideConfiguration() throws JsonProcessingException
+    {
+        String oauthSecret = new ObjectMapper().writeValueAsString(Map.of(
+                CLIENT_ID, TEST_CLIENT_ID,
+                CLIENT_SECRET, TEST_CLIENT_SECRET
+        ));
+        when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(
+                GetSecretValueResponse.builder().secretString(oauthSecret).build()
+        );
+
+        software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration requestConfig = 
+                software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration.builder().build();
+
+        CredentialsProvider provider = CredentialsProviderFactory.createCredentialProvider(
+                SECRET_NAME,
+                cachableSecretsManager,
+                new TestOAuthProvider(),
+                requestConfig
+        );
+        assertTrue(provider instanceof TestOAuthProvider);
+    }
 }

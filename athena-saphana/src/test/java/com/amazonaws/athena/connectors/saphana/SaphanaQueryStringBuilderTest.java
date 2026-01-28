@@ -61,4 +61,11 @@ public class SaphanaQueryStringBuilderTest
         List<String> partitionWhereClauseList1 = builder.getPartitionWhereClauses(split);
         Assert.assertEquals(expectedPartitionWhereClauseList1, partitionWhereClauseList1);
     }
+
+    @Test
+    public void testGetSqlDialect()
+    {
+        SaphanaQueryStringBuilder builder = new SaphanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER, new SaphanaFederationExpressionParser(SAPHANA_QUOTE_CHARACTER));
+        Assert.assertEquals(SAPHanaSqlDialect.DEFAULT, builder.getSqlDialect());
+    }
 }
