@@ -38,9 +38,9 @@ RUN echo "Trust store content is: " && \
 
 
 # Copy function code and runtime dependencies from Maven layout
-COPY target/athena-sqlserver-2022.47.1.jar ${LAMBDA_TASK_ROOT}
+COPY target/athena-sqlserver-2026.4.1.jar ${LAMBDA_TASK_ROOT}
 # Unpack the jar
-RUN jar xf athena-sqlserver-2022.47.1.jar
+RUN jar xf athena-sqlserver-2026.4.1.jar
 
 # Command can be overwritten by providing a different command in the template directly.
 # No need to specify here (already defined in .yaml file because legacy and connections use different)
