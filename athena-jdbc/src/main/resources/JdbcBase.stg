@@ -1,0 +1,149 @@
+test_template() ::= <%
+    test template for validating file is accessible.
+%>
+
+/**
+ *@UsedBy: JdbcQueryBuilder.java and its subclasses (e.g., SqlServerQueryBuilder, PostGreSqlQueryBuilder)
+ *@Description: This template is used to build JDBC SELECT statements with constraints, ordering, and limits.
+ *@param builder An Instance of JdbcQueryBuilder or its subclass.
+ *@return A SQL query that can be executed by JDBC-compatible databases.
+ */
+select_query(builder) ::= <%
+    SELECT <if(builder.projection)><builder.projection:{col|<col>}; separator=", "><else>null<endif> FROM <if(builder.catalog)><builder.catalog>.<endif><if(builder.schemaName)><builder.schemaName>.<endif><builder.tableName><if(builder.partitionClause)> <builder.partitionClause><endif><if(builder.conjuncts)>  WHERE <builder.conjuncts:{conjunct|<conjunct>}; separator=" AND "><endif><if(builder.orderByClause)> <builder.orderByClause><endif><if(builder.limitClause)> <builder.limitClause><endif>
+%>
+
+/**
+ *@UsedBy: JdbcPredicateBuilder.java
+ *@Description: Template for simple comparison predicates (=, \>, \<, \>=, \<=, !=).
+ *@param columnName The column name (with quotes).
+ *@param operator The comparison operator.
+ *@return A comparison predicate like "column" \> ?
+ */
+comparison_predicate(columnName, operator) ::= <%
+    <columnName> <operator> ?
+%>
+
+/**
+ *@UsedBy: JdbcPredicateBuilder.java
+ *@Description: Template for IN predicates with parameterized values.
+ *@param columnName The column name (with quotes).
+ *@param counts List of parameter positions.
+ *@return An IN predicate like "column" IN (?,?)
+ */
+in_predicate(columnName, counts) ::= <%
+    <columnName> IN (<counts:{c|?}; separator=",">)
+%>
+
+/**
+ *@UsedBy: JdbcPredicateBuilder.java, JdbcFederationExpressionParser.java
+ *@Description: Template for NULL checking predicates and expressions.
+ *@param columnName The column name or expression (with quotes for column names).
+ *@param isNull Whether checking for NULL (true) or NOT NULL (false).
+ *@return A null predicate like "column" IS NULL or "column" IS NOT NULL
+ */
+null_predicate(columnName, isNull) ::= <%
+    (<columnName> IS <if(isNull)>NULL<else>NOT NULL<endif>)
+%>
+
+/**
+ *@UsedBy: JdbcPredicateBuilder.java
+ *@Description: Template for range predicates (BETWEEN-like conditions).
+ *@param conjuncts List of range conditions to join with AND.
+ *@return A range predicate like "column" \>= ? AND "column" \<= ?
+ */
+range_predicate(conjuncts) ::= <%
+    (<conjuncts; separator=" AND ">)
+%>
+
+/**
+ *@UsedBy: JdbcPredicateBuilder.java
+ *@Description: Template for combining multiple predicates with OR.
+ *@param disjuncts List of predicates to join with OR.
+ *@return Combined predicates like (pred1 OR pred2 OR pred3)
+ */
+or_predicate(disjuncts) ::= <%
+    (<disjuncts; separator=" OR ">)
+%>
+
+/**
+ *@UsedBy: JdbcFederationExpressionParser.java
+ *@Description: Template for function calls with two arguments.
+ *@param functionName The function name.
+ *@param arg1 First argument.
+ *@param arg2 Second argument.
+ *@return A function call like MOD(arg1, arg2)
+ */
+function_call_2args(functionName, arg1, arg2) ::= <%
+    <functionName>(<arg1>, <arg2>)
+%>
+
+/**
+ *@UsedBy: JdbcFederationExpressionParser.java
+ *@Description: Template for unary operators.
+ *@param operator The unary operator (-, NOT, etc.).
+ *@param operand The operand.
+ *@return A unary expression like (-operand) or (NOT operand)
+ */
+unary_operator(operator, operand) ::= <%
+    (<operator><operand>)
+%>
+
+/**
+ *@UsedBy: JdbcFederationExpressionParser.java
+ *@Description: Template for IN expressions.
+ *@param column The column or expression.
+ *@param values The values for IN clause.
+ *@return An IN expression like (column IN values)
+ */
+in_expression(column, values) ::= <%
+    (<column> IN <values>)
+%>
+
+/**
+ *@UsedBy: JdbcFederationExpressionParser.java
+ *@Description: Template for IS DISTINCT FROM expressions.
+ *@param left Left operand.
+ *@param right Right operand.
+ *@return An IS DISTINCT FROM expression
+ */
+is_distinct_from(left, right) ::= <%
+    <left> IS DISTINCT FROM <right>
+%>
+
+/**
+ *@UsedBy: JdbcFederationExpressionParser.java
+ *@Description: Template for LIKE expressions.
+ *@param column The column.
+ *@param pattern The pattern.
+ *@return A LIKE expression
+ */
+like_expression(column, pattern) ::= <%
+    <column> LIKE <pattern>
+%>
+
+/**
+ *@UsedBy: JdbcFederationExpressionParser.java
+ *@Description: Template for joining expressions with an operator.
+ *Used for building arithmetic, logical, and other expressions.
+ *@param items List of expressions to join
+ *@param separator The operator to use between items (e.g. "+", "*", "AND", etc.)
+ *@return A joined expression like (a + b + c)
+ */
+join_expression(items, separator) ::= <%
+    (<items; separator=separator>)
+%>
+
+/**
+ *@UsedBy: JdbcFederationExpressionParser.java
+ *@Description: Template for creating comma-separated lists.
+ *Used for constant expressions and array constructors.
+ *@param items List of items to join
+ *@return A comma-separated list like item1,item2,item3
+ */
+comma_separated_list(items) ::= <%
+    <items; separator=",">
+%>
+
+comma_separated_list_with_parentheses(items) ::= <%
+    (<items; separator=", ">)
+%>
