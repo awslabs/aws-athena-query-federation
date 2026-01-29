@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: PostgreSQL RDS - Single AZ with manual password and custom networking
+
+Parameters:
+  DBUsername:
+    Type: String
+    Description: Master username for the RDS instance
+
+  DBpwd:
+    Type: String
+    NoEcho: true
+    Description: Master password for the RDS instance
+
+Resources:
+  PostgreSQLDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: athenafederationintegpostgres
+      DBInstanceClass: db.r6g.2xlarge
+      Engine: postgres
+      EngineVersion: 17.5
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBpwd
+      AllocatedStorage: 100
+      StorageEncrypted: false
+      BackupRetentionPeriod: 0  # disables automated backups
+      MultiAZ: false
+      PubliclyAccessible: false
+      VPCSecurityGroups:
+        - Fn::ImportValue: AthenaFederationIntegOpenSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DeletionProtection: false
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for AthenaFederationIntegPostgres
+      SubnetIds:
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet1
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet2
+      DBSubnetGroupName: AthenaFederationIntegPostgresSubnetGroup
+
+Outputs:
+  DBEndpoint:
+    Description: RDS endpoint
+    Value: !GetAtt PostgreSQLDBInstance.Endpoint.Address

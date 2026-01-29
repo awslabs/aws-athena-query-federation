@@ -34,12 +34,15 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
@@ -47,10 +50,13 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.google.common.collect.ImmutableList;
+import org.apache.arrow.vector.types.TimeUnit;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -74,11 +80,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.BLOCK_PARTITION_COLUMN_NAME;
+
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -88,11 +96,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class SnowflakeMetadataHandlerTest
         extends TestBase
@@ -135,9 +139,6 @@ public class SnowflakeMetadataHandlerTest
         this.federatedIdentity = mock(FederatedIdentity.class);
         when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         snowflakeMetadataHandlerMocked = spy(this.snowflakeMetadataHandler);
-
-        doReturn("arn:aws:iam::123456789012:role/test-role").when(snowflakeMetadataHandlerMocked).getRoleArn(any());
-        doReturn("testS3Bucket").when(snowflakeMetadataHandlerMocked).getS3ExportBucket();
     }
 
     @Test(expected = RuntimeException.class)
@@ -297,9 +298,93 @@ public class SnowflakeMetadataHandlerTest
         GetTableLayoutResponse res = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req);
         Block partitions = res.getPartitions();
 
+        assertNotNull(partitions);
         assertTrue(partitions.getRowCount() > 0);
-        assertNotNull(partitions.getFieldVector("preparedStmt"));
-        assertNotNull(partitions.getFieldVector("queryId"));
+    }
+
+    @Test
+    public void getPartitionsWithS3Export() throws Exception {
+        // Create a MockedStatic wrapper
+        try (MockedStatic<SnowflakeConstants> snowflakeConstantsMockedStatic = mockStatic(SnowflakeConstants.class)) {
+            // Define behavior
+            snowflakeConstantsMockedStatic.when(() -> SnowflakeConstants.isS3ExportEnabled(any())).thenReturn(true);
+
+            Schema tableSchema = SchemaBuilder.newBuilder()
+                    .addIntField("day")
+                    .addIntField("month")
+                    .addIntField("year")
+                    .addStringField("preparedStmt")
+                    .addStringField("queryId")
+                    .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                    .build();
+
+            Set<String> partitionCols = new HashSet<>();
+            partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+            Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+            constraintsMap.put("day", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                    ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 0)), false));
+
+            constraintsMap.put("month", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                    ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 0)), false));
+
+            constraintsMap.put("year", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                    ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 2000)), false));
+
+            // Mock view check - empty result set means it's not a view
+            ResultSet viewResultSet = mockResultSet(
+                    new String[]{"TABLE_SCHEM", "TABLE_NAME"},
+                    new int[]{Types.VARCHAR, Types.VARCHAR},
+                    new Object[][]{},
+                    new AtomicInteger(-1)
+            );
+            Statement mockStatement = mock(Statement.class);
+            when(connection.createStatement()).thenReturn(mockStatement);
+            when(mockStatement.executeQuery(any())).thenReturn(viewResultSet);
+
+            // Mock count query
+            ResultSet countResultSet = mockResultSet(
+                    new String[]{"row_count"},
+                    new int[]{Types.BIGINT},
+                    new Object[][]{{1000L}},
+                    new AtomicInteger(-1)
+            );
+            PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+            when(connection.prepareStatement(any())).thenReturn(mockPreparedStatement);
+            when(mockPreparedStatement.executeQuery()).thenReturn(countResultSet);
+
+            // Mock environment properties
+            System.setProperty("aws_region", "us-east-1");
+            System.setProperty("s3_export_bucket", "test-bucket");
+            System.setProperty("s3_export_enabled", "false");
+
+            // Mock metadata columns
+            String[] columnSchema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
+            Object[][] columnValues = {
+                    {"schema1", "table1", "day", "int"},
+                    {"schema1", "table1", "month", "int"},
+                    {"schema1", "table1", "year", "int"},
+                    {"schema1", "table1", "preparedStmt", "varchar"},
+                    {"schema1", "table1", "queryId", "varchar"}
+            };
+            int[] columnTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+            ResultSet columnResultSet = mockResultSet(columnSchema, columnTypes, columnValues, new AtomicInteger(-1));
+            when(connection.getMetaData().getColumns(any(), eq("schema1"), eq("table1"), any())).thenReturn(columnResultSet);
+
+            GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                    new TableName("schema1", "table1"),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Map.of(), null),
+                    tableSchema,
+                    partitionCols);
+
+            GetTableLayoutResponse res = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req);
+            Block partitions = res.getPartitions();
+
+            assertNotNull(partitions);
+            assertTrue(partitions.getRowCount() > 0);
+            // With S3 export enabled, the partition column now contains serialized schema bytes
+            assertNotNull(partitions.getFieldReader(SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME).readByteArray());
+        }
     }
 
     @Test
@@ -352,7 +437,7 @@ public class SnowflakeMetadataHandlerTest
             .build();
         
         when(mockS3.listObjects(any(ListObjectsRequest.class))).thenReturn(listObjectsResponse);
-        when(snowflakeMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
+//        when(snowflakeMetadataHandlerMocked.getDefaultS3ExportBucket()).thenReturn("testS3Bucket");
 
         // Mock environment properties
         System.setProperty("aws_region", "us-east-1");
@@ -468,7 +553,7 @@ public class SnowflakeMetadataHandlerTest
         when(connection.prepareStatement(contains("select COLUMN_NAME, DATA_TYPE"))).thenReturn(typeStmt);
         when(typeStmt.executeQuery()).thenReturn(typeResultSet);
         
-        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema);
+        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema, null);
         assertNotNull(schema);
         assertEquals(4, schema.getFields().size());
         assertEquals(org.apache.arrow.vector.types.Types.MinorType.INT.getType(), schema.findField("intCol").getType());
@@ -490,7 +575,7 @@ public class SnowflakeMetadataHandlerTest
         when(connection.getMetaData().getColumns(nullable(String.class), eq(tableName.getSchemaName()), eq(tableName.getTableName()), nullable(String.class)))
             .thenReturn(metadataResultSet);
             
-        snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema);
+        snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema, null);
     }
 
     @Test
@@ -520,7 +605,7 @@ public class SnowflakeMetadataHandlerTest
         when(connection.prepareStatement(contains("select COLUMN_NAME, DATA_TYPE"))).thenReturn(typeStmt);
         when(typeStmt.executeQuery()).thenReturn(typeResultSet);
         
-        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema);
+        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema, null);
         assertNotNull(schema);
         assertEquals(2, schema.getFields().size());
         assertEquals(org.apache.arrow.vector.types.Types.MinorType.LIST.getType(), schema.findField("arrayCol").getType());
@@ -560,5 +645,359 @@ public class SnowflakeMetadataHandlerTest
         Block partitions = res.getPartitions();
         assertEquals(1, partitions.getRowCount());
         assertEquals("*", partitions.getFieldVector(BLOCK_PARTITION_COLUMN_NAME).getObject(0).toString());
+    }
+
+    @Test
+    public void testGetlistExportedObjects_S3Path() {
+        System.setProperty("aws_region", "us-east-1");
+        List<S3Object> objectList = new ArrayList<>();
+        S3Object obj1 = S3Object.builder().key("queryId123/file1.parquet").build();
+        S3Object obj2 = S3Object.builder().key("queryId123/file2.parquet").build();
+        objectList.add(obj1);
+        objectList.add(obj2);
+        
+        ListObjectsResponse response = ListObjectsResponse.builder()
+            .contents(objectList)
+            .build();
+        
+        when(mockS3.listObjects(any(ListObjectsRequest.class))).thenReturn(response);
+        
+        List<S3Object> result = snowflakeMetadataHandler.getlistExportedObjects("test-bucket", "queryId123");
+        assertEquals(2, result.size());
+        assertEquals("queryId123/file1.parquet", result.get(0).key());
+        assertEquals("queryId123/file2.parquet", result.get(1).key());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testGetlistExportedObjects_S3Exception() {
+        System.setProperty("aws_region", "us-east-1");
+        when(mockS3.listObjects(any(ListObjectsRequest.class)))
+            .thenThrow(software.amazon.awssdk.services.s3.model.S3Exception.builder()
+                .message("Access denied")
+                .build());
+        
+        snowflakeMetadataHandler.getlistExportedObjects("test-bucket", "queryId123");
+    }
+
+
+
+    @Test
+    public void testGetSFStorageIntegrationNameFromConfig() {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put("snowflake_storage_integration_name", "TEST_INTEGRATION");
+
+        SnowflakeMetadataHandler handler = new SnowflakeMetadataHandler(
+            databaseConnectionConfig, secretsManager, athena, mockS3, jdbcConnectionFactory, configOptions);
+
+        assertTrue(handler.getSFStorageIntegrationNameFromConfig().isPresent());
+        assertEquals("TEST_INTEGRATION", handler.getSFStorageIntegrationNameFromConfig().get());
+    }
+
+    @Test
+    public void testGetDataSourceCapabilities() {
+        BlockAllocator allocator = new BlockAllocatorImpl();
+        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest request =
+            new com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest(
+                federatedIdentity, "queryId", "testCatalog");
+
+        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse response =
+            snowflakeMetadataHandler.doGetDataSourceCapabilities(allocator, request);
+
+        assertNotNull(response);
+        assertNotNull(response.getCapabilities());
+        assertTrue(response.getCapabilities().size() > 0);
+    }
+
+    @Test
+    public void testEnhancePartitionSchema() {
+        com.amazonaws.athena.connector.lambda.data.SchemaBuilder partitionSchemaBuilder =
+            com.amazonaws.athena.connector.lambda.data.SchemaBuilder.newBuilder();
+
+        com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest request =
+            new com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest(
+                federatedIdentity, "queryId", "testCatalog",
+                new TableName("testSchema", "testTable"),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null),
+                SchemaBuilder.newBuilder().build(), Collections.emptySet());
+
+        snowflakeMetadataHandler.enhancePartitionSchema(partitionSchemaBuilder, request);
+
+        assertNotNull(partitionSchemaBuilder.getField("partition"));
+    }
+
+    @Test
+    public void testGetStorageIntegrationS3PathFromSnowFlake() throws Exception {
+        String integrationName = "TEST_INTEGRATION";
+        String[] schema = {"property", "property_value"};
+        Object[][] values = {
+            {"STORAGE_ALLOWED_LOCATIONS", "s3://test-bucket/path/"},
+            {"STORAGE_PROVIDER", "S3"}
+        };
+        
+        // Create two separate ResultSet mocks for the two calls
+        AtomicInteger rowNumber1 = new AtomicInteger(-1);
+        ResultSet resultSet1 = mockResultSet(schema, values, rowNumber1);
+        
+        AtomicInteger rowNumber2 = new AtomicInteger(-1);
+        ResultSet resultSet2 = mockResultSet(schema, values, rowNumber2);
+        
+        Statement stmt = mock(Statement.class);
+        when(connection.createStatement()).thenReturn(stmt);
+        when(stmt.executeQuery(contains("DESC STORAGE INTEGRATION")))
+            .thenReturn(resultSet1)
+            .thenReturn(resultSet2);
+        
+        String result = snowflakeMetadataHandler.getStorageIntegrationS3PathFromSnowFlake(connection, integrationName);
+        assertEquals("s3://test-bucket/path", result);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetStorageIntegrationS3PathInvalidProvider() throws Exception {
+        String integrationName = "TEST_INTEGRATION";
+        String[] schema = {"property", "property_value"};
+        Object[][] values = {
+            {"STORAGE_ALLOWED_LOCATIONS", "s3://test-bucket/path/"},
+            {"STORAGE_PROVIDER", "AZURE"}
+        };
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Statement stmt = mock(Statement.class);
+        when(connection.createStatement()).thenReturn(stmt);
+        when(stmt.executeQuery(contains("DESC STORAGE INTEGRATION"))).thenReturn(resultSet);
+
+        snowflakeMetadataHandler.getStorageIntegrationS3PathFromSnowFlake(connection, integrationName);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetStorageIntegrationS3PathMultiplePaths() throws Exception {
+        String integrationName = "TEST_INTEGRATION";
+        String[] schema = {"property", "property_value"};
+        Object[][] values = {
+            {"STORAGE_ALLOWED_LOCATIONS", "s3://bucket1/, s3://bucket2/"},
+            {"STORAGE_PROVIDER", "S3"}
+        };
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Statement stmt = mock(Statement.class);
+        when(connection.createStatement()).thenReturn(stmt);
+        when(stmt.executeQuery(contains("DESC STORAGE INTEGRATION"))).thenReturn(resultSet);
+
+        snowflakeMetadataHandler.getStorageIntegrationS3PathFromSnowFlake(connection, integrationName);
+    }
+
+    @Test
+    public void testListPaginatedTables() throws Exception {
+        String[] schema = {"TABLE_NAME", "TABLE_SCHEM"};
+        Object[][] values = {
+            {"table1", "testSchema"},
+            {"table2", "testSchema"},
+            {"table3", "testSchema"}
+        };
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        PreparedStatement preparedStatement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(contains("LIMIT ? OFFSET ?"))).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest request =
+            new com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest(
+                federatedIdentity, "queryId", "testCatalog", "testSchema", null, 10);
+
+        ListTablesResponse response = snowflakeMetadataHandler.listPaginatedTables(connection, request);
+        assertNotNull(response);
+        assertEquals(3, response.getTables().size());
+    }
+
+    @Test
+    public void testGetPaginatedTables() throws Exception {
+        String[] schema = {"TABLE_NAME", "TABLE_SCHEM"};
+        Object[][] values = {
+            {"table1", "testSchema"},
+            {"table2", "testSchema"}
+        };
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        PreparedStatement preparedStatement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString())).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        List<com.amazonaws.athena.connector.lambda.domain.TableName> tables =
+            snowflakeMetadataHandler.getPaginatedTables(connection, "testSchema", 0, 10);
+
+        assertEquals(2, tables.size());
+        assertEquals("table1", tables.get(0).getTableName());
+        assertEquals("table2", tables.get(1).getTableName());
+    }
+
+    @Test
+    public void testHandleS3ExportSplitsEmptyObjects() throws Exception {
+        try (MockedStatic<SnowflakeConstants> snowflakeConstantsMockedStatic = mockStatic(SnowflakeConstants.class)) {
+            snowflakeConstantsMockedStatic.when(() -> SnowflakeConstants.isS3ExportEnabled(any())).thenReturn(true);
+
+            Schema tableSchema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addStringField("col2")
+                .build();
+                
+            Schema partitionSchema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addField(SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType())
+                .build();
+
+            Block partitions = allocator.createBlock(partitionSchema);
+            partitions.getFieldVector("col1").allocateNew();
+            partitions.getFieldVector(SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME).allocateNew();
+            // Set serialized schema bytes instead of string
+            byte[] serializedSchema = tableSchema.serializeAsMessage();
+            BlockUtils.setValue(partitions.getFieldVector(SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME), 0, serializedSchema);
+            partitions.setRowCount(1);
+            
+            // Create handler with storage integration configuration
+            Map<String, String> configOptions = new HashMap<>();
+            configOptions.put("snowflake_storage_integration_name", "TEST_INTEGRATION");
+            
+            // Mock S3 utilities
+            software.amazon.awssdk.services.s3.S3Utilities mockS3Utilities = mock(software.amazon.awssdk.services.s3.S3Utilities.class);
+            software.amazon.awssdk.services.s3.S3Uri mockS3Uri = mock(software.amazon.awssdk.services.s3.S3Uri.class);
+            when(mockS3.utilities()).thenReturn(mockS3Utilities);
+            when(mockS3Utilities.parseUri(any())).thenReturn(mockS3Uri);
+            when(mockS3Uri.bucket()).thenReturn(java.util.Optional.of("test-bucket"));
+            when(mockS3Uri.key()).thenReturn(java.util.Optional.of("queryId/uuid/"));
+            
+            SnowflakeMetadataHandler handlerWithConfig = new SnowflakeMetadataHandler(
+                databaseConnectionConfig, secretsManager, athena, mockS3, jdbcConnectionFactory, configOptions);
+            SnowflakeMetadataHandler spyHandler = spy(handlerWithConfig);
+            
+            PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+            when(connection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+            when(mockPreparedStatement.execute()).thenReturn(true);
+            
+            String[] integrationSchema = {"property", "property_value"};
+            Object[][] integrationValues = {
+                {"STORAGE_ALLOWED_LOCATIONS", "s3://test-bucket/"},
+                {"STORAGE_PROVIDER", "S3"}
+            };
+            AtomicInteger integrationRowNumber = new AtomicInteger(-1);
+            ResultSet integrationResultSet = mockResultSet(integrationSchema, integrationValues, integrationRowNumber);
+            
+            AtomicInteger integrationRowNumber2 = new AtomicInteger(-1);
+            ResultSet integrationResultSet2 = mockResultSet(integrationSchema, integrationValues, integrationRowNumber2);
+            
+            Statement stmt = mock(Statement.class);
+            when(connection.createStatement()).thenReturn(stmt);
+            when(stmt.executeQuery(contains("DESC STORAGE INTEGRATION")))
+                .thenReturn(integrationResultSet)
+                .thenReturn(integrationResultSet2);
+            
+            ListObjectsResponse emptyResponse = ListObjectsResponse.builder()
+                .contents(Collections.emptyList())
+                .build();
+            when(mockS3.listObjects(any(ListObjectsRequest.class))).thenReturn(emptyResponse);
+            
+            GetSplitsRequest request = new GetSplitsRequest(
+                federatedIdentity, "queryId", "testCatalog",
+                new TableName("testSchema", "testTable"),
+                partitions, Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                null);
+            
+            GetSplitsResponse response = spyHandler.doGetSplits(allocator, request);
+            assertNotNull(response);
+            assertEquals(1, response.getSplits().size());
+        }
+    }
+
+    @Test
+    public void testEnhancePartitionSchemaQueryPassthrough()
+    {
+        SchemaBuilder partitionSchemaBuilder = SchemaBuilder.newBuilder();
+        Map<String, String> qptArguments = new HashMap<>();
+        qptArguments.put("query", "SELECT * FROM custom_table");
+        
+        Constraints constraints = new Constraints(
+            Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+            DEFAULT_NO_LIMIT, qptArguments, null);
+        
+        GetTableLayoutRequest request = new GetTableLayoutRequest(
+            federatedIdentity, "queryId", "testCatalog",
+            new TableName("testSchema", "testTable"),
+            constraints, SchemaBuilder.newBuilder().build(), Collections.emptySet());
+
+        snowflakeMetadataHandler.enhancePartitionSchema(partitionSchemaBuilder, request);
+
+        // For query passthrough, partition column should not be added
+        assertEquals(0, partitionSchemaBuilder.build().getFields().size());
+    }
+
+    @Test
+    public void testGetSFStorageIntegrationNameFromConfigEmpty()
+    {
+        SnowflakeMetadataHandler handler = new SnowflakeMetadataHandler(
+            databaseConnectionConfig, secretsManager, athena, mockS3, jdbcConnectionFactory, Collections.emptyMap());
+
+        assertFalse(handler.getSFStorageIntegrationNameFromConfig().isPresent());
+    }
+
+    @Test
+    public void testGetCredentialProviderWithoutSecret()
+    {
+        CredentialsProvider provider = snowflakeMetadataHandler.getCredentialProvider();
+        assertEquals(null, provider);
+    }
+
+    @Test
+    public void testGetStorageIntegrationProperties() throws Exception {
+        String integrationName = "TEST_INTEGRATION";
+        String[] schema = {"property", "property_value"};
+        Object[][] values = {
+            {"STORAGE_ALLOWED_LOCATIONS", "s3://test-bucket/path/"},
+            {"STORAGE_PROVIDER", "S3"},
+            {"ENABLED", "true"}
+        };
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        
+        Statement stmt = mock(Statement.class);
+        when(connection.createStatement()).thenReturn(stmt);
+        when(stmt.executeQuery("DESC STORAGE INTEGRATION TEST_INTEGRATION")).thenReturn(resultSet);
+        
+        Optional<Map<String, String>> propertiesOpt = snowflakeMetadataHandler.getStorageIntegrationProperties(connection, integrationName);
+        
+        assertTrue(propertiesOpt.isPresent());
+        Map<String, String> properties = propertiesOpt.get();
+        assertEquals(3, properties.size());
+        assertEquals("s3://test-bucket/path/", properties.get("STORAGE_ALLOWED_LOCATIONS"));
+        assertEquals("S3", properties.get("STORAGE_PROVIDER"));
+        assertEquals("true", properties.get("ENABLED"));
+    }
+
+    @Test
+    public void testGetStorageIntegrationPropertiesNotFound() throws Exception {
+        String integrationName = "NONEXISTENT_INTEGRATION";
+        
+        Statement stmt = mock(Statement.class);
+        when(connection.createStatement()).thenReturn(stmt);
+        when(stmt.executeQuery("DESC STORAGE INTEGRATION NONEXISTENT_INTEGRATION"))
+            .thenThrow(new SQLException("Integration does not exist or not authorized"));
+        
+        Optional<Map<String, String>> propertiesOpt = snowflakeMetadataHandler.getStorageIntegrationProperties(connection, integrationName);
+        
+        assertTrue(propertiesOpt.isEmpty());
+    }
+
+    @Test(expected = SQLException.class)
+    public void testGetStorageIntegrationPropertiesSQLException() throws Exception {
+        String integrationName = "TEST_INTEGRATION";
+        
+        Statement stmt = mock(Statement.class);
+        when(connection.createStatement()).thenReturn(stmt);
+        when(stmt.executeQuery("DESC STORAGE INTEGRATION TEST_INTEGRATION"))
+            .thenThrow(new SQLException("Database connection error"));
+        
+        snowflakeMetadataHandler.getStorageIntegrationProperties(connection, integrationName);
     }
 }

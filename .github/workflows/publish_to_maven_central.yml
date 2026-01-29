@@ -5,6 +5,9 @@ on:
     types: [ published ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   release:
     name: Publish to maven central
@@ -12,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout Codebase
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v5

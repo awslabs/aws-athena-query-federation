@@ -62,6 +62,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -94,7 +95,7 @@ public class OracleMetadataHandler
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     private static final String COLUMN_NAME = "COLUMN_NAME";
 
-    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT TABLE_NAME as \"TABLE_NAME\", OWNER as \"TABLE_SCHEM\" FROM all_tables WHERE owner = ? ORDER BY TABLE_NAME OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT * FROM ( SELECT table_name AS \"TABLE_NAME\", owner AS \"TABLE_SCHEM\" FROM all_tables WHERE owner = ? UNION ALL SELECT view_name AS \"TABLE_NAME\", owner AS \"TABLE_SCHEM\" FROM all_views WHERE owner = ? ) t ORDER BY \"TABLE_NAME\" OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -236,8 +237,9 @@ public class OracleMetadataHandler
     {
         PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
         preparedStatement.setString(1, databaseName);
-        preparedStatement.setInt(2, token);
-        preparedStatement.setInt(3, limit);
+        preparedStatement.setString(2, databaseName);
+        preparedStatement.setInt(3, token);
+        preparedStatement.setInt(4, limit);
         LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
@@ -284,7 +286,7 @@ public class OracleMetadataHandler
         capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
                 TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
-        
+
         jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
@@ -312,7 +314,7 @@ public class OracleMetadataHandler
      * @throws Exception
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();

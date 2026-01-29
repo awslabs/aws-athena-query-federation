@@ -1,0 +1,13 @@
+{
+  "table_setup": {
+    "primary_key": "cs_order_number",
+    "primary_type": "int",
+    "sort_key": "cs_item_sk",
+    "sort_key_type": "int"
+  },
+  "predicate": {
+    "primary_key_predicate": "cs_order_number = 1",
+    "sort_key_predicate": "cs_item_sk = 16930",
+    "complex_key_predicate": "(cs_order_number * 10) > 100"
+  }
+}
