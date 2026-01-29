@@ -246,12 +246,6 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         return preparedStatement;
     }
 
-    @Override
-    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
-    {
-        return new SnowflakeCredentialsProvider(secretName, requestOverrideConfiguration);
-    }
-
     // TSmilli and DateTimeMilli vector both have same width of 8bytes and same data type(long)
     // direct copy the value.
      static DateMilliVector convertTimestampTZMilliToDateMilliFast(
