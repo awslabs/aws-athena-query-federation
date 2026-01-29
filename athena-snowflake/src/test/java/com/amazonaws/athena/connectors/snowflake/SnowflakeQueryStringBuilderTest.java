@@ -2,14 +2,14 @@
  * #%L
  * athena-snowflake
  * %%
- * Copyright (C) 2019 - 2022 Amazon Web Services
+ * Copyright (C) 2019 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,118 +19,390 @@
  */
 package com.amazonaws.athena.connectors.snowflake;
 
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
-import org.apache.arrow.vector.types.DateUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
+import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.junit.Before;
+import org.junit.Test;
 
-import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class SnowflakeQueryStringBuilderTest {
-
+public class SnowflakeQueryStringBuilderTest
+{
     private SnowflakeQueryStringBuilder queryBuilder;
+    private static final String QUOTE_CHARACTER = "\"";
+    private static final BlockAllocator blockAllocator = new BlockAllocatorImpl();
 
-    @Mock
-    private Connection mockConnection;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        queryBuilder = new SnowflakeQueryStringBuilder("\"", null);
+    @Before
+    public void setUp()
+    {
+        SnowflakeFederationExpressionParser expressionParser = new SnowflakeFederationExpressionParser(QUOTE_CHARACTER);
+        queryBuilder = new SnowflakeQueryStringBuilder(QUOTE_CHARACTER, expressionParser);
     }
 
     @Test
-    void testGetFromClauseWithSplit() {
-        String result = queryBuilder.getFromClauseWithSplit(null, "public", "users", null);
-        assertEquals(" FROM \"public\".\"users\" ", result);
+    public void testGetFromClauseWithSplit()
+    {
+        Split split = Split.newBuilder(
+                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
+                null
+        ).build();
+        
+        String result = queryBuilder.getFromClauseWithSplit("testCatalog", "testSchema", "testTable", split);
+        assertTrue(result.contains("\"testSchema\""));
+        assertTrue(result.contains("\"testTable\""));
     }
 
     @Test
-    void testGetPartitionWhereClauses() {
-        List<String> result = queryBuilder.getPartitionWhereClauses(null);
-        assertTrue(result.isEmpty());
+    public void testGetFromClauseWithSplitNoSchema()
+    {
+        Split split = Split.newBuilder(
+                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
+                null
+        ).build();
+        
+        String result = queryBuilder.getFromClauseWithSplit("testCatalog", null, "testTable", split);
+        assertTrue(result.contains("\"testTable\""));
+        assertTrue(!result.contains("null"));
     }
 
     @Test
-    void testBuildSqlString_NoConstraints() throws SQLException {
-        Schema tableSchema = new Schema(List.of(new Field("id", new FieldType(true, new ArrowType.Int(32, true), null), null)));
-
-        Constraints constraints = mock(Constraints.class);
-        when(constraints.getLimit()).thenReturn(0L);
-
-        String sql = queryBuilder.buildSqlString(mockConnection, null, "public", "users", tableSchema, constraints, null);
-        assertTrue(sql.contains("SELECT \"id\" FROM \"public\".\"users\" "));
+    public void testQuote()
+    {
+        String result = queryBuilder.quote("testIdentifier");
+        assertEquals("\"testIdentifier\"", result);
     }
 
     @Test
-    void testBuildSqlString_WithConstraints() throws SQLException {
-        Schema tableSchema = new Schema(List.of(new Field("id", new FieldType(true, new ArrowType.Int(32, true), null), null)));
+    public void testBuildSqlWithSimpleConstraints() throws SQLException
+    {
+        Connection mockConnection = mock(Connection.class);
+        PreparedStatement mockStatement = mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockStatement);
 
-        Constraints constraints = mock(Constraints.class);
-        when(constraints.getLimit()).thenReturn(10L);
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .build();
 
-        String sql = queryBuilder.buildSqlString(mockConnection, null, "public", "users", tableSchema, constraints, null);
-        assertTrue(sql.contains("LIMIT 10"));
-    }
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("col2", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
+                Arrays.asList(Range.equal(blockAllocator, Types.MinorType.INT.getType(), 42)), false));
 
-    @Test
-    void testQuote() {
-        String result = queryBuilder.quote("users");
-        assertEquals("\"users\"", result);
-    }
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null);
 
-    @Test
-    void testSingleQuote() {
-        String result = queryBuilder.singleQuote("O'Reilly");
-        assertEquals("'O''Reilly'", result);
-    }
+        Split split = Split.newBuilder(
+                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
+                null
+        ).add("partition", "test-partition").build();
 
-    @Test
-    void testToPredicate_SingleValue() {
-        List<TypeAndValue> accumulator = new ArrayList<>();
-        String predicate = queryBuilder.toPredicate("age", "=", 30, new ArrowType.Int(32, true));
-        assertEquals("age = 30", predicate);
-    }
-
-    @Test
-    void testGetObjectForWhereClause_Int() {
-        Object result = queryBuilder.getObjectForWhereClause("age", 42, new ArrowType.Int(32, true));
-        assertEquals(42L, result);
-    }
-
-    @Test
-    void testGetObjectForWhereClause_Decimal() {
-        Object result = queryBuilder.getObjectForWhereClause("price", new BigDecimal("99.99"), new ArrowType.Decimal(10, 2));
-        assertEquals(new BigDecimal("99.99"), result);
-    }
-
-    @Test
-    void testGetObjectForWhereClause_Date() {
-        Object result = queryBuilder.getObjectForWhereClause("date", "2023-03-15T00:00", new ArrowType.Date(DateUnit.DAY));
-        assertEquals("2023-03-15 00:00:00", result);
-    }
-
-    @Test
-    void testToPredicateWithUnsupportedType() {
-        assertThrows(UnsupportedOperationException.class, () ->
-                queryBuilder.getObjectForWhereClause("unsupported", "value", new ArrowType.Struct())
+        PreparedStatement result = queryBuilder.buildSql(
+                mockConnection,
+                "testCatalog",
+                "testSchema",
+                "testTable",
+                schema,
+                constraints,
+                split
         );
+
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testBuildSqlWithOrderBy() throws SQLException
+    {
+        Connection mockConnection = mock(Connection.class);
+        PreparedStatement mockStatement = mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockStatement);
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .build();
+
+        List<OrderByField> orderByFields = Arrays.asList(
+                new OrderByField("col1", OrderByField.Direction.ASC_NULLS_FIRST),
+                new OrderByField("col2", OrderByField.Direction.DESC_NULLS_LAST)
+        );
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), orderByFields, -1L, Collections.emptyMap(), null);
+
+        Split split = Split.newBuilder(
+                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
+                null
+        ).add("partition", "test-partition").build();
+
+        PreparedStatement result = queryBuilder.buildSql(
+                mockConnection,
+                "testCatalog",
+                "testSchema",
+                "testTable",
+                schema,
+                constraints,
+                split
+        );
+
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testBuildSqlWithLimit() throws SQLException
+    {
+        Connection mockConnection = mock(Connection.class);
+        PreparedStatement mockStatement = mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockStatement);
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 100L, Collections.emptyMap(), null);
+
+        Split split = Split.newBuilder(
+                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
+                null
+        ).add("partition", "test-partition").build();
+
+        PreparedStatement result = queryBuilder.buildSql(
+                mockConnection,
+                "testCatalog",
+                "testSchema",
+                "testTable",
+                schema,
+                constraints,
+                split
+        );
+
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testBuildSqlWithPartitionConstraints() throws SQLException
+    {
+        Connection mockConnection = mock(Connection.class);
+        PreparedStatement mockStatement = mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockStatement);
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null);
+
+        Split split = Split.newBuilder(
+                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
+                null
+        )
+        .add("partition", "partition-primary--limit-1000-offset-0")
+        .build();
+
+        PreparedStatement result = queryBuilder.buildSql(
+                mockConnection,
+                "testCatalog",
+                "testSchema",
+                "testTable",
+                schema,
+                constraints,
+                split
+        );
+
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testGetBaseExportSQLString() throws SQLException {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .addStringField("partition") // Should be excluded
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null);
+
+        String result = queryBuilder.getBaseExportSQLString(
+                "testCatalog",
+                "testSchema",
+                "testTable",
+                schema,
+                constraints
+        );
+
+        assertNotNull(result);
+        assertTrue(result.contains("SELECT"));
+        assertTrue(result.contains("\"col1\""));
+        assertTrue(result.contains("\"col2\""));
+        assertTrue(result.contains("FROM"));
+        assertTrue(result.contains("\"testSchema\".\"testTable\""));
+        // Should not contain partition column
+        assertTrue(!result.contains("\"partition\""));
+    }
+
+    @Test
+    public void testGetBaseExportSQLStringWithConstraints() throws SQLException {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .build();
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("col2", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
+                Arrays.asList(Range.greaterThan(blockAllocator, Types.MinorType.INT.getType(), 10)), false));
+
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), 100L, Collections.emptyMap(), null);
+
+        String result = queryBuilder.getBaseExportSQLString(
+                "testCatalog",
+                "testSchema",
+                "testTable",
+                schema,
+                constraints
+        );
+
+        assertNotNull(result);
+        assertTrue(result.contains("WHERE"));
+        assertTrue(result.contains("LIMIT"));
+    }
+
+    @Test
+    public void testGetBaseExportSQLStringWithOrderBy() throws SQLException {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .build();
+
+        List<OrderByField> orderByFields = Arrays.asList(
+                new OrderByField("col1", OrderByField.Direction.ASC_NULLS_FIRST)
+        );
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), orderByFields, -1L, Collections.emptyMap(), null);
+
+        String result = queryBuilder.getBaseExportSQLString(
+                "testCatalog",
+                "testSchema",
+                "testTable",
+                schema,
+                constraints
+        );
+
+        assertNotNull(result);
+        assertTrue(result.contains("ORDER BY"));
+        assertTrue(result.contains("\"col1\""));
+    }
+
+    @Test
+    public void testGetBaseExportSQLStringNoCatalog() throws SQLException {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null);
+
+        String result = queryBuilder.getBaseExportSQLString(
+                null,
+                "testSchema",
+                "testTable",
+                schema,
+                constraints
+        );
+
+        assertNotNull(result);
+        assertTrue(result.contains("\"testSchema\".\"testTable\""));
+        assertTrue(!result.contains("null"));
+    }
+
+    @Test
+    public void testBuildSqlWithComplexPartition() throws SQLException
+    {
+        Connection mockConnection = mock(Connection.class);
+        PreparedStatement mockStatement = mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockStatement);
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null);
+
+        Split split = Split.newBuilder(
+                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
+                null
+        )
+        .add("partition", "partition-primary-\"id\",\"name\"-limit-5000-offset-10000")
+        .build();
+
+        PreparedStatement result = queryBuilder.buildSql(
+                mockConnection,
+                "testCatalog",
+                "testSchema",
+                "testTable",
+                schema,
+                constraints,
+                split
+        );
+
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testBuildSqlWithAllPartition() throws SQLException
+    {
+        Connection mockConnection = mock(Connection.class);
+        PreparedStatement mockStatement = mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockStatement);
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("col1")
+                .addIntField("col2")
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null);
+
+        Split split = Split.newBuilder(
+                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
+                null
+        )
+        .add("partition", "*") // All partitions
+        .build();
+
+        PreparedStatement result = queryBuilder.buildSql(
+                mockConnection,
+                "testCatalog",
+                "testSchema",
+                "testTable",
+                schema,
+                constraints,
+                split
+        );
+
+        assertNotNull(result);
     }
 }

@@ -227,11 +227,16 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.82</version>
+            <version>1.83</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -259,8 +264,8 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-             <!--- to meet engine version 3.19.0 -->
-            <version>3.19.0</version>
+             <!--- to meet engine version 3.20.0 -->
+            <version>3.20.0</version>
         </dependency>
         <dependency>
             <groupId>net.jqwik</groupId>
@@ -407,7 +412,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>2.7.0</version>
+                <version>2.7.1</version>
                 <configuration>
                     <verbose>false</verbose>
                     <addSvnKeyWords>false</addSvnKeyWords>

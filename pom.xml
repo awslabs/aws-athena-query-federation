@@ -14,24 +14,24 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.40.1</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.41.17</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
-        <aws-sdk.version>1.12.792</aws-sdk.version>
+        <aws-sdk.version>1.12.796</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.120.0</jsii.version>
+        <jsii.version>1.126.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.17</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.9.3</jqwik.version>
-        <assertj.version>3.27.6</assertj.version>
+        <assertj.version>3.27.7</assertj.version>
         <testng.version>7.11.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.4</surefire.failsafe.version>
-        <log4j2Version>2.25.2</log4j2Version>
+        <log4j2Version>2.25.3</log4j2Version>
         <apache.arrow.version>18.3.0</apache.arrow.version>
         <guava.version>33.5.0-jre</guava.version>
         <protobuf3.version>3.25.5</protobuf3.version>
@@ -45,12 +45,12 @@
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
         <mvn.checkstyle.version>3.6.0</mvn.checkstyle.version>
         <mvn.shade.plugin.version>3.6.1</mvn.shade.plugin.version>
-        <mvn.source.plugin.version>3.3.1</mvn.source.plugin.version>
+        <mvn.source.plugin.version>3.4.0</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.12.0</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.4.2</mvn.jar.plugin.version>
-        <io.substrait.version>0.66.0</io.substrait.version>
+        <io.substrait.version>0.65.0</io.substrait.version>
         <org.apache.calcite.version>1.40.0</org.apache.calcite.version>
-        <com.google.protobuf.version>4.33.1</com.google.protobuf.version>
+        <com.google.protobuf.version>4.33.4</com.google.protobuf.version>
         <doclint>none</doclint>
     </properties>
     <dependencyManagement>
@@ -58,7 +58,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.13.4</version>
+                <version>5.14.1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -92,7 +92,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.19.0</version>
+                <version>3.20.0</version>
             </dependency>
             <!-- Fix for CVE-2025-24970, CVE-2025-58056, CVE-2025-58057 and CVE-2025-55163: Override Netty version from transitive dependencies -->
             <dependency>
@@ -106,7 +106,7 @@
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
-                <version>5.5.1</version>
+                <version>5.6</version>
             </dependency>
             <!-- Fix for CVE-2024-57699: Override json-smart version from transitive dependencies -->
             <dependency>
@@ -382,6 +382,15 @@
                                         <exclude>META-INF/maven/com.google.api.grpc/grpc-google-cloud-bigquerystorage-v1/pom.properties</exclude>
                                         <exclude>META-INF/maven/com.google.api.grpc/proto-google-cloud-bigquerystorage-v1/pom.xml</exclude>
                                         <exclude>META-INF/maven/com.google.api.grpc/proto-google-cloud-bigquerystorage-v1/pom.properties</exclude>
+                                        <!-- 10. Fix for CVE-2022-3510: proto-google-common-protos declares old protobuf-java -->
+                                        <exclude>META-INF/maven/com.google.api.grpc/proto-google-common-protos/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.google.api.grpc/proto-google-common-protos/pom.properties</exclude>
+                                        <!-- 11. Fix for CVE-2025-48734: Exclude commons-validator metadata that declares vulnerable commons-beanutils -->
+                                        <exclude>META-INF/maven/commons-validator/commons-validator/pom.xml</exclude>
+                                        <exclude>META-INF/maven/commons-validator/commons-validator/pom.properties</exclude>
+                                        <!-- 12. Fix for CVE-2025-48734: Exclude commons-digester metadata that declares vulnerable commons-beanutils -->
+                                        <exclude>META-INF/maven/commons-digester/commons-digester/pom.xml</exclude>
+                                        <exclude>META-INF/maven/commons-digester/commons-digester/pom.properties</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
@@ -443,7 +452,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>2.7.0</version>
+                <version>2.7.1</version>
                 <configuration>
                     <verbose>false</verbose>
                     <addSvnKeyWords>false</addSvnKeyWords>
@@ -507,24 +516,6 @@
                     <notimestamp>true</notimestamp>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.6.2</version>
-                <executions>
-                    <execution>
-                        <id>print-java-info</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>bash</executable>
-                            <commandlineArgs>-c "echo '[INFO] ========================================'; echo '[INFO] Maven Build Configuration Verification'; echo '[INFO] ========================================'; if [ '${maven.compiler.release}' = '8' ]; then echo '[INFO] Activated Profile: java8'; elif [ '${maven.compiler.release}' = '17' ]; then echo '[INFO] Activated Profile: java17'; else echo '[INFO] Activated Profile: default (Java 11)'; fi; echo '[INFO] maven.compiler.release = ${maven.compiler.release}'; echo '[INFO] Java version = ${java.version}'; echo '[INFO] ========================================'"</commandlineArgs>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
     <profiles>
@@ -552,7 +543,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>${surefire.failsafe.version}</version>
                         <configuration>
-                            <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
+                            <argLine>${argLine} --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED</argLine>
                             <excludes>
                                 <exclude>*IntegTest</exclude>
                             </excludes>
@@ -563,7 +554,7 @@
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <version>${surefire.failsafe.version}</version>
                         <configuration>
-                            <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
+                            <argLine>${argLine} --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED</argLine>
                             <forkCount>3C</forkCount>
                             <reuseForks>false</reuseForks>
                             <includes>
@@ -642,7 +633,7 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.9.0</version>
+                        <version>0.10.0</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
