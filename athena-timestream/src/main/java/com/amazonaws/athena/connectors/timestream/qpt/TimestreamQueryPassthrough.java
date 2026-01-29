@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TimestreamQueryPassthrough implements QueryPassthroughSignature
 {
@@ -75,17 +77,23 @@ public class TimestreamQueryPassthrough implements QueryPassthroughSignature
         String customerPassedQuery = engineQptArguments.get(QUERY);
         String upperCaseStatement = customerPassedQuery.trim().toUpperCase(Locale.ENGLISH);
 
-        // Immediately check if the statement starts with "SELECT"
-        if (!upperCaseStatement.startsWith("SELECT")) {
-            throw new UnsupportedOperationException("Statement does not start with SELECT.");
+        // Check if the statement starts with "SELECT" or "WITH" (for CTEs)
+        if (!upperCaseStatement.startsWith("SELECT") && !upperCaseStatement.startsWith("WITH")) {
+            throw new UnsupportedOperationException("Statement must start with SELECT or WITH.");
         }
 
-        // List of disallowed keywords
+        // List of disallowed keywords - these should be matched as whole words to avoid false positives
+        // (e.g., "last_update" should not match "UPDATE", "CREATE_TIME_SERIES" should not match "CREATE")
         Set<String> disallowedKeywords = ImmutableSet.of("INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER");
 
-        // Check if the statement contains any disallowed keywords
+        // Check if the statement contains any disallowed keywords as whole words
+        // Using word boundaries (\b) to ensure we match keywords, not substrings in identifiers
         for (String keyword : disallowedKeywords) {
-            if (upperCaseStatement.contains(keyword)) {
+            // Pattern matches keyword as a whole word (not part of another word)
+            // \b ensures word boundaries, and we use case-insensitive matching
+            Pattern pattern = Pattern.compile("\\b" + Pattern.quote(keyword) + "\\b", Pattern.CASE_INSENSITIVE);
+            Matcher matcher = pattern.matcher(customerPassedQuery);
+            if (matcher.find()) {
                 throw new UnsupportedOperationException("Unaccepted operation; only SELECT statements are allowed. Found: " + keyword);
             }
         }
