@@ -40,6 +40,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -81,7 +82,7 @@ public class SaphanaMetadataHandlerTest
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
@@ -190,7 +191,7 @@ public class SaphanaMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any(CredentialsProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
         SaphanaMetadataHandler saphanaMetadataHandler = new SaphanaMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new SaphanaJDBCCaseResolver(SAPHANA_NAME));
 
@@ -499,5 +500,39 @@ public class SaphanaMetadataHandlerTest
 
         Assert.assertThrows(Exception.class, () -> this.saphanaMetadataHandler.doGetTable(
                 this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap())));
+    }
+
+    @Test
+    public void testCreateCredentialsProvider()
+    {
+        String secretName = "testSecret";
+        software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration requestOverrideConfig = 
+            software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration.builder().build();
+        
+        // Mock CredentialsProviderFactory
+        try (MockedStatic<com.amazonaws.athena.connector.credentials.CredentialsProviderFactory> mockedFactory = 
+             Mockito.mockStatic(com.amazonaws.athena.connector.credentials.CredentialsProviderFactory.class)) {
+            
+            CredentialsProvider mockProvider = Mockito.mock(CredentialsProvider.class);
+            mockedFactory.when(() -> com.amazonaws.athena.connector.credentials.CredentialsProviderFactory.createCredentialProvider(
+                Mockito.eq(secretName),
+                Mockito.any(),
+                Mockito.any(com.amazonaws.athena.connectors.saphana.SaphanaOAuthCredentialsProvider.class),
+                Mockito.eq(requestOverrideConfig)
+            )).thenReturn(mockProvider);
+            
+            CredentialsProvider result = this.saphanaMetadataHandler.createCredentialsProvider(secretName, requestOverrideConfig);
+            
+            Assert.assertNotNull(result);
+            Assert.assertEquals(mockProvider, result);
+            
+            // Verify the factory was called with expected parameters
+            mockedFactory.verify(() -> com.amazonaws.athena.connector.credentials.CredentialsProviderFactory.createCredentialProvider(
+                Mockito.eq(secretName),
+                Mockito.any(),
+                Mockito.any(com.amazonaws.athena.connectors.saphana.SaphanaOAuthCredentialsProvider.class),
+                Mockito.eq(requestOverrideConfig)
+            ));
+        }
     }
 }
