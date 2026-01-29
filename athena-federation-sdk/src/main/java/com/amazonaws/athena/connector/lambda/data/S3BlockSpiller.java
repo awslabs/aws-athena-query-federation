@@ -204,10 +204,6 @@ public class S3BlockSpiller
             throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
         }
 
-        if (rows > maxRowsPerCall) {
-            throw new AthenaConnectorException("Call generated more than " + maxRowsPerCall + "rows. Generating " +
-                    "too many rows per call to writeRows(...) can result in blocks that exceed the max size.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
-        }
         if (rows > 0) {
             block.setRowCount(rowCount + rows);
         }
