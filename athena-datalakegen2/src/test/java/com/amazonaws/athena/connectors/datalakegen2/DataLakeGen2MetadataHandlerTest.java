@@ -81,6 +81,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -569,7 +570,7 @@ public class DataLakeGen2MetadataHandlerTest
     }
 
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void doGetTable_DataTypeQueryError_ThrowsRuntimeException() throws Exception {
         TableName tableName = new TableName("testSchema", "testTable");
 
@@ -580,12 +581,25 @@ public class DataLakeGen2MetadataHandlerTest
         ResultSet columnResultSet = mockResultSet(columnSchema, columnValues, new AtomicInteger(-1));
         when(connection.getMetaData().getColumns(any(), any(), any(), any())).thenReturn(columnResultSet);
 
-        when(connection.prepareStatement(any())).thenThrow(new RuntimeException(new SQLException("Test error")));
+        SQLException sqlException = new SQLException("Test error", "42000", 123);
+        RuntimeException expectedRuntimeException = new RuntimeException(sqlException);
+        when(connection.prepareStatement(any())).thenThrow(expectedRuntimeException);
 
-        dataLakeGen2MetadataHandler.doGetTable(
-                new BlockAllocatorImpl(),
-                new GetTableRequest(federatedIdentity, "testQueryId", "testCatalog", tableName, Collections.emptyMap())
-        );
+        try {
+            dataLakeGen2MetadataHandler.doGetTable(
+                    new BlockAllocatorImpl(),
+                    new GetTableRequest(federatedIdentity, "testQueryId", "testCatalog", tableName, Collections.emptyMap())
+            );
+            fail("Expected RuntimeException to be thrown");
+        } catch (RuntimeException e) {
+            assertNotNull(e.getMessage());
+            assertTrue("Exception message should contain cause: " + e.getMessage(),
+                    e.getMessage().contains("Test error"));
+            SQLException cause = (SQLException) e.getCause();
+            assertEquals("Test error", cause.getMessage());
+            assertEquals("42000", cause.getSQLState());
+            assertEquals(123, cause.getErrorCode());
+        }
     }
 
     @Test(expected = RuntimeException.class)
