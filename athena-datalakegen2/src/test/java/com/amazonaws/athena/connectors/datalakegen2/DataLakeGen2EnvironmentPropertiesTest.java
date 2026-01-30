@@ -41,7 +41,7 @@ public class DataLakeGen2EnvironmentPropertiesTest
     public void setUp()
     {
         connectionProperties = new HashMap<>();
-        connectionProperties.put(HOST, "afq-connection-000.sql.azuressss.net");
+        connectionProperties.put(HOST, "afq-connection-000.sql.azure.net");
         connectionProperties.put(PORT, "1433");
         connectionProperties.put(DATABASE, "testDB");
         connectionProperties.put(SECRET_NAME, "secret");
@@ -54,12 +54,12 @@ public class DataLakeGen2EnvironmentPropertiesTest
     {
         Map<String, String> dataLakeGen2ConnectionProperties = dataLakeGen2EnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
 
-        String expectedConnectionString = "datalakegentwo://jdbc:sqlserver://afq-connection-000.sql.azuressss.net:1433;databaseName=testDB;${secret}";
+        String expectedConnectionString = "datalakegentwo://jdbc:sqlserver://afq-connection-000.sql.azure.net:1433;databaseName=testDB;${secret}";
         assertEquals(expectedConnectionString, dataLakeGen2ConnectionProperties.get(DEFAULT));
     }
 
     @Test
-    public void getDelimiter_ReturnsSemicolonDelimiter()
+    public void getDelimiter_WithDefaultConfiguration_ReturnsSemicolonDelimiter()
     {
         assertEquals(";", dataLakeGen2EnvironmentProperties.getDelimiter());
     }
@@ -71,7 +71,7 @@ public class DataLakeGen2EnvironmentPropertiesTest
     }
 
     @Test
-    public void getJdbcParametersSeparator_ReturnsSemicolonSeparator()
+    public void getJdbcParametersSeparator_WithDefaultConfiguration_ReturnsSemicolonSeparator()
     {
         assertEquals(";", dataLakeGen2EnvironmentProperties.getJdbcParametersSeparator());
     }
@@ -80,5 +80,44 @@ public class DataLakeGen2EnvironmentPropertiesTest
     public void connectionPropertiesToEnvironment_WithNullProperties_ThrowsNullPointerException()
     {
         dataLakeGen2EnvironmentProperties.connectionPropertiesToEnvironment(null);
+    }
+
+    @Test
+    public void connectionPropertiesToEnvironment_WithEmptyProperties_ReturnsConnectionStringWithNulls()
+    {
+        Map<String, String> sqlServerConnectionProperties = dataLakeGen2EnvironmentProperties.connectionPropertiesToEnvironment(new HashMap<>());
+
+        String expectedConnectionString = "datalakegentwo://jdbc:sqlserver://null:null;databaseName=null;";
+        assertEquals(expectedConnectionString, sqlServerConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void connectionPropertiesToEnvironment_WithMissingHost_ReturnsConnectionStringWithNullHost()
+    {
+        connectionProperties.remove(HOST);
+        Map<String, String> sqlServerConnectionProperties = dataLakeGen2EnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+
+        String expectedConnectionString = "datalakegentwo://jdbc:sqlserver://null:1433;databaseName=testDB;${secret}";
+        assertEquals(expectedConnectionString, sqlServerConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void connectionPropertiesToEnvironment_WithMissingPort_ReturnsConnectionStringWithNullPort()
+    {
+        connectionProperties.remove(PORT);
+        Map<String, String> sqlServerConnectionProperties = dataLakeGen2EnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+
+        String expectedConnectionString = "datalakegentwo://jdbc:sqlserver://afq-connection-000.sql.azure.net:null;databaseName=testDB;${secret}";
+        assertEquals(expectedConnectionString, sqlServerConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void connectionPropertiesToEnvironment_WithMissingDatabase_ReturnsConnectionStringWithNullDatabase()
+    {
+        connectionProperties.remove(DATABASE);
+        Map<String, String> sqlServerConnectionProperties = dataLakeGen2EnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+
+        String expectedConnectionString = "datalakegentwo://jdbc:sqlserver://afq-connection-000.sql.azure.net:1433;databaseName=null;${secret}";
+        assertEquals(expectedConnectionString, sqlServerConnectionProperties.get(DEFAULT));
     }
 }
