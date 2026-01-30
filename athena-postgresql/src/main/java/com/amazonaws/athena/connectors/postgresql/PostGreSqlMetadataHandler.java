@@ -441,6 +441,9 @@ public class PostGreSqlMetadataHandler
     protected List<String> getSplitClauses(final TableName tableName)
     {
         List<String> splitClauses = new ArrayList<>();
+        // getSplitClauses is only used by PostgreSQL and Redshift connectors as of now,
+        // and it does not require AwsRequestOverrideConfiguration for FAS_TOKEN query federation.
+        // So keep it as is.
         // Check for UUID primary keys before attempting MIN/MAX query
         try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null,
