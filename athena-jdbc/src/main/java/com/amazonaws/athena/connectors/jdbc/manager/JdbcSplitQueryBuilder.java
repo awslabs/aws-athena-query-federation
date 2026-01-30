@@ -425,7 +425,7 @@ public abstract class JdbcSplitQueryBuilder
 
             ParameterMetaData metaData = statement.getParameterMetaData();
             if (metaData != null && metaData.getParameterCount() != accumulator.size()) {
-                LOGGER.error("Parameter count mismatch: SQL has {} parameters, accumulator has {}. Skipping parameter binding.",
+                LOGGER.warn("Parameter count mismatch: SQL has {} parameters, accumulator has {}. Skipping parameter binding.",
                         metaData.getParameterCount(), accumulator.size());
             }
             else {
