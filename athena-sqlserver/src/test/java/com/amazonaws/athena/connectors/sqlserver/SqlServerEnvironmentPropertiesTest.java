@@ -59,7 +59,7 @@ public class SqlServerEnvironmentPropertiesTest
     }
     
     @Test
-    public void getDelimiter_ReturnsSemicolonDelimiter()
+    public void getDelimiter_WithDefaultConfiguration_ReturnsSemicolonDelimiter()
     {
         assertEquals(";", sqlServerEnvironmentProperties.getDelimiter());
     }
@@ -71,7 +71,7 @@ public class SqlServerEnvironmentPropertiesTest
     }
     
     @Test
-    public void getJdbcParametersSeparator_ReturnsSemicolonSeparator()
+    public void getJdbcParametersSeparator_WithDefaultConfiguration_ReturnsSemicolonSeparator()
     {
         assertEquals(";", sqlServerEnvironmentProperties.getJdbcParametersSeparator());
     }
@@ -80,5 +80,44 @@ public class SqlServerEnvironmentPropertiesTest
     public void connectionPropertiesToEnvironment_WithNullProperties_ThrowsNullPointerException()
     {
         sqlServerEnvironmentProperties.connectionPropertiesToEnvironment(null);
+    }
+
+    @Test
+    public void connectionPropertiesToEnvironment_WithEmptyProperties_ReturnsConnectionStringWithNulls()
+    {
+        Map<String, String> sqlServerConnectionProperties = sqlServerEnvironmentProperties.connectionPropertiesToEnvironment(new HashMap<>());
+
+        String expectedConnectionString = "sqlserver://jdbc:sqlserver://null:null;databaseName=null;";
+        assertEquals(expectedConnectionString, sqlServerConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void connectionPropertiesToEnvironment_WithMissingHost_ReturnsConnectionStringWithNullHost()
+    {
+        connectionProperties.remove(HOST);
+        Map<String, String> sqlServerConnectionProperties = sqlServerEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+
+        String expectedConnectionString = "sqlserver://jdbc:sqlserver://null:1433;databaseName=testdb;${sqlserver-secret}";
+        assertEquals(expectedConnectionString, sqlServerConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void connectionPropertiesToEnvironment_WithMissingPort_ReturnsConnectionStringWithNullPort()
+    {
+        connectionProperties.remove(PORT);
+        Map<String, String> sqlServerConnectionProperties = sqlServerEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+
+        String expectedConnectionString = "sqlserver://jdbc:sqlserver://test.sqlserver.com:null;databaseName=testdb;${sqlserver-secret}";
+        assertEquals(expectedConnectionString, sqlServerConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void connectionPropertiesToEnvironment_WithMissingDatabase_ReturnsConnectionStringWithNullDatabase()
+    {
+        connectionProperties.remove(DATABASE);
+        Map<String, String> sqlServerConnectionProperties = sqlServerEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+
+        String expectedConnectionString = "sqlserver://jdbc:sqlserver://test.sqlserver.com:1433;databaseName=null;${sqlserver-secret}";
+        assertEquals(expectedConnectionString, sqlServerConnectionProperties.get(DEFAULT));
     }
 }

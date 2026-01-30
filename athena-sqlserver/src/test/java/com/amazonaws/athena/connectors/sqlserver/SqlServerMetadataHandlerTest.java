@@ -519,22 +519,7 @@ public class SqlServerMetadataHandlerTest
 
             TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
 
-            Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null))
-                    .thenReturn(resultSet);
-            Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
-
-            // Mock the connection used inside getSchema to return the mocked column type resultSet
-            Connection metadataConn = Mockito.mock(Connection.class);
-            PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
-            Mockito.when(stmt.executeQuery()).thenReturn(columnTypesResultSet);
-            Mockito.when(metadataConn.prepareStatement(Mockito.anyString())).thenReturn(stmt);
-            Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any())).thenReturn(metadataConn);
-
-            DatabaseMetaData metadata = Mockito.mock(DatabaseMetaData.class);
-            Mockito.when(metadata.getSearchStringEscape()).thenReturn("\\");
-            Mockito.when(metadata.getColumns(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
-                    .thenReturn(resultSet);
-            Mockito.when(metadataConn.getMetaData()).thenReturn(metadata);
+            mockMetadataConnection(resultSet, columnTypesResultSet);
 
             GetTableResponse getTableResponse = this.sqlServerMetadataHandler.doGetTable(
                     blockAllocator,
@@ -571,22 +556,7 @@ public class SqlServerMetadataHandlerTest
 
             TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
 
-            Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null))
-                    .thenReturn(resultSet);
-            Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
-
-            // Mock the connection used inside getSchema to return the mocked column type resultSet
-            Connection metadataConn = Mockito.mock(Connection.class);
-            PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
-            Mockito.when(stmt.executeQuery()).thenReturn(columnTypesResultSet);
-            Mockito.when(metadataConn.prepareStatement(Mockito.anyString())).thenReturn(stmt);
-            Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any())).thenReturn(metadataConn);
-
-            DatabaseMetaData metadata = Mockito.mock(DatabaseMetaData.class);
-            Mockito.when(metadata.getSearchStringEscape()).thenReturn("\\");
-            Mockito.when(metadata.getColumns(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
-                    .thenReturn(resultSet);
-            Mockito.when(metadataConn.getMetaData()).thenReturn(metadata);
+            mockMetadataConnection(resultSet, columnTypesResultSet);
 
             GetTableResponse getTableResponse = this.sqlServerMetadataHandler.doGetTable(
                     blockAllocator,
@@ -665,7 +635,24 @@ public class SqlServerMetadataHandlerTest
         assertEquals(1, topNPushdown.size());
         assertEquals("SUPPORTS_ORDER_BY", topNPushdown.get(0).getSubType());
     }
-    
+
+    private void mockMetadataConnection(ResultSet columnsResultSet, ResultSet dataTypeResultSet)
+            throws Exception
+    {
+        Connection metadataConn = Mockito.mock(Connection.class);
+        PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
+        Mockito.when(stmt.executeQuery()).thenReturn(dataTypeResultSet);
+        Mockito.when(metadataConn.prepareStatement(Mockito.anyString())).thenReturn(stmt);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(metadataConn);
+
+        DatabaseMetaData metadata = Mockito.mock(DatabaseMetaData.class);
+        Mockito.when(metadata.getSearchStringEscape()).thenReturn("\\");
+        Mockito.when(metadata.getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
+                .thenReturn(columnsResultSet);
+        Mockito.when(metadataConn.getMetaData()).thenReturn(metadata);
+        Mockito.when(metadataConn.getCatalog()).thenReturn("testCatalog");
+    }
+
     private Constraints createEmptyConstraint()
     {
         return new Constraints(
