@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -56,10 +55,10 @@ import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -76,6 +75,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -175,12 +175,16 @@ public abstract class JdbcMetadataHandler
 
     protected CredentialsProvider getCredentialProvider()
     {
-        final String secretName = databaseConnectionConfig.getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            LOGGER.info("Using Secrets Manager.");
-            return new DefaultCredentialsProvider(getSecret(secretName));
-        }
+        return getCredentialProvider(null);
+    }
 
+    @Override
+    public String getDatabaseConnectionSecret()
+    {
+        DatabaseConnectionConfig databaseConnectionConfig = getDatabaseConnectionConfig();
+        if (Objects.nonNull(databaseConnectionConfig)) {
+            return databaseConnectionConfig.getSecret();
+        }
         return null;
     }
 
@@ -188,7 +192,7 @@ public abstract class JdbcMetadataHandler
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
             throws Exception
     {
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(listSchemasRequest)))) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
         }
@@ -217,7 +221,7 @@ public abstract class JdbcMetadataHandler
     public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
             throws Exception
     {
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(listTablesRequest)))) {
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
                     listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
 
@@ -302,7 +306,9 @@ public abstract class JdbcMetadataHandler
             throws Exception
     {
         LOGGER.debug("doGetTable getTableName:{}", getTableRequest.getTableName());
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        AwsRequestOverrideConfiguration requestOverrideConfig = getRequestOverrideConfig(getTableRequest);
+
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(requestOverrideConfig))) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             TableName adjustedTableNameObject = caseResolver.getAdjustedTableNameObject(connection,
                     new TableName(getTableRequest.getTableName().getSchemaName(), getTableRequest.getTableName().getTableName()),
@@ -310,7 +316,7 @@ public abstract class JdbcMetadataHandler
 
             return new GetTableResponse(getTableRequest.getCatalogName(),
                     adjustedTableNameObject,
-                    getSchema(connection, adjustedTableNameObject, partitionSchema),
+                    getSchema(connection, adjustedTableNameObject, partitionSchema, requestOverrideConfig),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
     }
@@ -327,7 +333,7 @@ public abstract class JdbcMetadataHandler
         jdbcQueryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
         String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableRequest)))) {
             PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
             ResultSetMetaData metadata = preparedStatement.getMetaData();
             if (metadata == null) {
@@ -391,7 +397,17 @@ public abstract class JdbcMetadataHandler
                 configOptions);
     }
 
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    /**
+     * Gets the schema for a table with optional request override configuration.
+     *
+     * @param jdbcConnection the JDBC connection
+     * @param tableName the table name
+     * @param partitionSchema the partition schema
+     * @param requestOverrideConfiguration optional AWS request override configuration for credential federation
+     * @return the schema
+     * @throws Exception if an error occurs
+     */
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -470,6 +486,9 @@ public abstract class JdbcMetadataHandler
     protected List<String> getSplitClauses(final TableName tableName)
     {
         List<String> splitClauses = new ArrayList<>();
+        // getSplitClauses is only used by PostgreSQL connector as of now,
+        // and it does not require AwsRequestOverrideConfiguration for FAS_TOKEN query federation.
+        // So keep it as is.
         try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
                 ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
             List<String> primaryKeyColumns = new ArrayList<>();
