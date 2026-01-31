@@ -70,7 +70,7 @@ Please make sure above has trust entity to LakeFormation and Glue
 
 -----
 ## TPCDS Data generation:
-1. https://aws.amazon.com/marketplace/server/procurement?productId=94a13e9e-e2c3-4b49-8fcb-7a4713820307 go to this website and click accept. 
+1. https://aws.amazon.com/marketplace/pp/prodview-xtty6azr4xgey go to this website and click accept. 
 
 2. It is free, you will need this to generate data.
 
