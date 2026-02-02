@@ -230,6 +230,9 @@ public class DocDBMetadataHandler
 
         List<TableName> paginatedTables = tableNames.map(tableName -> new TableName(request.getSchemaName(), tableName)).collect(Collectors.toList());
         combinedTables.addAll(paginatedTables);
+        if (combinedTables.isEmpty()) {
+            nextToken = null;
+        }
         logger.info("doListTables returned {} tables. Next token is {}", paginatedTables.size(), nextToken);
         return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), nextToken);
     }
