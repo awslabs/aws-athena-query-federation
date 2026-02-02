@@ -130,22 +130,16 @@ public abstract class JdbcSplitQueryBuilder
         return prepareStatementWithSql(jdbcConnection, catalog, schema, table, tableSchema, constraints, split, columnNames);
     }
 
-    protected PreparedStatement prepareStatementWithSql(
-            final Connection jdbcConnection,
+    protected String buildSQLStringLiteral(
             final String catalog,
             final String schema,
             final String table,
             final Schema tableSchema,
             final Constraints constraints,
             final Split split,
-            final String columnNames)
-            throws SQLException
+            final String columnNames,
+            List<TypeAndValue> accumulator)
     {
-        if (constraints.getQueryPlan() != null) {
-            SqlDialect sqlDialect = getSqlDialect();
-            return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
-        }
-
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT ");
         sql.append(columnNames);
@@ -154,8 +148,6 @@ public abstract class JdbcSplitQueryBuilder
             sql.append("null");
         }
         sql.append(getFromClauseWithSplit(catalog, schema, table, split));
-
-        List<TypeAndValue> accumulator = new ArrayList<>();
 
         List<String> clauses = toConjuncts(tableSchema.getFields(), constraints, accumulator, split.getProperties());
         clauses.addAll(getPartitionWhereClauses(split));
@@ -177,7 +169,27 @@ public abstract class JdbcSplitQueryBuilder
             sql.append(appendLimitOffset(split)); // legacy method to preserve functionality of existing connector impls
         }
         LOGGER.info("Generated SQL : {}", sql.toString());
-        PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
+        return sql.toString();
+    }
+
+    protected PreparedStatement prepareStatementWithSql(
+            final Connection jdbcConnection,
+            final String catalog,
+            final String schema,
+            final String table,
+            final Schema tableSchema,
+            final Constraints constraints,
+            final Split split,
+            final String columnNames)
+            throws SQLException
+    {
+        if (constraints.getQueryPlan() != null) {
+            SqlDialect sqlDialect = getSqlDialect();
+            return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
+        }
+        List<TypeAndValue> accumulator = new ArrayList<>();
+        PreparedStatement statement = jdbcConnection.prepareStatement(
+                this.buildSQLStringLiteral(catalog, schema, table, tableSchema, constraints, split, columnNames, accumulator));
         // TODO all types, converts Arrow values to JDBC.
         for (int i = 0; i < accumulator.size(); i++) {
             TypeAndValue typeAndValue = accumulator.get(i);
