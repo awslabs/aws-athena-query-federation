@@ -381,6 +381,26 @@ public class SaphanaMetadataHandlerTest
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
         TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
+        
+        // Mock schema case resolution queries - return single schema match
+        String[] schemaQuerySchema = {"SCHEMA_NAME"};
+        Object[][] schemaQueryValues = {{"TESTSCHEMA"}};
+        AtomicInteger schemaRowNumber = new AtomicInteger(-1);
+        ResultSet schemaResultSet = mockResultSet(schemaQuerySchema, schemaQueryValues, schemaRowNumber);
+
+        PreparedStatement schemaStmt = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement("select * from SYS.SCHEMAS where lower(SCHEMA_NAME) = ?")).thenReturn(schemaStmt);
+        Mockito.when(schemaStmt.executeQuery()).thenReturn(schemaResultSet);
+        
+        // Mock table case resolution queries - return single table match
+        String[] tableQuerySchema = {"TABLE_NAME"};
+        Object[][] tableQueryValues = {{"TESTTABLE"}};
+        AtomicInteger tableRowNumber = new AtomicInteger(-1);
+        ResultSet tableResultSet = mockResultSet(tableQuerySchema, tableQueryValues, tableRowNumber);
+        
+        PreparedStatement tableStmt = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement("select * from SYS.TABLES where SCHEMA_NAME = ? and lower(TABLE_NAME) = ?")).thenReturn(tableStmt);
+        Mockito.when(tableStmt.executeQuery()).thenReturn(tableResultSet);
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
         GetTableResponse getTableResponse = this.saphanaMetadataHandler.doGetTable(
@@ -461,10 +481,14 @@ public class SaphanaMetadataHandlerTest
         String tableName = "testTable";
         TableName inputTableName = new TableName(schemaName, tableName + "@schemaCase=upper&tableCase=lower");
 
+        SaphanaMetadataHandler saphanaMetadataHandlerWithAnnotation = new SaphanaMetadataHandler(databaseConnectionConfig,
+            this.secretsManager, this.athena, this.jdbcConnectionFactory, 
+            com.google.common.collect.ImmutableMap.of(), 
+            new SaphanaJDBCCaseResolver(SAPHANA_NAME, CaseResolver.FederationSDKCasingMode.ANNOTATION));
         Mockito.when(connection.getMetaData().getColumns("testCatalog", schemaName.toUpperCase(), tableName.toLowerCase(), null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
 
-        GetTableResponse getTableResponse = this.saphanaMetadataHandler.doGetTable(
+        GetTableResponse getTableResponse = saphanaMetadataHandlerWithAnnotation.doGetTable(
                 this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
 
         Assert.assertEquals(expected, getTableResponse.getSchema());
@@ -499,5 +523,43 @@ public class SaphanaMetadataHandlerTest
 
         Assert.assertThrows(Exception.class, () -> this.saphanaMetadataHandler.doGetTable(
                 this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap())));
+    }
+
+    @Test
+    public void doGetTableWithNoneCasing()
+            throws Exception
+    {
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+
+        PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
+        Schema expected = expectedSchemaBuilder.build();
+
+        String schemaName = "TestSchema";
+        String tableName = "TestTable";
+        TableName inputTableName = new TableName(schemaName, tableName);
+
+        SaphanaMetadataHandler saphanaMetadataHandlerNone = new SaphanaMetadataHandler(databaseConnectionConfig,
+                this.secretsManager, this.athena, this.jdbcConnectionFactory,
+                com.google.common.collect.ImmutableMap.of(CaseResolver.CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.NONE.name()),
+                new SaphanaJDBCCaseResolver(SAPHANA_NAME, CaseResolver.FederationSDKCasingMode.NONE));
+
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", schemaName, tableName, null)).thenReturn(resultSet);
+        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+
+        GetTableResponse getTableResponse = saphanaMetadataHandlerNone.doGetTable(
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        Assert.assertEquals(expected, getTableResponse.getSchema());
+        Assert.assertEquals(new TableName(schemaName, tableName), getTableResponse.getTableName());
+        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 }
