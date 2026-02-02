@@ -50,6 +50,7 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableResult;
+import com.google.cloud.bigquery.storage.v1.ArrowRecordBatch;
 import com.google.cloud.bigquery.storage.v1.ArrowSchema;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
@@ -69,10 +70,16 @@ import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.ipc.ReadChannel;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.arrow.vector.util.ByteArrayReadableSeekableByteChannel;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -90,6 +97,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -150,62 +158,8 @@ public class BigQueryRecordHandlerTest
             .build();
     private FederatedIdentity federatedIdentity;
     private MockedStatic<BigQueryUtils> mockedStatic;
-    private MockedStatic<MessageSerializer> messageSer;
-    MockedConstruction<VectorSchemaRoot> mockedDefaultVectorSchemaRoot;
-    MockedConstruction<VectorLoader> mockedDefaultVectorLoader;
     @Mock
     private Job queryJob;
-
-    public List<FieldVector> getFieldVectors()
-    {
-        List<FieldVector> fieldVectors = new ArrayList<>();
-        IntVector intVector = new IntVector("int1", rootAllocator);
-        intVector.allocateNew(1024);
-        intVector.setSafe(0, 42);  // Example: Set the value at index 0 to 42
-        intVector.setSafe(1, 3);
-        intVector.setValueCount(2);
-        fieldVectors.add(intVector);
-        VarCharVector varcharVector = new VarCharVector("string1", rootAllocator);
-        varcharVector.allocateNew(1024);
-        varcharVector.setSafe(0, "test".getBytes(StandardCharsets.UTF_8));  // Example: Set the value at index 0 to 42
-        varcharVector.setSafe(1, "test1".getBytes(StandardCharsets.UTF_8));
-        varcharVector.setValueCount(2);
-        fieldVectors.add(varcharVector);
-        BitVector bitVector = new BitVector("bool1", rootAllocator);
-        bitVector.allocateNew(1024);
-        bitVector.setSafe(0, 1);  // Example: Set the value at index 0 to 42
-        bitVector.setSafe(1, 0);
-        bitVector.setValueCount(2);
-        fieldVectors.add(bitVector);
-        Float8Vector float8Vector = new Float8Vector("float1", rootAllocator);
-        float8Vector.allocateNew(1024);
-        float8Vector.setSafe(0, 1.00f);  // Example: Set the value at index 0 to 42
-        float8Vector.setSafe(1, 0.0f);
-        float8Vector.setValueCount(2);
-        fieldVectors.add(float8Vector);
-        IntVector innerVector = new IntVector("innerVector", rootAllocator);
-        innerVector.allocateNew(1024);
-        innerVector.setSafe(0, 10);
-        innerVector.setSafe(1, 20);
-        innerVector.setSafe(2, 30);
-        innerVector.setValueCount(3);
-
-        // Create a ListVector and add the inner vector to it
-        ListVector listVector = ListVector.empty("listVector", rootAllocator);
-        UnionListWriter writer = listVector.getWriter();
-        for (int i = 0; i < 2; i++) {
-            writer.startList();
-            writer.setPosition(i);
-            for (int j = 0; j < 5; j++) {
-                writer.writeInt(j * i);
-            }
-            writer.setValueCount(5);
-            writer.endList();
-        }
-        listVector.setValueCount(2);
-        fieldVectors.add(listVector);
-        return fieldVectors;
-    }
 
     @Before
     public void init()
@@ -229,10 +183,9 @@ public class BigQueryRecordHandlerTest
         //Create Spill config
         spillConfig = SpillConfig.newBuilder()
                 .withEncryptionKey(encryptionKey)
-                //This will be enough for a single block
-                .withMaxBlockBytes(100000)
                 //This will force the writer to spill.
-                .withMaxInlineBlockBytes(100)
+                .withMaxBlockBytes(20)
+                .withMaxInlineBlockBytes(1)
                 //Async Writing.
                 .withNumSpillThreads(0)
                 .withRequestId(UUID.randomUUID().toString())
@@ -278,47 +231,40 @@ public class BigQueryRecordHandlerTest
         try (ReadRecordsRequest request = getReadRecordsRequest(Collections.emptyMap())) {
             // Mocking necessary dependencies
             ReadSession readSession = mock(ReadSession.class);
-            ReadRowsResponse readRowsResponse = mock(ReadRowsResponse.class);
             ServerStreamingCallable ssCallable = mock(ServerStreamingCallable.class);
 
             // Mocking method calls
             mockStatic(BigQueryReadClient.class);
             when(BigQueryReadClient.create()).thenReturn(bigQueryReadClient);
-            messageSer = mockStatic(MessageSerializer.class);
-            when(MessageSerializer.deserializeSchema((ReadChannel) any())).thenReturn(BigQueryTestUtils.getBlockTestSchema());
-            mockedDefaultVectorLoader = Mockito.mockConstruction(VectorLoader.class,
-                    (mock, context) -> {
-                        Mockito.doNothing().when(mock).load(any());
-                    });
-            mockedDefaultVectorSchemaRoot = Mockito.mockConstruction(VectorSchemaRoot.class,
-                    (mock, context) -> {
-                        when(mock.getRowCount()).thenReturn(2);
-                        when(mock.getFieldVectors()).thenReturn(getFieldVectors());
-                    });
             when(bigQueryReadClient.createReadSession(any(CreateReadSessionRequest.class))).thenReturn(readSession);
             when(readSession.getArrowSchema()).thenReturn(arrowSchema);
             when(readSession.getStreamsCount()).thenReturn(1);
             ReadStream readStream = mock(ReadStream.class);
             when(readSession.getStreams(anyInt())).thenReturn(readStream);
             when(readStream.getName()).thenReturn("testStream");
-            byte[] byteArray1 = {(byte) 0xFF};
-            ByteString byteString1 = ByteString.copyFrom(byteArray1);
+
+            // Create proper schema serialization
+            Schema schema = new Schema(Arrays.asList(
+                    new Field("int1", FieldType.nullable(new ArrowType.Int(32, true)), null),
+                    new Field("string1", FieldType.nullable(new ArrowType.Utf8()), null),
+                    new Field("bool1", FieldType.nullable(new ArrowType.Bool()), null),
+                    new Field("float1", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null)
+            ));
+            
+            ByteArrayOutputStream schemaOut = new ByteArrayOutputStream();
+            MessageSerializer.serialize(new WriteChannel(java.nio.channels.Channels.newChannel(schemaOut)), schema);
 
             ByteString bs = mock(ByteString.class);
             when(arrowSchema.getSerializedSchema()).thenReturn(bs);
-            when(bs.toByteArray()).thenReturn(byteArray1);
+            when(bs.toByteArray()).thenReturn(schemaOut.toByteArray());
             when(bigQueryReadClient.readRowsCallable()).thenReturn(ssCallable);
+
             when(ssCallable.call(any(ReadRowsRequest.class))).thenReturn(serverStream);
-            when(serverStream.iterator()).thenReturn(ImmutableList.of(readRowsResponse).iterator());
-            when(readRowsResponse.hasArrowRecordBatch()).thenReturn(true);
-            com.google.cloud.bigquery.storage.v1.ArrowRecordBatch arrowRecordBatch = mock(com.google.cloud.bigquery.storage.v1.ArrowRecordBatch.class);
-            when(readRowsResponse.getArrowRecordBatch()).thenReturn(arrowRecordBatch);
-            byte[] byteArray = {(byte) 0xFF};
-            ByteString byteString = ByteString.copyFrom(byteArray);
-            when(arrowRecordBatch.getSerializedRecordBatch()).thenReturn(byteString);
-            ArrowRecordBatch apacheArrowRecordBatch = mock(ArrowRecordBatch.class);
-            when(MessageSerializer.deserializeRecordBatch(any(ReadChannel.class), any())).thenReturn(apacheArrowRecordBatch);
-            Mockito.doNothing().when(apacheArrowRecordBatch).close();
+            
+            // Create real ReadRowsResponse instead of mocking
+            ReadRowsResponse realReadRowsResponse = createReadRowsResponseExample();
+
+            when(serverStream.iterator()).thenReturn(ImmutableList.of(realReadRowsResponse).iterator());
 
             QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
 
@@ -327,9 +273,6 @@ public class BigQueryRecordHandlerTest
 
             //Ensure that there was a spill so that we can read the spilled block.
             assertTrue(spillWriter.spilled());
-            mockedDefaultVectorLoader.close();
-            mockedDefaultVectorSchemaRoot.close();
-            messageSer.close();
         }
     }
 
@@ -428,5 +371,77 @@ public class BigQueryRecordHandlerTest
         when(result.getPageNoSchema()).thenReturn(new BigQueryPage<>(tableRows));
 
         return result;
+    }
+
+    public static com.google.cloud.bigquery.storage.v1.ReadRowsResponse createReadRowsResponseExample() throws Exception {
+        com.google.cloud.bigquery.storage.v1.ArrowRecordBatch arrowRecordBatch = createExample();
+
+        ReadRowsResponse build = ReadRowsResponse.newBuilder()
+                .setArrowRecordBatch(arrowRecordBatch)
+                .setRowCount(2)
+                .build();
+        return build;
+    }
+
+    public static com.google.cloud.bigquery.storage.v1.ArrowRecordBatch createExample() throws Exception {
+        try(RootAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
+            // Create schema
+            Schema schema = new Schema(Arrays.asList(
+                    new Field("int1", FieldType.nullable(new ArrowType.Int(32, true)), null),
+                    new Field("string1", FieldType.nullable(new ArrowType.Utf8()), null),
+                    new Field("bool1", FieldType.nullable(new ArrowType.Bool()), null),
+                    new Field("float1", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null)
+            ));
+
+            // Create vectors with data
+            VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator);
+
+            IntVector intVector = (IntVector) root.getVector("int1");
+            intVector.allocateNew(2);
+            intVector.set(0, 42);
+            intVector.set(1, 3);
+            intVector.setValueCount(2);
+
+            VarCharVector stringVector = (VarCharVector) root.getVector("string1");
+            stringVector.allocateNew(2);
+            stringVector.set(0, "test".getBytes(StandardCharsets.UTF_8));
+            stringVector.set(1, "test1".getBytes(StandardCharsets.UTF_8));
+            stringVector.setValueCount(2);
+
+            BitVector boolVector = (BitVector) root.getVector("bool1");
+            boolVector.allocateNew(2);
+            boolVector.set(0, 1); // true
+            boolVector.set(1, 0); // false
+            boolVector.setValueCount(2);
+
+            Float8Vector floatVector = (Float8Vector) root.getVector("float1");
+            floatVector.allocateNew(2);
+            floatVector.set(0, 1.0);
+            floatVector.set(1, 0.0);
+            floatVector.setValueCount(2);
+
+            root.setRowCount(2);
+
+            // Use VectorUnloader to create proper ArrowRecordBatch
+            org.apache.arrow.vector.VectorUnloader unloader = new org.apache.arrow.vector.VectorUnloader(root);
+            org.apache.arrow.vector.ipc.message.ArrowRecordBatch batch = unloader.getRecordBatch();
+
+            // Serialize using MessageSerializer
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            MessageSerializer.serialize(new WriteChannel(java.nio.channels.Channels.newChannel(out)), batch);
+
+            // Create BigQuery ArrowRecordBatch
+            com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch =
+                    com.google.cloud.bigquery.storage.v1.ArrowRecordBatch.newBuilder()
+                            .setSerializedRecordBatch(ByteString.copyFrom(out.toByteArray()))
+                            .setRowCount(2)
+                            .build();
+
+            batch.close();
+            root.close();
+            allocator.close();
+
+            return recordBatch;
+        }
     }
 }
