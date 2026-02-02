@@ -48,6 +48,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
+import com.amazonaws.athena.connectors.jdbc.splits.SplitterFactory;
 import com.amazonaws.athena.connectors.postgresql.resolver.PostGreSqlJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -65,11 +67,13 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRESQL_DEFAULT_PORT;
@@ -102,6 +106,11 @@ public class PostGreSqlMetadataHandler
 
     //Session Property Flag that hints to the engine that the data source is using none default collation
     protected static final String NON_DEFAULT_COLLATE = "non_default_collate";
+    private static final String GET_DATA_TYPE_QUERY = "SELECT data_type FROM information_schema.columns " +
+            "WHERE table_schema = ? AND table_name = ? AND column_name = ?";
+    protected final SplitterFactory splitterFactory = new SplitterFactory();
+    protected static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s;";
+    protected static final int DEFAULT_NUM_SPLITS = 20;
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -419,6 +428,91 @@ public class PostGreSqlMetadataHandler
             }
         }
         return charColumns;
+    }
+
+    /**
+     * This method automatically detects and skips UUID columns to prevent flooding PostgreSQL logs
+     * with "function min(uuid) does not exist" errors.
+     *
+     * @param tableName The table to generate split clauses for
+     * @return List of split clauses, empty if splits cannot be generated or if disabled
+     */
+
+    protected List<String> getSplitClauses(final TableName tableName)
+    {
+        List<String> splitClauses = new ArrayList<>();
+        // Check for UUID primary keys before attempting MIN/MAX query
+        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null,
+                     tableName.getSchemaName(), tableName.getTableName())) {
+            String primaryKeyColumn = null;
+            if (resultSet.next()) {
+                primaryKeyColumn = resultSet.getString("COLUMN_NAME");
+            }
+
+            if (primaryKeyColumn != null) {
+                // Check if the primary key column is UUID type
+                if (isUuidColumn(jdbcConnection, tableName, primaryKeyColumn)) {
+                    LOGGER.info("Primary key '{}' is UUID type. Skipping split generation for table: {}.{} " +
+                                    "(UUID columns do not support MIN/MAX functions in PostgreSQL)",
+                            primaryKeyColumn, tableName.getSchemaName(), tableName.getTableName());
+                    return splitClauses;
+                }
+                else {
+                    try (Statement statement = jdbcConnection.createStatement();
+                         ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumn, primaryKeyColumn,
+                                 wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
+                        minMaxResultSet.next(); // expecting one result row
+                        Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumn, minMaxResultSet, DEFAULT_NUM_SPLITS);
+
+                        if (optionalSplitter.isPresent()) {
+                            Splitter splitter = optionalSplitter.get();
+                            while (splitter.hasNext()) {
+                                String splitClause = splitter.nextRangeClause();
+                                LOGGER.info("Split generated {}", splitClause);
+                                splitClauses.add(splitClause);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex) {
+            LOGGER.warn("Unable to split data.", ex);
+        }
+        return splitClauses;
+    }
+
+    /**
+     * Checks if a column is of UUID type in PostgreSQL.
+     *
+     * @param connection JDBC connection
+     * @param tableName Table containing the column
+     * @param columnName Column to check
+     * @return true if column is UUID type, false otherwise
+     */
+    private boolean isUuidColumn(Connection connection, TableName tableName, String columnName)
+    {
+        try (PreparedStatement stmt = connection.prepareStatement(GET_DATA_TYPE_QUERY)) {
+            stmt.setString(1, tableName.getSchemaName());
+            stmt.setString(2, tableName.getTableName());
+            stmt.setString(3, columnName);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String dataType = rs.getString("data_type");
+                    LOGGER.debug("Data type for Column: {}.{}.{} is: {}",
+                            tableName.getSchemaName(), tableName.getTableName(), columnName, dataType);
+                    return "uuid".equalsIgnoreCase(dataType);
+                }
+            }
+        }
+        catch (SQLException ex) {
+            LOGGER.warn("Error checking if column {} is UUID type for table {}.{}: {}",
+                    columnName, tableName.getSchemaName(), tableName.getTableName(), ex.getMessage());
+        }
+
+        return false;
     }
 
     protected String wrapNameWithEscapedCharacter(String input)
