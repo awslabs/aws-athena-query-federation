@@ -29,6 +29,8 @@ import com.google.common.base.Strings;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.SnowflakeSqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,5 +171,38 @@ public class SnowflakeQueryStringBuilder
     {
         name = name.replace(SINGLE_QUOTE_CHAR, SINGLE_QUOTE_CHAR + SINGLE_QUOTE_CHAR);
         return SINGLE_QUOTE_CHAR + name + SINGLE_QUOTE_CHAR;
+    }
+
+    @Override
+    protected String appendLimitOffset(Split split)
+    {
+        if (split == null || split.getProperties().isEmpty()) {
+            return "";
+        }
+        String primaryKey = "";
+        String xLimit = "";
+        String xOffset = "";
+        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next()); //p-primary-<PRIMARYKEY>-limit-3000-offset-0
+        if (!partitionVal.contains("-")) {
+            return "";
+        }
+        else {
+            String[] arr = partitionVal.split("-");
+            primaryKey = arr[2];
+            xLimit = arr[4];
+            xOffset = arr[6];
+        }
+
+        // if no primary key, single split only
+        if (primaryKey.equals("")) {
+            return "";
+        }
+        return "ORDER BY " + primaryKey + " " +  appendLimitOffsetWithValue(xLimit, xOffset);
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+       return SnowflakeSqlDialect.DEFAULT;
     }
 }
