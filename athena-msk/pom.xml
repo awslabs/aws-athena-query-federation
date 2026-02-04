@@ -82,7 +82,7 @@
         <dependency>
             <groupId>software.amazon.glue</groupId>
             <artifactId>schema-registry-serde</artifactId>
-            <version>1.1.25</version>
+            <version>1.1.27</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
