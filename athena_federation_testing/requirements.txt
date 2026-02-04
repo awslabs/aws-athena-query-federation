@@ -59,4 +59,4 @@ sqlalchemy-redshift==0.8.14
 tomlkit==0.13.2
 typing_extensions==4.13.2
 tzdata==2025.2
-urllib3==1.26.20
+urllib3==2.6.3
