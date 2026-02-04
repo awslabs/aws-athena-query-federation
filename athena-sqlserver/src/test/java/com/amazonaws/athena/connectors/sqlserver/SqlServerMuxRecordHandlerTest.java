@@ -97,7 +97,7 @@ public class SqlServerMuxRecordHandlerTest
         Connection jdbcConnection = Mockito.mock(Connection.class);
         TableName tableName = new TableName("testSchema", "tableName");
         Schema schema = Mockito.mock(Schema.class);
-        Constraints constraints = Mockito.mock(Constraints.class);
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
         Split split = Mockito.mock(Split.class);
         this.jdbcRecordHandler.buildSplitSql(jdbcConnection, SqlServerConstants.NAME, tableName, schema, constraints, split);
         Mockito.verify(this.sqlServerRecordHandler, Mockito.times(1)).buildSplitSql(Mockito.eq(jdbcConnection), Mockito.eq(SqlServerConstants.NAME), Mockito.eq(tableName), Mockito.eq(schema), Mockito.eq(constraints), Mockito.eq(split));
