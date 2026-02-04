@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -70,7 +69,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,6 +88,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Abstracts JDBC record handler and provides common reusable split records handling.
@@ -139,11 +138,16 @@ public abstract class JdbcRecordHandler
 
     protected CredentialsProvider getCredentialProvider()
     {
-        final String secretName = this.databaseConnectionConfig.getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            return new DefaultCredentialsProvider(getSecret(secretName));
-        }
+        return getCredentialProvider(null);
+    }
 
+    @Override
+    public String getDatabaseConnectionSecret()
+    {
+        DatabaseConnectionConfig databaseConnectionConfig = getDatabaseConnectionConfig();
+        if (Objects.nonNull(databaseConnectionConfig)) {
+            return databaseConnectionConfig.getSecret();
+        }
         return null;
     }
 
@@ -153,7 +157,7 @@ public abstract class JdbcRecordHandler
     {
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
-        try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(readRecordsRequest)))) {
             String databaseProductName = connection.getMetaData().getDatabaseProductName();
 
             // clickhouse does not support disabling auto-commit

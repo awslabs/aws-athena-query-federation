@@ -34,7 +34,7 @@
         <dependency>
             <groupId>io.confluent</groupId>
             <artifactId>kafka-avro-serializer</artifactId>
-            <version>8.1.0</version>
+            <version>8.1.1</version>
         </dependency>
         <dependency>
             <groupId>io.confluent</groupId>
@@ -127,7 +127,7 @@
         <dependency>
             <groupId>org.junit.support</groupId>
             <artifactId>testng-engine</artifactId>
-            <version>1.0.6</version>
+            <version>1.1.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
