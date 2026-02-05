@@ -63,8 +63,14 @@ public class DataLakeQueryStringBuilderTest
     {
         Split split = Mockito.mock(Split.class);
         DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getLimit()).thenReturn(5L);
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                5L,
+                Collections.emptyMap(),
+                null
+        );
         org.testng.Assert.assertEquals("", builder.appendLimitOffset(split, constraints));
     }
 }
