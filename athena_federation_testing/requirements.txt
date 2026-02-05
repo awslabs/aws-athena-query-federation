@@ -29,7 +29,7 @@ packaging==25.0
 pandas==2.2.3
 platformdirs==4.3.7
 proto-plus==1.26.1
-protobuf==6.32.0
+protobuf==6.33.5
 psycopg2-binary==2.9.9
 pyarrow==19.0.1
 pyasn1==0.6.2
