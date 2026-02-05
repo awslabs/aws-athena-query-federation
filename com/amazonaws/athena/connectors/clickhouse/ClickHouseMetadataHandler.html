@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -248,6 +248,14 @@ extends <a href="../mysql/MySqlMetadataHandler.html" title="class in com.amazona
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code><a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesResponse</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities</a></span>&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                           <a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesRequest</a>&nbsp;request)</code></th>
+<td class="colLast">
+<div class="block">Used to describe the types of capabilities supported by a data source.</div>
+</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code><a href="../../connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits</a></span>&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
            <a href="../../connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;getSplitsRequest)</code></th>
@@ -255,7 +263,7 @@ extends <a href="../mysql/MySqlMetadataHandler.html" title="class in com.amazona
 <div class="block">Used to split-up the reads required to scan the requested batch of partition(s).</div>
 </td>
 </tr>
-<tr id="i1" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPaginatedTables(java.sql.Connection,java.lang.String,int,int)">getPaginatedTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName,
@@ -263,7 +271,7 @@ extends <a href="../mysql/MySqlMetadataHandler.html" title="class in com.amazona
                   int&nbsp;limit)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions</a></span>&#8203;(<a href="../../connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
              <a href="../../connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;getTableLayoutRequest,
@@ -272,19 +280,19 @@ extends <a href="../mysql/MySqlMetadataHandler.html" title="class in com.amazona
 <div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>org.apache.arrow.vector.types.pojo.Schema</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionSchema(java.lang.String)">getPartitionSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName)</code></th>
 <td class="colLast">
 <div class="block">Delegates creation of partition schema to database type implementation.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Set.html?is-external=true" title="class or interface in java.util" class="externalLink">Set</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listDatabaseNames(java.sql.Connection)">listDatabaseNames</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>protected <a href="../../connector/lambda/metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
                    <a href="../../connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;listTablesRequest)</code></th>
@@ -292,20 +300,13 @@ extends <a href="../mysql/MySqlMetadataHandler.html" title="class in com.amazona
 <div class="block">This is default getAllTables without true pagination.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listTables(java.sql.Connection,java.lang.String)">listTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
-<ul class="blockList">
-<li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connectors.mysql.MySqlMetadataHandler">
-<!--   -->
-</a>
-<h3>Methods inherited from class&nbsp;com.amazonaws.athena.connectors.mysql.<a href="../mysql/MySqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.mysql">MySqlMetadataHandler</a></h3>
-<code><a href="../mysql/MySqlMetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities</a></code></li>
-</ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler">
 <!--   -->
@@ -407,6 +408,30 @@ extends <a href="../mysql/MySqlMetadataHandler.html" title="class in com.amazona
 <!--   -->
 </a>
 <h3>Method Detail</h3>
+<a id="doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>doGetDataSourceCapabilities</h4>
+<pre class="methodSignature">public&nbsp;<a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesResponse</a>&nbsp;doGetDataSourceCapabilities&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                                                                     <a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesRequest</a>&nbsp;request)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from class:&nbsp;<code><a href="../../connector/lambda/handlers/MetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">MetadataHandler</a></code></span></div>
+<div class="block">Used to describe the types of capabilities supported by a data source. An engine can use this to determine what
+ portions of the query to push down. A connector that returns any optimization will guarantee that the associated
+ predicate will be pushed down.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
+<dd><code><a href="../mysql/MySqlMetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities</a></code>&nbsp;in class&nbsp;<code><a href="../mysql/MySqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.mysql">MySqlMetadataHandler</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>allocator</code> - Tool for creating and managing Apache Arrow Blocks.</dd>
+<dd><code>request</code> - Provides details about the catalog being used.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>A GetDataSourceCapabilitiesResponse object which returns a map of supported optimizations that
+ the connector is advertising to the consumer. The connector assumes all responsibility for whatever is passed here.</dd>
+</dl>
+</li>
+</ul>
 <a id="getPartitionSchema(java.lang.String)">
 <!--   -->
 </a>
