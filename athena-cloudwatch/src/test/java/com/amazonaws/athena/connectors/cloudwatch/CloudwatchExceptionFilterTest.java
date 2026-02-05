@@ -22,35 +22,34 @@ package com.amazonaws.athena.connectors.cloudwatch;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.mockito.Mock;
 import software.amazon.awssdk.services.cloudwatchlogs.model.CloudWatchLogsException;
 import software.amazon.awssdk.services.cloudwatch.model.LimitExceededException;
 import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchExceptionFilter.EXCEPTION_FILTER;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CloudwatchExceptionFilterTest
 {
-    @Mock
-    private CloudWatchLogsException mockCloudWatchLogsException;
-
     @Test
     public void isMatch_withCloudWatchLogsExceptionAndRateExceeded_returnsTrue()
     {
-        when(mockCloudWatchLogsException.getMessage()).thenReturn("Rate exceeded");
+        CloudWatchLogsException exception = (CloudWatchLogsException) CloudWatchLogsException.builder()
+                .message("Rate exceeded")
+                .build();
         
-        boolean match = EXCEPTION_FILTER.isMatch(mockCloudWatchLogsException);
+        boolean match = EXCEPTION_FILTER.isMatch(exception);
         assertTrue("Should match CloudWatchLogsException with 'Rate exceeded' message", match);
     }
 
     @Test
     public void isMatch_withCloudWatchLogsExceptionAndDifferentMessage_returnsFalse()
     {
-        when(mockCloudWatchLogsException.getMessage()).thenReturn("Invalid parameter");
+        CloudWatchLogsException exception = (CloudWatchLogsException) CloudWatchLogsException.builder()
+                .message("Invalid parameter")
+                .build();
         
-        boolean match = EXCEPTION_FILTER.isMatch(mockCloudWatchLogsException);
+        boolean match = EXCEPTION_FILTER.isMatch(exception);
         assertFalse("Should not match CloudWatchLogsException with different message", match);
     }
 

@@ -35,6 +35,7 @@ import software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertNotNull;
@@ -45,6 +46,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
+import org.mockito.ArgumentCaptor;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CloudwatchUtilsTest {
@@ -88,7 +90,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void getQueryResult_withValidRequest_returnsResponseWithQueryId() {
+    public void getQueryResult_withValidRequest_returnsResponse() {
         StartQueryRequest request = CloudwatchUtils.startQueryRequest(qptArguments);
         StartQueryResponse mockResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
 
@@ -96,13 +98,15 @@ public class CloudwatchUtilsTest {
 
         StartQueryResponse response = CloudwatchUtils.getQueryResult(mockAwsLogs, request);
 
-        assertNotNull(response);
-        assertEquals(TEST_QUERY_ID, response.queryId());
+        // Verify that the method returns the exact response from the CloudWatch client
+        assertEquals(mockResponse, response);
+
+        // Verify that the CloudWatch client was called with the exact request object
         verify(mockAwsLogs).startQuery(request);
     }
 
     @Test
-    public void getQueryResults_withValidRequest_returnsCompleteStatus() {
+    public void getQueryResults_withValidRequest_constructsRequestWithQueryIdAndReturnsResponse() {
         StartQueryResponse startQueryResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
         GetQueryResultsResponse mockResults = GetQueryResultsResponse.builder()
                 .status(QueryStatus.COMPLETE)
@@ -112,25 +116,49 @@ public class CloudwatchUtilsTest {
 
         GetQueryResultsResponse response = CloudwatchUtils.getQueryResults(mockAwsLogs, startQueryResponse);
 
-        assertNotNull(response);
-        assertEquals(QueryStatus.COMPLETE, response.status());
-        verify(mockAwsLogs).getQueryResults(any(GetQueryResultsRequest.class));
+        // Verify that the method returns the exact response from the CloudWatch client
+        assertEquals(mockResults, response);
+
+        // Verify that the CloudWatch client was called with a request containing the correct query ID
+        ArgumentCaptor<GetQueryResultsRequest> requestCaptor = ArgumentCaptor.forClass(GetQueryResultsRequest.class);
+        verify(mockAwsLogs).getQueryResults(requestCaptor.capture());
+        assertEquals(TEST_QUERY_ID, requestCaptor.getValue().queryId());
     }
 
     @Test
-    public void getResult_withValidArguments_returnsCompleteStatusAfterInvocation() throws TimeoutException, InterruptedException {
+    public void getResult_withValidArguments_returnsCorrectResponse() throws TimeoutException, InterruptedException  {
             StartQueryResponse startQueryResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
-            GetQueryResultsResponse mockResults = GetQueryResultsResponse.builder()
+            GetQueryResultsResponse runningResponse = GetQueryResultsResponse.builder()
+                    .status(QueryStatus.RUNNING)
+                    .build();
+            GetQueryResultsResponse completeResponse = GetQueryResultsResponse.builder()
                     .status(QueryStatus.COMPLETE)
                     .build();
 
-            when(mockInvoker.invoke(any())).thenReturn(startQueryResponse).thenReturn(mockResults);
+        // Execute the callable so that getResult's logic runs and the CW client is invoked with real requests
+        when(mockInvoker.invoke(any())).thenAnswer(invocation -> invocation.getArgument(0, Callable.class).call());
+
+        when(mockAwsLogs.startQuery(any(StartQueryRequest.class))).thenReturn(startQueryResponse);
+        when(mockAwsLogs.getQueryResults(any(GetQueryResultsRequest.class))).thenReturn(runningResponse, completeResponse);
 
             GetQueryResultsResponse response = CloudwatchUtils.getResult(mockInvoker, mockAwsLogs, qptArguments, TEST_LIMIT);
 
-            assertNotNull(response);
-            assertEquals(QueryStatus.COMPLETE, response.status());
-            verify(mockInvoker, times(2)).invoke(any());
+        // Verify correct response is returned
+        assertEquals(completeResponse, response);
+
+        // Verify CW client was called with the correct StartQueryRequest (from qptArguments and limit)
+        ArgumentCaptor<StartQueryRequest> startRequestCaptor = ArgumentCaptor.forClass(StartQueryRequest.class);
+        verify(mockAwsLogs).startQuery(startRequestCaptor.capture());
+        StartQueryRequest startRequest = startRequestCaptor.getValue();
+        assertEquals(TEST_QUERY_STRING, startRequest.queryString());
+        assertArrayEquals(new String[]{TEST_LOG_GROUP_1, TEST_LOG_GROUP_2}, startRequest.logGroupNames().toArray(new String[0]));
+        assertEquals(TEST_LIMIT, (int) startRequest.limit());
+
+        // Verify getQueryResults was called with the correct query ID and that we poll until COMPLETE (2 calls: RUNNING then COMPLETE)
+        ArgumentCaptor<GetQueryResultsRequest> getResultsCaptor = ArgumentCaptor.forClass(GetQueryResultsRequest.class);
+        verify(mockAwsLogs, times(2)).getQueryResults(getResultsCaptor.capture());
+        assertEquals(TEST_QUERY_ID, getResultsCaptor.getAllValues().get(0).queryId());
+        assertEquals(TEST_QUERY_ID, getResultsCaptor.getAllValues().get(1).queryId());
     }
 
     @Test
