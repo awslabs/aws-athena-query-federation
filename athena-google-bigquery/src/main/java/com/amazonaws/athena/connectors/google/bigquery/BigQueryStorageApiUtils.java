@@ -21,9 +21,11 @@
 package com.amazonaws.athena.connectors.google.bigquery;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.common.base.Preconditions;
@@ -32,6 +34,10 @@ import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.dialect.BigQuerySqlDialect;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,13 +238,48 @@ public class BigQueryStorageApiUtils
 
     public static ReadSession.TableReadOptions.Builder setConstraints(ReadSession.TableReadOptions.Builder optionsBuilder, Schema schema, Constraints constraints)
     {
-        List<String> clauses = toConjuncts(schema.getFields(), constraints);
+        List<String> clauses;
+        final QueryPlan queryPlan = constraints.getQueryPlan();
 
-        if (!clauses.isEmpty()) {
-            String clause = BigQuerySqlUtils.renderTemplate("where_clause", Map.of("clauses", clauses));
-            LOGGER.debug("clause {}", clause);
-            optionsBuilder = optionsBuilder.setRowRestriction(clause);
+        if (queryPlan != null) {
+            LOGGER.info("Using Substrait query plan for Storage API row restrictions");
+            String whereClause = getWhereClauseFromQueryPlan(constraints, schema);
+            LOGGER.info("Generated WHERE clause: {}", whereClause);
+            if (!StringUtils.isEmpty(whereClause)) {
+                optionsBuilder = optionsBuilder.setRowRestriction(whereClause);
+            }
+        }
+        else {
+            LOGGER.debug("Using legacy Constraints (ValueSet) for Storage API row restrictions");
+            clauses = toConjuncts(schema.getFields(), constraints);
+            if (!clauses.isEmpty()) {
+                String clause = BigQuerySqlUtils.renderTemplate("where_clause", Map.of("clauses", clauses));
+                LOGGER.debug("clause {}", clause);
+                optionsBuilder = optionsBuilder.setRowRestriction(clause);
+            }
         }
         return optionsBuilder;
+    }
+
+    public static String getWhereClauseFromQueryPlan(Constraints constraints, Schema schema)
+    {
+        try {
+            SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(constraints.getQueryPlan().getSubstraitPlan(),
+                    BigQuerySqlDialect.DEFAULT);
+            if (!(sqlNode instanceof SqlSelect)) {
+                throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
+            }
+
+            SqlSelect root = (SqlSelect) sqlNode;
+            SqlNode whereClause = root.getWhere();
+            if (whereClause == null) {
+                return ""; // No WHERE clause
+            }
+            return whereClause.toSqlString(BigQuerySqlDialect.DEFAULT).getSql();
+        }
+        catch (Exception e) {
+            LOGGER.warn("Failed to parse Substrait plan for Storage API: {}.", e.getMessage(), e);
+            throw new RuntimeException(e);
+        }
     }
 }
