@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -50,9 +51,9 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableResult;
-import com.google.cloud.bigquery.storage.v1.ArrowRecordBatch;
 import com.google.cloud.bigquery.storage.v1.ArrowSchema;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
+import com.google.cloud.bigquery.storage.v1.BigQueryReadSettings;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
@@ -62,16 +63,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.impl.UnionListWriter;
-import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
@@ -79,7 +74,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.arrow.vector.util.ByteArrayReadableSeekableByteChannel;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -113,7 +107,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
@@ -234,10 +227,11 @@ public class BigQueryRecordHandlerTest
             ServerStreamingCallable ssCallable = mock(ServerStreamingCallable.class);
 
             // Mocking method calls
-            mockStatic(BigQueryReadClient.class);
-            when(BigQueryReadClient.create()).thenReturn(bigQueryReadClient);
-            when(bigQueryReadClient.createReadSession(any(CreateReadSessionRequest.class))).thenReturn(readSession);
-            when(readSession.getArrowSchema()).thenReturn(arrowSchema);
+            try (MockedStatic<BigQueryReadClient> mockedReadClient = mockStatic(BigQueryReadClient.class)) {
+                mockedReadClient.when(() -> BigQueryReadClient.create(any(BigQueryReadSettings.class))).thenReturn(bigQueryReadClient);
+                when(bigQueryReadClient.createReadSession(any(CreateReadSessionRequest.class))).thenReturn(readSession);
+                when(readSession.getArrowSchema()).thenReturn(arrowSchema);
+
             when(readSession.getStreamsCount()).thenReturn(1);
             ReadStream readStream = mock(ReadStream.class);
             when(readSession.getStreams(anyInt())).thenReturn(readStream);
@@ -273,6 +267,7 @@ public class BigQueryRecordHandlerTest
 
             //Ensure that there was a spill so that we can read the spilled block.
             assertTrue(spillWriter.spilled());
+            }
         }
     }
 
@@ -319,6 +314,43 @@ public class BigQueryRecordHandlerTest
         }
     }
 
+    /**
+     * Test that queries with LIMIT and/or ORDER BY use SQL API instead of Storage API
+     */
+    @Test
+    public void testQueryPlanWithLimitAndSort_UsesSqlApi() throws Exception
+    {
+        String substraitPlan = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIQGg4IARABGghhbmQ6Ym9vbBIPGg0IARACGgdvcjpib29sEhUaEwgCEAMaDWVxdWFsOmFueV9hbnkSGRoXCAIQBBoRbm90X2VxdWFsOmFueV9hbnkaiAYShQYK/gUa+wUKAgoAEvAFOu0FCgUSAwoBFhLXBRLUBQoCCgASlwQKlAQKAgoAEuQDCglpc19hY3RpdmUKC3RpbnlpbnRfY29sCgxzbWFsbGludF9jb2wKCHByaW9yaXR5CgpiaWdpbnRfY29sCglmbG9hdF9jb2wKCmRvdWJsZV9jb2wKCHJlYWxfY29sCgt2YXJjaGFyX2NvbAoIY2hhcl9jb2wKDXZhcmJpbmFyeV9jb2wKCGRhdGVfY29sCgh0aW1lX2NvbAoNdGltZXN0YW1wX2NvbAoCaWQKDGRlY2ltYWxfY29sMgoMZGVjaW1hbF9jb2wzCgtzdWJjYXRlZ29yeQoNaW50X2FycmF5X2NvbAoHbWFwX2NvbAoQbWFwX3dpdGhfZGVjaW1hbAoMbmVzdGVkX2FycmF5EtYBCgQKAhACCgQSAhACCgQaAhACCgQqAhACCgQ6AhACCgRaAhACCgRaAhACCgRSAhACCgRiAhACCgeqAQQIARgCCgRqAhACCgWCAQIQAgoFigECEAIKBYoCAhgCCgnCAQYIBBATIAIKCcIBBggCEAogAgoJwgEGCAoQEyACCgvaAQgKBGICEAIYAgoL2gEICgQqAhACGAIKEeIBDgoEYgIQAhIEKgIQAiACChbiARMKBGICEAISCcIBBggCEAogAiACChLaAQ8KC9oBCAoEKgIQAhgCGAIYAjonCgpteV9kYXRhc2V0ChlzZXJ2aWNlX3JlcXVlc3RzX25vX25vaXNlGrMBGrABCAEaBAoCEAIigwEagAEafggCGgQKAhACIjkaNxo1CAMaBAoCEAIiDBoKEggKBBICCA4iACIdGhsKGcIBFgoQQEIPAAAAAAAAAAAAAAAAABATGAQiORo3GjUIAxoECgIQAiIMGgoSCAoEEgIIDiIAIh0aGwoZwgEWChCAhB4AAAAAAAAAAAAAAAAAEBMYBCIgGh4aHAgEGgQKAhACIgoaCBIGCgISACIAIgYaBAoCCAEaChIICgQSAggOIgAYACAKEgJJRDILEEoqB2lzdGhtdXM=";
+
+        QueryPlan queryPlan = new QueryPlan("", substraitPlan);
+        Constraints constraints = new Constraints(
+            Collections.emptyMap(),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            100L,
+            Collections.emptyMap(),
+            queryPlan
+        );
+
+        try (ReadRecordsRequest request = createReadRecordsRequestWithConstraints(constraints)) {
+            // Mock SQL API response
+            QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+            when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+            when(bigQuery.create(any(JobInfo.class))).thenReturn(queryJob);
+            when(queryJob.isDone()).thenReturn(false).thenReturn(true);
+            TableResult result = setupMockTableResult();
+            when(queryJob.getQueryResults()).thenReturn(result);
+
+            // Execute test
+            bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
+
+            // Verify SQL API was used (not Storage API)
+            verify(bigQuery).create(any(JobInfo.class));
+        }
+    }
+
+
+
     private Map<String, String> getPassthroughArgs() {
         return Map.of(
                 "schemaFunctionName", "SYSTEM.QUERY",
@@ -343,6 +375,27 @@ public class BigQueryRecordHandlerTest
                 new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, passthroughArgs, null),
                 0,
                 0);
+    }
+
+    private ReadRecordsRequest createReadRecordsRequestWithConstraints(Constraints constraints)
+    {
+        return new ReadRecordsRequest(
+            federatedIdentity,
+            BigQueryTestUtils.PROJECT_1_NAME,
+            "queryId",
+            new TableName("dataset1", "table1"),
+            getBlockTestSchema(),
+            Split.newBuilder(S3SpillLocation.newBuilder()
+                    .withBucket(bucket)
+                    .withPrefix(prefix)
+                    .withSplitId(UUID.randomUUID().toString())
+                    .withQueryId(UUID.randomUUID().toString())
+                    .withIsDirectory(true)
+                    .build(),
+                keyFactory.create()).build(),
+            constraints,
+            0,
+            0);
     }
 
     private TableResult setupMockTableResult() {
