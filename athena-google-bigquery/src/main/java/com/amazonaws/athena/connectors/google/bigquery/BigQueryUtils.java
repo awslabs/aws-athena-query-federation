@@ -276,12 +276,12 @@ public class BigQueryUtils
             case Timestamp: {
                 ArrowType.Timestamp actualType = (ArrowType.Timestamp) arrowType;
                 if (value instanceof Long) {
-                    // Convert this long and timezone into a ZonedDateTime
-                    // Since BlockUtils.setValue accepts ZonedDateTime objects for TIMESTAMPMILLITZ
+                    // Convert this long into Instant
+                    // BlockUtils.setValue accepts Instant/LocalDateTime for DATEMILLI
                     return Instant.EPOCH.plus(
                             (Long) value,
                             DateTimeFormatterUtil.arrowTimeUnitToChronoUnit(actualType.getUnit())
-                    ).atZone(java.time.ZoneId.of(actualType.getTimezone())).toLocalDateTime().toString();
+                    );
                 }
                 // If its anything other than Long, just let BlockUtils handle it directly.
                 return value;

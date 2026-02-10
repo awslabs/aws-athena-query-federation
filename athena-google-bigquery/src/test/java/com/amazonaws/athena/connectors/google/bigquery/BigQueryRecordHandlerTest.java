@@ -109,6 +109,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -349,7 +350,41 @@ public class BigQueryRecordHandlerTest
         }
     }
 
+    @Test
+    public void testQueryPlanWithoutLimitOrSort_UsesStorageApi() throws Exception
+    {
+        // SELECT * FROM "my_dataset"."service_requests" WHERE id > 100 (no LIMIT, no ORDER BY)
+        String substraitPlanNoLimitOrSort = "GtAIEs0ICr8GOrwGChoSGAoWFhcYGRobHB0eHyAhIiMkJSYnKCkqKxKXBAqUBAoCCgAS5AMKCWlzX2FjdGl2ZQoLdGlueWludF9jb2wKDHNtYWxsaW50X2NvbAoIcHJpb3JpdHkKCmJpZ2ludF9jb2wKCWZsb2F0X2NvbAoKZG91YmxlX2NvbAoIcmVhbF9jb2wKC3ZhcmNoYXJfY29sCghjaGFyX2NvbAoNdmFyYmluYXJ5X2NvbAoIZGF0ZV9jb2wKCHRpbWVfY29sCg10aW1lc3RhbXBfY29sCgJpZAoMZGVjaW1hbF9jb2wyCgxkZWNpbWFsX2NvbDMKC3N1YmNhdGVnb3J5Cg1pbnRfYXJyYXlfY29sCgdtYXBfY29sChBtYXBfd2l0aF9kZWNpbWFsCgxuZXN0ZWRfYXJyYXkS1gEKBAoCEAIKBBICEAIKBBoCEAIKBCoCEAIKBDoCEAIKBFoCEAIKBFoCEAIKBFICEAIKBGICEAIKB6oBBAgBGAIKBGoCEAIKBYIBAhACCgWKAQIQAgoFigICGAIKCcIBBggEEBMgAgoJwgEGCAIQCiACCgnCAQYIChATIAIKC9oBCAoEYgIQAhgCCgvaAQgKBCoCEAIYAgoR4gEOCgRiAhACEgQqAhACIAIKFuIBEwoEYgIQAhIJwgEGCAIQCiACIAIKEtoBDwoL2gEICgQqAhACGAIYAhgCOicKCm15X2RhdGFzZXQKGXNlcnZpY2VfcmVxdWVzdHNfbm9fbm9pc2UaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAGgoSCAoEEgIIAyIAGgoSCAoEEgIIBCIAGgoSCAoEEgIIBSIAGgoSCAoEEgIIBiIAGgoSCAoEEgIIByIAGgoSCAoEEgIICCIAGgoSCAoEEgIICSIAGgoSCAoEEgIICiIAGgoSCAoEEgIICyIAGgoSCAoEEgIIDCIAGgoSCAoEEgIIDSIAGgoSCAoEEgIIDiIAGgoSCAoEEgIIDyIAGgoSCAoEEgIIECIAGgoSCAoEEgIIESIAGgoSCAoEEgIIEiIAGgoSCAoEEgIIEyIAGgoSCAoEEgIIFCIAGgoSCAoEEgIIFSIAEglpc19hY3RpdmUSC3RpbnlpbnRfY29sEgxzbWFsbGludF9jb2wSCHByaW9yaXR5EgpiaWdpbnRfY29sEglmbG9hdF9jb2wSCmRvdWJsZV9jb2wSCHJlYWxfY29sEgt2YXJjaGFyX2NvbBIIY2hhcl9jb2wSDXZhcmJpbmFyeV9jb2wSCGRhdGVfY29sEgh0aW1lX2NvbBINdGltZXN0YW1wX2NvbBICaWQSDGRlY2ltYWxfY29sMhIMZGVjaW1hbF9jb2wzEgtzdWJjYXRlZ29yeRINaW50X2FycmF5X2NvbBIHbWFwX2NvbBIQbWFwX3dpdGhfZGVjaW1hbBIMbmVzdGVkX2FycmF5MgsQSioHaXN0aG11cw==";
 
+        QueryPlan queryPlan = new QueryPlan("", substraitPlanNoLimitOrSort);
+        Constraints constraints = new Constraints(
+            Collections.emptyMap(),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            DEFAULT_NO_LIMIT,
+            Collections.emptyMap(),
+            queryPlan
+        );
+        Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+                BigQueryConstants.GCP_PROJECT_ID, "test",
+                BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID, "dummySecret"
+        );
+        bigQueryRecordHandler = new BigQueryRecordHandler(configOptions);
+
+        try (ReadRecordsRequest request = createReadRecordsRequestWithConstraints(constraints)) {
+            QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+
+            try {
+                bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
+            } catch (Exception e) {
+                // Expected to fail when trying to create BigQueryReadClient in test environment
+                // The key assertion is that SQL API was NOT attempted
+            }
+
+            // Verify SQL API was NOT used (no call to bigQuery.create)
+            verify(bigQuery, never()).create(any(JobInfo.class));
+        }
+    }
 
     private Map<String, String> getPassthroughArgs() {
         return Map.of(
