@@ -40,6 +40,7 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import java.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -238,12 +239,16 @@ public class BigQueryUtilsTest
                 null
         );
         try (TimeStampMilliTZVector timestampVector = new TimeStampMilliTZVector(timestampField, rootAllocator)) {
-            // Test coercing a Long value (epoch milliseconds)
+            // Test coercing a Long value (epoch milliseconds) - now returns Instant
             Long timestampInMillis = 1609459200000L; // 2021-01-01 00:00:00 UTC
             Object result = BigQueryUtils.coerce(timestampVector, timestampInMillis);
             assertNotNull(result);
-            assertInstanceOf(String.class, result);
-            assertEquals("2021-01-01T00:00", result.toString());
+            assertInstanceOf(Instant.class, result);
+
+            // Verify the Instant has correct epoch time
+            Instant instant = (Instant) result;
+            assertEquals(1609459200L, instant.getEpochSecond());
+            assertEquals(0, instant.getNano());
 
             // Test coercing a non-Long value
             String timestampString = "2021-01-01T00:00:00";

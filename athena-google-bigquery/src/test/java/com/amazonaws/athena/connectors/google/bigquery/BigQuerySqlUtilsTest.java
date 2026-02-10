@@ -44,6 +44,7 @@ import java.util.*;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryTestUtils.makeSchema;
+import static org.junit.Assert.assertThrows;
 
 public class BigQuerySqlUtilsTest
 {
@@ -501,5 +502,29 @@ public class BigQuerySqlUtilsTest
         String sql = BigQuerySqlUtils.buildSql(tableName, schema, constraints, parameterValues);
         assertEquals(expectedParams, parameterValues);
         assertEquals(expectedSql, sql);
+    }
+
+    @Test
+    public void testBuildSql_InvalidSubstraitPlan()
+    {
+        // Test error handling in buildSql() when Substrait plan parsing fails (lines 74-76)
+        String invalidSubstraitPlan = "INVALID_BASE64_SUBSTRAIT_PLAN";
+
+        Schema testSchema = new Schema(Arrays.asList(
+                new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null),
+                new Field("name", FieldType.nullable(new ArrowType.Utf8()), null)
+        ));
+
+        QueryPlan queryPlan = new QueryPlan("1.0", invalidSubstraitPlan);
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
+
+        // Should throw RuntimeException with message "Failed to prepare statement with Calcite"
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            BigQuerySqlUtils.buildSql(tableName, testSchema, constraints, new ArrayList<>());
+        });
+
+        // Verify the error message
+        assertTrue("Exception message should indicate Calcite failure",
+                exception.getMessage().contains("Failed to prepare statement with Calcite"));
     }
 }
