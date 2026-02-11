@@ -19,25 +19,24 @@
  */
 package com.amazonaws.athena.connector.substrait;
 
-import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlDynamicParam;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.util.NlsString;
+import org.apache.calcite.util.Pair;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -48,32 +47,36 @@ import static org.mockito.Mockito.when;
 public class SubstraitAccumulatorVisitorTest
 {
     private List<SubstraitTypeAndValue> accumulator;
-    private Map<String, String> splitProperties;
-    private Schema schema;
+    private RelDataType schema;
     private SubstraitAccumulatorVisitor visitor;
+    private RelDataTypeFactory typeFactory;
 
     @Before
     public void setUp()
     {
         accumulator = new ArrayList<>();
-        splitProperties = new HashMap<>();
+        typeFactory = new SqlTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
 
         // Create a test schema with various field types
-        List<Field> fields = new ArrayList<>();
-        fields.add(new Field("int_col", FieldType.nullable(new ArrowType.Int(32, true)), null));
-        fields.add(new Field("bigint_col", FieldType.nullable(new ArrowType.Int(64, true)), null));
-        fields.add(new Field("float_col", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), null));
-        fields.add(new Field("double_col", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null));
-        fields.add(new Field("varchar_col", FieldType.nullable(new ArrowType.Utf8()), null));
-        fields.add(new Field("bool_col", FieldType.nullable(new ArrowType.Bool()), null));
-        fields.add(new Field("decimal_col", FieldType.nullable(new ArrowType.Decimal(10, 2, 128)), null));
-        fields.add(new Field("date_col", FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)), null));
-        fields.add(new Field("time_col", FieldType.nullable(new ArrowType.Time(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, 32)), null));
-        fields.add(new Field("timestamp_col", FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")), null));
-        fields.add(new Field("binary_col", FieldType.nullable(new ArrowType.Binary()), null));
+        schema = createTestSchema();
+        visitor = new SubstraitAccumulatorVisitor(accumulator, schema);
+    }
 
-        schema = new Schema(fields);
-        visitor = new SubstraitAccumulatorVisitor(accumulator, splitProperties, schema);
+    private RelDataType createTestSchema()
+    {
+        return typeFactory.createStructType(Arrays.asList(
+            Pair.of("int_col", typeFactory.createSqlType(SqlTypeName.INTEGER)),
+            Pair.of("bigint_col", typeFactory.createSqlType(SqlTypeName.BIGINT)),
+            Pair.of("float_col", typeFactory.createSqlType(SqlTypeName.FLOAT)),
+            Pair.of("double_col", typeFactory.createSqlType(SqlTypeName.DOUBLE)),
+            Pair.of("varchar_col", typeFactory.createSqlType(SqlTypeName.VARCHAR)),
+            Pair.of("bool_col", typeFactory.createSqlType(SqlTypeName.BOOLEAN)),
+            Pair.of("decimal_col", typeFactory.createSqlType(SqlTypeName.DECIMAL, 10, 2)),
+            Pair.of("date_col", typeFactory.createSqlType(SqlTypeName.DATE)),
+            Pair.of("time_col", typeFactory.createSqlType(SqlTypeName.TIME)),
+            Pair.of("timestamp_col", typeFactory.createSqlType(SqlTypeName.TIMESTAMP)),
+            Pair.of("binary_col", typeFactory.createSqlType(SqlTypeName.VARBINARY))
+        ));
     }
 
     @Test
@@ -267,11 +270,14 @@ public class SubstraitAccumulatorVisitorTest
     @Test
     public void testVisitSqlLiteralWithNullColumn()
     {
-        // Add a null type field to schema
-        List<Field> fields = new ArrayList<>(schema.getFields());
-        fields.add(new Field("null_col", FieldType.nullable(new ArrowType.Null()), null));
-        schema = new Schema(fields);
-        visitor = new SubstraitAccumulatorVisitor(accumulator, splitProperties, schema);
+        // Create schema with null type field
+        List<Pair<String, RelDataType>> fields = new ArrayList<>();
+        for (String fieldName : schema.getFieldNames()) {
+            fields.add(Pair.of(fieldName, schema.getField(fieldName, false, false).getType()));
+        }
+        fields.add(Pair.of("null_col", typeFactory.createSqlType(SqlTypeName.NULL)));
+        schema = typeFactory.createStructType(fields);
+        visitor = new SubstraitAccumulatorVisitor(accumulator, schema);
 
         SqlIdentifier identifier = new SqlIdentifier("null_col", SqlParserPos.ZERO);
         visitor.visit(identifier);
@@ -287,55 +293,41 @@ public class SubstraitAccumulatorVisitorTest
     }
 
     @Test
-    public void testVisitSqlLiteralWithLargeUtf8Column()
+    public void testVisitSqlLiteralWithCharColumn()
     {
-        // Add a large utf8 field to schema
-        List<Field> fields = new ArrayList<>(schema.getFields());
-        fields.add(new Field("large_utf8_col", FieldType.nullable(new ArrowType.LargeUtf8()), null));
-        schema = new Schema(fields);
-        visitor = new SubstraitAccumulatorVisitor(accumulator, splitProperties, schema);
+        // Create schema with char type field
+        List<Pair<String, RelDataType>> fields = new ArrayList<>();
+        for (String fieldName : schema.getFieldNames()) {
+            fields.add(Pair.of(fieldName, schema.getField(fieldName, false, false).getType()));
+        }
+        fields.add(Pair.of("char_col", typeFactory.createSqlType(SqlTypeName.CHAR)));
+        schema = typeFactory.createStructType(fields);
+        visitor = new SubstraitAccumulatorVisitor(accumulator, schema);
 
-        SqlIdentifier identifier = new SqlIdentifier("large_utf8_col", SqlParserPos.ZERO);
+        SqlIdentifier identifier = new SqlIdentifier("char_col", SqlParserPos.ZERO);
         visitor.visit(identifier);
 
-        SqlLiteral literal = SqlLiteral.createCharString("large_string", SqlParserPos.ZERO);
+        SqlLiteral literal = SqlLiteral.createCharString("test_char", SqlParserPos.ZERO);
         SqlNode result = visitor.visit(literal);
 
         assertTrue(result instanceof SqlDynamicParam);
         assertEquals(1, accumulator.size());
-        assertEquals(SqlTypeName.VARCHAR, accumulator.get(0).getType());
+        assertEquals(SqlTypeName.CHAR, accumulator.get(0).getType());
     }
 
     @Test
-    public void testVisitSqlLiteralWithLargeBinaryColumn()
+    public void testVisitSqlLiteralWithArrayColumn()
     {
-        // Add a large binary field to schema
-        List<Field> fields = new ArrayList<>(schema.getFields());
-        fields.add(new Field("large_binary_col", FieldType.nullable(new ArrowType.LargeBinary()), null));
-        schema = new Schema(fields);
-        visitor = new SubstraitAccumulatorVisitor(accumulator, splitProperties, schema);
+        // Create schema with array type field
+        List<Pair<String, RelDataType>> fields = new ArrayList<>();
+        for (String fieldName : schema.getFieldNames()) {
+            fields.add(Pair.of(fieldName, schema.getField(fieldName, false, false).getType()));
+        }
+        fields.add(Pair.of("array_col", typeFactory.createArrayType(typeFactory.createSqlType(SqlTypeName.VARCHAR), -1)));
+        schema = typeFactory.createStructType(fields);
+        visitor = new SubstraitAccumulatorVisitor(accumulator, schema);
 
-        SqlIdentifier identifier = new SqlIdentifier("large_binary_col", SqlParserPos.ZERO);
-        visitor.visit(identifier);
-
-        SqlLiteral literal = SqlLiteral.createBinaryString("ABCD", SqlParserPos.ZERO);
-        SqlNode result = visitor.visit(literal);
-
-        assertTrue(result instanceof SqlDynamicParam);
-        assertEquals(1, accumulator.size());
-        assertEquals(SqlTypeName.VARBINARY, accumulator.get(0).getType());
-    }
-
-    @Test
-    public void testVisitSqlLiteralWithUnsupportedArrowType()
-    {
-        // Add an unsupported field type to schema
-        List<Field> fields = new ArrayList<>(schema.getFields());
-        fields.add(new Field("unsupported_col", FieldType.nullable(new ArrowType.List()), null));
-        schema = new Schema(fields);
-        visitor = new SubstraitAccumulatorVisitor(accumulator, splitProperties, schema);
-
-        SqlIdentifier identifier = new SqlIdentifier("unsupported_col", SqlParserPos.ZERO);
+        SqlIdentifier identifier = new SqlIdentifier("array_col", SqlParserPos.ZERO);
         visitor.visit(identifier);
 
         SqlLiteral literal = SqlLiteral.createCharString("test", SqlParserPos.ZERO);
@@ -343,7 +335,32 @@ public class SubstraitAccumulatorVisitorTest
 
         assertTrue(result instanceof SqlDynamicParam);
         assertEquals(1, accumulator.size());
-        assertEquals(SqlTypeName.VARCHAR, accumulator.get(0).getType()); // Falls back to VARCHAR
+        assertEquals(SqlTypeName.ARRAY, accumulator.get(0).getType());
+    }
+
+    @Test
+    public void testVisitSqlLiteralWithMapColumn()
+    {
+        // Create schema with map type field
+        List<Pair<String, RelDataType>> fields = new ArrayList<>();
+        for (String fieldName : schema.getFieldNames()) {
+            fields.add(Pair.of(fieldName, schema.getField(fieldName, false, false).getType()));
+        }
+        fields.add(Pair.of("map_col", typeFactory.createMapType(
+            typeFactory.createSqlType(SqlTypeName.VARCHAR),
+            typeFactory.createSqlType(SqlTypeName.INTEGER))));
+        schema = typeFactory.createStructType(fields);
+        visitor = new SubstraitAccumulatorVisitor(accumulator, schema);
+
+        SqlIdentifier identifier = new SqlIdentifier("map_col", SqlParserPos.ZERO);
+        visitor.visit(identifier);
+
+        SqlLiteral literal = SqlLiteral.createCharString("test", SqlParserPos.ZERO);
+        SqlNode result = visitor.visit(literal);
+
+        assertTrue(result instanceof SqlDynamicParam);
+        assertEquals(1, accumulator.size());
+        assertEquals(SqlTypeName.MAP, accumulator.get(0).getType());
     }
 
     @Test
