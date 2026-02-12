@@ -26,6 +26,7 @@ import org.junit.Test;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -129,5 +130,102 @@ public class OracleCredentialsProviderTest
             assertTrue("Exception message should contain deserialization error",
                     ex.getMessage().contains("Could not deserialize RDS credentials into HashMap:"));
         }
+    }
+
+    @Test
+    public void getCredentialMap_withNullConnectionString_returnsOnlyUserAndPassword()
+    {
+        OracleCredentialsProvider provider = new OracleCredentialsProvider(TEST_SECRET, null);
+        Map<String, String> credMap = provider.getCredentialMap();
+
+        assertEquals(TEST_USER, credMap.get(CredentialsConstants.USER));
+        assertEquals(String.format("\"%s\"", TEST_PASSWORD), credMap.get(CredentialsConstants.PASSWORD));
+        assertEquals(2, credMap.size());
+    }
+
+    @Test
+    public void getCredentialMap_withEmptyConnectionString_returnsOnlyUserAndPassword()
+    {
+        OracleCredentialsProvider provider = new OracleCredentialsProvider(TEST_SECRET, "");
+        Map<String, String> credMap = provider.getCredentialMap();
+
+        assertEquals(TEST_USER, credMap.get(CredentialsConstants.USER));
+        assertEquals(String.format("\"%s\"", TEST_PASSWORD), credMap.get(CredentialsConstants.PASSWORD));
+        assertEquals(2, credMap.size());
+    }
+
+    @Test
+    public void getCredentialMap_withPasswordAlreadyQuoted_doesNotDoubleWrap()
+    {
+        String secretWithQuotedPassword = "{\"username\":\"user1\", \"password\":\"\\\"alreadyQuoted\\\"\"}";
+        OracleCredentialsProvider provider = new OracleCredentialsProvider(secretWithQuotedPassword, BASE_CONNECTION_STRING);
+        Map<String, String> credMap = provider.getCredentialMap();
+
+        assertEquals("user1", credMap.get(CredentialsConstants.USER));
+        assertEquals("\"alreadyQuoted\"", credMap.get(CredentialsConstants.PASSWORD));
+        assertEquals(2, credMap.size());
+    }
+
+    @Test
+    public void getCredentialMap_withSpecialCharactersInPassword_wrapsInQuotes()
+    {
+        String specialPassword = "p@ss!w0rd#with$pecial";
+        String secret = String.format("{\"username\":\"u\", \"password\":\"%s\"}", specialPassword);
+        OracleCredentialsProvider provider = new OracleCredentialsProvider(secret, BASE_CONNECTION_STRING);
+        Map<String, String> credMap = provider.getCredentialMap();
+
+        assertEquals("u", credMap.get(CredentialsConstants.USER));
+        assertEquals(String.format("\"%s\"", specialPassword), credMap.get(CredentialsConstants.PASSWORD));
+        assertEquals(2, credMap.size());
+    }
+
+    @Test
+    public void getCredentialMap_withTcpsAndFipsDisabled_returnsSslPropertiesButNoCipherSuites()
+    {
+        OracleCredentialsProvider provider = new TestOracleCredentialsProvider(TEST_SECRET, TCPS_CONNECTION_STRING, false);
+        Map<String, String> credMap = provider.getCredentialMap();
+
+        assertEquals(TEST_USER, credMap.get(CredentialsConstants.USER));
+        assertEquals(String.format("\"%s\"", TEST_PASSWORD), credMap.get(CredentialsConstants.PASSWORD));
+        assertEquals("JKS", credMap.get("javax.net.ssl.trustStoreType"));
+        assertEquals("changeit", credMap.get("javax.net.ssl.trustStorePassword"));
+        assertEquals("true", credMap.get("oracle.net.ssl_server_dn_match"));
+        assertNull(credMap.get("oracle.net.ssl_cipher_suites"));
+    }
+
+    @Test
+    public void getCredentialMap_withTcpsUpperCase_addsSslProperties()
+    {
+        String connectionStringUpper = ORACLE_JDBC_PREFIX + "TCPS://" + CONNECTION_PATH;
+        OracleCredentialsProvider provider = new OracleCredentialsProvider(TEST_SECRET, connectionStringUpper);
+        Map<String, String> credMap = provider.getCredentialMap();
+
+        assertEquals(TEST_USER, credMap.get(CredentialsConstants.USER));
+        assertEquals("JKS", credMap.get("javax.net.ssl.trustStoreType"));
+        assertEquals("true", credMap.get("oracle.net.ssl_server_dn_match"));
+    }
+
+    @Test
+    public void getCredentialMap_withTcpsMixedCase_addsSslProperties()
+    {
+        String connectionStringMixed = ORACLE_JDBC_PREFIX + "Tcps://" + CONNECTION_PATH;
+        OracleCredentialsProvider provider = new OracleCredentialsProvider(TEST_SECRET, connectionStringMixed);
+        Map<String, String> credMap = provider.getCredentialMap();
+
+        assertEquals(TEST_USER, credMap.get(CredentialsConstants.USER));
+        assertEquals("JKS", credMap.get("javax.net.ssl.trustStoreType"));
+        assertEquals("true", credMap.get("oracle.net.ssl_server_dn_match"));
+    }
+
+    @Test
+    public void getCredentialMap_withNonTcpsProtocol_doesNotAddSslProperties()
+    {
+        OracleCredentialsProvider provider = new OracleCredentialsProvider(TEST_SECRET, BASE_CONNECTION_STRING);
+        Map<String, String> credMap = provider.getCredentialMap();
+
+        assertEquals(TEST_USER, credMap.get(CredentialsConstants.USER));
+        assertEquals(2, credMap.size());
+        assertNull(credMap.get("javax.net.ssl.trustStoreType"));
+        assertNull(credMap.get("oracle.net.ssl_server_dn_match"));
     }
 }
