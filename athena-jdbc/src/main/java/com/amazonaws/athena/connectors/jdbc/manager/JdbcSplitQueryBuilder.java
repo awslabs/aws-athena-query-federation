@@ -34,11 +34,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
@@ -428,13 +428,14 @@ public abstract class JdbcSplitQueryBuilder
             }
 
             root = (SqlSelect) sqlNode;
-            Schema tableSchema = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect);
-            SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), tableSchema);
+
+            RelDataType tableSchema = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect);
+            SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, tableSchema);
             root.accept(visitor);
 
             PreparedStatement statement = jdbcConnection.prepareStatement(root.toSqlString(sqlDialect).getSql());
 
-            handleDataTypesForPreparedStatement(statement, accumulator, tableSchema);
+            handleDataTypesForPreparedStatement(statement, accumulator);
             LOGGER.debug("CalciteSql prepared statement: {}", statement);
 
             return statement;
@@ -446,7 +447,7 @@ public abstract class JdbcSplitQueryBuilder
     }
 
     private PreparedStatement handleDataTypesForPreparedStatement(PreparedStatement statement,
-            List<SubstraitTypeAndValue> accumulator, Schema tableSchema) throws SQLException
+            List<SubstraitTypeAndValue> accumulator) throws SQLException
     {
         for (int i = 0; i < accumulator.size(); i++) {
             SubstraitTypeAndValue typeAndValue = accumulator.get(i);
@@ -481,22 +482,13 @@ public abstract class JdbcSplitQueryBuilder
                     statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
                     break;
                 case DATE:
-                    ArrowType.Date dateType = (ArrowType.Date) tableSchema
-                            .findField(typeAndValue.getColumnName()).getType();
                     if (typeAndValue.getValue() instanceof Number) {
+                        // Assume days since epoch for numeric date values
                         long numericValue = ((Number) typeAndValue.getValue()).longValue();
-                        if (dateType.getUnit() == DateUnit.DAY) {
-                            long utcMillis = numericValue * 24L * 60L * 60L * 1000L; // days → ms
-                            int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
-                            utcMillis -= offsetVal;
-                            statement.setDate(i + 1, new Date(utcMillis));
-                        }
-                        else if (dateType.getUnit() == DateUnit.MILLISECOND) {
-                            long utcMillis = numericValue;
-                            int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
-                            utcMillis -= offsetVal;
-                            statement.setDate(i + 1, new Date(utcMillis));
-                        }
+                        long utcMillis = numericValue * 24L * 60L * 60L * 1000L; // days → ms
+                        int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
+                        utcMillis -= offsetVal;
+                        statement.setDate(i + 1, new Date(utcMillis));
                     }
                     else if (typeAndValue.getValue() instanceof DateString) {
                         statement.setDate(i + 1, Date.valueOf(typeAndValue.getValue().toString()));

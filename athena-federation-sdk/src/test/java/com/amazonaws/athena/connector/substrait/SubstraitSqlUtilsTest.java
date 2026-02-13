@@ -51,7 +51,6 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class SubstraitSqlUtilsTest {
 
@@ -61,22 +60,20 @@ public class SubstraitSqlUtilsTest {
 
     @Test
     void testGetTableSchemaFromSubstraitPlan_AllArrowTypes() throws SqlParseException {
-        // Test schema extraction with all supported Arrow types including complex types
+        // Test schema extraction with all supported types including complex types
         String query = "SELECT * FROM test_table LIMIT 1";
         Plan plan = convertSqlToSubstraitPlan(query);
         byte[] planBytes = plan.toByteArray();
         String encodedPlan = Base64.getEncoder().encodeToString(planBytes);
 
-        org.apache.arrow.vector.types.pojo.Schema schema =
+        RelDataType schema =
                 SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(encodedPlan, DIALECT);
 
         Assertions.assertNotNull(schema);
-        Assertions.assertTrue(schema.getFields().size() > 0);
+        Assertions.assertTrue(schema.getFieldCount() > 0);
 
         // Verify comprehensive schema includes all types
-        List<String> fieldNames =
-                schema.getFields().stream().map(org.apache.arrow.vector.types.pojo.Field::getName)
-                        .collect(Collectors.toList());
+        List<String> fieldNames = schema.getFieldNames();
 
         // Check for presence of various type categories
         Assertions.assertTrue(fieldNames.contains("bool_col"), "Missing boolean type");
@@ -93,16 +90,14 @@ public class SubstraitSqlUtilsTest {
         byte[] planBytes = plan.toByteArray();
         String encodedPlan = Base64.getEncoder().encodeToString(planBytes);
 
-        org.apache.arrow.vector.types.pojo.Schema schema =
+        RelDataType schema =
                 SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(encodedPlan, DIALECT);
 
         Assertions.assertNotNull(schema);
-        Assertions.assertFalse(schema.getFields().isEmpty());
+        Assertions.assertFalse(schema.getFieldList().isEmpty());
 
         // Verify field names match the test table schema
-        List<String> fieldNames =
-                schema.getFields().stream().map(org.apache.arrow.vector.types.pojo.Field::getName)
-                        .collect(Collectors.toList());
+        List<String> fieldNames = schema.getFieldNames();
         Assertions.assertTrue(fieldNames.contains("varchar_col"));
         Assertions.assertTrue(fieldNames.contains("int_col"));
     }
@@ -114,11 +109,11 @@ public class SubstraitSqlUtilsTest {
         byte[] planBytes = plan.toByteArray();
         String encodedPlan = Base64.getEncoder().encodeToString(planBytes);
 
-        org.apache.arrow.vector.types.pojo.Schema schema =
+        RelDataType schema =
                 SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(encodedPlan, DIALECT);
 
         Assertions.assertNotNull(schema);
-        Assertions.assertTrue(schema.getFields().size() > 0);
+        Assertions.assertTrue(schema.getFieldCount() > 0);
     }
 
     @Test
@@ -129,11 +124,11 @@ public class SubstraitSqlUtilsTest {
         byte[] planBytes = plan.toByteArray();
         String encodedPlan = Base64.getEncoder().encodeToString(planBytes);
 
-        org.apache.arrow.vector.types.pojo.Schema schema =
+        RelDataType schema =
                 SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(encodedPlan, DIALECT);
 
         Assertions.assertNotNull(schema);
-        Assertions.assertTrue(schema.getFields().size() > 0);
+        Assertions.assertTrue(schema.getFieldCount() > 0);
     }
 
     @Test
