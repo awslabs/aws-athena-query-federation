@@ -22,11 +22,13 @@ package com.amazonaws.athena.connector.lambda.handlers;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -45,6 +47,8 @@ import com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
@@ -58,6 +62,9 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
@@ -192,6 +199,10 @@ public abstract class RecordHandler
             throws Exception
     {
         logger.info("doReadRecords: {}:{}", request.getSchema(), request.getSplit().getSpillLocation());
+        
+        // Check for uppercase casing filter and modify request if needed
+        request = applyUppercaseCasing(request);
+        
         FederatedIdentity federatedIdentity = request.getIdentity();
         AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         SpillConfig spillConfig = getSpillConfig(request);
@@ -275,5 +286,38 @@ public abstract class RecordHandler
         if (response == null) {
             throw new AthenaConnectorException("Response was null", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString()).build());
         }
+    }
+
+    protected ReadRecordsRequest applyUppercaseCasing(ReadRecordsRequest request)
+    {
+        // Check if uppercase casing filter is enabled
+        String casingFilter = request.getIdentity().getConfigOptions().getOrDefault(EnvironmentConstants.CATALOG_CASING_FILTER, null);
+        if (!EnvironmentConstants.UPPERCASE_ONLY.equals(casingFilter)) {
+            return request; // No transformation needed
+        }
+        
+        // Convert table and schema names to uppercase
+        TableName originalTableName = request.getTableName();
+        TableName uppercaseTableName = new TableName(
+                originalTableName.getSchemaName() != null ? originalTableName.getSchemaName().toUpperCase() : null,
+                originalTableName.getTableName() != null ? originalTableName.getTableName().toUpperCase() : null);
+        
+        // Convert schema field names to uppercase, except if field name is in partition columns
+        Set<String> partitionColumns = request.getSplit().getProperties().keySet();
+        List<Field> uppercaseFields = new ArrayList<>();
+        for (Field field : request.getSchema().getFields()) {
+            String originalName = field.getName();
+            String fieldName = partitionColumns.contains(originalName) ? originalName : originalName.toUpperCase();
+            uppercaseFields.add(new Field(fieldName, field.getFieldType(), field.getChildren()));
+        }
+        Schema uppercaseSchema = new Schema(uppercaseFields, request.getSchema().getCustomMetadata());
+        
+        logger.info("doReadRecords: Applied uppercase casing - table name: {} -> {}", originalTableName, uppercaseTableName);
+        logger.debug("doReadRecords: Applied uppercase casing - schema: {}", uppercaseSchema);
+        
+        // Create new request with uppercase schema and table name
+        return new ReadRecordsRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
+                uppercaseTableName, uppercaseSchema, request.getSplit(), request.getConstraints(),
+                request.getMaxBlockSize(), request.getMaxInlineBlockSize());
     }
 }
