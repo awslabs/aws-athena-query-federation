@@ -93,7 +93,7 @@ public class BigQueryMetadataHandler
 
     private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
 
-    BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
+    public BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(BigQueryConstants.SOURCE_TYPE, configOptions);
     }
@@ -139,7 +139,7 @@ public class BigQueryMetadataHandler
         logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
 
         final List<String> schemas = new ArrayList<>();
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions)));
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
         Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
         if (response == null) {
             logger.info("Dataset does not contain any models");
@@ -168,7 +168,7 @@ public class BigQueryMetadataHandler
                 listTablesRequest.getSchemaName());
         //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
         String nextToken = null;
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions)));
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
         final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
         final DatasetId datasetId = DatasetId.of(projectName, datasetName);
         List<TableName> tables = new ArrayList<>();
@@ -221,9 +221,8 @@ public class BigQueryMetadataHandler
         }
         com.google.cloud.bigquery.Schema bigQuerySchema = statistics.getSchema();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        List<String> timeStampColsList = new ArrayList<>();
 
-        convertBigQuerySchema(bigQuerySchema, timeStampColsList, schemaBuilder);
+        convertBigQuerySchema(bigQuerySchema, schemaBuilder);
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), schemaBuilder.build());
     }
 
@@ -265,7 +264,7 @@ public class BigQueryMetadataHandler
      */
     private Schema getSchema(String datasetName, String tableName) throws java.io.IOException
     {
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions)));
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
         datasetName = fixCaseForDatasetName(projectName, datasetName, bigQuery);
         tableName = fixCaseForTableName(projectName, datasetName, tableName, bigQuery);
 
@@ -273,10 +272,7 @@ public class BigQueryMetadataHandler
         Table response = bigQuery.getTable(tableId);
         TableDefinition tableDefinition = response.getDefinition();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        List<String> timeStampColsList = new ArrayList<>();
-
-        convertBigQuerySchema(tableDefinition.getSchema(), timeStampColsList, schemaBuilder);
-        schemaBuilder.addMetadata("timeStampCols", timeStampColsList.toString());
+        convertBigQuerySchema(tableDefinition.getSchema(), schemaBuilder);
         logger.debug("BigQuery table schema {}", schemaBuilder.toString());
         return schemaBuilder.build();
     }
@@ -284,15 +280,11 @@ public class BigQueryMetadataHandler
     /**
      * Responsible for converting BigQuery Schema to schema builder
      * @param bigQuerySchema
-     * @param timeStampColsList
      * @param schemaBuilder
      */
-    private void convertBigQuerySchema(com.google.cloud.bigquery.Schema bigQuerySchema, List<String> timeStampColsList, SchemaBuilder schemaBuilder)
+    private void convertBigQuerySchema(com.google.cloud.bigquery.Schema bigQuerySchema,  SchemaBuilder schemaBuilder)
     {
         for (Field field : bigQuerySchema.getFields()) {
-            if (field.getType().getStandardType().toString().equals("TIMESTAMP")) {
-                timeStampColsList.add(field.getName());
-            }
             if (null != field.getMode() && field.getMode().name().equals("REPEATED")) {
                 if (field.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
                     schemaBuilder.addField(field.getName(), Types.MinorType.LIST.getType(), ImmutableList.of(new org.apache.arrow.vector.types.pojo.Field(field.getName(), FieldType.nullable(Types.MinorType.STRUCT.getType()), BigQueryUtils.getChildFieldList(field))));

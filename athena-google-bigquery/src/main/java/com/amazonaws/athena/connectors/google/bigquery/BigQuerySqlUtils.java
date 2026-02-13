@@ -21,10 +21,16 @@ package com.amazonaws.athena.connectors.google.bigquery;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import com.amazonaws.athena.connectors.google.bigquery.query.BigQueryQueryBuilder;
 import com.amazonaws.athena.connectors.google.bigquery.query.BigQueryQueryFactory;
 import com.google.cloud.bigquery.QueryParameterValue;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.dialect.BigQuerySqlDialect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
 
 import java.util.List;
@@ -36,7 +42,8 @@ import java.util.Map;
 public class BigQuerySqlUtils
 {
     private static final BigQueryQueryFactory queryFactory = new BigQueryQueryFactory();
-    
+    private static final Logger logger = LoggerFactory.getLogger(BigQuerySqlUtils.class);
+
     private BigQuerySqlUtils()
     {
     }
@@ -54,7 +61,22 @@ public class BigQuerySqlUtils
     public static String buildSql(TableName tableName, Schema schema, Constraints constraints, List<QueryParameterValue> parameterValues)
     {
         BigQueryQueryBuilder queryBuilder = queryFactory.createQueryBuilder();
-        
+        if (constraints.getQueryPlan() != null) {
+            try {
+                logger.info("Using Substrait query plan to generate sql");
+
+                SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(constraints.getQueryPlan().getSubstraitPlan(),
+                        BigQuerySqlDialect.DEFAULT);
+                SqlSelect root;
+                root = (SqlSelect) sqlNode;
+                return root.toSqlString(BigQuerySqlDialect.DEFAULT).getSql();
+            }
+            catch (Exception e) {
+                logger.error("Failed to prepare statement with Calcite", e);
+                throw new RuntimeException("Failed to prepare statement with Calcite", e);
+            }
+        }
+
         String sql = queryBuilder
                 .withTableName(tableName)
                 .withProjection(schema)
@@ -62,14 +84,14 @@ public class BigQuerySqlUtils
                 .withOrderByClause(constraints)
                 .withLimitClause(constraints)
                 .build();
-        
+
         // Copy the parameter values from the builder to the provided list
         parameterValues.clear();
         parameterValues.addAll(queryBuilder.getParameterValues());
-        
+
         return sql;
     }
-    
+
     /**
      * Generic method to render any string template with parameters
      *
