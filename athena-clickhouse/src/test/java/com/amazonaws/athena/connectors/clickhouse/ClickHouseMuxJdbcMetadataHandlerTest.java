@@ -72,7 +72,7 @@ public class ClickHouseMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doListSchemaNames()
+    public void doListSchemaNames_withSupportedCatalog_invokesDelegateDoListSchemaNames()
             throws Exception
     {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
@@ -82,7 +82,7 @@ public class ClickHouseMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doListTables()
+    public void doListTables_withSupportedCatalog_invokesDelegateDoListTables()
             throws Exception
     {
         ListTablesRequest listTablesRequest = Mockito.mock(ListTablesRequest.class);
@@ -92,7 +92,7 @@ public class ClickHouseMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_withSupportedCatalog_invokesDelegateDoGetTable()
             throws Exception
     {
         GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
@@ -102,7 +102,7 @@ public class ClickHouseMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_withSupportedCatalog_invokesDelegateDoGetTableLayout()
             throws Exception
     {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
@@ -113,21 +113,21 @@ public class ClickHouseMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void getPartitionSchema()
+    public void getPartitionSchema_withSupportedCatalog_invokesDelegateGetPartitionSchema()
     {
         this.jdbcMetadataHandler.getPartitionSchema("fakedatabase");
         Mockito.verify(this.metadataHandler, Mockito.times(1)).getPartitionSchema(Mockito.eq("fakedatabase"));
     }
 
     @Test(expected = RuntimeException.class)
-    public void getPartitionSchemaForUnsupportedCatalog()
+    public void getPartitionSchema_withUnsupportedCatalog_throwsRuntimeException()
     {
         this.jdbcMetadataHandler.getPartitionSchema("unsupportedCatalog");
     }
 
 
     @Test
-    public void getPartitions()
+    public void getPartitions_withSupportedCatalog_invokesDelegateGetPartitions()
             throws Exception
     {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
@@ -137,11 +137,46 @@ public class ClickHouseMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_withSupportedCatalog_invokesDelegateDoGetSplits()
     {
         GetSplitsRequest getSplitsRequest = Mockito.mock(GetSplitsRequest.class);
         Mockito.when(getSplitsRequest.getCatalogName()).thenReturn("fakedatabase");
         this.jdbcMetadataHandler.doGetSplits(this.allocator, getSplitsRequest);
         Mockito.verify(this.metadataHandler, Mockito.times(1)).doGetSplits(Mockito.eq(this.allocator), Mockito.eq(getSplitsRequest));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doListSchemaNames_withUnsupportedCatalog_throwsRuntimeException()
+            throws Exception
+    {
+        ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
+        Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("unsupportedCatalog");
+        this.jdbcMetadataHandler.doListSchemaNames(this.allocator, listSchemasRequest);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doListTables_withUnsupportedCatalog_throwsRuntimeException()
+            throws Exception
+    {
+        ListTablesRequest listTablesRequest = Mockito.mock(ListTablesRequest.class);
+        Mockito.when(listTablesRequest.getCatalogName()).thenReturn("unsupportedCatalog");
+        this.jdbcMetadataHandler.doListTables(this.allocator, listTablesRequest);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetTable_withUnsupportedCatalog_throwsRuntimeException()
+            throws Exception
+    {
+        GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
+        Mockito.when(getTableRequest.getCatalogName()).thenReturn("unsupportedCatalog");
+        this.jdbcMetadataHandler.doGetTable(this.allocator, getTableRequest);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetSplits_withUnsupportedCatalog_throwsRuntimeException()
+    {
+        GetSplitsRequest getSplitsRequest = Mockito.mock(GetSplitsRequest.class);
+        Mockito.when(getSplitsRequest.getCatalogName()).thenReturn("unsupportedCatalog");
+        this.jdbcMetadataHandler.doGetSplits(this.allocator, getSplitsRequest);
     }
 }
