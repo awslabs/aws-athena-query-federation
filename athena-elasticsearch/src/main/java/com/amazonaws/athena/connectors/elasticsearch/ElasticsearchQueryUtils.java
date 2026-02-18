@@ -23,10 +23,20 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.substrait.SubstraitFunctionParser;
+import com.amazonaws.athena.connector.substrait.SubstraitMetadataParser;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.LogicalExpression;
+import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
+import io.substrait.proto.Plan;
+import io.substrait.proto.SimpleExtensionDeclaration;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.arrow.vector.util.Text;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
@@ -34,6 +44,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -95,7 +107,7 @@ class ElasticsearchQueryUtils
 
     /**
      * Given a set of Constraints, create the query that can push predicates into the Elasticsearch data-source.
-     * @param constraintSummary is a map containing the constraints used to form the predicate for predicate push-down.
+//     * @param constraintSummary is a map containing the constraints used to form the predicate for predicate push-down.
      * @return the query builder that will be injected into the query.
      */
     protected static QueryBuilder getQuery(Constraints constraints)
@@ -122,6 +134,254 @@ class ElasticsearchQueryUtils
         logger.info("Formed Predicates: {}", formedPredicates);
 
         return QueryBuilders.queryStringQuery(formedPredicates).queryName(formedPredicates);
+    }
+
+    /**
+     * Parses Substrait plan and extracts filter predicates per column
+     */
+    protected static Map<String, List<ColumnPredicate>> buildFilterPredicatesFromPlan(Plan plan)
+    {
+        if (plan == null || plan.getRelationsList().isEmpty()) {
+            return new HashMap<>();
+        }
+
+        SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
+                plan.getRelations(0).getRoot().getInput());
+        if (substraitRelModel.getFilterRel() == null) {
+            return new HashMap<>();
+        }
+
+        List<SimpleExtensionDeclaration> extensionDeclarations = plan.getExtensionsList();
+        List<String> tableColumns = SubstraitMetadataParser.getTableColumns(substraitRelModel);
+
+        return SubstraitFunctionParser.getColumnPredicatesMap(
+                extensionDeclarations,
+                substraitRelModel.getFilterRel().getCondition(),
+                tableColumns);
+    }
+
+    /**
+     * Enhanced query builder that converts Substrait plan to Elasticsearch QueryBuilder.
+     * Handles AND/OR logical structure from SQL via the Query Plan.
+     * Example: "job_title IN ('A', 'B') OR job_title < 'C'"
+     * → bool query with should clauses for each OR condition
+     */
+    protected static QueryBuilder getQueryFromPlan(Plan plan)
+    {
+        if (plan == null || plan.getRelationsList().isEmpty()) {
+            return QueryBuilders.matchAllQuery();
+        }
+
+        // Extract Substrait relation model from the plan to access filter conditions
+        SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
+                plan.getRelations(0).getRoot().getInput());
+        if (substraitRelModel.getFilterRel() == null) {
+            return QueryBuilders.matchAllQuery();
+        }
+
+        final List<SimpleExtensionDeclaration> extensionDeclarations = plan.getExtensionsList();
+        final List<String> tableColumns = SubstraitMetadataParser.getTableColumns(substraitRelModel);
+
+        try {
+            final LogicalExpression logicalExpr = SubstraitFunctionParser.parseLogicalExpression(
+                    extensionDeclarations,
+                    substraitRelModel.getFilterRel().getCondition(),
+                    tableColumns);
+
+            if (logicalExpr != null) {
+                // Successfully parsed expression tree - convert to Elasticsearch query
+                QueryBuilder queryBuilder = convertLogicalExpressionToQuery(logicalExpr);
+                if (queryBuilder != null) {
+                    return queryBuilder;
+                }
+            }
+        }
+        catch (Exception e) {
+            logger.warn("Tree-based parsing failed {}. Returning match_all query.", e.getMessage(), e);
+        }
+        return QueryBuilders.matchAllQuery();
+    }
+
+    /**
+     * Converts a LogicalExpression tree to Elasticsearch QueryBuilder while preserving logical structure.
+     * Example: OR(EQUAL(job_title, 'A'), EQUAL(job_title, 'B'))
+     * → bool query with should clauses
+     */
+    private static QueryBuilder convertLogicalExpressionToQuery(LogicalExpression expression)
+    {
+        if (expression == null) {
+            return QueryBuilders.matchAllQuery();
+        }
+
+        // Handle leaf nodes (individual predicates like job_title = 'Engineer')
+        if (expression.isLeaf()) {
+//            System.out.println("getLeafPredicate: " + expression.getLeafPredicate());
+            ColumnPredicate predicate = expression.getLeafPredicate();
+            return convertColumnPredicateToQuery(predicate.getColumn(),
+                    Collections.singletonList(predicate));
+        }
+
+        // Handle logical operators (AND/OR nodes with children)
+        List<QueryBuilder> childQueries = new ArrayList<>();
+        for (LogicalExpression child : expression.getChildren()) {
+            QueryBuilder childQuery = convertLogicalExpressionToQuery(child);
+            if (childQuery != null) {
+                childQueries.add(childQuery);
+            }
+        }
+
+        if (childQueries.isEmpty()) {
+            return QueryBuilders.matchAllQuery();
+        }
+        if (childQueries.size() == 1) {
+            // Single child - no need for logical operator wrapper
+            return childQueries.get(0);
+        }
+
+        // Apply the logical operator to combine child queries
+        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+        switch (expression.getOperator()) {
+            case AND:
+                for (QueryBuilder childQuery : childQueries) {
+                    boolQuery.must(childQuery);
+                }
+                return boolQuery;
+            case OR:
+                for (QueryBuilder childQuery : childQueries) {
+                    boolQuery.should(childQuery);
+                }
+                boolQuery.minimumShouldMatch(1);
+                return boolQuery;
+            default:
+                throw new UnsupportedOperationException(
+                        "Unsupported logical operator: " + expression.getOperator());
+        }
+    }
+
+    /**
+     * Converts a list of ColumnPredicates into an Elasticsearch QueryBuilder
+     */
+    private static QueryBuilder convertColumnPredicateToQuery(String column, List<ColumnPredicate> colPreds)
+    {
+        if (colPreds == null || colPreds.isEmpty()) {
+            return QueryBuilders.matchAllQuery();
+        }
+
+        List<Object> equalValues = new ArrayList<>();
+        List<QueryBuilder> otherQueries = new ArrayList<>();
+
+        for (ColumnPredicate pred : colPreds) {
+            Object value = convertSubstraitValue(pred);
+            SubstraitOperator op = pred.getOperator();
+            System.out.println(op);
+            switch (op) {
+                case IS_NULL:
+                    otherQueries.add(QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(column)));
+                    break;
+                case IS_NOT_NULL:
+                    otherQueries.add(QueryBuilders.existsQuery(column));
+                    break;
+                case EQUAL:
+                    equalValues.add(value);
+                    break;
+                case NOT_EQUAL:
+                    BoolQueryBuilder notEqualQuery = QueryBuilders.boolQuery()
+                            .must(QueryBuilders.existsQuery(column))
+                            .mustNot(QueryBuilders.termQuery(column, value));
+                    otherQueries.add(notEqualQuery);
+                    break;
+                case GREATER_THAN:
+                    otherQueries.add(QueryBuilders.rangeQuery(column).gt(value));
+                    break;
+                case GREATER_THAN_OR_EQUAL_TO:
+                    otherQueries.add(QueryBuilders.rangeQuery(column).gte(value));
+                    break;
+                case LESS_THAN:
+                    otherQueries.add(QueryBuilders.rangeQuery(column).lt(value));
+                    break;
+                case LESS_THAN_OR_EQUAL_TO:
+                    otherQueries.add(QueryBuilders.rangeQuery(column).lte(value));
+                    break;
+                case NAND:
+                    // NAND(A, B, C) = NOT(A AND B AND C)
+                    // Build inner AND query, then negate the entire result
+                    if (value instanceof List) {
+                        List<ColumnPredicate> children = (List<ColumnPredicate>) value;
+                        BoolQueryBuilder innerAnd = QueryBuilders.boolQuery();
+
+                        // Build A AND B AND C
+                        for (ColumnPredicate child : children) {
+                            QueryBuilder childQuery = convertColumnPredicateToQuery(
+                                    child.getColumn(),
+                                    Collections.singletonList(child));
+                            innerAnd.must(childQuery);
+                        }
+
+                        // Negate the entire AND: NOT(A AND B AND C)
+                        BoolQueryBuilder nandQuery = QueryBuilders.boolQuery().mustNot(innerAnd);
+                        otherQueries.add(nandQuery);
+                    }
+                    break;
+                case NOR:
+                    // NOR(A, B, C) = NOT(A OR B OR C) = NOT(A) AND NOT(B) AND NOT(C)
+                    // Apply mustNot to each child individually
+                    if (value instanceof List) {
+                        List<ColumnPredicate> children = (List<ColumnPredicate>) value;
+                        BoolQueryBuilder norQuery = QueryBuilders.boolQuery();
+
+                        // Build NOT(A) AND NOT(B) AND NOT(C)
+                        for (ColumnPredicate child : children) {
+                            QueryBuilder childQuery = convertColumnPredicateToQuery(
+                                    child.getColumn(),
+                                    Collections.singletonList(child));
+                            norQuery.mustNot(childQuery);
+                        }
+                        otherQueries.add(norQuery);
+                    }
+                    break;
+                default:
+                    throw new UnsupportedOperationException("Unsupported operator: " + op);
+            }
+        }
+
+        // Handle multiple EQUAL values -> terms query (IN clause)
+        if (!equalValues.isEmpty()) {
+            QueryBuilder equalQuery = equalValues.size() == 1
+                    ? QueryBuilders.termQuery(column, equalValues.get(0))
+                    : QueryBuilders.termsQuery(column, equalValues);
+            otherQueries.add(equalQuery);
+        }
+
+        // Combine all queries with AND logic
+        if (otherQueries.isEmpty()) {
+            return QueryBuilders.matchAllQuery();
+        }
+        if (otherQueries.size() == 1) {
+            return otherQueries.get(0);
+        }
+
+        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+        for (QueryBuilder query : otherQueries) {
+            boolQuery.must(query);
+        }
+        return boolQuery;
+    }
+
+    /**
+     * Converts Substrait value to appropriate Java object
+     */
+    private static Object convertSubstraitValue(ColumnPredicate pred)
+    {
+        Object value = pred.getValue();
+        if (value instanceof Text) {
+            return ((Text) value).toString();
+        }
+        // Handle datetime conversion if needed
+        if (value instanceof Long && pred.getArrowType() instanceof ArrowType.Timestamp) {
+            // Elasticsearch expects milliseconds for timestamp
+            return ((Long) value) / 1000;
+        }
+        return value;
     }
 
     /**

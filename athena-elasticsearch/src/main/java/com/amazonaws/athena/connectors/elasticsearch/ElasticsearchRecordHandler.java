@@ -19,18 +19,23 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
 import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
+import io.substrait.proto.Plan;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -51,9 +56,12 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import static com.amazonaws.athena.connector.substrait.SubstraitRelUtils.deserializeSubstraitPlan;
 
 /**
  * This class is responsible for providing Athena with actual rows level data from your Elasticsearch instance. Athena
@@ -86,6 +94,8 @@ public class ElasticsearchRecordHandler
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
 
+    private Map<String, DefaultCredentialsProvider> secretMap;
+
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
     private final ElasticsearchQueryPassthrough queryPassthrough = new ElasticsearchQueryPassthrough();
@@ -96,6 +106,7 @@ public class ElasticsearchRecordHandler
                 AthenaClient.create(), SOURCE_TYPE, configOptions);
 
         this.typeUtils = new ElasticsearchTypeUtils();
+        this.secretMap = new HashMap<>();
         this.clientFactory = new AwsRestHighLevelClientFactory(configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true"));
         this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_SEARCH, "720"));
         this.scrollTimeout = Long.parseLong(configOptions.getOrDefault(SCROLL_TIMEOUT, "60"));
@@ -121,6 +132,8 @@ public class ElasticsearchRecordHandler
 
     /**
      * Used to read the row data associated with the provided Split.
+     * This method supports predicate pushdown through both Constraints and Substrait QueryPlan,
+     * ensuring all filter operations are pushed down to Elasticsearch for optimal performance.
      *
      * @param spiller A BlockSpiller that should be used to write the row data associated with this Split.
      * The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
@@ -142,6 +155,11 @@ public class ElasticsearchRecordHandler
         String domain;
         QueryBuilder query;
         String index;
+        Plan substraitPlan;
+        boolean hasLimit = false;
+        int limit = 0;
+
+        // Check for Query Passthrough first (highest priority)
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             Map<String, String> qptArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
             queryPassthrough.verify(qptArgs);
@@ -152,7 +170,43 @@ public class ElasticsearchRecordHandler
         else {
             domain = recordsRequest.getTableName().getSchemaName();
             index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
-            query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
+
+            // Check for Substrait QueryPlan (second priority)
+            final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
+            if (queryPlan != null) {
+                try {
+                    substraitPlan = deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+                    final Plan plan = substraitPlan;
+                    logger.info("Using Substrait query plan for predicate pushdown");
+
+                    // Try to use enhanced query generation from Substrait plan
+                    final java.util.Map<String, java.util.List<ColumnPredicate>> columnPredicateMap =
+                            ElasticsearchQueryUtils.buildFilterPredicatesFromPlan(plan);
+                    if (!columnPredicateMap.isEmpty()) {
+                        query = ElasticsearchQueryUtils.getQueryFromPlan(plan);
+                    }
+                    else {
+                        query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
+                    }
+
+                    // Extract LIMIT from Substrait plan
+                    final Pair<Boolean, Integer> limitPair = getLimitFromPlan(plan, recordsRequest.getConstraints());
+                    hasLimit = limitPair.getLeft();
+                    limit = limitPair.getRight();
+                    if (hasLimit) {
+                        logger.info("LIMIT pushdown enabled with limit: {}", limit);
+                    }
+                }
+                catch (Exception e) {
+                    logger.warn("Failed to use Substrait plan, falling back to constraint-based query: {}", e.getMessage());
+                    query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
+                }
+            }
+            else {
+                // Fall back to constraint-based query (third priority)
+                logger.info("Using constraint-based query for predicate pushdown");
+                query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
+            }
         }
 
         String endpoint = recordsRequest.getSplit().getProperty(domain);
@@ -160,10 +214,11 @@ public class ElasticsearchRecordHandler
         String username = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_USERNAME);
         String password = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_PASSWORD);
         boolean useSecret = StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
+
         logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}, Query: {}",
                 domain, index,
                 recordsRequest.getSchema(), query);
-        long numRows = 0;
+        int numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
             AwsRestHighLevelClient client = useSecret ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
@@ -171,9 +226,12 @@ public class ElasticsearchRecordHandler
                 // Create field extractors for all data types in the schema.
                 GeneratedRowWriter rowWriter = createFieldExtractors(recordsRequest);
 
+                // Determine the batch size: if LIMIT is present and smaller than QUERY_BATCH_SIZE, use the limit
+                int batchSize = hasLimit ? Math.min(limit, QUERY_BATCH_SIZE) : QUERY_BATCH_SIZE;
+
                 // Create a new search-source injected with the projection, predicate, and the pagination batch size.
                 SearchSourceBuilder searchSource = new SearchSourceBuilder()
-                        .size(QUERY_BATCH_SIZE)
+                        .size(batchSize)
                         .timeout(new TimeValue(queryTimeout, TimeUnit.SECONDS))
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
                         .query(query);
@@ -195,9 +253,18 @@ public class ElasticsearchRecordHandler
                         && queryStatusChecker.isQueryRunning()) {
                     Iterator<SearchHit> finalIterator = searchResponse.getHits().iterator();
                     while (finalIterator.hasNext() && queryStatusChecker.isQueryRunning()) {
+                        if (hasLimit && numRows >= limit) {
+                            break;
+                        }
                         ++numRows;
                         spiller.writeRows((Block block, int rowNum) ->
                                 rowWriter.writeRow(block, rowNum, client.getDocument(finalIterator.next())) ? 1 : 0);
+                    }
+
+                    // Only fetch next batch if we haven't reached the limit
+                    if (hasLimit && numRows >= limit) {
+                        logger.info("Reached LIMIT of {} rows, stopping scroll before fetching next batch", limit);
+                        break;  // Break outer loop, proceed to cleanup
                     }
 
                     //prep for next hits and keep track of scroll id.
