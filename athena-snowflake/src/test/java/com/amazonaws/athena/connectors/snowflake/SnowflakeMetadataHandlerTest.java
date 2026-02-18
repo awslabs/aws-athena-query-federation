@@ -45,6 +45,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
+import com.amazonaws.athena.connector.lambda.resolver.CaseResolver;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -999,5 +1000,77 @@ public class SnowflakeMetadataHandlerTest
             .thenThrow(new SQLException("Database connection error"));
         
         snowflakeMetadataHandler.getStorageIntegrationProperties(connection, integrationName);
+    }
+
+    @Test
+    public void testDoGetTableWithAnnotation()
+            throws Exception
+    {
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+
+        Schema expected = expectedSchemaBuilder.build();
+
+        String schemaName = "testSchema";
+        String tableName = "testTable";
+        TableName inputTableName = new TableName(schemaName, tableName + "@schemaCase=upper&tableCase=lower");
+
+        SnowflakeMetadataHandler snowflakeMetadataHandlerAnnotation = new SnowflakeMetadataHandler(databaseConnectionConfig, this.jdbcConnectionFactory,
+            com.google.common.collect.ImmutableMap.of(CaseResolver.CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name()));
+        
+        when(connection.getMetaData().getColumns("testCatalog", schemaName.toUpperCase(), tableName.toLowerCase(), null)).thenReturn(resultSet);
+        when(connection.getCatalog()).thenReturn("testCatalog");
+
+        GetTableResponse getTableResponse = snowflakeMetadataHandlerAnnotation.doGetTable(
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        Assert.assertEquals(expected, getTableResponse.getSchema());
+        Assert.assertEquals(new TableName(schemaName.toUpperCase(), tableName.toLowerCase()), getTableResponse.getTableName());
+        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void testDoGetTableWithNoneCasing()
+            throws Exception
+    {
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+
+        Schema expected = expectedSchemaBuilder.build();
+
+        String schemaName = "TestSchema";
+        String tableName = "TestTable";
+        TableName inputTableName = new TableName(schemaName, tableName);
+
+        SnowflakeMetadataHandler snowflakeMetadataHandlerNone = new SnowflakeMetadataHandler(databaseConnectionConfig, this.jdbcConnectionFactory,
+            com.google.common.collect.ImmutableMap.of(CaseResolver.CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.NONE.name()));
+        
+        when(connection.getMetaData().getColumns("testCatalog", schemaName, tableName, null)).thenReturn(resultSet);
+        when(connection.getCatalog()).thenReturn("testCatalog");
+
+        GetTableResponse getTableResponse = snowflakeMetadataHandlerNone.doGetTable(
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        Assert.assertEquals(expected, getTableResponse.getSchema());
+        Assert.assertEquals(new TableName(schemaName, tableName), getTableResponse.getTableName());
+        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 }

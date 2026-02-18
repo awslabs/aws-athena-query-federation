@@ -39,7 +39,7 @@ public class Db2Constants
             "from syscat.tables where type in ('T', 'U', 'V', 'W') and tabschema = ? " +
             "ORDER BY tabname OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
 
-    static final String PARTITION_QUERY = "SELECT DATAPARTITIONID FROM SYSCAT.DATAPARTITIONS WHERE TABSCHEMA = ? AND TABNAME = ? AND SEQNO > 0";
+    static final String PARTITION_QUERY = "SELECT DATAPARTITIONID FROM SYSCAT.DATAPARTITIONS WHERE TABSCHEMA = ? AND TABNAME = ? AND SEQNO >= 0";
     static final String COLUMN_INFO_QUERY = "select colname, typename from syscat.columns where tabschema = ? AND tabname = ?";
     private Db2Constants() {}
 }

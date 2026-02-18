@@ -71,6 +71,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -373,6 +374,52 @@ public class Db2MetadataHandlerTest extends TestBase {
         // Use a non-null token to force pagination path, which will trigger the listPaginatedTables method
         // With unlimited page size, there should be no next token (null) since all results are returned
         executePaginatedTableTest(values, expected, "0", UNLIMITED_PAGE_SIZE_VALUE, null);
+    }
+    
+    @Test
+    public void doGetSplits_withSinglePartition_returnsSplit()
+            throws Exception {
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                null
+        );
+        TableName tableName = new TableName("testSchema", "testTable");
+        
+        PreparedStatement partitionPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.PARTITION_QUERY)).thenReturn(partitionPreparedStatement);
+        ResultSet partitionResultSet = mockResultSet(new String[]{"DATAPARTITIONID"}, new int[]{Types.INTEGER}, new Object[][]{{0}}, new AtomicInteger(-1));
+        Mockito.when(partitionPreparedStatement.executeQuery()).thenReturn(partitionResultSet);
+        
+        PreparedStatement colNamePreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.COLUMN_INFO_QUERY)).thenReturn(colNamePreparedStatement);
+        ResultSet colNameResultSet = mockResultSet(new String[]{"COLNAME"}, new int[]{Types.VARCHAR}, new Object[][]{{"PC"}}, new AtomicInteger(-1));
+        Mockito.when(colNamePreparedStatement.executeQuery()).thenReturn(colNameResultSet);
+        Mockito.when(colNameResultSet.next()).thenReturn(true);
+        
+        Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
+        
+        Schema partitionSchema = this.db2MetadataHandler.getPartitionSchema("testCatalogName");
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        
+        GetTableLayoutResponse getTableLayoutResponse = this.db2MetadataHandler.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
+        
+        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.db2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+        
+        Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
+                com.google.common.collect.ImmutableMap.of(
+                        PARTITION_NUMBER, "0",
+                        Db2MetadataHandler.PARTITIONING_COLUMN, "PC"));
+        
+        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
+        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
+        Assert.assertEquals(expectedSplits, actualSplits);
     }
 
     /**
