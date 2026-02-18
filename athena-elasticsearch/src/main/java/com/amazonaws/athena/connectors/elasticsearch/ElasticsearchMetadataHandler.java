@@ -54,6 +54,7 @@ import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
@@ -147,7 +148,8 @@ public class ElasticsearchMetadataHandler
         this.secretMap = new HashMap<>();
         this.autoDiscoverEndpoint = configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true");
         this.domainMapProvider = new ElasticsearchDomainMapProvider(this.autoDiscoverEndpoint);
-        this.domainMap = resolveDomainMap(configOptions);
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(configOptions);
+        this.domainMap = resolveDomainMap(configOptions, overrideConfig);
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
         this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_CLUSTER, "10"));
@@ -171,13 +173,14 @@ public class ElasticsearchMetadataHandler
         this.awsGlue = awsGlue;
         this.secretMap = new HashMap<>();
         this.domainMapProvider = domainMapProvider;
-        this.domainMap = simulateGlueConnection ? resolveDomainMap(configOptions) : this.domainMapProvider.getDomainMap(null);
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(configOptions);
+        this.domainMap = simulateGlueConnection ? resolveDomainMap(configOptions, overrideConfig) : this.domainMapProvider.getDomainMap(null);
         this.clientFactory = clientFactory;
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
         this.queryTimeout = queryTimeout;
     }
 
-    protected Map<String, String> resolveDomainMap(Map<String, String> config)
+    protected Map<String, String> resolveDomainMap(Map<String, String> config, AwsRequestOverrideConfiguration overrideConfig)
     {
         String domainEndpoint;
         if (StringUtils.isNotBlank(config.getOrDefault(DEFAULT_GLUE_CONNECTION, ""))) {
@@ -185,7 +188,7 @@ public class ElasticsearchMetadataHandler
             domainEndpoint = requireNonNull(config.get(DOMAIN_ENDPOINT), String.format("Glue connection field: '%s' is required for Elastic Search connector", DOMAIN_ENDPOINT));
 
             domainEndpoint = appendDomainNameIfNeeded(domainEndpoint);
-            this.secretMap.put(domainEndpoint.split("=")[0], new DefaultCredentialsProvider(getSecret(secretName)));
+            this.secretMap.put(domainEndpoint.split("=")[0], new DefaultCredentialsProvider(getSecret(secretName, overrideConfig)));
         }
         else {
             // non-glue connection use case
