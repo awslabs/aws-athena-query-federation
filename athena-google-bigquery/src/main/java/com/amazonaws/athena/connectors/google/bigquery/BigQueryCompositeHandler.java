@@ -20,11 +20,16 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQuerySQLException;
+import com.google.cloud.bigquery.JobException;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
 
 import java.io.IOException;
 
@@ -45,5 +50,36 @@ public class BigQueryCompositeHandler
         installGoogleCredentialsJsonFile(new BigQueryEnvironmentProperties().createEnvironment());
         setupNativeEnvironmentVariables();
         logger.info("Inside BigQueryCompositeHandler()");
+    }
+
+    @Override
+    public Exception handleException(Exception e)
+    {
+        return handleBigQueryException(super.handleException(e));
+    }
+
+    /**
+     * Transforms BigQuery exceptions into AthenaConnectorException with appropriate error code.
+     * Maps BigQuery error codes to FederationSourceErrorCode for better customer experience.
+     * Returns other exceptions unchanged.
+     *
+     * @param e The exception to handle
+     * @return The transformed exception or original exception
+     */
+    public static Exception handleBigQueryException(Exception e)
+    {
+        if (e instanceof BigQueryException || e instanceof BigQuerySQLException || e instanceof JobException) {
+            int errorCode = 0;
+            if (e instanceof BigQueryException) {
+                errorCode = ((BigQueryException) e).getCode();
+            }
+            return new AthenaConnectorException(
+                    e.getMessage() != null ? e.getMessage() : "",
+                    ErrorDetails.builder()
+                            .errorCode(mapHTTPErrorCode(errorCode).toString())
+                            .build()
+            );
+        }
+        return e;
     }
 }
