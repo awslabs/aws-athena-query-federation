@@ -196,6 +196,8 @@ public class BigQueryUtils
             /** Represents a year, month, day, hour, minute, second, and subsecond (microsecond precision). */
             case DATETIME:
                 return new ArrowType.Date(DateUnit.MILLISECOND);
+            case TIMESTAMP:
+                return new ArrowType.Date(DateUnit.MILLISECOND);
             /** Represents a set of geographic points, represented as a Well Known Text (WKT) string. */
             default:
                 return new ArrowType.Utf8();
@@ -274,12 +276,12 @@ public class BigQueryUtils
             case Timestamp: {
                 ArrowType.Timestamp actualType = (ArrowType.Timestamp) arrowType;
                 if (value instanceof Long) {
-                    // Convert this long and timezone into a ZonedDateTime
-                    // Since BlockUtils.setValue accepts ZonedDateTime objects for TIMESTAMPMILLITZ
+                    // Convert this long into Instant
+                    // BlockUtils.setValue accepts Instant/LocalDateTime for DATEMILLI
                     return Instant.EPOCH.plus(
                             (Long) value,
                             DateTimeFormatterUtil.arrowTimeUnitToChronoUnit(actualType.getUnit())
-                    ).atZone(java.time.ZoneId.of(actualType.getTimezone())).toLocalDateTime().toString();
+                    );
                 }
                 // If its anything other than Long, just let BlockUtils handle it directly.
                 return value;
@@ -288,7 +290,7 @@ public class BigQueryUtils
         return value;
     }
 
-    static Object getObjectFromFieldValue(String fieldName, FieldValue fieldValue, Field field, boolean isTimeStampCol) throws ParseException
+    static Object getObjectFromFieldValue(String fieldName, FieldValue fieldValue, Field field) throws ParseException
     {
         ArrowType arrowType = field.getFieldType().getType();
         if (fieldValue.isNull() || fieldValue.getValue().equals("null")) {
@@ -306,22 +308,47 @@ public class BigQueryUtils
                 throw new ParseException(e.getMessage(), e.getErrorOffset());
             }
         }
+
+        // Handle Date(MILLISECOND) - used for both DATETIME and TIMESTAMP columns
         if ("Date(MILLISECOND)".equalsIgnoreCase(arrowType.toString())) {
-            String dateTimeVal = (String) fieldValue.getValue();
-            DateTimeFormatter dateTimeFormatter;
-            LocalDateTime localDateTime;
-            if (dateTimeVal.length() == 19) {
+            String value = (String) fieldValue.getValue();
+
+            // Check if it's epoch time (just digits and optional decimal) vs formatted datetime string
+            if (value.matches("^\\d+(\\.\\d+)?$")) {
+                // It's epoch seconds as a decimal number (e.g., "1769026280.72692")
+                // This is a TIMESTAMP column
                 try {
-                    return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(dateTimeVal);
+                    BigDecimal decimalSeconds = new BigDecimal(value);
+                    long seconds = decimalSeconds.longValue();
+                    long nanos = decimalSeconds.subtract(BigDecimal.valueOf(seconds))
+                            .movePointRight(9)
+                            .longValueExact();
+                    // Return as Instant (BlockUtils.setValue handles this for DATEMILLI)
+                    return Instant.ofEpochSecond(seconds, nanos);
                 }
-                catch (ParseException e) {
-                    throw new ParseException(e.getMessage(), e.getErrorOffset());
+                catch (Exception e) {
+                    throw new RuntimeException("Failed to parse timestamp value: " + value, e);
                 }
             }
             else {
-                dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS");
-                localDateTime = LocalDateTime.parse(dateTimeVal, dateTimeFormatter);
-                return localDateTime;
+                // It's a formatted datetime string (e.g., "2026-01-21T20:10:16.297470")
+                // This is a DATETIME column
+                String dateTimeVal = (String) fieldValue.getValue();
+                DateTimeFormatter dateTimeFormatter;
+                LocalDateTime localDateTime;
+                if (dateTimeVal.length() == 19) {
+                    try {
+                        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(dateTimeVal);
+                    }
+                    catch (ParseException e) {
+                        throw new ParseException(e.getMessage(), e.getErrorOffset());
+                    }
+                }
+                else {
+                    dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS");
+                    localDateTime = LocalDateTime.parse(dateTimeVal, dateTimeFormatter);
+                    return localDateTime;
+                }
             }
         }
         switch (getMinorTypeForArrowType(arrowType)) {
@@ -341,33 +368,23 @@ public class BigQueryUtils
             case FLOAT8:
                 return fieldValue.getDoubleValue();
             case VARCHAR:
-                if (isTimeStampCol) {
-                    BigDecimal decimalSeconds = new BigDecimal(fieldValue.getStringValue().replace("T", " "));
-                    long seconds = decimalSeconds.longValue();
-                    long nanos = decimalSeconds.subtract(BigDecimal.valueOf(seconds))
-                            .movePointRight(9)
-                            .longValueExact();
-                    return Instant.ofEpochSecond(seconds, nanos);
-                }
-                else {
-                    return fieldValue.getStringValue();
-                }
+                return fieldValue.getStringValue();
             case STRUCT:
             case LIST:
-                return getComplexObjectFromFieldValue(field, fieldValue, isTimeStampCol);
+                return getComplexObjectFromFieldValue(field, fieldValue);
             default:
                 throw new IllegalArgumentException("Unknown type has been encountered: Field Name: " + fieldName +
                         " Field Type: " + arrowType.toString() + " MinorType: " + getMinorTypeForArrowType(arrowType));
         }
     }
 
-    public static Object getComplexObjectFromFieldValue(Field field, FieldValue fieldValue, boolean isTimeStampCol) throws ParseException
+    public static Object getComplexObjectFromFieldValue(Field field, FieldValue fieldValue) throws ParseException
     {
         Types.MinorType minorTypeForArrowType = getMinorTypeForArrowType(field.getFieldType().getType());
         if (minorTypeForArrowType.equals(Types.MinorType.LIST)) {
             List<Object> valList = new ArrayList();
             for (FieldValue fieldVal : fieldValue.getRepeatedValue()) {
-                valList.add(getObjectFromFieldValue(field.toString(), fieldVal, field.getChildren().get(0), isTimeStampCol));
+                valList.add(getObjectFromFieldValue(field.toString(), fieldVal, field.getChildren().get(0)));
             }
             return valList;
         }
@@ -375,7 +392,7 @@ public class BigQueryUtils
             Map<Object, Object> valMap = new HashMap();
             Object[] fieldValues =  fieldValue.getRecordValue().toArray();
             for (int i = 0; i < fieldValues.length; i++) {
-                valMap.put(field.getChildren().get(i).getName(), getObjectFromFieldValue(field.toString(), fieldValue.getRecordValue().get(i), field.getChildren().get(i), isTimeStampCol));
+                valMap.put(field.getChildren().get(i).getName(), getObjectFromFieldValue(field.toString(), fieldValue.getRecordValue().get(i), field.getChildren().get(i)));
             }
             return valMap;
         }

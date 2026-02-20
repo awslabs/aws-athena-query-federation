@@ -40,6 +40,7 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import java.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -173,6 +174,7 @@ public class BigQueryUtilsTest
         assertEquals(new ArrowType.Date(DateUnit.MILLISECOND),
                 BigQueryUtils.translateToArrowType(LegacySQLTypeName.DATETIME));
         assertEquals(new ArrowType.Utf8(), BigQueryUtils.translateToArrowType(LegacySQLTypeName.STRING));
+        assertEquals(new ArrowType.Date(DateUnit.MILLISECOND), BigQueryUtils.translateToArrowType(LegacySQLTypeName.TIMESTAMP));
     }
 
     @Test
@@ -237,12 +239,16 @@ public class BigQueryUtilsTest
                 null
         );
         try (TimeStampMilliTZVector timestampVector = new TimeStampMilliTZVector(timestampField, rootAllocator)) {
-            // Test coercing a Long value (epoch milliseconds)
+            // Test coercing a Long value (epoch milliseconds) - now returns Instant
             Long timestampInMillis = 1609459200000L; // 2021-01-01 00:00:00 UTC
             Object result = BigQueryUtils.coerce(timestampVector, timestampInMillis);
             assertNotNull(result);
-            assertInstanceOf(String.class, result);
-            assertEquals("2021-01-01T00:00", result.toString());
+            assertInstanceOf(Instant.class, result);
+
+            // Verify the Instant has correct epoch time
+            Instant instant = (Instant) result;
+            assertEquals(1609459200L, instant.getEpochSecond());
+            assertEquals(0, instant.getNano());
 
             // Test coercing a non-Long value
             String timestampString = "2021-01-01T00:00:00";
@@ -267,7 +273,7 @@ public class BigQueryUtilsTest
         org.apache.arrow.vector.types.pojo.Field dateField =
                 org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, new ArrowType.Date(DateUnit.DAY));
 
-        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, dateValue, dateField, false);
+        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, dateValue, dateField);
         assertNotNull(result);
         assertInstanceOf(Long.class, result);
         assertEquals(19358L, result);
@@ -279,18 +285,35 @@ public class BigQueryUtilsTest
         org.apache.arrow.vector.types.pojo.Field dateTimeField =
                 org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, new ArrowType.Date(DateUnit.MILLISECOND));
 
-        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, dateTimeValue, dateTimeField, false);
+        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, dateTimeValue, dateTimeField);
         assertNotNull(result);
         assertInstanceOf(Date.class, result);
 
         dateTimeValue = FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2023-01-01T12:00:00.000000");
         dateTimeField = org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, new ArrowType.Date(DateUnit.MILLISECOND));
 
-        result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, dateTimeValue, dateTimeField, false);
+        result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, dateTimeValue, dateTimeField);
         assertNotNull(result);
         assertInstanceOf(LocalDateTime.class, result);
         assertEquals(LocalDateTime.of(2023, 1, 1, 12, 0, 0), result);
 
+    }
+
+    @Test
+    public void testGetObjectFromFieldValueWithDateMillisecond_EpochDecimal() throws ParseException {
+        // Test TIMESTAMP column with epoch seconds as decimal (e.g., "1769026280.72692")
+        FieldValue epochDecimalValue = FieldValue.of(FieldValue.Attribute.PRIMITIVE, "1769026280.72692");
+        org.apache.arrow.vector.types.pojo.Field dateMilliField =
+                org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, new ArrowType.Date(DateUnit.MILLISECOND));
+
+        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, epochDecimalValue, dateMilliField);
+
+        assertNotNull(result);
+        assertInstanceOf(Instant.class, result);
+
+        Instant instant = (Instant) result;
+        assertEquals(1769026280L, instant.getEpochSecond());
+        assertEquals(726920000L, instant.getNano());
     }
 
     @Test
@@ -299,7 +322,7 @@ public class BigQueryUtilsTest
         org.apache.arrow.vector.types.pojo.Field timestampField =
                 org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, null));
 
-        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, timestampValue, timestampField, true);
+        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, timestampValue, timestampField);
         assertNotNull(result);
         assertInstanceOf(Long.class, result);
         assertEquals(12345000L, result);
@@ -311,34 +334,19 @@ public class BigQueryUtilsTest
         org.apache.arrow.vector.types.pojo.Field decimalField =
                 org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, new ArrowType.Decimal(38, 9, 128));
 
-        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, decimalValue, decimalField, false);
+        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, decimalValue, decimalField);
         assertNotNull(result);
         assertInstanceOf(BigDecimal.class, result);
         assertEquals(new BigDecimal("123.45"), result);
     }
 
-    @Test
-    public void testGetObjectFromFieldValueVarcharWithTimestamp() throws ParseException {
-        String timestampMillis = "1748604000000"; // Represents 2025-05-30T12:00:00Z
-        FieldValue varcharTimestampValue = FieldValue.of(FieldValue.Attribute.PRIMITIVE, timestampMillis);
-        org.apache.arrow.vector.types.pojo.Field varcharTimestampField =
-                org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, new ArrowType.Utf8());
-        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, varcharTimestampValue, varcharTimestampField, false);
-        assertNotNull(result);
-        assertInstanceOf(String.class, result);
-        assertEquals(timestampMillis, result);
-
-        result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, varcharTimestampValue, varcharTimestampField, true);
-        assertNotNull(result);
-        assertInstanceOf(Instant.class, result);
-    }
 
     @Test
     public void testGetObjectFromFieldValueWithNull() throws ParseException {
         FieldValue nullValue = FieldValue.of(FieldValue.Attribute.PRIMITIVE, null);
         org.apache.arrow.vector.types.pojo.Field field =
                 org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, new ArrowType.Utf8());
-        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, nullValue, field, false);
+        Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, nullValue, field);
         assertNull(result);
     }
 
@@ -358,7 +366,7 @@ public class BigQueryUtilsTest
         List<org.apache.arrow.vector.types.pojo.Field> children = new ArrayList<>();
         children.add(childField);
         structField = new org.apache.arrow.vector.types.pojo.Field(FIELD_NAME, structField.getFieldType(), children);
-        Object result = BigQueryUtils.getComplexObjectFromFieldValue(structField, structValue, false);
+        Object result = BigQueryUtils.getComplexObjectFromFieldValue(structField, structValue);
         assertInstanceOf(Map.class, result);
         Map<Object, Object> structResult = (Map<Object, Object>) result;
         assertEquals(1, structResult.size());
@@ -381,7 +389,7 @@ public class BigQueryUtilsTest
         List<org.apache.arrow.vector.types.pojo.Field> children = new ArrayList<>();
         children.add(childField);
         listField = new org.apache.arrow.vector.types.pojo.Field(FIELD_NAME, listField.getFieldType(), children);
-        Object result = BigQueryUtils.getComplexObjectFromFieldValue(listField, listValue, false);
+        Object result = BigQueryUtils.getComplexObjectFromFieldValue(listField, listValue);
         assertInstanceOf(List.class, result);
         List<?> listResult = (List<?>) result;
         assertEquals(2, listResult.size());
@@ -395,7 +403,7 @@ public class BigQueryUtilsTest
         org.apache.arrow.vector.types.pojo.Field dateField =
                 org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, new ArrowType.Date(DateUnit.DAY));
 
-        BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, invalidDateValue, dateField, false);
+        BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, invalidDateValue, dateField);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -406,7 +414,7 @@ public class BigQueryUtilsTest
         org.apache.arrow.vector.types.pojo.Field customField =
                 org.apache.arrow.vector.types.pojo.Field.nullable(FIELD_NAME, customType);
 
-        BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, testValue, customField, false);
+        BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, testValue, customField);
     }
 
     @Test(expected = IllegalArgumentException.class)

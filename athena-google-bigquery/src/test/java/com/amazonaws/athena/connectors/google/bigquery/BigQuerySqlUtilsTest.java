@@ -19,39 +19,32 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
-import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Ranges;
-import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.*;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryTestUtils.makeSchema;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 public class BigQuerySqlUtilsTest
 {
@@ -476,6 +469,31 @@ public class BigQuerySqlUtilsTest
         }
     }
 
+    @Test
+    public void testMakeConjunctsFromPlan_NotOr()
+    {
+        // SQL: "SELECT id FROM \"my_dataset\".\"service_requests_no_noise\" WHERE (id = 100 OR id = 200) AND is_active != true LIMIT 10";
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIQGg4IARABGghhbmQ6Ym9vbBIPGg0IARACGgdvcjpib29sEhUaEwgCEAMaDWVxdWFsOmFueV9hbnkSGRoXCAIQBBoRbm90X2VxdWFsOmFueV9hbnkaiAYShQYK/gUa+wUKAgoAEvAFOu0FCgUSAwoBFhLXBRLUBQoCCgASlwQKlAQKAgoAEuQDCglpc19hY3RpdmUKC3RpbnlpbnRfY29sCgxzbWFsbGludF9jb2wKCHByaW9yaXR5CgpiaWdpbnRfY29sCglmbG9hdF9jb2wKCmRvdWJsZV9jb2wKCHJlYWxfY29sCgt2YXJjaGFyX2NvbAoIY2hhcl9jb2wKDXZhcmJpbmFyeV9jb2wKCGRhdGVfY29sCgh0aW1lX2NvbAoNdGltZXN0YW1wX2NvbAoCaWQKDGRlY2ltYWxfY29sMgoMZGVjaW1hbF9jb2wzCgtzdWJjYXRlZ29yeQoNaW50X2FycmF5X2NvbAoHbWFwX2NvbAoQbWFwX3dpdGhfZGVjaW1hbAoMbmVzdGVkX2FycmF5EtYBCgQKAhACCgQSAhACCgQaAhACCgQqAhACCgQ6AhACCgRaAhACCgRaAhACCgRSAhACCgRiAhACCgeqAQQIARgCCgRqAhACCgWCAQIQAgoFigECEAIKBYoCAhgCCgnCAQYIBBATIAIKCcIBBggCEAogAgoJwgEGCAoQEyACCgvaAQgKBGICEAIYAgoL2gEICgQqAhACGAIKEeIBDgoEYgIQAhIEKgIQAiACChbiARMKBGICEAISCcIBBggCEAogAiACChLaAQ8KC9oBCAoEKgIQAhgCGAIYAjonCgpteV9kYXRhc2V0ChlzZXJ2aWNlX3JlcXVlc3RzX25vX25vaXNlGrMBGrABCAEaBAoCEAIigwEagAEafggCGgQKAhACIjkaNxo1CAMaBAoCEAIiDBoKEggKBBICCA4iACIdGhsKGcIBFgoQQEIPAAAAAAAAAAAAAAAAABATGAQiORo3GjUIAxoECgIQAiIMGgoSCAoEEgIIDiIAIh0aGwoZwgEWChCAhB4AAAAAAAAAAAAAAAAAEBMYBCIgGh4aHAgEGgQKAhACIgoaCBIGCgISACIAIgYaBAoCCAEaChIICgQSAggOIgAYACAKEgJJRDILEEoqB2lzdGhtdXM=";
+        Schema testSchema = new Schema(Arrays.asList(
+                new Field("employee_name", FieldType.nullable(new ArrowType.Utf8()), null),
+                new Field("job_title", FieldType.nullable(new ArrowType.Utf8()), null),
+                new Field("address", FieldType.nullable(new ArrowType.Utf8()), null),
+                new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null),
+                new Field("salary", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null),
+                new Field("bonus", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null),
+                new Field("is_active", FieldType.nullable(new ArrowType.Bool()), null),
+                new Field("join_date", FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)), null)
+        ));
+        QueryPlan queryPlan = new QueryPlan("1.0", substraitPlanString);
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
+        String result = BigQuerySqlUtils.buildSql(tableName, testSchema, constraints, new ArrayList<>());
+
+        assertNotNull(result);
+        assertTrue(result.contains("SELECT id"));
+        assertTrue(result.contains("WHERE id IN (100.0000, 200.0000) AND NOT is_active"));
+        assertTrue(result.contains("LIMIT 10"));
+    }
+
     private Constraints getConstraints(Map<String, ValueSet> constraintMap, List<OrderByField> orderByFields, long limit) {
         return new Constraints(constraintMap, Collections.emptyList(), orderByFields, limit, Collections.emptyMap(), null);
     }
@@ -484,5 +502,29 @@ public class BigQuerySqlUtilsTest
         String sql = BigQuerySqlUtils.buildSql(tableName, schema, constraints, parameterValues);
         assertEquals(expectedParams, parameterValues);
         assertEquals(expectedSql, sql);
+    }
+
+    @Test
+    public void testBuildSql_InvalidSubstraitPlan()
+    {
+        // Test error handling in buildSql() when Substrait plan parsing fails (lines 74-76)
+        String invalidSubstraitPlan = "INVALID_BASE64_SUBSTRAIT_PLAN";
+
+        Schema testSchema = new Schema(Arrays.asList(
+                new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null),
+                new Field("name", FieldType.nullable(new ArrowType.Utf8()), null)
+        ));
+
+        QueryPlan queryPlan = new QueryPlan("1.0", invalidSubstraitPlan);
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
+
+        // Should throw RuntimeException with message "Failed to prepare statement with Calcite"
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            BigQuerySqlUtils.buildSql(tableName, testSchema, constraints, new ArrayList<>());
+        });
+
+        // Verify the error message
+        assertTrue("Exception message should indicate Calcite failure",
+                exception.getMessage().contains("Failed to prepare statement with Calcite"));
     }
 }
