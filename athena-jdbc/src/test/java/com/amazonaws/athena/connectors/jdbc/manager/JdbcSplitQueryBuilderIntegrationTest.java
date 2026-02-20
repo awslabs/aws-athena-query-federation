@@ -379,7 +379,28 @@ public class JdbcSplitQueryBuilderIntegrationTest {
                 Arguments.of("Data Quality Checks", "Completeness check",
                         "SELECT COUNT(*) as total_rows, COUNT(int_col) as int_count, COUNT(varchar_col) as varchar_count, COUNT(decimal_col) as price_count FROM test_table"),
                 Arguments.of("Data Quality Checks", "Value ranges",
-                        "SELECT MIN(EXTRACT(YEAR FROM date_col)) as min_year, MAX(EXTRACT(YEAR FROM date_col)) as max_year, MIN(CAST(decimal_col AS DOUBLE)) as min_price, MAX(CAST(decimal_col AS DOUBLE)) as max_price FROM test_table"));
+                        "SELECT MIN(EXTRACT(YEAR FROM date_col)) as min_year, MAX(EXTRACT(YEAR FROM date_col)) as max_year, MIN(CAST(decimal_col AS DOUBLE)) as min_price, MAX(CAST(decimal_col AS DOUBLE)) as max_price FROM test_table"),
+
+                // Boolean Column Tests - Testing standalone boolean and NOT boolean transformations
+                Arguments.of("Boolean Column Tests", "Standalone boolean column",
+                        "SELECT * FROM test_table WHERE bool_col LIMIT 10"),
+                Arguments.of("Boolean Column Tests", "Standalone boolean column with NOT",
+                        "SELECT * FROM test_table WHERE NOT bool_col LIMIT 10"),
+                Arguments.of("Boolean Column Tests", "Explicit boolean comparison true",
+                        "SELECT * FROM test_table WHERE bool_col = true LIMIT 10"),
+                Arguments.of("Boolean Column Tests", "Explicit boolean comparison false",
+                        "SELECT * FROM test_table WHERE bool_col = false LIMIT 10"),
+                Arguments.of("Boolean Column Tests", "Complex condition with NOT boolean",
+                        "SELECT * FROM test_table WHERE int_col > 1000 AND NOT bool_col LIMIT 10"),
+                Arguments.of("Boolean Column Tests", "Complex condition with boolean",
+                        "SELECT * FROM test_table WHERE int_col > 1000 AND bool_col LIMIT 10"),
+                Arguments.of("Boolean Column Tests", "OR condition with boolean",
+                        "SELECT * FROM test_table WHERE bool_col OR int_col = 1500 LIMIT 10"),
+                // Arguments.of("Boolean Column Tests", "Multiple boolean conditions",
+                //         "SELECT * FROM test_table WHERE bool_col AND NOT bool_col LIMIT 10"),
+                Arguments.of("Boolean Column Tests", "Boolean in complex expression",
+                        "SELECT * FROM test_table WHERE (int_col > 1000 AND bool_col) OR (int_col < 500 AND NOT bool_col) LIMIT 10")
+        );
     }
 
     @ParameterizedTest(name = "[{index}] {0} - {1}")

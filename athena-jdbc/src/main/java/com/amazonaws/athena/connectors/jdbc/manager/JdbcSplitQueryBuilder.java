@@ -430,14 +430,16 @@ public abstract class JdbcSplitQueryBuilder
             root = (SqlSelect) sqlNode;
 
             RelDataType tableSchema = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect);
-            String test = tableSchema.getFieldList().toString();
             SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, tableSchema);
             SqlNode parameterizedNode = visitor.visit(root);
             
             
             LOGGER.debug("CalciteSql parameterized sql with dialect {}: {}", sqlDialect.toString(), parameterizedNode.toSqlString(sqlDialect).getSql());
             LOGGER.debug("CalciteSql parameters: {}", accumulator.toString());
-
+            
+            System.out.println(parameterizedNode.toSqlString(sqlDialect).getSql());
+            System.out.println(accumulator.size());
+            
             PreparedStatement statement = jdbcConnection.prepareStatement(parameterizedNode.toSqlString(sqlDialect).getSql());
             handleDataTypesForPreparedStatement(statement, accumulator);
             LOGGER.debug("CalciteSql prepared statement: {}", statement);

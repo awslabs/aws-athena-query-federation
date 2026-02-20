@@ -52,12 +52,20 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
         this.schema = schema;
     }
 
-    
-    // where is_active. 
     @Override
     public SqlNode visit(SqlCall call)
     {
         SqlKind kind = call.getOperator().getKind();
+        
+        // Handle AND/OR operators - may contain standalone boolean columns
+        if (kind == SqlKind.AND || kind == SqlKind.OR) {
+            return handleLogicalOperator(call);
+        }
+        
+        // Handle NOT operator on boolean columns: NOT bool_col -> bool_col = FALSE
+        if (kind == SqlKind.NOT) {
+            return handleNot(call);
+        }
         
         // Binary comparisons: col = val, col > val, etc.
         if (isBinaryComparison(kind)) {
@@ -247,6 +255,63 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
         return call.getOperator().createCall(call.getParserPosition(), identifier, newPattern);
     }
 
+    private SqlNode handleLogicalOperator(SqlCall call)
+    {
+        // Handle AND/OR operators that may contain standalone boolean columns
+        SqlNode[] newOperands = new SqlNode[call.operandCount()];
+        boolean modified = false;
+        
+        for (int i = 0; i < call.operandCount(); i++) {
+            SqlNode operand = call.operand(i);
+            
+            // Check if operand is a standalone boolean identifier
+            if (operand instanceof SqlIdentifier) {
+                SqlIdentifier identifier = (SqlIdentifier) operand;
+                if (identifier.isSimple() && isBooleanColumn(identifier.getSimple())) {
+                    // Transform bool_col to bool_col = TRUE
+                    SqlLiteral trueLiteral = SqlLiteral.createBoolean(true, identifier.getParserPosition());
+                    addToAccumulator(identifier.getSimple(), trueLiteral);
+                    SqlDynamicParam param = new SqlDynamicParam(accumulator.size() - 1, trueLiteral.getParserPosition());
+                    newOperands[i] = org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS.createCall(
+                        identifier.getParserPosition(), identifier, param);
+                    modified = true;
+                    continue;
+                }
+            }
+            
+            // Otherwise, recursively process the operand
+            newOperands[i] = operand.accept(this);
+            if (newOperands[i] != operand) {
+                modified = true;
+            }
+        }
+        
+        if (modified) {
+            return call.getOperator().createCall(call.getParserPosition(), newOperands);
+        }
+        return call;
+    }
+    
+    private SqlNode handleNot(SqlCall call)
+    {
+        // Handle NOT operator on boolean columns: NOT bool_col -> bool_col = FALSE
+        if (call.operandCount() == 1) {
+            SqlNode operand = call.operand(0);
+            if (operand instanceof SqlIdentifier) {
+                SqlIdentifier identifier = (SqlIdentifier) operand;
+                if (identifier.isSimple() && isBooleanColumn(identifier.getSimple())) {
+                    // Transform NOT bool_col to bool_col = FALSE
+                    SqlLiteral falseLiteral = SqlLiteral.createBoolean(false, identifier.getParserPosition());
+                    addToAccumulator(identifier.getSimple(), falseLiteral);
+                    SqlDynamicParam param = new SqlDynamicParam(accumulator.size() - 1, falseLiteral.getParserPosition());
+                    return org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS.createCall(
+                        identifier.getParserPosition(), identifier, param);
+                }
+            }
+        }
+        return super.visit(call);
+    }
+    
     private SqlNode handleIsNull(SqlCall call)
     {
         // IS NULL doesn't have a literal to parameterize, just traverse
@@ -267,5 +332,11 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
             : literal.getValue();
         
         accumulator.add(new SubstraitTypeAndValue(typeName, value, columnName));
+    }
+    
+    private boolean isBooleanColumn(String columnName)
+    {
+        RelDataTypeField field = schema.getField(columnName, true, true);
+        return field != null && field.getType().getSqlTypeName() == SqlTypeName.BOOLEAN;
     }
 }
