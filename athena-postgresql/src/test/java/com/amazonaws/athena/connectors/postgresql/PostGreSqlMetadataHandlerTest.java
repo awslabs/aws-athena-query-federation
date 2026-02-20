@@ -1026,6 +1026,132 @@ public class PostGreSqlMetadataHandlerTest
         assertEquals(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, partitionSchema.getFields().get(1).getName());
     }
 
+    /**
+     * Test getSplitClauses when table has no primary key.
+     * Expected: Returns empty list.
+     */
+    @Test
+    public void getSplitClauses_NoPrimaryKey_ReturnsEmptyList() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys(null, false);
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue("Expected empty list when no primary key exists", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when primary key is UUID type.
+     * Expected: Returns empty list and skips split generation.
+     */
+    @Test
+    public void getSplitClauses_UuidPrimaryKey_ReturnsEmptyList() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys("id", true);
+        mockDataTypeCheck("uuid");
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue("Expected empty list when primary key is UUID", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when primary key is INTEGER and splitter returns splits.
+     * Expected: Returns list of split clauses.
+     */
+    @Test
+    public void getSplitClauses_IntegerPrimaryKey_ReturnsSplitClauses() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys("order_id", true);
+        mockDataTypeCheck("integer");
+        mockMinMaxQuery("order_id", 100);
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Expected non-empty list when splits can be generated", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when an exception occurs during processing.
+     * Expected: Returns empty list and logs warning.
+     */
+    @Test
+    public void getSplitClauses_ExceptionDuringProcessing_ReturnsEmptyList() throws Exception
+    {
+        TableName tableName = new TableName("testSchema", "errorTable");
+        when(connection.getMetaData().getPrimaryKeys(null, "testSchema", "errorTable"))
+                .thenThrow(new SQLException("Database connection error"));
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue("Expected empty list when exception occurs", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when UUID check returns false (column exists but is not UUID).
+     * Expected: Proceeds to generate splits.
+     */
+    @Test
+    public void getSplitClauses_UuidCheckReturnsFalse_GeneratesSplits() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys("product_id", true);
+        mockDataTypeCheck(null);
+        mockMinMaxQuery("product_id", 50);
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Expected splits to be generated when UUID check returns false", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when UUID check throws exception.
+     * Expected: Proceeds to generate splits (fallback).
+     */
+    @Test
+    public void getSplitClauses_UuidCheckThrowsException_GeneratesSplits() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys("id", true);
+
+        when(connection.prepareStatement(Mockito.contains("SELECT data_type FROM information_schema.columns")))
+                .thenThrow(new SQLException("UUID check failed"));
+
+        mockMinMaxQuery("id", 100);
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Expected splits to be generated when UUID check throws exception", result.isEmpty());
+    }
+
+    /**
+     * Helper method to mock primary keys result set.
+     */
+    private void mockPrimaryKeys(String columnName, boolean hasPrimaryKey) throws SQLException
+    {
+        ResultSet primaryKeysResultSet = Mockito.mock(ResultSet.class);
+        if (hasPrimaryKey) {
+            when(primaryKeysResultSet.next()).thenReturn(true).thenReturn(false);
+            when(primaryKeysResultSet.getString("COLUMN_NAME")).thenReturn(columnName);
+        }
+        else {
+            when(primaryKeysResultSet.next()).thenReturn(false);
+        }
+
+        when(connection.getMetaData().getPrimaryKeys(null, "testSchema", "testTable"))
+                .thenReturn(primaryKeysResultSet);
+
+    }
+
     private void verifyCommonCapabilities(GetDataSourceCapabilitiesResponse response)
     {
         Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
@@ -1139,6 +1265,52 @@ public class PostGreSqlMetadataHandlerTest
             when(tableResultSet.getString("table_name")).thenReturn(resolvedTableName);
         }
 
+    }
+
+    /**
+     * Helper method to mock UUID type check with a specific data type.
+     */
+    private void mockDataTypeCheck(String dataType) throws SQLException
+    {
+        PreparedStatement uuidCheckStmt = Mockito.mock(PreparedStatement.class);
+        ResultSet uuidCheckResultSet = Mockito.mock(ResultSet.class);
+
+        when(connection.prepareStatement(Mockito.contains("SELECT data_type FROM information_schema.columns")))
+                .thenReturn(uuidCheckStmt);
+        when(uuidCheckStmt.executeQuery()).thenReturn(uuidCheckResultSet);
+
+        if (dataType != null) {
+            when(uuidCheckResultSet.next()).thenReturn(true);
+            when(uuidCheckResultSet.getString("data_type")).thenReturn(dataType);
+        }
+        else {
+            when(uuidCheckResultSet.next()).thenReturn(false);
+        }
+    }
+
+    /**
+     * Helper method to mock MIN/MAX query execution.
+     */
+    private void mockMinMaxQuery(String columnName, int maxValue) throws SQLException
+    {
+        java.sql.Statement statement = Mockito.mock(java.sql.Statement.class);
+        ResultSet minMaxResultSet = Mockito.mock(ResultSet.class);
+        java.sql.ResultSetMetaData minMaxMetadata = Mockito.mock(java.sql.ResultSetMetaData.class);
+
+        when(connection.createStatement()).thenReturn(statement);
+        when(statement.executeQuery(Mockito.contains("select min(" + columnName + "), max(" + columnName + ")")))
+                .thenReturn(minMaxResultSet);
+        when(minMaxResultSet.next()).thenReturn(true);
+        when(minMaxResultSet.getMetaData()).thenReturn(minMaxMetadata);
+        when(minMaxMetadata.getColumnType(1)).thenReturn(Types.INTEGER);
+
+        when(minMaxResultSet.getInt(1)).thenReturn(1);
+        when(minMaxResultSet.getInt(2)).thenReturn(maxValue);
+    }
+
+    private TableName getTableName()
+    {
+        return new TableName("testSchema", "testTable");
     }
 
 }

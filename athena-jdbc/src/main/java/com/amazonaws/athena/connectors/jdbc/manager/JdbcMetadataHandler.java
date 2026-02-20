@@ -46,8 +46,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
-import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
-import com.amazonaws.athena.connectors.jdbc.splits.SplitterFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -70,8 +68,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -89,12 +85,9 @@ public abstract class JdbcMetadataHandler
         extends MetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
-    private static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s;";
-    private static final int DEFAULT_NUM_SPLITS = 20;
     public static final String TABLES_AND_VIEWS = "Tables and Views";
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
-    private final SplitterFactory splitterFactory = new SplitterFactory();
     protected final JDBCCaseResolver caseResolver;
     protected JdbcQueryPassthrough jdbcQueryPassthrough = new JdbcQueryPassthrough();
 
@@ -482,43 +475,6 @@ public abstract class JdbcMetadataHandler
 
     @Override
     public abstract GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest);
-
-    protected List<String> getSplitClauses(final TableName tableName)
-    {
-        List<String> splitClauses = new ArrayList<>();
-        // getSplitClauses is only used by PostgreSQL connector as of now,
-        // and it does not require AwsRequestOverrideConfiguration for FAS_TOKEN query federation.
-        // So keep it as is.
-        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-                ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
-            List<String> primaryKeyColumns = new ArrayList<>();
-            while (resultSet.next()) {
-                primaryKeyColumns.add(resultSet.getString("COLUMN_NAME"));
-            }
-            if (!primaryKeyColumns.isEmpty()) {
-                try (Statement statement = jdbcConnection.createStatement();
-                        ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
-                                wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
-                    minMaxResultSet.next(); // expecting one result row
-                    Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
-
-                    if (optionalSplitter.isPresent()) {
-                        Splitter splitter = optionalSplitter.get();
-                        while (splitter.hasNext()) {
-                            String splitClause = splitter.nextRangeClause();
-                            LOGGER.info("Split generated {}", splitClause);
-                            splitClauses.add(splitClause);
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex) {
-            LOGGER.warn("Unable to split data.", ex);
-        }
-
-        return splitClauses;
-    }
 
     /**
      * Converts an ARRAY column's TYPE_NAME (provided by the jdbc metadata) to an ArrowType.
