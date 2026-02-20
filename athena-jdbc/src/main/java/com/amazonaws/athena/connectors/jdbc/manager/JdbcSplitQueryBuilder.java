@@ -430,11 +430,15 @@ public abstract class JdbcSplitQueryBuilder
             root = (SqlSelect) sqlNode;
 
             RelDataType tableSchema = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect);
+            String test = tableSchema.getFieldList().toString();
             SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, tableSchema);
-            root.accept(visitor);
+            SqlNode parameterizedNode = visitor.visit(root);
+            
+            
+            LOGGER.debug("CalciteSql parameterized sql with dialect {}: {}", sqlDialect.toString(), parameterizedNode.toSqlString(sqlDialect).getSql());
+            LOGGER.debug("CalciteSql parameters: {}", accumulator.toString());
 
-            PreparedStatement statement = jdbcConnection.prepareStatement(root.toSqlString(sqlDialect).getSql());
-
+            PreparedStatement statement = jdbcConnection.prepareStatement(parameterizedNode.toSqlString(sqlDialect).getSql());
             handleDataTypesForPreparedStatement(statement, accumulator);
             LOGGER.debug("CalciteSql prepared statement: {}", statement);
 
@@ -480,6 +484,9 @@ public abstract class JdbcSplitQueryBuilder
                     break;
                 case DECIMAL:
                     statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
+                    break;
+                case BOOLEAN:
+                    statement.setBoolean(i + 1, (Boolean) typeAndValue.getValue());
                     break;
                 case DATE:
                     if (typeAndValue.getValue() instanceof Number) {
