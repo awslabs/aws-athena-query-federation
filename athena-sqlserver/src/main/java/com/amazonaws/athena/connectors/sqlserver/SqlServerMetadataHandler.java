@@ -297,9 +297,12 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 }
             }
             catch (SQLServerException e) {
-                // for permission denied sqlServer exception retuning single partition
-                if (e.getMessage().contains("VIEW DATABASE STATE permission denied")) {
-                    LOGGER.warn("Permission denied to view database state for {}", e.getMessage());
+                // For permission denied SQL Server exception, return single partition
+                // SQL Server 2022 and later: "VIEW DATABASE PERFORMANCE STATE permission denied"
+                String message = e.getMessage();
+                if (message != null && (message.contains("VIEW DATABASE STATE permission denied")
+                        || message.contains("VIEW DATABASE PERFORMANCE STATE permission denied"))) {
+                    LOGGER.warn("Permission denied while accessing partition metadata: {}", message);
                     handleSinglePartition(blockWriter);
                 }
                 else {

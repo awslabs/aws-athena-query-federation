@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.oracle;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -31,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
@@ -42,15 +45,20 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -64,7 +72,13 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
 import static com.amazonaws.athena.connectors.oracle.OracleConstants.ORACLE_NAME;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class OracleRecordHandlerTest
 {
@@ -87,20 +101,23 @@ public class OracleRecordHandlerTest
     private static final String VALUE = "value";
     private static final long LIMIT_10 = 10L;
     private static final long LIMIT_5 = 5L;
+    private static final String QUERY_ID = "queryId";
+    private static final String BASE_CONNECTION_STRING = "oracle://jdbc:oracle:thin:@//testHost:1521/orcl";
+    private static final String SECRET_NAME = "testSecret";
 
     @Before
     public void setup()
             throws Exception
     {
-        this.amazonS3 = Mockito.mock(S3Client.class);
-        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
-        this.athena = Mockito.mock(AthenaClient.class);
-        this.connection = Mockito.mock(Connection.class);
-        this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        this.amazonS3 = mock(S3Client.class);
+        this.secretsManager = mock(SecretsManagerClient.class);
+        this.athena = mock(AthenaClient.class);
+        this.connection = mock(Connection.class);
+        this.jdbcConnectionFactory = mock(JdbcConnectionFactory.class);
+        when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new OracleQueryStringBuilder(ORACLE_QUOTE_CHARACTER, new OracleFederationExpressionParser(ORACLE_QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, ORACLE_NAME,
-                "oracle://jdbc:oracle:thin:username/password@//127.0.0.1:1521/orcl");
+                BASE_CONNECTION_STRING);
 
         this.oracleRecordHandler = new OracleRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
@@ -125,18 +142,18 @@ public class OracleRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition_name", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition_name"))).thenReturn("p0");
+        Split split = mock(Split.class);
+        when(split.getProperties()).thenReturn(Collections.singletonMap("partition_name", "p0"));
+        when(split.getProperty(Mockito.eq("partition_name"))).thenReturn("p0");
 
-        Range range1a = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range1a.isSingleValue()).thenReturn(true);
-        Mockito.when(range1a.getLow().getValue()).thenReturn(1);
-        Range range1b = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range1b.isSingleValue()).thenReturn(true);
-        Mockito.when(range1b.getLow().getValue()).thenReturn(2);
-        ValueSet valueSet1 = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet1.getRanges().getOrderedRanges()).thenReturn(ImmutableList.of(range1a, range1b));
+        Range range1a = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        when(range1a.isSingleValue()).thenReturn(true);
+        when(range1a.getLow().getValue()).thenReturn(1);
+        Range range1b = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        when(range1b.isSingleValue()).thenReturn(true);
+        when(range1b.getLow().getValue()).thenReturn(2);
+        ValueSet valueSet1 = mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        when(valueSet1.getRanges().getOrderedRanges()).thenReturn(ImmutableList.of(range1a, range1b));
 
         ValueSet valueSet2 = getRangeSet(Marker.Bound.EXACTLY, "1", Marker.Bound.BELOW, "10");
         ValueSet valueSet3 = getRangeSet(Marker.Bound.ABOVE, 2L, Marker.Bound.EXACTLY, 20L);
@@ -150,8 +167,8 @@ public class OracleRecordHandlerTest
         final long epochDaysPost1970 = LocalDate.parse("1971-01-01").toEpochDay();
         ValueSet valueSet10 = getSingleValueSet(epochDaysPost1970);
 
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
+        Constraints constraints = mock(Constraints.class);
+        when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
                 .put("testCol1", valueSet1)
                 .put("testCol2", valueSet2)
                 .put("testCol3", valueSet3)
@@ -164,51 +181,51 @@ public class OracleRecordHandlerTest
                 .put("testCol10", valueSet10)
                 .build());
 
-        Mockito.when(constraints.getLimit()).thenReturn(5L);
+        when(constraints.getLimit()).thenReturn(5L);
 
         String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\", \"testCol10\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?) AND (\"testCol10\" = ?) FETCH FIRST 5 ROWS ONLY ";
-        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
+        PreparedStatement expectedPreparedStatement = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 2);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "1");
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, "10");
-        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(5, 2L);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(6, 20L);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setFloat(7, 1.1F);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setShort(8, (short) 1);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setByte(9, (byte) 0);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(10, 1.2d);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(11, true);
+        verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
+        verify(preparedStatement, Mockito.times(1)).setInt(2, 2);
+        verify(preparedStatement, Mockito.times(1)).setString(3, "1");
+        verify(preparedStatement, Mockito.times(1)).setString(4, "10");
+        verify(preparedStatement, Mockito.times(1)).setLong(5, 2L);
+        verify(preparedStatement, Mockito.times(1)).setLong(6, 20L);
+        verify(preparedStatement, Mockito.times(1)).setFloat(7, 1.1F);
+        verify(preparedStatement, Mockito.times(1)).setShort(8, (short) 1);
+        verify(preparedStatement, Mockito.times(1)).setByte(9, (byte) 0);
+        verify(preparedStatement, Mockito.times(1)).setDouble(10, 1.2d);
+        verify(preparedStatement, Mockito.times(1)).setBoolean(11, true);
         Date expectedDatePrior1970 = Date.valueOf(LocalDate.of(1967, 7, 27));
-        Mockito.verify(preparedStatement, Mockito.times(1)).setDate(12, expectedDatePrior1970);
+        verify(preparedStatement, Mockito.times(1)).setDate(12, expectedDatePrior1970);
         Date expectedDatePost1970 = Date.valueOf(LocalDate.of(1971, 1, 1));
-        Mockito.verify(preparedStatement, Mockito.times(1)).setDate(13, expectedDatePost1970);
+        verify(preparedStatement, Mockito.times(1)).setDate(13, expectedDatePost1970);
     }
 
     private ValueSet getSingleValueSet(Object value)
     {
-        Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range.isSingleValue()).thenReturn(true);
-        Mockito.when(range.getLow().getValue()).thenReturn(value);
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        Range range = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        when(range.isSingleValue()).thenReturn(true);
+        when(range.getLow().getValue()).thenReturn(value);
+        ValueSet valueSet = mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;
     }
 
     private ValueSet getRangeSet(Marker.Bound lowerBound, Object lowerValue, Marker.Bound upperBound, Object upperValue)
     {
-        Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range.isSingleValue()).thenReturn(false);
-        Mockito.when(range.getLow().getBound()).thenReturn(lowerBound);
-        Mockito.when(range.getLow().getValue()).thenReturn(lowerValue);
-        Mockito.when(range.getHigh().getBound()).thenReturn(upperBound);
-        Mockito.when(range.getHigh().getValue()).thenReturn(upperValue);
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        Range range = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        when(range.isSingleValue()).thenReturn(false);
+        when(range.getLow().getBound()).thenReturn(lowerBound);
+        when(range.getLow().getValue()).thenReturn(lowerValue);
+        when(range.getHigh().getBound()).thenReturn(upperBound);
+        when(range.getHigh().getValue()).thenReturn(upperValue);
+        ValueSet valueSet = mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;
     }
 
@@ -247,12 +264,12 @@ public class OracleRecordHandlerTest
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         verifyFetchSize(expectedPreparedStatement);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 10);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 100);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "test");
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, "tesu");
-        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(5, 1.0d);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(6, 2.0d);
+        verify(preparedStatement, Mockito.times(1)).setInt(1, 10);
+        verify(preparedStatement, Mockito.times(1)).setInt(2, 100);
+        verify(preparedStatement, Mockito.times(1)).setString(3, "test");
+        verify(preparedStatement, Mockito.times(1)).setString(4, "tesu");
+        verify(preparedStatement, Mockito.times(1)).setDouble(5, 1.0d);
+        verify(preparedStatement, Mockito.times(1)).setDouble(6, 2.0d);
     }
 
     @Test
@@ -356,15 +373,15 @@ public class OracleRecordHandlerTest
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setFetchSize(1000);
+        verify(preparedStatement, Mockito.times(1)).setFetchSize(1000);
 
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 2);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(3, 3);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(4, 1.5d);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(5, 5.5d);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(6, "value1");
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(7, "value2");
+        verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
+        verify(preparedStatement, Mockito.times(1)).setInt(2, 2);
+        verify(preparedStatement, Mockito.times(1)).setInt(3, 3);
+        verify(preparedStatement, Mockito.times(1)).setDouble(4, 1.5d);
+        verify(preparedStatement, Mockito.times(1)).setDouble(5, 5.5d);
+        verify(preparedStatement, Mockito.times(1)).setString(6, "value1");
+        verify(preparedStatement, Mockito.times(1)).setString(7, "value2");
         verifyFetchSize(expectedPreparedStatement);
     }
 
@@ -403,10 +420,10 @@ public class OracleRecordHandlerTest
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         
-        Mockito.verify(preparedStatement, Mockito.atLeastOnce()).setDate(Mockito.eq(1), Mockito.any(Date.class));
-        Mockito.verify(preparedStatement, Mockito.atLeastOnce()).setDate(Mockito.eq(2), Mockito.any(Date.class));
-        Mockito.verify(preparedStatement, Mockito.atLeastOnce()).setBigDecimal(Mockito.eq(3), Mockito.eq(new BigDecimal("100.50")));
-        Mockito.verify(preparedStatement, Mockito.atLeastOnce()).setBigDecimal(Mockito.eq(4), Mockito.eq(new BigDecimal("999.99")));
+        verify(preparedStatement, Mockito.atLeastOnce()).setDate(Mockito.eq(1), Mockito.any(Date.class));
+        verify(preparedStatement, Mockito.atLeastOnce()).setDate(Mockito.eq(2), Mockito.any(Date.class));
+        verify(preparedStatement, Mockito.atLeastOnce()).setBigDecimal(Mockito.eq(3), Mockito.eq(new BigDecimal("100.50")));
+        verify(preparedStatement, Mockito.atLeastOnce()).setBigDecimal(Mockito.eq(4), Mockito.eq(new BigDecimal("999.99")));
         verifyFetchSize(expectedPreparedStatement);
     }
 
@@ -516,14 +533,14 @@ public class OracleRecordHandlerTest
     private ValueSet getSingleValueSet(List<?> values)
     {
         List<Range> ranges = values.stream().map(value -> {
-            Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-            Mockito.when(range.isSingleValue()).thenReturn(true);
-            Mockito.when(range.getLow().getValue()).thenReturn(value);
+            Range range = mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+            when(range.isSingleValue()).thenReturn(true);
+            when(range.getLow().getValue()).thenReturn(value);
             return range;
         }).collect(Collectors.toList());
 
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(ranges);
+        ValueSet valueSet = mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        when(valueSet.getRanges().getOrderedRanges()).thenReturn(ranges);
         return valueSet;
     }
 
@@ -550,10 +567,10 @@ public class OracleRecordHandlerTest
 
     private Split createMockSplit()
     {
-        Split split = Mockito.mock(Split.class);
+        Split split = mock(Split.class);
         Map<String, String> splitProperties = Collections.singletonMap(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, TEST_PARTITION);
-        Mockito.when(split.getProperties()).thenReturn(splitProperties);
-        Mockito.when(split.getProperty(Mockito.eq(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn(TEST_PARTITION);
+        when(split.getProperties()).thenReturn(splitProperties);
+        when(split.getProperty(Mockito.eq(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn(TEST_PARTITION);
         return split;
     }
 
@@ -571,13 +588,114 @@ public class OracleRecordHandlerTest
 
     private PreparedStatement createMockPreparedStatement(String expectedSql) throws SQLException
     {
-        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
+        PreparedStatement expectedPreparedStatement = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         return expectedPreparedStatement;
     }
 
     private void verifyFetchSize(PreparedStatement preparedStatement) throws SQLException
     {
-        Mockito.verify(preparedStatement, Mockito.atLeastOnce()).setFetchSize(1000);
+        verify(preparedStatement, Mockito.atLeastOnce()).setFetchSize(1000);
+    }
+
+    @Test
+    public void createCredentialsProvider_withSecret_returnsOracleCredentialsProvider() throws Exception
+    {
+        DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig(
+                TEST_CATALOG, ORACLE_NAME,
+                BASE_CONNECTION_STRING.replace("@//", "${" + SECRET_NAME + "}@//"), SECRET_NAME);
+
+        mockSecretManagerResponse();
+        CredentialsProvider provider = captureCredentialsProvider(configWithSecret, true);
+
+        assertNotNull("Expected non-null CredentialsProvider when secret configured", provider);
+        assertTrue("Expected OracleCredentialsProvider type", provider instanceof OracleCredentialsProvider);
+    }
+
+    @Test
+    public void createCredentialsProvider_withoutSecret_returnsNull() throws Exception
+    {
+        DatabaseConnectionConfig configWithoutSecret = new DatabaseConnectionConfig(
+                TEST_CATALOG, ORACLE_NAME,
+                BASE_CONNECTION_STRING);
+
+        CredentialsProvider provider = captureCredentialsProvider(configWithoutSecret, false);
+
+        assertNull("Expected null CredentialsProvider when no secret configured", provider);
+    }
+
+    /**
+     * Captures the CredentialsProvider used by the JDBC connection factory
+     */
+    private CredentialsProvider captureCredentialsProvider(DatabaseConnectionConfig config, boolean hasSecret) throws Exception
+    {
+        Connection mockConn = mockConnectionAndMetadata();
+        if (hasSecret) {
+            when(jdbcConnectionFactory.getConnection(Mockito.any(CredentialsProvider.class)))
+                    .thenReturn(mockConn);
+        }
+        else {
+            when(jdbcConnectionFactory.getConnection(Mockito.nullable(CredentialsProvider.class)))
+                    .thenReturn(mockConn);
+        }
+
+        OracleRecordHandler handler = new OracleRecordHandler(
+                config, amazonS3, secretsManager, athena, jdbcConnectionFactory,
+                jdbcSplitQueryBuilder, ImmutableMap.of());
+
+        handler.readWithConstraint(
+                mock(BlockSpiller.class),
+                mockReadRecordsRequest(),
+                mock(QueryStatusChecker.class));
+
+        ArgumentCaptor<CredentialsProvider> captor = ArgumentCaptor.forClass(CredentialsProvider.class);
+        verify(jdbcConnectionFactory).getConnection(captor.capture());
+        return captor.getValue();
+    }
+
+    private void mockSecretManagerResponse()
+    {
+        GetSecretValueResponse mockResponse =
+                GetSecretValueResponse.builder()
+                        .secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}")
+                        .build();
+
+        when(secretsManager.getSecretValue(
+                Mockito.any(GetSecretValueRequest.class)))
+                .thenReturn(mockResponse);
+    }
+
+    private Connection mockConnectionAndMetadata() throws Exception
+    {
+        Connection mockConn = mock(Connection.class);
+        DatabaseMetaData metaData = mock(java.sql.DatabaseMetaData.class);
+        when(metaData.getDatabaseProductName()).thenReturn("Oracle");
+        when(mockConn.getMetaData()).thenReturn(metaData);
+
+        PreparedStatement stmt = mock(PreparedStatement.class);
+        ResultSet rs = mock(ResultSet.class);
+        when(mockConn.prepareStatement(Mockito.anyString())).thenReturn(stmt);
+        when(stmt.executeQuery()).thenReturn(rs);
+        when(rs.next()).thenReturn(false);
+
+        return mockConn;
+    }
+
+    private ReadRecordsRequest mockReadRecordsRequest()
+    {
+        ReadRecordsRequest req = mock(ReadRecordsRequest.class);
+        Split split = mock(Split.class);
+        SchemaBuilder sb = SchemaBuilder.newBuilder();
+        sb.addField(FieldBuilder.newBuilder("testCol", Types.MinorType.VARCHAR.getType()).build());
+
+        when(req.getQueryId()).thenReturn(QUERY_ID);
+        when(req.getCatalogName()).thenReturn(TEST_CATALOG);
+        when(req.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
+        when(req.getSplit()).thenReturn(split);
+        when(split.getProperties()).thenReturn(Collections.singletonMap("partition_name", "ALL_PARTITIONS"));
+        when(split.getProperty("partition_name")).thenReturn("ALL_PARTITIONS");
+        when(req.getSchema()).thenReturn(sb.build());
+        when(req.getConstraints()).thenReturn(mock(Constraints.class));
+        return req;
     }
 }

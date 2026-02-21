@@ -20,11 +20,14 @@
 package com.amazonaws.athena.connectors.sqlserver;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -52,6 +55,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +63,8 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+
+import com.microsoft.sqlserver.jdbc.SQLServerException;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -84,12 +90,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class SqlServerMetadataHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(SqlServerMetadataHandlerTest.class);
+    private static final String TEST_SCHEMA = "testSchema";
+    private static final String TEST_TABLE = "testTable";
+    private static final String TEST_CATALOG = "testCatalogName";
+    private static final String TEST_QUERY_ID = "testQueryId";
     private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SqlServerConstants.NAME,
     		  "sqlserver://jdbc:sqlserver://hostname;databaseName=fakedatabase");
@@ -634,6 +645,117 @@ public class SqlServerMetadataHandlerTest
         assertNotNull("Expected supports_top_n_pushdown capability to be present", topNPushdown);
         assertEquals(1, topNPushdown.size());
         assertEquals("SUPPORTS_ORDER_BY", topNPushdown.get(0).getSubType());
+    }
+
+    @Test
+    public void getPartitions_whenViewDatabaseStateDenied_fallsBackToSinglePartition()
+            throws Exception
+    {
+        runPermissionDeniedFallbackTest(
+                "VIEW DATABASE STATE permission denied in database 'test_db'.");
+    }
+
+    @Test
+    public void getPartitions_whenViewDatabasePerformanceStateDenied_fallsBackToSinglePartition()
+            throws Exception
+    {
+        runPermissionDeniedFallbackTest(
+                "VIEW DATABASE PERFORMANCE STATE permission denied in database 'test_db'.");
+    }
+
+    @Test(expected = SQLServerException.class)
+    public void getPartitions_whenOtherSqlServerException_rethrows()
+            throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        mockViewCheckAsTable();
+        mockRowCountGreaterThanZero();
+
+        SQLServerException ex = Mockito.mock(SQLServerException.class);
+        Mockito.when(ex.getMessage()).thenReturn("Some other SQL error");
+
+        PreparedStatement ps = Mockito.mock(PreparedStatement.class);
+        Mockito.when(ps.executeQuery()).thenThrow(ex);
+        Mockito.when(this.connection.prepareStatement(
+                SqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(ps);
+
+        Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
+
+        Schema partitionSchema = this.sqlServerMetadataHandler.getPartitionSchema(TEST_CATALOG);
+        Set<String> partitionCols = partitionSchema.getFields()
+                .stream().map(Field::getName).collect(Collectors.toSet());
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(
+                this.federatedIdentity,
+                TEST_QUERY_ID,
+                TEST_CATALOG,
+                tableName,
+                createEmptyConstraint(),
+                partitionSchema,
+                partitionCols);
+
+        BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
+        QueryStatusChecker checker = Mockito.mock(QueryStatusChecker.class);
+
+        this.sqlServerMetadataHandler.getPartitions(blockWriter, req, checker);
+    }
+
+    private void runPermissionDeniedFallbackTest(String exceptionMessage)
+            throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        mockViewCheckAsTable();
+        mockRowCountGreaterThanZero();
+
+        SQLServerException ex = Mockito.mock(SQLServerException.class);
+        Mockito.when(ex.getMessage()).thenReturn(exceptionMessage);
+
+        PreparedStatement ps = Mockito.mock(PreparedStatement.class);
+        Mockito.when(ps.executeQuery()).thenThrow(ex);
+        Mockito.when(this.connection.prepareStatement(
+                SqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(ps);
+
+        Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
+
+        Schema partitionSchema = this.sqlServerMetadataHandler.getPartitionSchema(TEST_CATALOG);
+        Set<String> partitionCols = partitionSchema.getFields()
+                .stream().map(Field::getName).collect(Collectors.toSet());
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(
+                this.federatedIdentity,
+                TEST_QUERY_ID,
+                TEST_CATALOG,
+                tableName,
+                createEmptyConstraint(),
+                partitionSchema,
+                partitionCols);
+
+        BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
+        QueryStatusChecker checker = Mockito.mock(QueryStatusChecker.class);
+
+        this.sqlServerMetadataHandler.getPartitions(blockWriter, req, checker);
+
+        ArgumentCaptor<BlockWriter.RowWriter> captor =
+                ArgumentCaptor.forClass(BlockWriter.RowWriter.class);
+        Mockito.verify(blockWriter).writeRows(captor.capture());
+
+        Block block = Mockito.mock(Block.class);
+        captor.getValue().writeRows(block, 0);
+        Mockito.verify(block).setValue(eq(PARTITION_NUMBER), eq(0), eq("0"));
+    }
+
+    private void mockViewCheckAsTable() throws Exception
+    {
+        PreparedStatement viewCheckStatement = Mockito.mock(PreparedStatement.class);
+        ResultSet viewCheckResultSet = mockResultSet(new String[] {"TYPE_DESC"}, new int[] {Types.VARCHAR}, new Object[][] {{"TABLE"}}, new AtomicInteger(-1));
+        Mockito.when(viewCheckStatement.executeQuery()).thenReturn(viewCheckResultSet);
+        Mockito.when(this.connection.prepareStatement(SqlServerMetadataHandler.VIEW_CHECK_QUERY)).thenReturn(viewCheckStatement);
+    }
+
+    private void mockRowCountGreaterThanZero() throws Exception
+    {
+        PreparedStatement rowCountStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(SqlServerMetadataHandler.ROW_COUNT_QUERY)).thenReturn(rowCountStatement);
     }
 
     private void mockMetadataConnection(ResultSet columnsResultSet, ResultSet dataTypeResultSet)

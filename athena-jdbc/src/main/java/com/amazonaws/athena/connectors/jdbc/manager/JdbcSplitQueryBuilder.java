@@ -54,6 +54,7 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
+import java.sql.ParameterMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -441,7 +442,15 @@ public abstract class JdbcSplitQueryBuilder
             System.out.println(accumulator.size());
             
             PreparedStatement statement = jdbcConnection.prepareStatement(parameterizedNode.toSqlString(sqlDialect).getSql());
-            handleDataTypesForPreparedStatement(statement, accumulator);
+            ParameterMetaData metaData = statement.getParameterMetaData();
+            if (metaData != null && metaData.getParameterCount() != accumulator.size()) {
+                LOGGER.warn("Parameter count mismatch: SQL has {} parameters, accumulator has {}. Skipping parameter binding.",
+                        metaData.getParameterCount(), accumulator.size());
+            }
+            else {
+                handleDataTypesForPreparedStatement(statement, accumulator);
+            }
+
             LOGGER.debug("CalciteSql prepared statement: {}", statement);
 
             return statement;
