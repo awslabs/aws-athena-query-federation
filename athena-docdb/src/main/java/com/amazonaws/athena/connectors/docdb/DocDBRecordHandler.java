@@ -24,14 +24,18 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.util.LimitAndSortHelper;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
+import io.substrait.proto.Plan;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -42,11 +46,16 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
+import static com.amazonaws.athena.connector.substrait.SubstraitRelUtils.deserializeSubstraitPlan;
+import static com.amazonaws.athena.connector.substrait.util.LimitAndSortHelper.getLimit;
+import static com.amazonaws.athena.connector.substrait.util.LimitAndSortHelper.getSortFromPlan;
 import static com.amazonaws.athena.connectors.docdb.DocDBFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
 
@@ -65,7 +74,7 @@ public class DocDBRecordHandler
 
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "documentdb";
-    //The env secret_name to use if defined 
+    //The env secret_name to use if defined
     private static final String SECRET_NAME = "secret_name";
     //Controls the page size for fetching batches of documents from the MongoDB client.
     private static final int MONGO_QUERY_BATCH_SIZE = 100;
@@ -80,11 +89,11 @@ public class DocDBRecordHandler
     public DocDBRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(
-            S3Client.create(),
-            SecretsManagerClient.create(),
-            AthenaClient.create(),
-            new DocDBConnectionFactory(),
-            configOptions);
+                S3Client.create(),
+                SecretsManagerClient.create(),
+                AthenaClient.create(),
+                new DocDBConnectionFactory(),
+                configOptions);
     }
 
     @VisibleForTesting
@@ -115,7 +124,6 @@ public class DocDBRecordHandler
 
     private static Map<String, Object> documentAsMap(Document document, boolean caseInsensitive)
     {
-        logger.info("documentAsMap: caseInsensitive: {}", caseInsensitive);
         Map<String, Object> documentAsMap = (Map<String, Object>) document;
         if (!caseInsensitive) {
             return documentAsMap;
@@ -127,66 +135,111 @@ public class DocDBRecordHandler
     }
 
     /**
-     * Scans DocumentDB using the scan settings set on the requested Split by DocDBeMetadataHandler.
+     * Scans DocumentDB using the scan settings set on the requested Split by DocDBMetadataHandler.
+     * This method delegates to specific query execution methods based on query type.
      *
+     * @param spiller The BlockSpiller to write results to
+     * @param recordsRequest The ReadRecordsRequest containing query details and constraints
+     * @param queryStatusChecker Used to check if the query is still running
      * @see RecordHandler
      */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        TableName tableNameObj = recordsRequest.getTableName();
-        String schemaName = tableNameObj.getSchemaName();
-        String tableName = recordsRequest.getSchema().getCustomMetadata().getOrDefault(
-            SOURCE_TABLE_PROPERTY, tableNameObj.getTableName());
+        final TableName tableNameObj = recordsRequest.getTableName();
+        final String schemaName = tableNameObj.getSchemaName();
+        final String tableName = recordsRequest.getSchema().getCustomMetadata().getOrDefault(
+                SOURCE_TABLE_PROPERTY, tableNameObj.getTableName());
 
-        logger.info("Resolved tableName to: {}", tableName);
-        Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
-
-        MongoClient client = getOrCreateConn(recordsRequest.getSplit());
-        MongoDatabase db;
-        MongoCollection<Document> table;
-        Document query;
+        logger.info("Starting readWithConstraint for schema: {}, table: {}", schemaName, tableName);
+        final MongoClient client = getOrCreateConn(recordsRequest.getSplit());
 
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
-            Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
-            queryPassthrough.verify(qptArguments);
-            db = client.getDatabase(qptArguments.get(DocDBQueryPassthrough.DATABASE));
-            table = db.getCollection(qptArguments.get(DocDBQueryPassthrough.COLLECTION));
-            query = QueryUtils.parseFilter(qptArguments.get(DocDBQueryPassthrough.FILTER));
+            executeQueryPassthrough(spiller, recordsRequest, queryStatusChecker, client);
         }
         else {
-            db =  client.getDatabase(schemaName);
-            table = db.getCollection(tableName);
-            query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
+            //executeConstraintBased(spiller, recordsRequest, queryStatusChecker, client, schemaName, tableName);
+            final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
+            final Plan plan = queryPlan != null ? deserializeSubstraitPlan(queryPlan.getSubstraitPlan()) : null;
+
+            final MongoDatabase db = client.getDatabase(schemaName);
+            final MongoCollection<Document> table = db.getCollection(tableName);
+
+            final Map<String, List<ColumnPredicate>> columnPredicateMap = QueryUtils.buildFilterPredicatesFromPlan(plan);
+            final Document query;
+            if (plan != null) {
+                //Found Substrait-based predicated; making query from the plan
+                query = QueryUtils.makeEnhancedQueryFromPlan(plan);
+            }
+            else {
+                //otherwise; make query from Constraint
+                query = QueryUtils.makeQuery(recordsRequest.getSchema(), recordsRequest.getConstraints().getSummary());
+            }
+
+            final boolean disableProjectionAndCasing = getDisableProjectionAndCasing();
+            final Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
+
+            // LIMIT and SORT pushdown
+            // todo; confirm we might still need this in case of QPT
+            final Optional<Integer> limit = getLimit(plan, recordsRequest.getConstraints());
+            final Optional<List<LimitAndSortHelper.GenericSortField>> sort = getSortFromPlan(plan);
+            FindIterable<Document> findIterable = table.find(query).projection(projection);
+
+            executeMongoQuery(spiller, recordsRequest, queryStatusChecker, findIterable, limit, sort);
         }
+    }
 
-        String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
-        boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
-        logger.info("{} environment variable set to: {}. Resolved to: {}",
-            DISABLE_PROJECTION_AND_CASING_ENV, disableProjectionAndCasingEnvValue, disableProjectionAndCasing);
+    private void executeQueryPassthrough(BlockSpiller spiller, ReadRecordsRequest recordsRequest, 
+                                       QueryStatusChecker queryStatusChecker, MongoClient client)
+    {
+        final Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
+        queryPassthrough.verify(qptArguments);
+        
+        final MongoDatabase db = client.getDatabase(qptArguments.get(DocDBQueryPassthrough.DATABASE));
+        final MongoCollection<Document> table = db.getCollection(qptArguments.get(DocDBQueryPassthrough.COLLECTION));
+        final Document query = QueryUtils.parseFilter(qptArguments.get(DocDBQueryPassthrough.FILTER));
+        FindIterable<Document> findIterable = table.find(query);
+        
+        executeMongoQuery(spiller, recordsRequest, queryStatusChecker, findIterable, Optional.empty(), Optional.empty());
+    }
 
-        // TODO: Currently AWS DocumentDB does not support collation, which is required for case insensitive indexes:
-        // https://www.mongodb.com/docs/manual/core/index-case-insensitive/
-        // Once AWS DocumentDB supports collation, then projections do not have to be disabled anymore because case
-        // insensitive indexes allows for case insensitive projections.
-        Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
-        logger.info("readWithConstraint: query[{}] projection[{}]", query, projection);
+    private void executeMongoQuery(
+            BlockSpiller spiller,
+            ReadRecordsRequest recordsRequest,
+            QueryStatusChecker queryStatusChecker,
+            FindIterable<Document> findIterable,
+            Optional<Integer> limit,
+            Optional<List<LimitAndSortHelper.GenericSortField>> sort)
+    {
+        //Apply Sort if it exists
+        sort.map(this::convertToMongoSort)
+                .filter(sortDoc -> !sortDoc.isEmpty())
+                .ifPresent(findIterable::sort);
+        //Then Apply Limit if it exists
+        limit.ifPresent(findIterable::limit);
 
-        final MongoCursor<Document> iterable = table
-                .find(query)
-                .projection(projection)
-                .batchSize(MONGO_QUERY_BATCH_SIZE).iterator();
+        final MongoCursor<Document> iterable = findIterable.batchSize(MONGO_QUERY_BATCH_SIZE).iterator();
+        final boolean disableProjectionAndCasing = getDisableProjectionAndCasing();
 
         long numRows = 0;
-        AtomicLong numResultRows = new AtomicLong(0);
+        final AtomicLong numResultRows = new AtomicLong(0);
         while (iterable.hasNext() && queryStatusChecker.isQueryRunning()) {
+            if (limit.isPresent()) {
+                int l = limit.get();
+                if (numRows >= l) {
+                    logger.info("Reached configured limit of {} rows, stopping iteration", l);
+                    break;
+                }
+            }
             numRows++;
+
             spiller.writeRows((Block block, int rowNum) -> {
-                Map<String, Object> doc = documentAsMap(iterable.next(), disableProjectionAndCasing);
+                final Map<String, Object> doc = documentAsMap(iterable.next(), disableProjectionAndCasing);
                 boolean matched = true;
-                for (Field nextField : recordsRequest.getSchema().getFields()) {
-                    Object value = TypeUtils.coerce(nextField, doc.get(nextField.getName()));
-                    Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
+
+                for (final Field nextField : recordsRequest.getSchema().getFields()) {
+                    final Object value = TypeUtils.coerce(nextField, doc.get(nextField.getName()));
+                    final Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
                     try {
                         switch (fieldType) {
                             case LIST:
@@ -212,5 +265,32 @@ public class DocDBRecordHandler
         }
 
         logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
+    }
+
+    private boolean getDisableProjectionAndCasing()
+    {
+        final String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
+        final boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
+        logger.info("Projection and casing configuration - environment value: {}, resolved: {}",
+                disableProjectionAndCasingEnvValue, disableProjectionAndCasing);
+        return disableProjectionAndCasing;
+    }
+
+    /**
+     * Converts generic sort fields to MongoDB sort document format.
+     *
+     * @param sortFields List of generic sort fields
+     * @return MongoDB Document with sort specifications (1 for ASC, -1 for DESC)
+     */
+    private Document convertToMongoSort(List<LimitAndSortHelper.GenericSortField> sortFields)
+    {
+        Document sortDoc = new Document();
+        if (sortFields != null) {
+            for (LimitAndSortHelper.GenericSortField field : sortFields) {
+                int direction = field.isAscending() ? 1 : -1;
+                sortDoc.put(field.getColumnName().toLowerCase(), direction);
+            }
+        }
+        return sortDoc;
     }
 }
