@@ -29,7 +29,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
 import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
 import io.substrait.proto.Plan;
 import org.apache.arrow.util.VisibleForTesting;
@@ -57,7 +56,6 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -160,7 +158,6 @@ public class ElasticsearchRecordHandler
         Plan substraitPlan;
         Optional<Integer> limit = Optional.empty();
 
-        // Check for Query Passthrough first (highest priority)
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             Map<String, String> qptArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
             queryPassthrough.verify(qptArgs);
@@ -172,37 +169,20 @@ public class ElasticsearchRecordHandler
             domain = recordsRequest.getTableName().getSchemaName();
             index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
 
-            // Check for Substrait QueryPlan (second priority)
             final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
             if (queryPlan != null) {
-                try {
-                    substraitPlan = deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
-                    final Plan plan = substraitPlan;
-                    logger.info("Using Substrait query plan for predicate pushdown");
+                logger.info("Using Substrait query plan for predicate pushdown");
+                substraitPlan = deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+                final Plan plan = substraitPlan;
+                query = ElasticsearchQueryUtils.getQueryFromPlan(plan);
 
-                    // Try to use enhanced query generation from Substrait plan
-                    final Map<String, List<ColumnPredicate>> columnPredicateMap =
-                            ElasticsearchQueryUtils.buildFilterPredicatesFromPlan(plan);
-                    if (!columnPredicateMap.isEmpty()) {
-                        query = ElasticsearchQueryUtils.getQueryFromPlan(plan);
-                    }
-                    else {
-                        query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
-                    }
-
-                    // Extract LIMIT from Substrait plan
-                    limit = getLimit(plan, recordsRequest.getConstraints());
-                    if (limit.isPresent()) {
-                        logger.info("LIMIT pushdown enabled with limit: {}", limit);
-                    }
-                }
-                catch (Exception e) {
-                    logger.warn("Failed to use Substrait plan, falling back to constraint-based query: {}", e.getMessage());
-                    query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
+                // Extract LIMIT from Substrait plan
+                limit = getLimit(plan, recordsRequest.getConstraints());
+                if (limit.isPresent()) {
+                    logger.info("LIMIT pushdown enabled with limit: {}", limit);
                 }
             }
             else {
-                // Fall back to constraint-based query (third priority)
                 logger.info("Using constraint-based query for predicate pushdown");
                 query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
             }
@@ -213,11 +193,10 @@ public class ElasticsearchRecordHandler
         String username = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_USERNAME);
         String password = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_PASSWORD);
         boolean useSecret = StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
-
         logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}, Query: {}",
                 domain, index,
                 recordsRequest.getSchema(), query);
-        int numRows = 0;
+        long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
             AwsRestHighLevelClient client = useSecret ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
