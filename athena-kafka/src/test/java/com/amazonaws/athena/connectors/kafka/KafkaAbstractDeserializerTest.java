@@ -26,14 +26,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 
-import java.util.Map;
-
 public abstract class KafkaAbstractDeserializerTest
 {
     protected static final ObjectMapper objectMapper = new ObjectMapper();
 
-    protected Schema createSchema(TopicSchema topicSchema) throws Exception
-    {
+    protected Schema createSchema(TopicSchema topicSchema) {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         topicSchema.getMessage().getFields().forEach(it -> {
             FieldType fieldType = new FieldType(
@@ -54,8 +51,7 @@ public abstract class KafkaAbstractDeserializerTest
         return schemaBuilder.build();
     }
 
-    protected Schema createSchemaForException(TopicSchema topicSchema) throws Exception
-    {
+    protected Schema createSchemaForException(TopicSchema topicSchema) {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         topicSchema.getMessage().getFields().forEach(it -> {
             FieldType fieldType = new FieldType(
