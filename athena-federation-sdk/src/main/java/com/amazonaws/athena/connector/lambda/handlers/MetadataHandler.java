@@ -174,13 +174,13 @@ public abstract class MetadataHandler
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
     public MetadataHandler(
-        EncryptionKeyFactory encryptionKeyFactory,
-        SecretsManagerClient secretsManager,
-        AthenaClient athena,
-        String sourceType,
-        String spillBucket,
-        String spillPrefix,
-        java.util.Map<String, String> configOptions)
+            EncryptionKeyFactory encryptionKeyFactory,
+            SecretsManagerClient secretsManager,
+            AthenaClient athena,
+            String sourceType,
+            String spillBucket,
+            String spillPrefix,
+            java.util.Map<String, String> configOptions)
     {
         this.configOptions = configOptions;
         this.encryptionKeyFactory = encryptionKeyFactory;
@@ -282,9 +282,9 @@ public abstract class MetadataHandler
     }
 
     protected final void doHandleRequest(BlockAllocator allocator,
-            ObjectMapper objectMapper,
-            MetadataRequest req,
-            OutputStream outputStream)
+                                         ObjectMapper objectMapper,
+                                         MetadataRequest req,
+                                         OutputStream outputStream)
             throws Exception
     {
         logger.info("doHandleRequest: request[{}]", req);
@@ -455,8 +455,8 @@ public abstract class MetadataHandler
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
                 constraintSchema.build(),
                 request.getConstraints());
-                QueryStatusChecker queryStatusChecker = new QueryStatusChecker(getAthenaClient(overrideConfig, athena),
-                        athenaInvoker, request.getQueryId())
+             QueryStatusChecker queryStatusChecker = new QueryStatusChecker(getAthenaClient(overrideConfig, athena),
+                     athenaInvoker, request.getQueryId())
         ) {
             Block partitions = allocator.createBlock(partitionSchemaBuilder.build());
             partitions.constrain(constraintEvaluator);
@@ -503,7 +503,7 @@ public abstract class MetadataHandler
      * for pushing down into the source you are querying.
      */
     public abstract void getPartitions(final BlockWriter blockWriter,
-            final GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+                                       final GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception;
 
     /**
