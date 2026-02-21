@@ -34,7 +34,6 @@ import io.substrait.proto.SimpleExtensionDeclaration;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.arrow.vector.util.Text;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -43,8 +42,8 @@ import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -216,8 +215,7 @@ class ElasticsearchQueryUtils
         // Handle leaf nodes (individual predicates like job_title = 'Engineer')
         if (expression.isLeaf()) {
             ColumnPredicate predicate = expression.getLeafPredicate();
-            return convertColumnPredicateToQuery(predicate.getColumn(),
-                    Collections.singletonList(predicate));
+            return convertColumnPredicateToQuery(predicate.getColumn(), predicate);
         }
 
         // Handle logical operators (AND/OR nodes with children)
@@ -260,126 +258,109 @@ class ElasticsearchQueryUtils
     /**
      * Converts a list of ColumnPredicates into an Elasticsearch QueryBuilder
      */
-    private static QueryBuilder convertColumnPredicateToQuery(String column, List<ColumnPredicate> colPreds)
+    private static QueryBuilder convertColumnPredicateToQuery(String column, ColumnPredicate colPred)
     {
-        if (colPreds == null || colPreds.isEmpty()) {
+        if (colPred == null) {
             return QueryBuilders.matchAllQuery();
         }
+        Object value = convertSubstraitValue(colPred);
+        SubstraitOperator op = colPred.getOperator();
 
-        List<Object> equalValues = new ArrayList<>();
-        List<QueryBuilder> otherQueries = new ArrayList<>();
+        switch (op) {
+            case IS_NULL:
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(column));
+            case IS_NOT_NULL:
+                return QueryBuilders.existsQuery(column);
+            case EQUAL:
+                return QueryBuilders.termQuery(column, value);
+            case NOT_EQUAL:
+                BoolQueryBuilder notEqualQuery = QueryBuilders.boolQuery()
+                        .must(QueryBuilders.existsQuery(column))
+                        .mustNot(QueryBuilders.termQuery(column, value));
+                return notEqualQuery;
+            case GREATER_THAN:
+                return QueryBuilders.rangeQuery(column).gt(value);
+            case GREATER_THAN_OR_EQUAL_TO:
+                return QueryBuilders.rangeQuery(column).gte(value);
+            case LESS_THAN:
+                return QueryBuilders.rangeQuery(column).lt(value);
+            case LESS_THAN_OR_EQUAL_TO:
+                return QueryBuilders.rangeQuery(column).lte(value);
+            case NAND:
+                // NAND(A, B, C) = NOT(A AND B AND C)
+                // Build inner AND query, then negate the entire result
+                if (value instanceof List) {
+                    List<ColumnPredicate> children = (List<ColumnPredicate>) value;
+                    BoolQueryBuilder innerAnd = QueryBuilders.boolQuery();
 
-        for (ColumnPredicate pred : colPreds) {
-            Object value = convertSubstraitValue(pred);
-            SubstraitOperator op = pred.getOperator();
-
-            switch (op) {
-                case IS_NULL:
-                    otherQueries.add(QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(column)));
-                    break;
-                case IS_NOT_NULL:
-                    otherQueries.add(QueryBuilders.existsQuery(column));
-                    break;
-                case EQUAL:
-                    equalValues.add(value);
-                    break;
-                case NOT_EQUAL:
-                    BoolQueryBuilder notEqualQuery = QueryBuilders.boolQuery()
-                            .must(QueryBuilders.existsQuery(column))
-                            .mustNot(QueryBuilders.termQuery(column, value));
-                    otherQueries.add(notEqualQuery);
-                    break;
-                case GREATER_THAN:
-                    otherQueries.add(QueryBuilders.rangeQuery(column).gt(value));
-                    break;
-                case GREATER_THAN_OR_EQUAL_TO:
-                    otherQueries.add(QueryBuilders.rangeQuery(column).gte(value));
-                    break;
-                case LESS_THAN:
-                    otherQueries.add(QueryBuilders.rangeQuery(column).lt(value));
-                    break;
-                case LESS_THAN_OR_EQUAL_TO:
-                    otherQueries.add(QueryBuilders.rangeQuery(column).lte(value));
-                    break;
-                case NAND:
-                    // NAND(A, B, C) = NOT(A AND B AND C)
-                    // Build inner AND query, then negate the entire result
-                    if (value instanceof List) {
-                        List<ColumnPredicate> children = (List<ColumnPredicate>) value;
-                        BoolQueryBuilder innerAnd = QueryBuilders.boolQuery();
-
-                        // Build A AND B AND C
-                        for (ColumnPredicate child : children) {
-                            QueryBuilder childQuery = convertColumnPredicateToQuery(
-                                    child.getColumn(),
-                                    Collections.singletonList(child));
-                            innerAnd.must(childQuery);
-                        }
-
-                        // Negate the entire AND: NOT(A AND B AND C)
-                        BoolQueryBuilder nandQuery = QueryBuilders.boolQuery().mustNot(innerAnd);
-                        otherQueries.add(nandQuery);
+                    // Build A AND B AND C
+                    for (ColumnPredicate child : children) {
+                        QueryBuilder childQuery = convertColumnPredicateToQuery(
+                                child.getColumn(), child);
+                        innerAnd.must(childQuery);
                     }
-                    break;
-                case NOR:
-                    // NOR(A, B, C) = NOT(A OR B OR C) = NOT(A) AND NOT(B) AND NOT(C)
-                    // Apply mustNot to each child individually
-                    if (value instanceof List) {
-                        List<ColumnPredicate> children = (List<ColumnPredicate>) value;
-                        BoolQueryBuilder norQuery = QueryBuilders.boolQuery();
 
-                        // Build NOT(A) AND NOT(B) AND NOT(C)
-                        for (ColumnPredicate child : children) {
-                            QueryBuilder childQuery = convertColumnPredicateToQuery(
-                                    child.getColumn(),
-                                    Collections.singletonList(child));
-                            norQuery.mustNot(childQuery);
-                        }
-                        otherQueries.add(norQuery);
+                    // Negate the entire AND: NOT(A AND B AND C)
+                    BoolQueryBuilder nandQuery = QueryBuilders.boolQuery().mustNot(innerAnd);
+                    return nandQuery;
+                }
+            case NOR:
+                // NOR(A, B, C) = NOT(A OR B OR C) = NOT(A) AND NOT(B) AND NOT(C)
+                // Apply mustNot to each child individually
+                if (value instanceof List) {
+                    List<ColumnPredicate> children = (List<ColumnPredicate>) value;
+                    BoolQueryBuilder norQuery = QueryBuilders.boolQuery();
+
+                    // Build NOT(A) AND NOT(B) AND NOT(C)
+                    for (ColumnPredicate child : children) {
+                        QueryBuilder childQuery = convertColumnPredicateToQuery(
+                                child.getColumn(), child);
+                        norQuery.mustNot(childQuery);
                     }
-                    break;
-                default:
-                    throw new UnsupportedOperationException("Unsupported operator: " + op);
-            }
+                    return norQuery;
+                }
+            default:
+                throw new UnsupportedOperationException("Unsupported operator: " + op);
         }
-
-        // Handle multiple EQUAL values -> terms query (IN clause)
-        if (!equalValues.isEmpty()) {
-            QueryBuilder equalQuery = equalValues.size() == 1
-                    ? QueryBuilders.termQuery(column, equalValues.get(0))
-                    : QueryBuilders.termsQuery(column, equalValues);
-            otherQueries.add(equalQuery);
-        }
-
-        // Combine all queries with AND logic
-        if (otherQueries.isEmpty()) {
-            return QueryBuilders.matchAllQuery();
-        }
-        if (otherQueries.size() == 1) {
-            return otherQueries.get(0);
-        }
-
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
-        for (QueryBuilder query : otherQueries) {
-            boolQuery.must(query);
-        }
-        return boolQuery;
     }
 
     /**
-     * Converts Substrait value to appropriate Java object
+     * Converts Substrait predicate values to Elasticsearch-compatible format.
+     *
+     * Substrait always uses Arrow standard units:
+     * - Date values are in DAYS since epoch (DateUnit.DAY)
+     * - Timestamp values are in MICROSECONDS since epoch (TimeUnit.MICROSECOND)
+     *
+     * Elasticsearch expects:
+     * - Date fields as MILLISECONDS since epoch
+     * - Timestamp fields as MILLISECONDS since epoch
+     *
+     * @param pred The column predicate containing value and ArrowType metadata
+     * @return Converted value in Elasticsearch-compatible format
      */
     private static Object convertSubstraitValue(ColumnPredicate pred)
     {
         Object value = pred.getValue();
-        if (value instanceof Text) {
-            return ((Text) value).toString();
+        ArrowType arrowType = pred.getArrowType();
+
+        // Convert Date: DAYS → milliseconds
+        // Substrait always returns DateUnit.DAY (86400000 ms per day)
+        if (value instanceof Long && arrowType instanceof ArrowType.Date) {
+            return ((Long) value) * 86400000L;
         }
-        // Handle datetime conversion if needed
+
+        // Convert Timestamp: MICROSECONDS → milliseconds
+        // Substrait always returns TimeUnit.MICROSECOND
         if (value instanceof Long && pred.getArrowType() instanceof ArrowType.Timestamp) {
-            // Elasticsearch expects milliseconds for timestamp
-            return ((Long) value) / 1000;
+            return ((Long) value) / 1000L;
         }
+
+        // Convert BigDecimal to double
+        // Elasticsearch doesn't support arbitrary precision decimals
+        if (value instanceof BigDecimal) {
+            return ((BigDecimal) value).doubleValue();
+        }
+
         return value;
     }
 
