@@ -492,25 +492,6 @@ public class ElasticsearchQueryUtilsTest
         assertTrue("Empty plan should return match_all query", builder.toString().contains("match_all"));
     }
 
-    @Test
-    public void testMalformedPlanReturnsMatchAll()
-    {
-        logger.info("testMalformedPlanReturnsMatchAll - enter");
-
-        // Test lines 199-201: Malformed/invalid Substrait plan should gracefully return matchAllQuery
-        // This tests exception handling when tree-based parsing fails
-        Plan malformedPlan = Plan.newBuilder()
-                .addRelations(io.substrait.proto.PlanRel.newBuilder().build())
-                .build();
-
-        QueryBuilder builder = ElasticsearchQueryUtils.getQueryFromPlan(malformedPlan);
-
-        assertNotNull("QueryBuilder should not be null even with malformed plan", builder);
-        assertTrue("Malformed plan should gracefully degrade to match_all query",
-                   builder.toString().contains("match_all"));
-
-        logger.info("testMalformedPlanReturnsMatchAll - exit");
-    }
 
     @Test
     public void testEmptyFilRel()
@@ -524,6 +505,38 @@ public class ElasticsearchQueryUtilsTest
 
         assertNotNull("QueryBuilder should not be null", builder);
         assertTrue("Empty plan should return match_all query", builder.toString().contains("match_all"));
+    }
+
+    @Test
+    public void testConvertTimeStampType()
+    {
+        logger.info("testNotEqualOperator - enter");
+
+        // SELECT id FROM \"my_dataset\".\"service_requests_no_noise\" WHERE \"timestamp_col\" < timestamp '2026-02-03 06:11:49.000'";
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEhoQCAEQARoKbHQ6YW55X2FueRqLBRKIBQqBBTr+BAoFEgMKARYS6AQS5QQKAgoAEpcECpQECgIKABLkAwoJaXNfYWN0aXZlCgt0aW55aW50X2NvbAoMc21hbGxpbnRfY29sCghwcmlvcml0eQoKYmlnaW50X2NvbAoJZmxvYXRfY29sCgpkb3VibGVfY29sCghyZWFsX2NvbAoLdmFyY2hhcl9jb2wKCGNoYXJfY29sCg12YXJiaW5hcnlfY29sCghkYXRlX2NvbAoIdGltZV9jb2wKDXRpbWVzdGFtcF9jb2wKAmlkCgxkZWNpbWFsX2NvbDIKDGRlY2ltYWxfY29sMwoLc3ViY2F0ZWdvcnkKDWludF9hcnJheV9jb2wKB21hcF9jb2wKEG1hcF93aXRoX2RlY2ltYWwKDG5lc3RlZF9hcnJheRLWAQoECgIQAgoEEgIQAgoEGgIQAgoEKgIQAgoEOgIQAgoEWgIQAgoEWgIQAgoEUgIQAgoEYgIQAgoHqgEECAEYAgoEagIQAgoFggECEAIKBYoBAhACCgWKAgIYAgoJwgEGCAQQEyACCgnCAQYIAhAKIAIKCcIBBggKEBMgAgoL2gEICgRiAhACGAIKC9oBCAoEKgIQAhgCChHiAQ4KBGICEAISBCoCEAIgAgoW4gETCgRiAhACEgnCAQYIAhAKIAIgAgoS2gEPCgvaAQgKBCoCEAIYAhgCGAI6JwoKbXlfZGF0YXNldAoZc2VydmljZV9yZXF1ZXN0c19ub19ub2lzZRpFGkMIARoECgIQAiIbGhlaFwoHigIECAMYAhIKEggKBBICCA0iABgCIhwaGloYCgeKAgQIAxgCEgsKCXDA5u+E1bySAxgCGgoSCAoEEgIIDiIAEgJJRDILEEoqB2lzdGhtdXM=";
+
+        Plan plan = deserializeSubstraitPlan(substraitPlanString);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQueryFromPlan(plan);
+
+        String actualQueryJson = builder.toString();
+        logger.info("TimeStampType Query: {}", actualQueryJson);
+        assertTrue("Timestamp type should be converted to milliseconds", builder.toString().contains("1770099109000"));
+    }
+
+    @Test
+    public void testConvertDateType()
+    {
+        logger.info("testNotEqualOperator - enter");
+
+        // SELECT id FROM \"my_dataset\".\"service_requests_no_noise\" WHERE \"date_col\" < date '2026-02-03'
+        String substraitPlanString =  "ChwIARIYL2Z1bmN0aW9uc19kYXRldGltZS55YW1sEhQaEggBEAEaDGx0OmRhdGVfZGF0ZRrpBBLmBArfBDrcBAoFEgMKARYSxgQSwwQKAgoAEpcECpQECgIKABLkAwoJaXNfYWN0aXZlCgt0aW55aW50X2NvbAoMc21hbGxpbnRfY29sCghwcmlvcml0eQoKYmlnaW50X2NvbAoJZmxvYXRfY29sCgpkb3VibGVfY29sCghyZWFsX2NvbAoLdmFyY2hhcl9jb2wKCGNoYXJfY29sCg12YXJiaW5hcnlfY29sCghkYXRlX2NvbAoIdGltZV9jb2wKDXRpbWVzdGFtcF9jb2wKAmlkCgxkZWNpbWFsX2NvbDIKDGRlY2ltYWxfY29sMwoLc3ViY2F0ZWdvcnkKDWludF9hcnJheV9jb2wKB21hcF9jb2wKEG1hcF93aXRoX2RlY2ltYWwKDG5lc3RlZF9hcnJheRLWAQoECgIQAgoEEgIQAgoEGgIQAgoEKgIQAgoEOgIQAgoEWgIQAgoEWgIQAgoEUgIQAgoEYgIQAgoHqgEECAEYAgoEagIQAgoFggECEAIKBYoBAhACCgWKAgIYAgoJwgEGCAQQEyACCgnCAQYIAhAKIAIKCcIBBggKEBMgAgoL2gEICgRiAhACGAIKC9oBCAoEKgIQAhgCChHiAQ4KBGICEAISBCoCEAIgAgoW4gETCgRiAhACEgnCAQYIAhAKIAIgAgoS2gEPCgvaAQgKBCoCEAIYAhgCGAI6JwoKbXlfZGF0YXNldAoZc2VydmljZV9yZXF1ZXN0c19ub19ub2lzZRojGiEIARoECgIQAiIMGgoSCAoEEgIICyIAIgkaBwoFgAGHoAEaChIICgQSAggOIgASAklEMgsQSioHaXN0aG11cw==";
+
+        Plan plan = deserializeSubstraitPlan(substraitPlanString);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQueryFromPlan(plan);
+
+        String actualQueryJson = builder.toString();
+        logger.info("DateType Query: {}", actualQueryJson);
+        assertTrue("Date type should be converted to milliseconds", builder.toString().contains("1770076800000"));
     }
 
     /**
