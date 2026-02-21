@@ -39,6 +39,9 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.DateString;
+import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.dialect.MssqlSqlDialect;
 import org.apache.calcite.sql.dialect.PostgresqlSqlDialect;
@@ -819,33 +822,26 @@ public class JdbcSplitQueryBuilderTest
     {
         // Test TIMESTAMP type handling with TimestampString value
         PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
-        org.apache.calcite.util.TimestampString timestampString = new org.apache.calcite.util.TimestampString("2025-01-10 10:10:10");
+        TimestampString timestampString = new TimestampString("2025-01-10 10:10:10");
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            SqlTypeName.TIMESTAMP,
             timestampString,
             "EVENT_TIMESTAMP"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        // Create a simple schema with a timestamp field
-        Field timestampField = new Field("EVENT_TIMESTAMP",
-            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
-            null);
-        Schema schema = new Schema(Collections.singletonList(timestampField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setTimestamp was called with the correct timestamp
         verify(mockPreparedStatement).setTimestamp(eq(1), any(java.sql.Timestamp.class));
@@ -860,30 +856,23 @@ public class JdbcSplitQueryBuilderTest
         long expectedMillis = 1704880210000L; // 2025-01-10 10:10:10 in milliseconds
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            SqlTypeName.TIMESTAMP,
             expectedMillis,
             "EVENT_TIMESTAMP"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        // Create schema with timestamp field
-        Field timestampField = new Field("EVENT_TIMESTAMP",
-            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
-            null);
-        Schema schema = new Schema(Collections.singletonList(timestampField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setTimestamp was called with correct timestamp
         verify(mockPreparedStatement).setTimestamp(eq(1), eq(new java.sql.Timestamp(expectedMillis)));
@@ -898,31 +887,25 @@ public class JdbcSplitQueryBuilderTest
 
         // Use an unsupported type like String directly (not TimestampString)
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            SqlTypeName.TIMESTAMP,
             "2025-01-10",  // Plain string instead of TimestampString or Number
             "EVENT_TIMESTAMP"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        Field timestampField = new Field("EVENT_TIMESTAMP",
-            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
-            null);
-        Schema schema = new Schema(Collections.singletonList(timestampField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method and expect AthenaConnectorException
         java.lang.reflect.InvocationTargetException ex = assertThrows(
             java.lang.reflect.InvocationTargetException.class,
-            () -> method.invoke(builder, mockPreparedStatement, accumulator, schema)
+            () -> method.invoke(builder, mockPreparedStatement, accumulator)
         );
 
         // Verify the cause is AthenaConnectorException
@@ -938,42 +921,33 @@ public class JdbcSplitQueryBuilderTest
         // Test handling multiple TIMESTAMP values in a single prepared statement
         PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
 
-        org.apache.calcite.util.TimestampString ts1 = new org.apache.calcite.util.TimestampString("2025-01-10 10:10:10");
+        TimestampString ts1 = new TimestampString("2025-01-10 10:10:10");
         long ts2Millis = 1704880210000L;
 
         SubstraitTypeAndValue typeAndValue1 = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            SqlTypeName.TIMESTAMP,
             ts1,
             "EVENT_TIMESTAMP1"
         );
 
         SubstraitTypeAndValue typeAndValue2 = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            SqlTypeName.TIMESTAMP,
             ts2Millis,
             "EVENT_TIMESTAMP2"
         );
 
         List<SubstraitTypeAndValue> accumulator = List.of(typeAndValue1, typeAndValue2);
 
-        Field timestampField1 = new Field("EVENT_TIMESTAMP1",
-            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
-            null);
-        Field timestampField2 = new Field("EVENT_TIMESTAMP2",
-            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
-            null);
-        Schema schema = new Schema(List.of(timestampField1, timestampField2));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setTimestamp was called twice with correct indexes
         verify(mockPreparedStatement).setTimestamp(eq(1), any(java.sql.Timestamp.class));
@@ -988,43 +962,35 @@ public class JdbcSplitQueryBuilderTest
         PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
 
         SubstraitTypeAndValue varchar = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.VARCHAR,
+            SqlTypeName.VARCHAR,
             "test_value",
             "COL_VARCHAR"
         );
 
         SubstraitTypeAndValue timestamp = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
-            new org.apache.calcite.util.TimestampString("2025-01-10 10:10:10"),
+            SqlTypeName.TIMESTAMP,
+            new TimestampString("2025-01-10 10:10:10"),
             "EVENT_TIMESTAMP"
         );
 
         SubstraitTypeAndValue integer = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.INTEGER,
+            SqlTypeName.INTEGER,
             12345,
             "COL_INT"
         );
 
         List<SubstraitTypeAndValue> accumulator = List.of(varchar, timestamp, integer);
 
-        Field varcharField = new Field("COL_VARCHAR", FieldType.nullable(VARCHAR.getType()), null);
-        Field timestampField = new Field("EVENT_TIMESTAMP",
-            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
-            null);
-        Field intField = new Field("COL_INT", FieldType.nullable(INT.getType()), null);
-        Schema schema = new Schema(List.of(varcharField, timestampField, intField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify all types were set correctly
         verify(mockPreparedStatement).setString(eq(1), eq("test_value"));
@@ -1038,33 +1004,26 @@ public class JdbcSplitQueryBuilderTest
     {
         // Test DATE type handling with DateString value
         PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
-        org.apache.calcite.util.DateString dateString = new org.apache.calcite.util.DateString("2025-01-10");
+        DateString dateString = new DateString("2025-01-10");
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            SqlTypeName.DATE,
             dateString,
             "EVENT_DATE"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        // Create schema with date field (DAY unit)
-        Field dateField = new Field("EVENT_DATE",
-            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
-            null);
-        Schema schema = new Schema(Collections.singletonList(dateField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setDate was called with correct date
         verify(mockPreparedStatement).setDate(eq(1), any(java.sql.Date.class));
@@ -1079,30 +1038,23 @@ public class JdbcSplitQueryBuilderTest
         java.sql.Date sqlDate = java.sql.Date.valueOf("2025-01-10");
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            SqlTypeName.DATE,
             sqlDate,
             "EVENT_DATE"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        // Create schema with date field
-        Field dateField = new Field("EVENT_DATE",
-            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
-            null);
-        Schema schema = new Schema(Collections.singletonList(dateField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setDate was called with the same date object
         verify(mockPreparedStatement).setDate(eq(1), eq(sqlDate));
@@ -1117,30 +1069,23 @@ public class JdbcSplitQueryBuilderTest
         java.util.Date utilDate = new java.util.Date(1704844800000L); // 2025-01-10
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            SqlTypeName.DATE,
             utilDate,
             "EVENT_DATE"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
-
-        // Create schema with date field
-        Field dateField = new Field("EVENT_DATE",
-            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
-            null);
-        Schema schema = new Schema(Collections.singletonList(dateField));
-
+            
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setDate was called with converted sql.Date
         verify(mockPreparedStatement).setDate(eq(1), any(java.sql.Date.class));
@@ -1155,30 +1100,23 @@ public class JdbcSplitQueryBuilderTest
         String dateString = "2025-01-10";
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            SqlTypeName.DATE,
             dateString,
             "EVENT_DATE"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        // Create schema with date field
-        Field dateField = new Field("EVENT_DATE",
-            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
-            null);
-        Schema schema = new Schema(Collections.singletonList(dateField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setDate was called with parsed date
         verify(mockPreparedStatement).setDate(eq(1), eq(java.sql.Date.valueOf(dateString)));
@@ -1193,30 +1131,23 @@ public class JdbcSplitQueryBuilderTest
         long daysValue = 19000; // Days since epoch (approximately 2022-01-01)
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            SqlTypeName.DATE,
             daysValue,
             "EVENT_DATE"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        // Create schema with date field (DAY unit)
-        Field dateField = new Field("EVENT_DATE",
-            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
-            null);
-        Schema schema = new Schema(Collections.singletonList(dateField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setDate was called
         verify(mockPreparedStatement).setDate(eq(1), any(java.sql.Date.class));
@@ -1231,30 +1162,23 @@ public class JdbcSplitQueryBuilderTest
         long millisValue = 1704844800000L; // Milliseconds since epoch
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            SqlTypeName.DATE,
             millisValue,
             "EVENT_DATE"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        // Create schema with date field (MILLISECOND unit)
-        Field dateField = new Field("EVENT_DATE",
-            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.MILLISECOND)),
-            null);
-        Schema schema = new Schema(Collections.singletonList(dateField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setDate was called
         verify(mockPreparedStatement).setDate(eq(1), any(java.sql.Date.class));
@@ -1266,33 +1190,26 @@ public class JdbcSplitQueryBuilderTest
     {
         // Test DATE type handling with TimestampString value (should convert to timestamp)
         PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
-        org.apache.calcite.util.TimestampString timestampString = new org.apache.calcite.util.TimestampString("2025-01-10 10:10:10");
+        TimestampString timestampString = new TimestampString("2025-01-10 10:10:10");
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            SqlTypeName.DATE,
             timestampString,
             "EVENT_DATE"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        // Create schema with date field
-        Field dateField = new Field("EVENT_DATE",
-            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
-            null);
-        Schema schema = new Schema(Collections.singletonList(dateField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify setTimestamp was called (DATE with TimestampString converts to timestamp)
         verify(mockPreparedStatement).setTimestamp(eq(1), any(java.sql.Timestamp.class));
@@ -1307,32 +1224,25 @@ public class JdbcSplitQueryBuilderTest
         String invalidDateString = "invalid-date-format";
 
         SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            SqlTypeName.DATE,
             invalidDateString,
             "EVENT_DATE"
         );
 
         List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
 
-        // Create schema with date field
-        Field dateField = new Field("EVENT_DATE",
-            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
-            null);
-        Schema schema = new Schema(Collections.singletonList(dateField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method and expect AthenaConnectorException
         java.lang.reflect.InvocationTargetException ex = assertThrows(
             java.lang.reflect.InvocationTargetException.class,
-            () -> method.invoke(builder, mockPreparedStatement, accumulator, schema)
+            () -> method.invoke(builder, mockPreparedStatement, accumulator)
         );
 
         // Verify the cause is AthenaConnectorException with appropriate error message
@@ -1350,43 +1260,35 @@ public class JdbcSplitQueryBuilderTest
         PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
 
         SubstraitTypeAndValue varchar = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.VARCHAR,
+            SqlTypeName.VARCHAR,
             "test_value",
             "COL_VARCHAR"
         );
 
         SubstraitTypeAndValue date = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.DATE,
-            new org.apache.calcite.util.DateString("2025-01-10"),
+            SqlTypeName.DATE,
+            new DateString("2025-01-10"),
             "EVENT_DATE"
         );
 
         SubstraitTypeAndValue integer = new SubstraitTypeAndValue(
-            org.apache.calcite.sql.type.SqlTypeName.INTEGER,
+            SqlTypeName.INTEGER,
             12345,
             "COL_INT"
         );
 
         List<SubstraitTypeAndValue> accumulator = List.of(varchar, date, integer);
 
-        Field varcharField = new Field("COL_VARCHAR", FieldType.nullable(VARCHAR.getType()), null);
-        Field dateField = new Field("EVENT_DATE",
-            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
-            null);
-        Field intField = new Field("COL_INT", FieldType.nullable(INT.getType()), null);
-        Schema schema = new Schema(List.of(varcharField, dateField, intField));
-
         // Use reflection to access the private method
         java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
             "handleDataTypesForPreparedStatement",
             PreparedStatement.class,
-            List.class,
-            Schema.class
+            List.class
         );
         method.setAccessible(true);
 
         // Execute the method
-        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator);
 
         // Verify all types were set correctly
         verify(mockPreparedStatement).setString(eq(1), eq("test_value"));
@@ -1410,32 +1312,27 @@ public class JdbcSplitQueryBuilderTest
 
     private static Stream<Arguments> provideSqlTestCases() {
         return Stream.of(
-//                SELECT employee_id, employee_name, job_title, salary
-//                FROM "ADMIN"."ORACLE_BASIC_DBTABLE_GAMMA_EU_WEST_1_INTEG";
-                Arguments.of("GrgEErUECoMEOoAECggSBgoEFBUWFxLFAwrCAwoCCgAS2gIKC2VtcGxveWVlX2lkCglpc19hY3RpdmUKDWVtcGxveWVlX25hbW" +
-                        "UKCWpvYl90aXRsZQoHYWRkcmVzcwoJam9pbl9kYXRlCgl0aW1lc3RhbXAKCGR1cmF0aW9uCgZzYWxhcnkKBWJvbnVzCgVoYXNoMQo" +
-                        "FaGFzaDIKBGNvZGUKBWRlYml0CgVjb3VudAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlCg5wYXJ0aXRpb25fbmFt" +
-                        "ZRKYAQoHugEECAEYAQoEOgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoFggECEAEKBYoCAhgBCgRiAhABCgnCAQYIBBATIAEKCcIBBggEE" +
-                        "BMgAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAMQEyABCgQ6AhABCgnCAQYIAxATIAEKBDoCEAEKCcIBBggDEBMgAQoEOgIQAQoEYg" +
-                        "IQARgCOl8KMU9SQUNMRV9CQVNJQ19EQlRBQkxFX1NDSEVNQV9HQU1NQV9FVV9XRVNUXzFfSU5URUcKKk9SQUNMRV9CQVNJQ19EQlR" +
-                        "BQkxFX0dBTU1BX0VVX1dFU1RfMV9JTlRFRxoIEgYKAhIAIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggIIgASC2Vt" +
-                        "cGxveWVlX2lkEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSBnNhbGFyeTILEEoqB2lzdGhtdXM="),
-//                SELECT employee_id
-//                FROM basic_write_nonexist
-//                WHERE employee_id = 'EMP001'
-                Arguments.of("Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRrsAx" +
-                        "LpAwrZAzrWAwoFEgMKARYSwAMSvQMKAgoAEo4DCosDCgIKABLkAgoEZGF0ZQoLZmxvYXRfdmFsdWUKBXByaWNlCgtlbXBs" +
-                        "b3llZV9pZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoJdGltZX" +
-                        "N0YW1wCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoFY291bnQKBmFtb3Vu" +
-                        "dAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRKYAQoFggECEAEKBFoCEAEKBFoCEAEKBGICEAEKBGICEAEKBGICEAEKBG" +
-                        "ICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiAB" +
-                        "CgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZX" +
-                        "hpc3QaJhokCAEaBAoCEAEiDBoKEggKBBICCAMiACIMGgoKCGIGRU1QMDAxGgoSCAoEEgIIAyIAEgtFTVBMT1lFRV9JRDIL" +
-                        "EEoqB2lzdGhtdXM="),
-//                SELECT employee_id
-//                FROM basic_write_nonexist
-//                WHERE hash1 > 1000
-                Arguments.of("Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEhoQCAEQARoKZ3Q6YW55X2FueRrnAxLkAwrUAzrRAwoFEgMKARYSuwMSuAMKAgoAEo4DCosDCgIKABLkAgoEZGF0ZQoLZmxvYXRfdmFsdWUKBXByaWNlCgtlbXBsb3llZV9pZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoJdGltZXN0YW1wCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoFY291bnQKBmFtb3VudAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRKYAQoFggECEAEKBFoCEAEKBFoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaIRofCAEaBAoCEAEiDBoKEggKBBICCA0iACIHGgUKAzjoBxoKEggKBBICCAMiABILRU1QTE9ZRUVfSUQyCxBKKgdpc3RobXVz")
+                // SELECT employee_id, employee_name, job_title, salary FROM "ADMIN"."ORACLE_BASIC_DBTABLE_GAMMA_EU_WEST_1_INTEG";
+                Arguments.of("GrgEErUECoMEOoAECggSBgoEFBUWFxLFAwrCAwoCCgAS2gIKC2VtcGxveWVlX2lkCglpc19hY3RpdmUKDWVtcGxveWVlX25hbWUKCWpvYl90aXRsZQoHYWRkcmVzcwoJam9pbl9kYXRlCgl0aW1lc3RhbXAKCGR1cmF0aW9uCgZzYWxhcnkKBWJvbnVzCgVoYXNoMQoFaGFzaDIKBGNvZGUKBWRlYml0CgVjb3VudAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlCg5wYXJ0aXRpb25fbmFtZRKYAQoHugEECAEYAQoEOgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoFggECEAEKBYoCAhgBCgRiAhABCgnCAQYIBBATIAEKCcIBBggEEBMgAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAMQEyABCgQ6AhABCgnCAQYIAxATIAEKBDoCEAEKCcIBBggDEBMgAQoEOgIQAQoEYgIQARgCOl8KMU9SQUNMRV9CQVNJQ19EQlRBQkxFX1NDSEVNQV9HQU1NQV9FVV9XRVNUXzFfSU5URUcKKk9SQUNMRV9CQVNJQ19EQlRBQkxFX0dBTU1BX0VVX1dFU1RfMV9JTlRFRxoIEgYKAhIAIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggIIgASC2VtcGxveWVlX2lkEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSBnNhbGFyeTILEEoqB2lzdGhtdXM="),
+                
+                // SELECT employee_id FROM basic_write_nonexist WHERE employee_id = 'EMP001'
+                Arguments.of("Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRrsAxLpAwrZAzrWAwoFEgMKARYSwAMSvQMKAgoAEo4DCosDCgIKABLkAgoEZGF0ZQoLZmxvYXRfdmFsdWUKBXByaWNlCgtlbXBsb3llZV9pZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoJdGltZXN0YW1wCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoFY291bnQKBmFtb3VudAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRKYAQoFggECEAEKBFoCEAEKBFoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaJhokCAEaBAoCEAEiDBoKEggKBBICCAMiACIMGgoKCGIGRU1QMDAxGgoSCAoEEgIIAyIAEgtFTVBMT1lFRV9JRDILEEoqB2lzdGhtdXM="),
+                
+                // SELECT employee_id FROM basic_write_nonexist WHERE hash1 > 1000
+                Arguments.of("Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEhoQCAEQARoKZ3Q6YW55X2FueRrnAxLkAwrUAzrRAwoFEgMKARYSuwMSuAMKAgoAEo4DCosDCgIKABLkAgoEZGF0ZQoLZmxvYXRfdmFsdWUKBXByaWNlCgtlbXBsb3llZV9pZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoJdGltZXN0YW1wCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoFY291bnQKBmFtb3VudAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRKYAQoFggECEAEKBFoCEAEKBFoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaIRofCAEaBAoCEAEiDBoKEggKBBICCA0iACIHGgUKAzjoBxoKEggKBBICCAMiABILRU1QTE9ZRUVfSUQyCxBKKgdpc3RobXVz"),
+                
+                Arguments.of("ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIYW5kOmJvb2wSFRoTCAIQARoNZXF1YWw6YW55X2FueRISGhAIAhACGgpndDphbnlfYW55Eg8aDQgBEAMaB29yOmJvb2wa8w4S8A4K7Q466g4KCRIHCgUIBAECAxKgDhKdDgoCCgAS2QEK1gEKAgoAEqQBCgJpZAoEbmFtZQoDYWdlCgZzYWxhcnkKCmRlcGFydG1lbnQKCWhpcmVfZGF0ZQoJaXNfYWN0aXZlCgVzY29yZQoEY2l0eQoHY291bnRyeQoHcGFydF9pZBJKCgQqAhABCgRiAhABCgQqAhABCgnCAQYIAhAKIAEKBGICEAEKBYIBAhABCgQKAhABCgRaAhABCgRiAhABCgRiAhABCgRiAhABGAI6KQoKZ2x1ZV90ZWFtMgobdGVzdF90YWJsZV9xdWVyeV9mZWRlcmF0aW9uGroMGrcMGgQKAhABIqMMGqAMGp0MGgQKAhABIusJGugJGuUJGgQKAhABIm8abRprGgQKAhABIiUaIxohCAEaBAoCEAEiDBoKEggKBBICCAYiACIJGgcKBQgBkAMBIjwaOho4CAIaBAoCEAEiDBoKEggKBBICCAMiACIgGh4KHMIBFgoQwM9qAAAAAAAAAAAAAAAAABAHGAKQAwEi6wga6Aga5QgIAxoECgIQASKsCBqpCBqmCAgDGgQKAhABIucHGuQHGuEHCAMaBAoCEAEipgcaowcaoAcIAxoECgIQASLmBhrjBhrgBggDGgQKAhABIqcGGqQGGqEGCAMaBAoCEAEi5wUa5AUa4QUIAxoECgIQASKmBRqjBRqgBQgDGgQKAhABIuMEGuAEGt0ECAMaBAoCEAEiogQanwQanAQIAxoECgIQASLfAxrcAxrZAwgDGgQKAhABIqADGp0DGpoDCAMaBAoCEAEi4QIa3gIa2wIIAxoECgIQASKjAhqgAhqdAggDGgQKAhABIuUBGuIBGt8BCAMaBAoCEAEipgEaowEaoAEIAxoECgIQASJmGmQaYggDGgQKAhABIisaKRonCAEaBAoCEAEiDBoKEggKBBICCAgiACIPGg0KC2IGQXVzdGlukAMBIisaKRonCAEaBAoCEAEiDBoKEggKBBICCAgiACIPGg0KC2IGQm9zdG9ukAMBIi4aLBoqCAEaBAoCEAEiDBoKEggKBBICCAgiACISGhAKDmIJQ2hhcmxvdHRlkAMBIiwaKhooCAEaBAoCEAEiDBoKEggKBBICCAgiACIQGg4KDGIHQ2hpY2Fnb5ADASIrGikaJwgBGgQKAhABIgwaChIICgQSAggIIgAiDxoNCgtiBkRhbGxhc5ADASIrGikaJwgBGgQKAhABIgwaChIICgQSAggIIgAiDxoNCgtiBkRlbnZlcpADASIsGioaKAgBGgQKAhABIgwaChIICgQSAggIIgAiEBoOCgxiB0RldHJvaXSQAwEiLBoqGigIARoECgIQASIMGgoSCAoEEgIICCIAIhAaDgoMYgdIb3VzdG9ukAMBIjAaLhosCAEaBAoCEAEiDBoKEggKBBICCAgiACIUGhIKEGILS2Fuc2FzIENpdHmQAwEiLhosGioIARoECgIQASIMGgoSCAoEEgIICCIAIhIaEAoOYglMYXMgVmVnYXOQAwEiMBouGiwIARoECgIQASIMGgoSCAoEEgIICCIAIhQaEgoQYgtMb3MgQW5nZWxlc5ADASIuGiwaKggBGgQKAhABIgwaChIICgQSAggIIgAiEhoQCg5iCU5hc2h2aWxsZZADASItGisaKQgBGgQKAhABIgwaChIICgQSAggIIgAiERoPCg1iCE5ldyBZb3JrkAMBIiwaKhooCAEaBAoCEAEiDBoKEggKBBICCAgiACIQGg4KDGIHUGhvZW5peJADASItGisaKQgBGgQKAhABIgwaChIICgQSAggIIgAiERoPCg1iCFBvcnRsYW5kkAMBIi4aLBoqCAEaBAoCEAEiDBoKEggKBBICCAgiACISGhAKDmIJU2FuIERpZWdvkAMBIjIaMBouCAEaBAoCEAEiDBoKEggKBBICCAgiACIWGhQKEmINU2FuIEZyYW5jaXNjb5ADASIsGioaKAgBGgQKAhABIgwaChIICgQSAggIIgAiEBoOCgxiB1NlYXR0bGWQAwEipgIaowIaoAIIAxoECgIQASLpARrmARrjAQgDGgQKAhABIqgBGqUBGqIBCAMaBAoCEAEiZxplGmMIAxoECgIQASIwGi4aLAgBGgQKAhABIgwaChIICgQSAggEIgAiFBoSChBiC0VuZ2luZWVyaW5nkAMBIicaJRojCAEaBAoCEAEiDBoKEggKBBICCAQiACILGgkKB2ICSFKQAwEiLxotGisIARoECgIQASIMGgoSCAoEEgIIBCIAIhMaEQoPYgpNYW5hZ2VtZW50kAMBIi4aLBoqCAEaBAoCEAEiDBoKEggKBBICCAQiACISGhAKDmIJTWFya2V0aW5nkAMBIioaKBomCAEaBAoCEAEiDBoKEggKBBICCAQiACIOGgwKCmIFU2FsZXOQAwEiCRoHCgUIAZADARoKEggKBBICCAgiABoKEggKBBICCAQiABoKEggKBBICCAEiABoKEggKBBICCAIiABoKEggKBBICCAMiAA=="),
+                Arguments.of("ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIYW5kOmJvb2wSFRoTCAIQARoNZXF1YWw6YW55X2FueRISGhAIAhACGgpndDphbnlfYW55GuYCEuMCCuACGt0CCgIKABLSAhLPAgoCCgAS2QEK1gEKAgoAEqQBCgJpZAoEbmFtZQoDYWdlCgZzYWxhcnkKCmRlcGFydG1lbnQKCWhpcmVfZGF0ZQoJaXNfYWN0aXZlCgVzY29yZQoEY2l0eQoHY291bnRyeQoHcGFydF9pZBJKCgQqAhABCgRiAhABCgQqAhABCgnCAQYIAhAKIAEKBGICEAEKBYIBAhABCgQKAhABCgRaAhABCgRiAhABCgRiAhABCgRiAhABGAI6KQoKZ2x1ZV90ZWFtMgobdGVzdF90YWJsZV9xdWVyeV9mZWRlcmF0aW9uGm0aaxoECgIQASJYGlYaVBoECgIQASIlGiMaIQgBGgQKAhABIgwaChIICgQSAggGIgAiCRoHCgUIAJADASIlGiMaIQgCGgQKAhABIgwaChIICgQSAggCIgAiCRoHCgUoHpADASIJGgcKBQgBkAMBGAAgZA=="),
+                Arguments.of("GucFEuQFCuEFGt4FCgIKABLTBSrQBQoCCgASuQUKtgUKAgoAEpUFChFjY19jYWxsX2NlbnRlcl9zawoRY2NfY2FsbF9jZW50ZXJfaWQKEWNjX3JlY19zdGFydF9kYXRlCg9jY19yZWNfZW5kX2RhdGUKEWNjX2Nsb3NlZF9kYXRlX3NrCg9jY19vcGVuX2RhdGVfc2sKB2NjX25hbWUKCGNjX2NsYXNzCgxjY19lbXBsb3llZXMKCGNjX3NxX2Z0CghjY19ob3VycwoKY2NfbWFuYWdlcgoJY2NfbWt0X2lkCgxjY19ta3RfY2xhc3MKC2NjX21rdF9kZXNjChFjY19tYXJrZXRfbWFuYWdlcgoLY2NfZGl2aXNpb24KEGNjX2RpdmlzaW9uX25hbWUKCmNjX2NvbXBhbnkKD2NjX2NvbXBhbnlfbmFtZQoQY2Nfc3RyZWV0X251bWJlcgoOY2Nfc3RyZWV0X25hbWUKDmNjX3N0cmVldF90eXBlCg9jY19zdWl0ZV9udW1iZXIKB2NjX2NpdHkKCWNjX2NvdW50eQoIY2Nfc3RhdGUKBmNjX3ppcAoKY2NfY291bnRyeQoNY2NfZ210X29mZnNldAoRY2NfdGF4X3BlcmNlbnRhZ2UKB3BhcnRfaWQSzgEKBCoCEAEKBGICEAEKBYIBAhABCgWCAQIQAQoEKgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoJwgEGCAIQBSABCgnCAQYIAhAFIAEKBGICEAEYAjoYCgl3YXJlaG91c2UKC2NhbGxfY2VudGVyGg4KChIICgQSAggGIgAQAhgAIGQ="),
+                Arguments.of("ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIYW5kOmJvb2wSFRoTCAIQARoNZXF1YWw6YW55X2FueRqzAhKwAgqtAhqqAgoCCgASnwISnAIKAgoAEtkBCtYBCgIKABKkAQoCaWQKBG5hbWUKA2FnZQoGc2FsYXJ5CgpkZXBhcnRtZW50CgloaXJlX2RhdGUKCWlzX2FjdGl2ZQoFc2NvcmUKBGNpdHkKB2NvdW50cnkKB3BhcnRfaWQSSgoEKgIQAQoEYgIQAQoEKgIQAQoJwgEGCAIQCiABCgRiAhABCgWCAQIQAQoECgIQAQoEWgIQAQoEYgIQAQoEYgIQAQoEYgIQARgCOikKCmdsdWVfdGVhbTIKG3Rlc3RfdGFibGVfcXVlcnlfZmVkZXJhdGlvbho6GjgaBAoCEAEiJRojGiEIARoECgIQASIMGgoSCAoEEgIIBiIAIgkaBwoFCAGQAwEiCRoHCgUIAZADARgAIAU="),
+                Arguments.of("Go8BEowBCokBCoYBCgIKABJbCglkZXB0X25hbWUKDG1hbmFnZXJfbmFtZQoGYnVkZ2V0Cghsb2NhdGlvbgoHcGFydF9pZBIlCgRiAhABCgRiAhABCgnCAQYIAhAMIAEKBGICEAEKBGICEAEYAjojCgpnbHVlX3RlYW0yChV0ZXN0X3RhYmxlX2RlcGFydG1lbnQ="),
+                
+                // SELECT * FROM "warehouse"."call_center" ORDER BY "cc_rec_start_date" LIMIT 100
+                Arguments.of("GucFEuQFCuEFGt4FCgIKABLTBSrQBQoCCgASuQUKtgUKAgoAEpUFChFjY19jYWxsX2NlbnRlcl9zawoRY2NfY2FsbF9jZW50ZXJfaWQKEWNjX3JlY19zdGFydF9kYXRlCg9jY19yZWNfZW5kX2RhdGUKEWNjX2Nsb3NlZF9kYXRlX3NrCg9jY19vcGVuX2RhdGVfc2sKB2NjX25hbWUKCGNjX2NsYXNzCgxjY19lbXBsb3llZXMKCGNjX3NxX2Z0CghjY19ob3VycwoKY2NfbWFuYWdlcgoJY2NfbWt0X2lkCgxjY19ta3RfY2xhc3MKC2NjX21rdF9kZXNjChFjY19tYXJrZXRfbWFuYWdlcgoLY2NfZGl2aXNpb24KEGNjX2RpdmlzaW9uX25hbWUKCmNjX2NvbXBhbnkKD2NjX2NvbXBhbnlfbmFtZQoQY2Nfc3RyZWV0X251bWJlcgoOY2Nfc3RyZWV0X25hbWUKDmNjX3N0cmVldF90eXBlCg9jY19zdWl0ZV9udW1iZXIKB2NjX2NpdHkKCWNjX2NvdW50eQoIY2Nfc3RhdGUKBmNjX3ppcAoKY2NfY291bnRyeQoNY2NfZ210X29mZnNldAoRY2NfdGF4X3BlcmNlbnRhZ2UKB3BhcnRfaWQSzgEKBCoCEAEKBGICEAEKBYIBAhABCgWCAQIQAQoEKgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoJwgEGCAIQBSABCgnCAQYIAhAFIAEKBGICEAEYAjoYCgl3YXJlaG91c2UKC2NhbGxfY2VudGVyGg4KChIICgQSAggCIgAQAhgAIGQ="),
+                
+                Arguments.of("ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIYW5kOmJvb2wSEhoQCAIQARoKZ3Q6YW55X2FueRIVGhMIAhACGg1lcXVhbDphbnlfYW55GuYCEuMCCuACGt0CCgIKABLSAhLPAgoCCgAS2QEK1gEKAgoAEqQBCgJpZAoEbmFtZQoDYWdlCgZzYWxhcnkKCmRlcGFydG1lbnQKCWhpcmVfZGF0ZQoJaXNfYWN0aXZlCgVzY29yZQoEY2l0eQoHY291bnRyeQoHcGFydF9pZBJKCgQqAhABCgRiAhABCgQqAhABCgnCAQYIAhAKIAEKBGICEAEKBYIBAhABCgQKAhABCgRaAhABCgRiAhABCgRiAhABCgRiAhABGAI6KQoKZ2x1ZV90ZWFtMgobdGVzdF90YWJsZV9xdWVyeV9mZWRlcmF0aW9uGm0aaxoECgIQASJYGlYaVBoECgIQASIlGiMaIQgBGgQKAhABIgwaChIICgQSAggCIgAiCRoHCgUoIJADASIlGiMaIQgCGgQKAhABIgwaChIICgQSAggGIgAiCRoHCgUIAZADASIJGgcKBQgBkAMBGAAgBQ=="),
+                Arguments.of("GucFEuQFCuEFGt4FCgIKABLTBSrQBQoCCgASuQUKtgUKAgoAEpUFChFjY19jYWxsX2NlbnRlcl9zawoRY2NfY2FsbF9jZW50ZXJfaWQKEWNjX3JlY19zdGFydF9kYXRlCg9jY19yZWNfZW5kX2RhdGUKEWNjX2Nsb3NlZF9kYXRlX3NrCg9jY19vcGVuX2RhdGVfc2sKB2NjX25hbWUKCGNjX2NsYXNzCgxjY19lbXBsb3llZXMKCGNjX3NxX2Z0CghjY19ob3VycwoKY2NfbWFuYWdlcgoJY2NfbWt0X2lkCgxjY19ta3RfY2xhc3MKC2NjX21rdF9kZXNjChFjY19tYXJrZXRfbWFuYWdlcgoLY2NfZGl2aXNpb24KEGNjX2RpdmlzaW9uX25hbWUKCmNjX2NvbXBhbnkKD2NjX2NvbXBhbnlfbmFtZQoQY2Nfc3RyZWV0X251bWJlcgoOY2Nfc3RyZWV0X25hbWUKDmNjX3N0cmVldF90eXBlCg9jY19zdWl0ZV9udW1iZXIKB2NjX2NpdHkKCWNjX2NvdW50eQoIY2Nfc3RhdGUKBmNjX3ppcAoKY2NfY291bnRyeQoNY2NfZ210X29mZnNldAoRY2NfdGF4X3BlcmNlbnRhZ2UKB3BhcnRfaWQSzgEKBCoCEAEKBGICEAEKBYIBAhABCgWCAQIQAQoEKgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoJwgEGCAIQBSABCgnCAQYIAhAFIAEKBGICEAEYAjoYCgl3YXJlaG91c2UKC2NhbGxfY2VudGVyGg4KChIICgQSAggCIgAQAhgAIGQ="),
+                Arguments.of("GpMCEpACCo0CGooCCgIKABL/ASr8AQoCCgAS5QEK4gEKAgoAEscBCgpvX29yZGVya2V5CglvX2N1c3RrZXkKDW9fb3JkZXJzdGF0dXMKDG9fdG90YWxwcmljZQoLb19vcmRlcmRhdGUKD29fb3JkZXJwcmlvcml0eQoHb19jbGVyawoOb19zaGlwcHJpb3JpdHkKCW9fY29tbWVudAoJcGFydGl0aW9uEkQKBDoCEAEKBDoCEAEKBGICEAEKCcIBBggCEAwgAQoFggECEAEKBGICEAEKBGICEAEKBDoCEAEKBGICEAEKBGICEAEYAjoSCgh0cGNoX3NmMQoGb3JkZXJzGg4KChIICgQSAggEIgAQAhgAIGQ=")
         );
     }
 
