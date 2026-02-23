@@ -427,8 +427,10 @@ public abstract class JdbcSplitQueryBuilder
             if (!(sqlNode instanceof SqlSelect)) {
                 throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
             }
-
             root = (SqlSelect) sqlNode;
+            if (removeFetch()) {
+                root.setFetch(null);
+            }
             Schema tableSchema = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect);
             SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), tableSchema);
             root.accept(visitor);
@@ -452,6 +454,11 @@ public abstract class JdbcSplitQueryBuilder
             LOGGER.error("Failed to prepare statement with Calcite", e);
             throw new RuntimeException("Failed to prepare statement with Calcite", e);
         }
+    }
+
+    protected boolean removeFetch()
+    {
+        return false;
     }
 
     private PreparedStatement handleDataTypesForPreparedStatement(PreparedStatement statement,
