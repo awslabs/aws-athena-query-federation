@@ -155,7 +155,7 @@ public class OracleMetadataHandler
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             TableName casedTableName = getTableLayoutRequest.getTableName();
             LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), casedTableName.getSchemaName(),
                 casedTableName.getTableName());
@@ -213,15 +213,22 @@ public class OracleMetadataHandler
 
         // TODO consider splitting further depending on #rows or data size. Could use Hash key for splitting if no partitions.
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
-            FieldReader locationReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
-            locationReader.setPosition(curPartition);
-
+            String partitionValue;
+            if (partitions.getFields().stream().anyMatch(field -> field.getName().equals(BLOCK_PARTITION_COLUMN_NAME))) {
+                FieldReader locationReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
+                locationReader.setPosition(curPartition);
+                partitionValue = String.valueOf(locationReader.readText());
+            }
+            else {
+                LOGGER.warn("Partition Name doesn't exist");
+                partitionValue = ALL_PARTITIONS;
+            }
             SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 
-            LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), locationReader.readText());
+            LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), partitionValue);
 
             Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
+                    .add(BLOCK_PARTITION_COLUMN_NAME, partitionValue);
 
             splits.add(splitBuilder.build());
 
@@ -242,7 +249,7 @@ public class OracleMetadataHandler
         preparedStatement.setString(2, databaseName);
         preparedStatement.setInt(3, token);
         preparedStatement.setInt(4, limit);
-        LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
+        LOGGER.info("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
 
@@ -334,11 +341,11 @@ public class OracleMetadataHandler
                 int precision = resultSet.getInt("COLUMN_SIZE");
                 int scale = resultSet.getInt("DECIMAL_DIGITS");
 
-                LOGGER.debug("columnName: {}", columnName);
-                LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
-                LOGGER.debug("precision: {}", precision);
-                LOGGER.debug("scale: {}", scale);
-                LOGGER.debug("arrowColumnType: {}", arrowColumnType);
+                LOGGER.info("columnName: {}", columnName);
+                LOGGER.info("jdbcColumnType: {}", jdbcColumnType);
+                LOGGER.info("precision: {}", precision);
+                LOGGER.info("scale: {}", scale);
+                LOGGER.info("arrowColumnType: {}", arrowColumnType);
 
                 /**
                  * below data type conversion doing since a framework not giving appropriate
@@ -377,12 +384,12 @@ public class OracleMetadataHandler
                     arrowColumnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
-                LOGGER.debug("new arrowColumnType: {}", arrowColumnType);
+                LOGGER.info("new arrowColumnType: {}", arrowColumnType);
                 schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType.get()).build());
             }
 
             partitionSchema.getFields().forEach(schemaBuilder::addField);
-            LOGGER.debug("Oracle Table Schema" + schemaBuilder.toString());
+            LOGGER.info("Oracle Table Schema" + schemaBuilder.toString());
             return schemaBuilder.build();
         }
     }

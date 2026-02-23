@@ -240,7 +240,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
 
         //check whether the input table is a view or not
         boolean viewFlag = false;
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(params).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
@@ -249,7 +249,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             LOGGER.info("viewFlag: {}", viewFlag);
         }
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName() + "." +
                     getTableLayoutRequest.getTableName().getTableName());
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
