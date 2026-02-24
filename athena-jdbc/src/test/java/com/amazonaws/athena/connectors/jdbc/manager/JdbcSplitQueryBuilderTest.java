@@ -29,14 +29,19 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import com.amazonaws.athena.connector.substrait.SubstraitTypeAndValue;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.MssqlSqlDialect;
+import org.apache.calcite.sql.dialect.PostgresqlSqlDialect;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +51,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.ParameterMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -72,11 +78,13 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -1429,5 +1437,27 @@ public class JdbcSplitQueryBuilderTest
 //                WHERE hash1 > 1000
                 Arguments.of("Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEhoQCAEQARoKZ3Q6YW55X2FueRrnAxLkAwrUAzrRAwoFEgMKARYSuwMSuAMKAgoAEo4DCosDCgIKABLkAgoEZGF0ZQoLZmxvYXRfdmFsdWUKBXByaWNlCgtlbXBsb3llZV9pZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoJdGltZXN0YW1wCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoFY291bnQKBmFtb3VudAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRKYAQoFggECEAEKBFoCEAEKBFoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaIRofCAEaBAoCEAEiDBoKEggKBBICCA0iACIHGgUKAzjoBxoKEggKBBICCAMiABILRU1QTE9ZRUVfSUQyCxBKKgdpc3RobXVz")
         );
+    }
+
+    @Test
+    public void testPrepareStatementWithCalciteSql_ParameterCountMismatch() throws Exception {
+        // SELECT * FROM testdb.users WHERE age > 60
+        String base64EncodedPlanWhere = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIYW5kOmJvb2wSEhoQCAIQARoKZ3Q6YW55X2FueRq8ARK5AQq2ARKzAQoCCgAScQpvCgIKABJYCgJpZAoEbmFtZQoFZW1haWwKA2FnZQoIbG9jYXRpb24KDnBhcnRpdGlvbl9uYW1lEiYKBCoCEAEKBGICEAEKBGICEAEKBCoCEAEKBGICEAEKBGICEAEYAjoPCgZ0ZXN0ZGIKBXVzZXJzGjoaOBoECgIQASIlGiMaIQgBGgQKAhABIgwaChIICgQSAggDIgAiCRoHCgUoPJADASIJGgcKBQgBkAMB";
+        QueryPlan queryPlan = mock(QueryPlan.class);
+        Constraints constraintsWithQueryPlan = mock(Constraints.class);
+
+        ParameterMetaData mockParameterMetaData = mock(ParameterMetaData.class);
+        when(mockParameterMetaData.getParameterCount()).thenReturn(0);
+        when(mockStatement.getParameterMetaData()).thenReturn(mockParameterMetaData);
+
+        when(queryPlan.getSubstraitPlan()).thenReturn(base64EncodedPlanWhere);
+        when(constraintsWithQueryPlan.getQueryPlan()).thenReturn(queryPlan);
+
+        PreparedStatement result = builder.prepareStatementWithCalciteSql(mockConnection, constraintsWithQueryPlan, AnsiSqlDialect.DEFAULT, split);
+
+        assertNotNull(result);
+        verify(mockConnection).prepareStatement(contains("SELECT"));
+        verify(mockConnection).prepareStatement(contains("`testdb`.`users`"));
+        verify(mockConnection).prepareStatement(contains("`age` > 60"));
     }
 }
