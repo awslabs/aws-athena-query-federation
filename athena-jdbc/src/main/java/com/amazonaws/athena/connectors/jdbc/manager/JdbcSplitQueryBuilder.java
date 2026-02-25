@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
@@ -185,7 +186,15 @@ public abstract class JdbcSplitQueryBuilder
             throws SQLException
     {
         if (constraints.getQueryPlan() != null) {
-            SqlDialect sqlDialect = getSqlDialect();
+            SqlDialect sqlDialect;
+            String catalogCasingFilter = split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER);
+            if (catalogCasingFilter != null) {
+                LOGGER.info("getSqlDialect: catalogCasingFilterUpperCase={}", catalogCasingFilter);
+                sqlDialect = getSqlDialect(catalogCasingFilter.equals(EnvironmentConstants.UPPERCASE_ONLY));
+            }
+            else {
+                sqlDialect = getSqlDialect();
+            }
             return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
         }
         List<TypeAndValue> accumulator = new ArrayList<>();
@@ -409,6 +418,11 @@ public abstract class JdbcSplitQueryBuilder
     {
         return AnsiSqlDialect.DEFAULT;
     }
+
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilter)
+{
+    return AnsiSqlDialect.DEFAULT;
+}
 
     protected PreparedStatement prepareStatementWithCalciteSql(
             final Connection jdbcConnection,

@@ -26,7 +26,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.sql.SqlDialect;
-import org.apache.calcite.sql.dialect.PostgresqlSqlDialect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -44,6 +45,8 @@ import java.util.stream.Collectors;
 public class PostGreSqlQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PostGreSqlQueryStringBuilder.class);
+
     public PostGreSqlQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
         super(quoteCharacters, federationExpressionParser);
@@ -120,5 +123,11 @@ public class PostGreSqlQueryStringBuilder
     protected SqlDialect getSqlDialect()
     {
         return PostgresqlSqlDialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new PostgresqlSqlDialect(catalogCasingFilterUpperCase);
     }
 }

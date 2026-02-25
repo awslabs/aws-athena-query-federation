@@ -25,7 +25,6 @@ import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.apache.calcite.sql.SqlDialect;
-import org.apache.calcite.sql.dialect.MssqlSqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +91,13 @@ public class SqlServerQueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected SqlDialect getSqlDialect()
     {
-        return MssqlSqlDialect.DEFAULT;
+        return SqlServerDialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        LOGGER.info("getSqlDialect: catalogCasingFilterUpperCase={}", catalogCasingFilterUpperCase);
+        return new SqlServerDialect(catalogCasingFilterUpperCase);
     }
 }
