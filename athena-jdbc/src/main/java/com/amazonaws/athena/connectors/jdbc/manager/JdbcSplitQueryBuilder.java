@@ -420,9 +420,9 @@ public abstract class JdbcSplitQueryBuilder
     }
 
     protected SqlDialect getSqlDialect(boolean catalogCasingFilter)
-{
-    return AnsiSqlDialect.DEFAULT;
-}
+    {
+        return AnsiSqlDialect.DEFAULT;
+    }
 
     protected PreparedStatement prepareStatementWithCalciteSql(
             final Connection jdbcConnection,

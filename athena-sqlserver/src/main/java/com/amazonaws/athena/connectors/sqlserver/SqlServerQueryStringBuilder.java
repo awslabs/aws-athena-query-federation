@@ -97,7 +97,6 @@ public class SqlServerQueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
     {
-        LOGGER.info("getSqlDialect: catalogCasingFilterUpperCase={}", catalogCasingFilterUpperCase);
         return new SqlServerDialect(catalogCasingFilterUpperCase);
     }
 }

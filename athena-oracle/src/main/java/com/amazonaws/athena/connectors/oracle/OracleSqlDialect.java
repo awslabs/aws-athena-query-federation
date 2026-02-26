@@ -19,36 +19,15 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcCasingSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
 
-public class OracleSqlDialect extends SqlDialect
+public class OracleSqlDialect extends JdbcCasingSqlDialect
 {
-    private final boolean catalogCasingFilter;
-
     public static final SqlDialect DEFAULT = org.apache.calcite.sql.dialect.OracleSqlDialect.DEFAULT;
-
-    private OracleSqlDialect(Context context, boolean catalogCasingFilter)
-    {
-        super(context);
-        this.catalogCasingFilter = catalogCasingFilter;
-    }
 
     public OracleSqlDialect(boolean catalogCasingFilter)
     {
-        this(EMPTY_CONTEXT
-                .withDatabaseProduct(DatabaseProduct.ORACLE)
-                .withIdentifierQuoteString("\""), catalogCasingFilter);
-    }
-
-    @Override
-    public StringBuilder quoteIdentifier(StringBuilder buf, String identifier)
-    {
-        if (catalogCasingFilter) {
-            // Oracle requires uppercase identifiers to be in quotes for case-sensitive tables
-            return buf.append("\"").append(identifier.toUpperCase()).append("\"");
-        }
-        else {
-            return super.quoteIdentifier(buf, identifier);
-        }
+        super(DatabaseProduct.ORACLE, "\"", catalogCasingFilter);
     }
 }

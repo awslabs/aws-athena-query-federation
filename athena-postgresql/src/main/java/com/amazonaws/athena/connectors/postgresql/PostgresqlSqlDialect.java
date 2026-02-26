@@ -19,36 +19,15 @@
  */
 package com.amazonaws.athena.connectors.postgresql;
 
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcCasingSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
 
-public class PostgresqlSqlDialect extends SqlDialect
+public class PostgresqlSqlDialect extends JdbcCasingSqlDialect
 {
-    private final boolean catalogCasingFilter;
-
     public static final SqlDialect DEFAULT = org.apache.calcite.sql.dialect.PostgresqlSqlDialect.DEFAULT;
-
-    private PostgresqlSqlDialect(Context context, boolean catalogCasingFilter)
-    {
-        super(context);
-        this.catalogCasingFilter = catalogCasingFilter;
-    }
 
     public PostgresqlSqlDialect(boolean catalogCasingFilter)
     {
-        this(EMPTY_CONTEXT
-                .withDatabaseProduct(DatabaseProduct.POSTGRESQL)
-                .withIdentifierQuoteString("\""), catalogCasingFilter);
-    }
-
-    @Override
-    public StringBuilder quoteIdentifier(StringBuilder buf, String identifier)
-    {
-        if (catalogCasingFilter) {
-            // PostgreSQL requires uppercase schema/table to be in quotes
-            return buf.append("\"").append(identifier.toUpperCase()).append("\"");
-        }
-        else {
-            return super.quoteIdentifier(buf, identifier);
-        }
+        super(DatabaseProduct.POSTGRESQL, "\"", catalogCasingFilter);
     }
 }

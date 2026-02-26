@@ -1,6 +1,6 @@
 /*-
  * #%L
- * Amazon Athena SQL Server Connector
+ * athena-sqlserver
  * %%
  * Copyright (C) 2019 - 2026 Amazon Web Services
  * %%
@@ -19,36 +19,15 @@
  */
 package com.amazonaws.athena.connectors.sqlserver;
 
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcCasingSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
 
-public class SqlServerDialect extends SqlDialect
+public class SqlServerDialect extends JdbcCasingSqlDialect
 {
-    private final boolean catalogCasingFilter;
-
     public static final SqlDialect DEFAULT = org.apache.calcite.sql.dialect.MssqlSqlDialect.DEFAULT;
 
     public SqlServerDialect(boolean catalogCasingFilter)
     {
-        this(EMPTY_CONTEXT
-                .withDatabaseProduct(DatabaseProduct.MSSQL)
-                .withIdentifierQuoteString("["), catalogCasingFilter);
-    }
-
-    public SqlServerDialect(Context context, boolean catalogCasingFilter)
-    {
-        super(context);
-        this.catalogCasingFilter = catalogCasingFilter;
-    }
-
-    @Override
-    public StringBuilder quoteIdentifier(StringBuilder buf, String identifier)
-    {
-        if (catalogCasingFilter) {
-            // Required for case-sensitive tables
-            return buf.append("[").append(identifier.toUpperCase()).append("]");
-        }
-        else {
-            return super.quoteIdentifier(buf, identifier);
-        }
+        super(DatabaseProduct.MSSQL, "[", "]", catalogCasingFilter);
     }
 }
