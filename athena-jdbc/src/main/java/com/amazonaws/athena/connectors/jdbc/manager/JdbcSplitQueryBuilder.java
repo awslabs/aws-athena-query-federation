@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
@@ -185,7 +186,9 @@ public abstract class JdbcSplitQueryBuilder
             throws SQLException
     {
         if (constraints.getQueryPlan() != null) {
-            SqlDialect sqlDialect = getSqlDialect();
+            boolean casingFilter = isCatalogCasingFilterApplied(split);
+            LOGGER.info("Is Upper case catalog casing filter applied {}", casingFilter);
+            SqlDialect sqlDialect = getSqlDialect(casingFilter);
             return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
         }
         List<TypeAndValue> accumulator = new ArrayList<>();
@@ -408,6 +411,17 @@ public abstract class JdbcSplitQueryBuilder
     protected SqlDialect getSqlDialect()
     {
         return AnsiSqlDialect.DEFAULT;
+    }
+
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterApplied)
+    {
+        return getSqlDialect();
+    }
+
+    protected boolean isCatalogCasingFilterApplied(Split split)
+    {
+        return EnvironmentConstants.UPPERCASE_ONLY.equals(split.getProperties()
+                .getOrDefault(EnvironmentConstants.CATALOG_CASING_FILTER, null));
     }
 
     protected PreparedStatement prepareStatementWithCalciteSql(

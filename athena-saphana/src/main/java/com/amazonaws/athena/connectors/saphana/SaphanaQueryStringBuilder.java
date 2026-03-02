@@ -36,6 +36,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,6 +135,12 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
             final Split split)
             throws SQLException
     {
+        if (constraints.getQueryPlan() != null) {
+            boolean casingFilter = isCatalogCasingFilterApplied(split);
+            SqlDialect sqlDialect = getSqlDialect(casingFilter);
+            return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
+        }
+
         StringBuilder sql = new StringBuilder();
         String columnNames = tableSchema.getFields().stream()
                 .map(this::quoteField)
@@ -228,6 +235,19 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
         LOGGER.debug("Field name to quote {}", name);
         name = name.replace(SAPHANA_QUOTE_CHARACTER, SAPHANA_QUOTE_CHARACTER + SAPHANA_QUOTE_CHARACTER);
         return SAPHANA_QUOTE_CHARACTER + name + SAPHANA_QUOTE_CHARACTER;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return SAPHanaSqlDialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterApplied)
+    {
+        return new SAPHanaSqlDialect(SAPHanaSqlDialect.DEFAULT_CONTEXT,
+                catalogCasingFilterApplied);
     }
 
     private String quoteField(Field field)
