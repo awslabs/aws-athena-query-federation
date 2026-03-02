@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.resolver.CaseResolver;
@@ -40,6 +41,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -561,5 +563,39 @@ public class SaphanaMetadataHandlerTest
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(new TableName(schemaName, tableName), getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void testCreateCredentialsProvider()
+    {
+        String secretName = "testSecret";
+        software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration requestOverrideConfig =
+                software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration.builder().build();
+
+        // Mock CredentialsProviderFactory
+        try (MockedStatic<CredentialsProviderFactory> mockedFactory =
+                     Mockito.mockStatic(com.amazonaws.athena.connector.credentials.CredentialsProviderFactory.class)) {
+
+            CredentialsProvider mockProvider = Mockito.mock(CredentialsProvider.class);
+            mockedFactory.when(() -> com.amazonaws.athena.connector.credentials.CredentialsProviderFactory.createCredentialProvider(
+                    Mockito.eq(secretName),
+                    Mockito.any(),
+                    Mockito.any(com.amazonaws.athena.connectors.saphana.SaphanaOAuthCredentialsProvider.class),
+                    Mockito.eq(requestOverrideConfig)
+            )).thenReturn(mockProvider);
+
+            CredentialsProvider result = this.saphanaMetadataHandler.createCredentialsProvider(secretName, requestOverrideConfig);
+
+            Assert.assertNotNull(result);
+            Assert.assertEquals(mockProvider, result);
+
+            // Verify the factory was called with expected parameters
+            mockedFactory.verify(() -> com.amazonaws.athena.connector.credentials.CredentialsProviderFactory.createCredentialProvider(
+                    Mockito.eq(secretName),
+                    Mockito.any(),
+                    Mockito.any(com.amazonaws.athena.connectors.saphana.SaphanaOAuthCredentialsProvider.class),
+                    Mockito.eq(requestOverrideConfig)
+            ));
+        }
     }
 }
