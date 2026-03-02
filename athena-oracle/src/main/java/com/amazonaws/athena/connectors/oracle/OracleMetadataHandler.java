@@ -255,7 +255,7 @@ public class OracleMetadataHandler
         preparedStatement.setString(2, databaseName);
         preparedStatement.setInt(3, token);
         preparedStatement.setInt(4, limit);
-        LOGGER.info("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
+        LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
 
@@ -347,11 +347,11 @@ public class OracleMetadataHandler
                 int precision = resultSet.getInt("COLUMN_SIZE");
                 int scale = resultSet.getInt("DECIMAL_DIGITS");
 
-                LOGGER.info("columnName: {}", columnName);
-                LOGGER.info("jdbcColumnType: {}", jdbcColumnType);
-                LOGGER.info("precision: {}", precision);
-                LOGGER.info("scale: {}", scale);
-                LOGGER.info("arrowColumnType: {}", arrowColumnType);
+                LOGGER.debug("columnName: {}", columnName);
+                LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
+                LOGGER.debug("precision: {}", precision);
+                LOGGER.debug("scale: {}", scale);
+                LOGGER.debug("arrowColumnType: {}", arrowColumnType);
 
                 /**
                  * below data type conversion doing since a framework not giving appropriate
@@ -390,12 +390,12 @@ public class OracleMetadataHandler
                     arrowColumnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
-                LOGGER.info("new arrowColumnType: {}", arrowColumnType);
+                LOGGER.debug("new arrowColumnType: {}", arrowColumnType);
                 schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType.get()).build());
             }
 
             partitionSchema.getFields().forEach(schemaBuilder::addField);
-            LOGGER.info("Oracle Table Schema" + schemaBuilder.toString());
+            LOGGER.debug("Oracle Table Schema" + schemaBuilder.toString());
             return schemaBuilder.build();
         }
     }

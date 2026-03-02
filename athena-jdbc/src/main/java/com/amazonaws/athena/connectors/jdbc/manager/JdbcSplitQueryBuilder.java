@@ -189,7 +189,7 @@ public abstract class JdbcSplitQueryBuilder
             SqlDialect sqlDialect;
             String catalogCasingFilter = split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER);
             if (catalogCasingFilter != null) {
-                LOGGER.info("getSqlDialect: catalogCasingFilterUpperCase={}", catalogCasingFilter);
+                LOGGER.debug("Found catalogCasingFilter for getSqlDialect: {}", catalogCasingFilter);
                 sqlDialect = getSqlDialect(catalogCasingFilter.equals(EnvironmentConstants.UPPERCASE_ONLY));
             }
             else {
