@@ -4996,10 +4996,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">If available, will parse and return a column name mapping for cases when a data source's columns
  cannot be represented by Glue's quite restrictive naming rules.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html#getColumnNameRemapping(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest)">getColumnNameRemapping(ReadRecordsRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitFunctionParser.html#getColumnPredicatesMap(java.util.List,io.substrait.proto.Expression,java.util.List)">getColumnPredicatesMap(List&lt;SimpleExtensionDeclaration&gt;, Expression, List&lt;String&gt;)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitFunctionParser.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitFunctionParser</a></dt>
 <dd>
 <div class="block">Parses a Substrait expression into a map of column predicates grouped by column name.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitSqlUtils.html#getColumnRemapping(java.lang.String,org.apache.calcite.sql.SqlDialect)">getColumnRemapping(String, SqlDialect)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitSqlUtils.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitSqlUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#getColumns(java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.sql.DatabaseMetaData)">getColumns(String, TableName, DatabaseMetaData)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html#getColumnType()">getColumnType()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.splits.<a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.splits">SplitInfo</a></dt>
@@ -6828,6 +6832,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/v2/GetSplitsResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><span class="typeNameLink">GetSplitsResponseSerDe.Serializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitterFactory.html#getSplitter(java.lang.String,java.sql.ResultSet,int)">getSplitter(String, ResultSet, int)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.splits.<a href="com/amazonaws/athena/connectors/jdbc/splits/SplitterFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.splits">SplitterFactory</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html#getSqlDialect()">getSqlDialect()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html#getSqlDialect()">getSqlDialect()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcSplitQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -11573,8 +11579,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/SubnetTableProvider.html#%3Cinit%3E(software.amazon.awssdk.services.ec2.Ec2Client)">SubnetTableProvider(Ec2Client)</a></span> - Constructor for class com.amazonaws.athena.connectors.aws.cmdb.tables.ec2.<a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/SubnetTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2">SubnetTableProvider</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/substrait/SubstraitAccumulatorVisitor.html" title="class in com.amazonaws.athena.connector.substrait"><span class="typeNameLink">SubstraitAccumulatorVisitor</span></a> - Class in <a href="com/amazonaws/athena/connector/substrait/package-summary.html">com.amazonaws.athena.connector.substrait</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitAccumulatorVisitor.html#%3Cinit%3E(java.util.List,java.util.Map,org.apache.arrow.vector.types.pojo.Schema)">SubstraitAccumulatorVisitor(List&lt;SubstraitTypeAndValue&gt;, Map&lt;String, String&gt;, Schema)</a></span> - Constructor for class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitAccumulatorVisitor.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitAccumulatorVisitor</a></dt>
+<dd>
+<div class="block">A <code>SqlShuttle</code>-based AST visitor that converts inline-literal SQL into a parameterized form
+ by extracting literals and replacing them with <code>SqlDynamicParam</code> placeholders.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitAccumulatorVisitor.html#%3Cinit%3E(java.util.List,org.apache.calcite.rel.type.RelDataType)">SubstraitAccumulatorVisitor(List&lt;SubstraitTypeAndValue&gt;, RelDataType)</a></span> - Constructor for class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitAccumulatorVisitor.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitAccumulatorVisitor</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model"><span class="typeNameLink">SubstraitField</span></a> - Class in <a href="com/amazonaws/athena/connector/substrait/model/package-summary.html">com.amazonaws.athena.connector.substrait.model</a></dt>
 <dd>
@@ -12811,6 +12820,8 @@ the order they are declared.</div>
 <div class="block">Query to check view</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#VIEW_METADATA_FIELD">VIEW_METADATA_FIELD</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitAccumulatorVisitor.html#visit(org.apache.calcite.sql.SqlCall)">visit(SqlCall)</a></span> - Method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitAccumulatorVisitor.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitAccumulatorVisitor</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitAccumulatorVisitor.html#visit(org.apache.calcite.sql.SqlIdentifier)">visit(SqlIdentifier)</a></span> - Method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitAccumulatorVisitor.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitAccumulatorVisitor</a></dt>
 <dd>&nbsp;</dd>
