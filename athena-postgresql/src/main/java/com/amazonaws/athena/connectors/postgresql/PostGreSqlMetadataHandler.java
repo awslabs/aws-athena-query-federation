@@ -255,7 +255,7 @@ public class PostGreSqlMetadataHandler
                             .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
                             .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(splitClause));
 
-                    if (getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                    if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
                         LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
                         splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
                     }
@@ -286,7 +286,7 @@ public class PostGreSqlMetadataHandler
                         .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
                         .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(partitionsFieldReader.readText()));
 
-                if (getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
                     LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
                     splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
                 }

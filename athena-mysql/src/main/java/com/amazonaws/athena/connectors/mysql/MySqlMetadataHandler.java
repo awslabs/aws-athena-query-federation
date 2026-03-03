@@ -223,7 +223,7 @@ public class MySqlMetadataHandler
             Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                     .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
 
-            if (getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+            if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
                 LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
                 splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
             }

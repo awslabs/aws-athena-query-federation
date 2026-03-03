@@ -362,7 +362,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                         .add(PARTITION_NUMBER, partInfo);
             }
 
-            if (getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+            if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
                 LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
                 splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
             }
