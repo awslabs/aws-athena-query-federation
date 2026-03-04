@@ -450,7 +450,7 @@ public class BigQuerySqlUtilsTest
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         List<QueryParameterValue> parameterValues = new ArrayList<>();
         try {
-            BigQuerySqlUtils.buildSql(tableName, makeSchema(constraintMap), constraints, parameterValues);
+            BigQuerySqlUtils.buildSql(tableName, makeSchema(constraintMap), constraints, parameterValues, false);
             fail("Expected IllegalArgumentException for low marker with BELOW bound");
         } catch (IllegalArgumentException e) {
             assertEquals("Low marker should never use BELOW bound", e.getMessage());
@@ -462,7 +462,7 @@ public class BigQuerySqlUtilsTest
 
         // Test that BigQuerySqlUtils throws IllegalArgumentException for high marker with ABOVE bound
         try {
-            BigQuerySqlUtils.buildSql(tableName, makeSchema(constraintMap), constraints, parameterValues);
+            BigQuerySqlUtils.buildSql(tableName, makeSchema(constraintMap), constraints, parameterValues, false);
             fail("Expected IllegalArgumentException for high marker with ABOVE bound");
         } catch (IllegalArgumentException e) {
             assertEquals("High marker should never use ABOVE bound", e.getMessage());
@@ -486,7 +486,7 @@ public class BigQuerySqlUtilsTest
         ));
         QueryPlan queryPlan = new QueryPlan("1.0", substraitPlanString);
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
-        String result = BigQuerySqlUtils.buildSql(tableName, testSchema, constraints, new ArrayList<>());
+        String result = BigQuerySqlUtils.buildSql(tableName, testSchema, constraints, new ArrayList<>(), false);
 
         assertNotNull(result);
         assertTrue(result.contains("SELECT id"));
@@ -494,12 +494,37 @@ public class BigQuerySqlUtilsTest
         assertTrue(result.contains("LIMIT 10"));
     }
 
+    @Test
+    public void testMakeConjunctsFromPlan_UppercaseMode()
+    {
+        // SQL: "SELECT id FROM \"my_dataset\".\"service_requests_no_noise\" WHERE (id = 100 OR id = 200) AND is_active != true LIMIT 10";
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIQGg4IARABGghhbmQ6Ym9vbBIPGg0IARACGgdvcjpib29sEhUaEwgCEAMaDWVxdWFsOmFueV9hbnkSGRoXCAIQBBoRbm90X2VxdWFsOmFueV9hbnkaiAYShQYK/gUa+wUKAgoAEvAFOu0FCgUSAwoBFhLXBRLUBQoCCgASlwQKlAQKAgoAEuQDCglpc19hY3RpdmUKC3RpbnlpbnRfY29sCgxzbWFsbGludF9jb2wKCHByaW9yaXR5CgpiaWdpbnRfY29sCglmbG9hdF9jb2wKCmRvdWJsZV9jb2wKCHJlYWxfY29sCgt2YXJjaGFyX2NvbAoIY2hhcl9jb2wKDXZhcmJpbmFyeV9jb2wKCGRhdGVfY29sCgh0aW1lX2NvbAoNdGltZXN0YW1wX2NvbAoCaWQKDGRlY2ltYWxfY29sMgoMZGVjaW1hbF9jb2wzCgtzdWJjYXRlZ29yeQoNaW50X2FycmF5X2NvbAoHbWFwX2NvbAoQbWFwX3dpdGhfZGVjaW1hbAoMbmVzdGVkX2FycmF5EtYBCgQKAhACCgQSAhACCgQaAhACCgQqAhACCgQ6AhACCgRaAhACCgRaAhACCgRSAhACCgRiAhACCgeqAQQIARgCCgRqAhACCgWCAQIQAgoFigECEAIKBYoCAhgCCgnCAQYIBBATIAIKCcIBBggCEAogAgoJwgEGCAoQEyACCgvaAQgKBGICEAIYAgoL2gEICgQqAhACGAIKEeIBDgoEYgIQAhIEKgIQAiACChbiARMKBGICEAISCcIBBggCEAogAiACChLaAQ8KC9oBCAoEKgIQAhgCGAIYAjonCgpteV9kYXRhc2V0ChlzZXJ2aWNlX3JlcXVlc3RzX25vX25vaXNlGrMBGrABCAEaBAoCEAIigwEagAEafggCGgQKAhACIjkaNxo1CAMaBAoCEAIiDBoKEggKBBICCA4iACIdGhsKGcIBFgoQQEIPAAAAAAAAAAAAAAAAABATGAQiORo3GjUIAxoECgIQAiIMGgoSCAoEEgIIDiIAIh0aGwoZwgEWChCAhB4AAAAAAAAAAAAAAAAAEBMYBCIgGh4aHAgEGgQKAhACIgoaCBIGCgISACIAIgYaBAoCCAEaChIICgQSAggOIgAYACAKEgJJRDILEEoqB2lzdGhtdXM=";
+        Schema testSchema = new Schema(Arrays.asList(
+                new Field("employee_name", FieldType.nullable(new ArrowType.Utf8()), null),
+                new Field("job_title", FieldType.nullable(new ArrowType.Utf8()), null),
+                new Field("address", FieldType.nullable(new ArrowType.Utf8()), null),
+                new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null),
+                new Field("salary", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null),
+                new Field("bonus", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null),
+                new Field("is_active", FieldType.nullable(new ArrowType.Bool()), null),
+                new Field("join_date", FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)), null)
+        ));
+        QueryPlan queryPlan = new QueryPlan("1.0", substraitPlanString);
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
+        String result = BigQuerySqlUtils.buildSql(tableName, testSchema, constraints, new ArrayList<>(), true);
+
+        assertNotNull(result);
+        assertTrue(result.contains("SELECT ID"));
+        assertTrue(result.contains("FROM MY_DATASET.SERVICE_REQUESTS_NO_NOISE"));
+        assertTrue(result.contains("WHERE ID IN (100.0000, 200.0000) AND NOT IS_ACTIVE"));
+    }
+
     private Constraints getConstraints(Map<String, ValueSet> constraintMap, List<OrderByField> orderByFields, long limit) {
         return new Constraints(constraintMap, Collections.emptyList(), orderByFields, limit, Collections.emptyMap(), null);
     }
     private void executeAndVerify(Constraints constraints, Schema schema, List<QueryParameterValue> expectedParams, String expectedSql) {
         List<QueryParameterValue> parameterValues = new ArrayList<>();
-        String sql = BigQuerySqlUtils.buildSql(tableName, schema, constraints, parameterValues);
+        String sql = BigQuerySqlUtils.buildSql(tableName, schema, constraints, parameterValues, false);
         assertEquals(expectedParams, parameterValues);
         assertEquals(expectedSql, sql);
     }
@@ -520,7 +545,7 @@ public class BigQuerySqlUtilsTest
 
         // Should throw RuntimeException with message "Failed to prepare statement with Calcite"
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            BigQuerySqlUtils.buildSql(tableName, testSchema, constraints, new ArrayList<>());
+            BigQuerySqlUtils.buildSql(tableName, testSchema, constraints, new ArrayList<>(), false);
         });
 
         // Verify the error message

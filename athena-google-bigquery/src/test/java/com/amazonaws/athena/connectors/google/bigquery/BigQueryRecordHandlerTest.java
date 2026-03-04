@@ -386,6 +386,129 @@ public class BigQueryRecordHandlerTest
         }
     }
 
+    @Test
+    public void testStorageApi_FieldNotFoundInSchema() throws Exception
+    {
+        // Test that Storage API throws clear error when BigQuery returns a field not in schema
+        Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+                BigQueryConstants.GCP_PROJECT_ID, "test",
+                BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID, "dummySecret"
+        );
+        bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena, configOptions, rootAllocator);
+
+        // Create schema with specific fields
+        Schema expectedSchema = new Schema(Arrays.asList(
+                new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null),
+                new Field("name", FieldType.nullable(new ArrowType.Utf8()), null)
+        ));
+
+        try (ReadRecordsRequest request = new ReadRecordsRequest(
+                federatedIdentity,
+                BigQueryTestUtils.PROJECT_1_NAME,
+                "queryId",
+                new TableName("dataset1", "table1"),
+                expectedSchema,
+                Split.newBuilder(S3SpillLocation.newBuilder()
+                                .withBucket(bucket)
+                                .withPrefix(prefix)
+                                .withSplitId(UUID.randomUUID().toString())
+                                .withQueryId(UUID.randomUUID().toString())
+                                .withIsDirectory(true)
+                                .build(),
+                        keyFactory.create()).build(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                0,
+                0)) {
+
+            ReadSession readSession = mock(ReadSession.class);
+            ServerStreamingCallable ssCallable = mock(ServerStreamingCallable.class);
+
+            try (MockedStatic<BigQueryReadClient> mockedReadClient = mockStatic(BigQueryReadClient.class)) {
+                mockedReadClient.when(() -> BigQueryReadClient.create(any(BigQueryReadSettings.class))).thenReturn(bigQueryReadClient);
+                when(bigQueryReadClient.createReadSession(any(CreateReadSessionRequest.class))).thenReturn(readSession);
+                when(readSession.getArrowSchema()).thenReturn(arrowSchema);
+                when(readSession.getStreamsCount()).thenReturn(1);
+
+                ReadStream readStream = mock(ReadStream.class);
+                when(readSession.getStreams(anyInt())).thenReturn(readStream);
+                when(readStream.getName()).thenReturn("testStream");
+
+                // Create schema serialization with an EXTRA field that's not in expectedSchema
+                Schema bqSchema = new Schema(Arrays.asList(
+                        new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null),
+                        new Field("name", FieldType.nullable(new ArrowType.Utf8()), null),
+                        new Field("extra_field", FieldType.nullable(new ArrowType.Utf8()), null)  // This field is NOT in expectedSchema
+                ));
+
+                ByteArrayOutputStream schemaOut = new ByteArrayOutputStream();
+                MessageSerializer.serialize(new WriteChannel(java.nio.channels.Channels.newChannel(schemaOut)), bqSchema);
+
+                ByteString bs = mock(ByteString.class);
+                when(arrowSchema.getSerializedSchema()).thenReturn(bs);
+                when(bs.toByteArray()).thenReturn(schemaOut.toByteArray());
+                when(bigQueryReadClient.readRowsCallable()).thenReturn(ssCallable);
+                when(ssCallable.call(any(ReadRowsRequest.class))).thenReturn(serverStream);
+
+                // Create ReadRowsResponse with data including the extra field
+                RootAllocator testAllocator = new RootAllocator(Long.MAX_VALUE);
+                VectorSchemaRoot root = VectorSchemaRoot.create(bqSchema, testAllocator);
+
+                IntVector idVector = (IntVector) root.getVector("id");
+                idVector.allocateNew(1);
+                idVector.set(0, 123);
+                idVector.setValueCount(1);
+
+                VarCharVector nameVector = (VarCharVector) root.getVector("name");
+                nameVector.allocateNew(1);
+                nameVector.setSafe(0, "test".getBytes());
+                nameVector.setValueCount(1);
+
+                VarCharVector extraVector = (VarCharVector) root.getVector("extra_field");
+                extraVector.allocateNew(1);
+                extraVector.setSafe(0, "unexpected".getBytes());
+                extraVector.setValueCount(1);
+
+                root.setRowCount(1);
+
+                org.apache.arrow.vector.VectorUnloader unloader = new org.apache.arrow.vector.VectorUnloader(root);
+                org.apache.arrow.vector.ipc.message.ArrowRecordBatch batch = unloader.getRecordBatch();
+
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                MessageSerializer.serialize(new WriteChannel(java.nio.channels.Channels.newChannel(out)), batch);
+
+                com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch =
+                        com.google.cloud.bigquery.storage.v1.ArrowRecordBatch.newBuilder()
+                                .setSerializedRecordBatch(ByteString.copyFrom(out.toByteArray()))
+                                .setRowCount(1)
+                                .build();
+
+                ReadRowsResponse response = ReadRowsResponse.newBuilder()
+                        .setArrowRecordBatch(recordBatch)
+                        .setRowCount(1)
+                        .build();
+
+                when(serverStream.iterator()).thenReturn(ImmutableList.of(response).iterator());
+
+                QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+
+                // Execute and expect IllegalStateException
+                IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+                        bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker)
+                );
+
+                // Verify exception message contains the mismatched field and expected fields
+                System.out.println("Exception message: " + exception.getMessage());
+                assertTrue("Exception should mention extra_field", exception.getMessage().contains("extra_field"));
+                assertTrue("Exception should mention 'not found in schema'", exception.getMessage().contains("not found in schema"));
+
+                // Cleanup
+                batch.close();
+                root.close();
+                testAllocator.close();
+            }
+        }
+    }
+
     private Map<String, String> getPassthroughArgs() {
         return Map.of(
                 "schemaFunctionName", "SYSTEM.QUERY",

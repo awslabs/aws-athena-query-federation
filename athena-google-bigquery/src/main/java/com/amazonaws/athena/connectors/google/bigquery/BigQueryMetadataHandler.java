@@ -150,7 +150,7 @@ public class BigQueryMetadataHandler
                     if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
                         throw new BigQueryExceptions.TooManyTablesException();
                     }
-                    schemas.add(dataset.getDatasetId().getDataset().toLowerCase());
+                    schemas.add(dataset.getDatasetId().getDataset());
                     logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
                 }
             } while (response.hasNextPage());

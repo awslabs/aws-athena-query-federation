@@ -26,9 +26,9 @@ import com.amazonaws.athena.connectors.google.bigquery.query.BigQueryQueryBuilde
 import com.amazonaws.athena.connectors.google.bigquery.query.BigQueryQueryFactory;
 import com.google.cloud.bigquery.QueryParameterValue;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
-import org.apache.calcite.sql.dialect.BigQuerySqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
@@ -56,20 +56,25 @@ public class BigQuerySqlUtils
      * @param schema The schema of the table that we are querying.
      * @param constraints The constraints that we want to apply to the query.
      * @param parameterValues Query parameter values for parameterized query.
+     * @param catalogCasingFilterUpperCase true for UPPERCASE_ONLY, false for LOWERCASE_ONLY (default).
      * @return SQL Statement that represents the table, columns, split, and constraints.
      */
-    public static String buildSql(TableName tableName, Schema schema, Constraints constraints, List<QueryParameterValue> parameterValues)
+    public static String buildSql(TableName tableName, Schema schema, Constraints constraints,
+                                   List<QueryParameterValue> parameterValues, boolean catalogCasingFilterUpperCase)
     {
         BigQueryQueryBuilder queryBuilder = queryFactory.createQueryBuilder();
         if (constraints.getQueryPlan() != null) {
             try {
-                logger.info("Using Substrait query plan to generate sql");
+                logger.info("Using Substrait query plan for Sql API");
+                SqlDialect dialect = new BigQueryCustomSqlDialect(catalogCasingFilterUpperCase);
 
-                SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(constraints.getQueryPlan().getSubstraitPlan(),
-                        BigQuerySqlDialect.DEFAULT);
+                SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(
+                        constraints.getQueryPlan().getSubstraitPlan(), dialect);
                 SqlSelect root;
                 root = (SqlSelect) sqlNode;
-                return root.toSqlString(BigQuerySqlDialect.DEFAULT).getSql();
+                String generatedSql = root.toSqlString(dialect).getSql();
+                logger.info("Generated Sql:" + generatedSql);
+                return generatedSql;
             }
             catch (Exception e) {
                 logger.error("Failed to prepare statement with Calcite", e);
