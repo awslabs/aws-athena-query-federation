@@ -155,7 +155,7 @@ public class ElasticsearchRecordHandler
         String domain;
         QueryBuilder query;
         String index;
-        Plan substraitPlan;
+        Plan substraitPlan = null;
         Optional<Integer> limit = Optional.empty();
 
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
@@ -169,15 +169,20 @@ public class ElasticsearchRecordHandler
             domain = recordsRequest.getTableName().getSchemaName();
             index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
 
+            // Check if we have a valid Substrait plan with relations
             final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
-            if (queryPlan != null) {
-                logger.info("Using Substrait query plan for predicate pushdown");
+            boolean useSubstraitPlan = false;
+            if (queryPlan != null && queryPlan.getSubstraitPlan() != null && !queryPlan.getSubstraitPlan().isEmpty()) {
                 substraitPlan = deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
-                final Plan plan = substraitPlan;
-                query = ElasticsearchQueryUtils.getQueryFromPlan(plan);
+                useSubstraitPlan = true;
+            }
+
+            if (useSubstraitPlan) {
+                logger.info("Using Substrait query plan for predicate pushdown");
+                query = ElasticsearchQueryUtils.getQueryFromPlan(substraitPlan);
 
                 // Extract LIMIT from Substrait plan
-                limit = getLimit(plan, recordsRequest.getConstraints());
+                limit = getLimit(substraitPlan, recordsRequest.getConstraints());
                 if (limit.isPresent()) {
                     logger.info("LIMIT pushdown enabled with limit: {}", limit);
                 }

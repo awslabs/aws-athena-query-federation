@@ -68,7 +68,7 @@ public final class LimitAndSortHelper
     {
         SubstraitRelModel substraitRelModel = null;
         boolean useQueryPlan = false;
-        if (plan != null) {
+        if (plan != null && !plan.getRelationsList().isEmpty()) {
             substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(plan.getRelations(0).getRoot().getInput());
             useQueryPlan = true;
         }
