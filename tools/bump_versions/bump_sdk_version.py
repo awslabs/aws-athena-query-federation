@@ -35,7 +35,7 @@ if __name__ == "__main__":
         common.output_xml(soup, f"{sdk_dir}/pom.xml")
 
     # This incluldes the root project
-    all_projects = glob.glob("athena*") + ["."]
+    all_projects = glob.glob("athena-*") + ["."]
 
     sdk_project_artifact_ids = common.get_projects_artifact_ids_map(SDK_DIRS)
 

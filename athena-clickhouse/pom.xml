@@ -22,7 +22,7 @@
         <dependency>
             <groupId>com.clickhouse</groupId>
             <artifactId>clickhouse-jdbc</artifactId>
-            <version>0.9.5</version>
+            <version>0.9.6</version>
             <classifier>all</classifier>
         </dependency>
         <dependency>
@@ -70,6 +70,22 @@
                         <goals>
                             <goal>shade</goal>
                         </goals>
+                        <configuration>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <!-- Fix for CVE-2025-48924 and CVE-2020-15250: Exclude all Maven metadata files -->
+                                        <!-- This excludes all pom.xml and pom.properties files that may declare vulnerable dependency versions -->
+                                        <exclude>META-INF/maven/**/pom.xml</exclude>
+                                        <exclude>META-INF/maven/**/pom.properties</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

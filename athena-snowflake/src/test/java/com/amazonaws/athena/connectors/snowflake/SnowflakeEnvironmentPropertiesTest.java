@@ -61,37 +61,6 @@ public class SnowflakeEnvironmentPropertiesTest
     }
 
     @Test
-    public void constructor_WithS3ExportEnabled_ReturnsTrue()
-    {
-        properties.put(SnowflakeEnvironmentProperties.ENABLE_S3_EXPORT, "true");
-        envProps = new SnowflakeEnvironmentProperties(properties);
-        assertTrue(envProps.isS3ExportEnabled());
-    }
-
-    @Test
-    public void constructor_WithS3ExportDisabled_ReturnsFalse()
-    {
-        properties.put(SnowflakeEnvironmentProperties.ENABLE_S3_EXPORT, "false");
-        envProps = new SnowflakeEnvironmentProperties(properties);
-        assertFalse(envProps.isS3ExportEnabled());
-    }
-
-    @Test
-    public void constructor_WithS3ExportNotSpecified_ReturnsFalse()
-    {
-        envProps = new SnowflakeEnvironmentProperties(properties);
-        assertFalse(envProps.isS3ExportEnabled());
-    }
-
-    @Test
-    public void constructor_WithInvalidS3ExportValue_ReturnsFalse()
-    {
-        properties.put(SnowflakeEnvironmentProperties.ENABLE_S3_EXPORT, "invalid");
-        envProps = new SnowflakeEnvironmentProperties(properties);
-        assertFalse(envProps.isS3ExportEnabled());
-    }
-
-    @Test
     public void connectionPropertiesToEnvironment_WithAllProperties_ReturnsCorrectEnvironment()
     {
         properties.put(WAREHOUSE, TEST_WAREHOUSE);
@@ -100,7 +69,7 @@ public class SnowflakeEnvironmentPropertiesTest
         properties.put(HOST, TEST_HOST);
         properties.put(PORT, TEST_PORT);
         
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         Map<String, String> environment = envProps.connectionPropertiesToEnvironment(properties);
         
         assertNotNull(environment);
@@ -119,7 +88,7 @@ public class SnowflakeEnvironmentPropertiesTest
         properties.put(SCHEMA, TEST_SCHEMA);
         properties.put(HOST, TEST_HOST);
         
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         Map<String, String> environment = envProps.connectionPropertiesToEnvironment(properties);
         
         assertNotNull(environment);
@@ -133,7 +102,7 @@ public class SnowflakeEnvironmentPropertiesTest
     @Test
     public void connectionPropertiesToEnvironment_WithInvalidPortValues_SkipsInvalidPorts()
     {
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         
         // Test with non-numeric port - should be skipped
         properties.put(WAREHOUSE, TEST_WAREHOUSE);
@@ -204,7 +173,7 @@ public class SnowflakeEnvironmentPropertiesTest
         properties.put(SCHEMA, null);
         properties.put(HOST, TEST_HOST);
         
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         Map<String, String> environment = envProps.connectionPropertiesToEnvironment(properties);
         
         assertNotNull(environment);
@@ -218,7 +187,7 @@ public class SnowflakeEnvironmentPropertiesTest
     @Test
     public void getConnectionStringPrefix_WithProperties_ReturnsSnowflakeJdbcPrefix()
     {
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         String prefix = envProps.getConnectionStringPrefix(properties);
         assertEquals(SNOWFLAKE_JDBC_SNOWFLAKE, prefix);
     }
@@ -226,7 +195,7 @@ public class SnowflakeEnvironmentPropertiesTest
     @Test
     public void getDatabase_WithProperties_ReturnsEmptyString()
     {
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         String database = envProps.getDatabase(properties);
         assertEquals("", database);
     }
@@ -234,7 +203,7 @@ public class SnowflakeEnvironmentPropertiesTest
     @Test
     public void getJdbcParametersSeparator_Always_ReturnsAmpersand()
     {
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         String separator = envProps.getJdbcParametersSeparator();
         assertEquals("&", separator);
     }
@@ -349,7 +318,7 @@ public class SnowflakeEnvironmentPropertiesTest
     {
         Map<String, String> emptyProperties = new HashMap<>();
         
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         Map<String, String> environment = envProps.connectionPropertiesToEnvironment(emptyProperties);
         
         assertNotNull(environment);
@@ -370,7 +339,7 @@ public class SnowflakeEnvironmentPropertiesTest
         properties.put(HOST, "");
         properties.put(PORT, "");
         
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         Map<String, String> environment = envProps.connectionPropertiesToEnvironment(properties);
         
         assertNotNull(environment);
@@ -396,7 +365,7 @@ public class SnowflakeEnvironmentPropertiesTest
         properties.put(HOST, specialHost);
         properties.put(PORT, specialPort);
         
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         Map<String, String> environment = envProps.connectionPropertiesToEnvironment(properties);
         
         assertNotNull(environment);
@@ -422,7 +391,7 @@ public class SnowflakeEnvironmentPropertiesTest
         properties.put(SCHEMA, upperSchema);
         properties.put(HOST, TEST_HOST);
         
-        envProps = new SnowflakeEnvironmentProperties(new HashMap<>());
+        envProps = new SnowflakeEnvironmentProperties();
         Map<String, String> environment = envProps.connectionPropertiesToEnvironment(properties);
         
         assertNotNull(environment);

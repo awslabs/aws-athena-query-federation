@@ -68,7 +68,7 @@
             <groupId>com.sap.cloud.db.jdbc</groupId>
             <artifactId>ngdbc</artifactId>
             <!--            <version>2.11.17</version>-->
-            <version>2.27.6</version>
+            <version>2.27.7</version>
         </dependency>
     </dependencies>
     <build>
@@ -77,7 +77,7 @@
                 <!-- maven-assembly is required for the saphana connector because maven-shade will run into an issue where the saphana jdbc driver will error out on java versions -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.7.1</version>
+                <version>3.8.0</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
