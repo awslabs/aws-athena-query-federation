@@ -492,6 +492,23 @@ public class RedshiftMetadataHandlerTest
         Assert.assertFalse("Query passthrough list should not be empty.", passthrough.isEmpty());
     }
 
+    @Test
+    public void doListSchemaNames()
+            throws Exception
+    {
+        String[] columnNames = {"nspname"};
+        Object[][] values = {{"public"}, {"pg_catalog"}, {"pg_internal"}};
+        ResultSet resultSet = mockResultSet(columnNames, values, new AtomicInteger(-1));
+
+        java.sql.Statement statement = Mockito.mock(java.sql.Statement.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        Mockito.when(statement.executeQuery(RedshiftMetadataHandler.LIST_SCHEMAS_QUERY)).thenReturn(resultSet);
+
+        Set<String> schemas = this.redshiftMetadataHandler.listDatabaseNames(this.connection);
+
+        Assert.assertEquals(new HashSet<>(Arrays.asList("public", "pg_catalog", "pg_internal")), schemas);
+    }
+
     private void verifyCommonCapabilities(GetDataSourceCapabilitiesResponse response)
     {
         Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();

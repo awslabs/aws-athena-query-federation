@@ -38,6 +38,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.redshift.resolver.RedshiftJDBCCaseResolver;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +47,12 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DRIVER_CLASS;
@@ -61,6 +65,7 @@ import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIF
 public class RedshiftMetadataHandler
         extends PostGreSqlMetadataHandler
 {
+    static final String LIST_SCHEMAS_QUERY = "SELECT nspname FROM pg_namespace WHERE nspname != 'information_schema'";
     static final String LIST_PAGINATED_TABLES_QUERY = "SELECT a.\"TABLE_NAME\", a.\"TABLE_SCHEM\" FROM (( SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?) UNION (SELECT tablename as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" FROM svv_external_tables where schemaname = ?)) AS a ORDER BY a.\"TABLE_NAME\" LIMIT ? OFFSET ?";
     private static final Logger LOGGER = LoggerFactory.getLogger(RedshiftMetadataHandler.class);
 
@@ -111,6 +116,19 @@ public class RedshiftMetadataHandler
 
         jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
+    @Override
+    protected Set<String> listDatabaseNames(final Connection jdbcConnection) throws SQLException
+    {
+        try (Statement st = jdbcConnection.createStatement();
+             ResultSet resultSet = st.executeQuery(LIST_SCHEMAS_QUERY)) {
+            ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
+            while (resultSet.next()) {
+                schemaNames.add(resultSet.getString("nspname"));
+            }
+            return schemaNames.build();
+        }
     }
 
     @Override
