@@ -114,6 +114,23 @@ Bidirectional conversion between Substrait protobuf literals and Java/Arrow type
 
 Supported types: i8, i16, i32, i64, fp32, fp64, string, boolean, binary, decimal, date, timestamp, varchar, fixed_char.
 
+**Unsupported Substrait Literal Types** (`extractLiteralValue` — throws `UnsupportedOperationException`):
+
+| Category | Types |
+|---|---|
+| Numeric | `UUID`, `INTERVAL_YEAR_TO_MONTH`, `INTERVAL_DAY_TO_SECOND` |
+| Temporal | `TIME`, `PRECISION_TIMESTAMP`, `PRECISION_TIMESTAMP_TZ` |
+| Complex/Structured | `LIST`, `MAP`, `STRUCT`, `EMPTY_LIST`, `EMPTY_MAP`, `NULL` |
+| Other | `FIXED_BINARY`, `USER_DEFINED` |
+
+**Unsupported Arrow Type IDs** (`createLiteralExpression` — throws `IllegalArgumentException`):
+
+| Category | Types |
+|---|---|
+| Temporal | `Time`, `Duration`, `Interval` |
+| Complex/Structured | `List`, `Map`, `Struct`, `Union`, `LargeList`, `ListView` |
+| Other | `FixedSizeBinary`, `LargeBinary`, `LargeUtf8`, `Null`, `NONE` |
+
 ### `SubstraitMetadataParser`
 
 Extracts table column names from the `ReadRel`'s base schema, including support for nested struct types.
