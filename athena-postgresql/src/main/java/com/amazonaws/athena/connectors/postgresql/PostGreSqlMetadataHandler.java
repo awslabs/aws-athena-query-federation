@@ -191,7 +191,7 @@ public class PostGreSqlMetadataHandler
     {
         LOGGER.info("{}: Catalog {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(),
                     getTableLayoutRequest.getTableName().getTableName());
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
