@@ -30,6 +30,8 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.util.SqlString;
 import org.apache.calcite.sql.dialect.SnowflakeSqlDialect;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,6 +81,9 @@ class SnowflakeSubstraitQueryBuilderTest {
     private SqlSelect mockSqlSelect;
 
     @Mock
+    private SqlOperator mockSqlOperator;
+
+    @Mock
     private SqlNode mockWhereClause;
 
     @Mock
@@ -102,6 +107,10 @@ class SnowflakeSubstraitQueryBuilderTest {
         MockitoAnnotations.openMocks(this);
         queryBuilder = new SnowflakeQueryStringBuilder("\"", null);
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+
+        // Setup mock operator for SqlSelect
+        when(mockSqlSelect.getOperator()).thenReturn(mockSqlOperator);
+        when(mockSqlOperator.getKind()).thenReturn(SqlKind.SELECT);
 
         // Setup mock schema
         List<Field> fields = new ArrayList<>();
