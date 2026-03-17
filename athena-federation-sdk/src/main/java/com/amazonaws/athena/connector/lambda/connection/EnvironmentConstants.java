@@ -58,4 +58,5 @@ public final class EnvironmentConstants
 
     public static final String CATALOG_CASING_FILTER = "CATALOG_CASING_FILTER";
     public static final String UPPERCASE_ONLY = "UPPERCASE_ONLY";
+    public static final String GLUE_MANAGED_CONNECTION = "GLUE_MANAGED_CONNECTION";
 }
