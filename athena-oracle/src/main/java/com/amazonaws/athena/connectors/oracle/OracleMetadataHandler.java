@@ -155,7 +155,7 @@ public class OracleMetadataHandler
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
             TableName casedTableName = getTableLayoutRequest.getTableName();
             LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), casedTableName.getSchemaName(),
                 casedTableName.getTableName());

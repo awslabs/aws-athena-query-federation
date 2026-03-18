@@ -173,11 +173,6 @@ public abstract class JdbcMetadataHandler
         return databaseConnectionConfig;
     }
 
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return getCredentialProvider(null);
-    }
-
     @Override
     public String getDatabaseConnectionSecret()
     {
@@ -489,7 +484,7 @@ public abstract class JdbcMetadataHandler
         // getSplitClauses is only used by PostgreSQL connector as of now,
         // and it does not require AwsRequestOverrideConfiguration for FAS_TOKEN query federation.
         // So keep it as is.
-        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
                 ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
             List<String> primaryKeyColumns = new ArrayList<>();
             while (resultSet.next()) {

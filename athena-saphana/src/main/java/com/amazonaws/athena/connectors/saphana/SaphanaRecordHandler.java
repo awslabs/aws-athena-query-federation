@@ -115,16 +115,6 @@ public class SaphanaRecordHandler extends JdbcRecordHandler
             LOGGER.debug("SaphanaRecordHandler:clearChildren exception raised", exception);
         }
     }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-                getDatabaseConnectionConfig().getSecret(),
-                getCachableSecretsManager(),
-                new SaphanaOAuthCredentialsProvider()
-        );
-    }
     
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)

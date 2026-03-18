@@ -93,16 +93,6 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
     }
 
     @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-            getDatabaseConnectionConfig().getSecret(),
-            getCachableSecretsManager(),
-            new DataLakeGen2OAuthCredentialsProvider()
-        );
-    }
-    
-    @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         return CredentialsProviderFactory.createCredentialProvider(
@@ -119,7 +109,7 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
             String environment = DataLakeGen2Util.checkEnvironment(connection.getMetaData().getURL());
             if (!DataLakeGen2Constants.SQL_POOL.equalsIgnoreCase(environment)) {
                 // For consistency. This is needed to be false to enable streaming for some database types.

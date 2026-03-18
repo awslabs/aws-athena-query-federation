@@ -145,7 +145,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), getSchemaList(connection, Db2As400Constants.QRY_TO_LIST_SCHEMAS));
         }
@@ -161,7 +161,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
     @Override
     public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
             List<String> tableNames = getTableList(connection, Db2As400Constants.QRY_TO_LIST_TABLES_AND_VIEWS, listTablesRequest.getSchemaName());
             List<TableName> tables = tableNames.stream().map(tableName -> new TableName(listTablesRequest.getSchemaName(), tableName)).collect(Collectors.toList());
@@ -204,7 +204,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
                 getTableLayoutRequest.getTableName().getTableName());
 
         List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(Db2As400Constants.PARTITION_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             // check whether the table have partitions or not using PARTITION_QUERY, create a single split for view/non-partition table
@@ -301,7 +301,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
      */
     private String getColumnName(List<String> parameters) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(Db2As400Constants.COLUMN_INFO_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
@@ -402,7 +402,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
              PreparedStatement stmt = connection.prepareStatement(Db2As400Constants.COLUMN_INFO_QUERY)) {
             stmt.setString(1, tableName.getSchemaName());
             stmt.setString(2, tableName.getTableName());

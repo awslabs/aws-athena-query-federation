@@ -192,7 +192,7 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         //check if the input table is a view
         boolean viewFlag = false;
         List<String> viewparameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(SaphanaConstants.VIEW_CHECK_QUERY).withParameters(viewparameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
@@ -211,7 +211,7 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         else {
             List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getTableName(),
                     getTableLayoutRequest.getTableName().getSchemaName());
-            try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
                 try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection)
                         .withQuery(SaphanaConstants.GET_PARTITIONS_QUERY).withParameters(parameters).build();
                      ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -337,7 +337,7 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
             HashMap<String, String> hashMap = new HashMap<String, String>();
             // fetch data types for columns for appropriate datatype to arrowtype conversions.
             ResultSet dataTypeResultSet = getColumnDatatype(connection, tableName);
@@ -450,16 +450,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
     {
         columnName = columnName.replace(SAPHANA_QUOTE_CHARACTER, SAPHANA_QUOTE_CHARACTER + SAPHANA_QUOTE_CHARACTER);
         return SAPHANA_QUOTE_CHARACTER + columnName + SAPHANA_QUOTE_CHARACTER;
-    }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-                getDatabaseConnectionConfig().getSecret(),
-                getCachableSecretsManager(),
-                new SaphanaOAuthCredentialsProvider()
-        );
     }
     
     @Override

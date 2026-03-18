@@ -946,7 +946,7 @@ public class SnowflakeMetadataHandlerTest
     @Test
     public void testGetCredentialProviderWithoutSecret()
     {
-        CredentialsProvider provider = snowflakeMetadataHandler.getCredentialProvider();
+        CredentialsProvider provider = snowflakeMetadataHandler.getCredentialProvider(null);
         assertEquals(null, provider);
     }
 

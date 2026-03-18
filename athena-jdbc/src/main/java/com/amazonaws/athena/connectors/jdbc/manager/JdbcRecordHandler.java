@@ -139,11 +139,6 @@ public abstract class JdbcRecordHandler
         return databaseConnectionConfig;
     }
 
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return getCredentialProvider(null);
-    }
-
     @Override
     public String getDatabaseConnectionSecret()
     {

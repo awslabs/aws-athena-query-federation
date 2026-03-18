@@ -240,7 +240,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
 
         //check whether the input table is a view or not
         boolean viewFlag = false;
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(params).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
@@ -249,7 +249,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             LOGGER.info("viewFlag: {}", viewFlag);
         }
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
             List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName() + "." +
                     getTableLayoutRequest.getTableName().getTableName());
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
@@ -392,7 +392,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     private List<String> getPartitionDetails(List<String> parameters) throws Exception
     {
         List<String> partitionDetails = new ArrayList<>();
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITION_DETAILS_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
@@ -442,7 +442,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
@@ -511,16 +511,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             }
             return schemaNames.build();
         }
-    }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-                getDatabaseConnectionConfig().getSecret(),
-                getCachableSecretsManager(),
-                new SqlServerOAuthCredentialsProvider()
-        );
     }
     
     @Override
