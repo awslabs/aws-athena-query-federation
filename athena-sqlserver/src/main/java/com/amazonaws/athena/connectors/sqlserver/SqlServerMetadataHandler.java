@@ -522,4 +522,14 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 new SqlServerOAuthCredentialsProvider()
         );
     }
+    
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new SqlServerOAuthCredentialsProvider()
+        );
+    }
 }

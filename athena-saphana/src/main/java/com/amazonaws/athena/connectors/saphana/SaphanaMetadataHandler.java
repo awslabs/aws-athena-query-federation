@@ -461,4 +461,14 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                 new SaphanaOAuthCredentialsProvider()
         );
     }
+    
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new SaphanaOAuthCredentialsProvider()
+        );
+    }
 }

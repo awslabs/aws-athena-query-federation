@@ -383,6 +383,16 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                 new DataLakeGen2OAuthCredentialsProvider()
         );
     }
+    
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new DataLakeGen2OAuthCredentialsProvider()
+        );
+    }
 }
 
 class ColumnInfo

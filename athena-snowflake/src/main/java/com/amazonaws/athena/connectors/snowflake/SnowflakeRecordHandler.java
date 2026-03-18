@@ -58,6 +58,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.VectorAppender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -255,6 +256,12 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         }
 
         return null;
+    }
+    
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return new SnowflakeCredentialsProvider(secretName);
     }
 
     // TSmilli and DateTimeMilli vector both have same width of 8bytes and same data type(long)

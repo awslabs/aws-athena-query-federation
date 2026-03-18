@@ -693,6 +693,12 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
         return null;
     }
+    
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return new SnowflakeCredentialsProvider(secretName);
+    }
 
     @VisibleForTesting
     Optional<Map<String, String>> getStorageIntegrationProperties(Connection connection, String integrationName) throws SQLException

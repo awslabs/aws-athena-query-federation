@@ -494,4 +494,14 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                 new SynapseOAuthCredentialsProvider()
         );
     }
+    
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new SynapseOAuthCredentialsProvider()
+        );
+    }
 }
