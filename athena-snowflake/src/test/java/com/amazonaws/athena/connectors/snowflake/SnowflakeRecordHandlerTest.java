@@ -507,7 +507,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testgetCredentialProvider(null) {
+    public void testgetCredentialProvider() {
         final DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig(
             "testCatalog", SnowflakeConstants.SNOWFLAKE_NAME,
             "snowflake://jdbc:snowflake://hostname/", "testSecret");
