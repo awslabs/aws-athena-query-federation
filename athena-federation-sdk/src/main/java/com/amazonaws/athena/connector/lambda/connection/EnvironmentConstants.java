@@ -55,4 +55,8 @@ public final class EnvironmentConstants
 
     public static final String FAS_TOKEN = "fas_token";
     public static final String SERVICE_KMS = "service_kms_key_id";
+
+    public static final String CATALOG_CASING_FILTER = "CATALOG_CASING_FILTER";
+    public static final String UPPERCASE_ONLY = "UPPERCASE_ONLY";
+    public static final String GLUE_MANAGED_CONNECTION = "GLUE_MANAGED_CONNECTION";
 }

@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
@@ -185,7 +186,15 @@ public abstract class JdbcSplitQueryBuilder
             throws SQLException
     {
         if (constraints.getQueryPlan() != null) {
-            SqlDialect sqlDialect = getSqlDialect();
+            SqlDialect sqlDialect;
+            String catalogCasingFilter = split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER);
+            if (catalogCasingFilter != null) {
+                LOGGER.debug("Found catalogCasingFilter for getSqlDialect: {}", catalogCasingFilter);
+                sqlDialect = getSqlDialect(catalogCasingFilter.equals(EnvironmentConstants.UPPERCASE_ONLY));
+            }
+            else {
+                sqlDialect = getSqlDialect();
+            }
             return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
         }
         List<TypeAndValue> accumulator = new ArrayList<>();
@@ -410,6 +419,11 @@ public abstract class JdbcSplitQueryBuilder
         return AnsiSqlDialect.DEFAULT;
     }
 
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilter)
+    {
+        return AnsiSqlDialect.DEFAULT;
+    }
+
     protected PreparedStatement prepareStatementWithCalciteSql(
             final Connection jdbcConnection,
             final Constraints constraints,
@@ -436,8 +450,14 @@ public abstract class JdbcSplitQueryBuilder
             
             LOGGER.debug("CalciteSql parameterized sql with dialect {}: {}", sqlDialect.toString(), parameterizedNode.toSqlString(sqlDialect).getSql());
             LOGGER.debug("CalciteSql parameters: {}", accumulator.toString());
-            
-            PreparedStatement statement = jdbcConnection.prepareStatement(parameterizedNode.toSqlString(sqlDialect).getSql());
+
+            String sql = parameterizedNode.toSqlString(sqlDialect).getSql();
+            List<String> splitClauses = getPartitionWhereClauses(split);
+            if (!splitClauses.isEmpty()) {
+                String splitWhere = String.join(" AND ", splitClauses);
+                sql = sql.toUpperCase().contains("WHERE") ? sql + " AND " + splitWhere : sql + " WHERE " + splitWhere;
+            }
+            PreparedStatement statement = jdbcConnection.prepareStatement(sql);
             ParameterMetaData metaData = statement.getParameterMetaData();
             if (metaData != null && metaData.getParameterCount() != accumulator.size()) {
                 LOGGER.warn("Parameter count mismatch: SQL has {} parameters, accumulator has {}. Skipping parameter binding.",
