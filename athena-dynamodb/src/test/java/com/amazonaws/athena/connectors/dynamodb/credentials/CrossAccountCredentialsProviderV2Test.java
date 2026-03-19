@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class CrossAccountCredentialsProviderV2Test
 {
@@ -42,7 +43,7 @@ public class CrossAccountCredentialsProviderV2Test
     }
 
     @Test
-    public void testReturnsDefaultProviderWhenNoRoleArn()
+    public void getCrossAccountCredentialsIfPresent_withNoRoleArn_returnsDefaultProvider()
     {
         Map<String, String> configOptions = new HashMap<>();
 
@@ -53,11 +54,43 @@ public class CrossAccountCredentialsProviderV2Test
     }
 
     @Test(expected = AthenaConnectorException.class)
-    public void testThrowsAthenaConnectorExceptionForInvalidRoleArn()
+    public void getCrossAccountCredentialsIfPresent_withInvalidRoleArn_throwsAthenaConnectorException()
     {
         Map<String, String> configOptions = new HashMap<>();
         configOptions.put("cross_account_role_arn", "arn:aws:iam::000000000000:role/NonExistentRole");
 
         CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "test-session");
+    }
+
+    @Test
+    public void getCrossAccountCredentialsIfPresent_withEmptyRoleArn_throwsAthenaConnectorException()
+    {
+        try {
+            Map<String, String> configOptions = new HashMap<>();
+            configOptions.put("cross_account_role_arn", "");
+
+            CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "test-session");
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain error about failed to assume role",
+                    ex.getMessage() != null && ex.getMessage().contains("Failed to assume role"));
+        }
+    }
+
+    @Test
+    public void getCrossAccountCredentialsIfPresent_withNullSessionName_throwsAthenaConnectorException()
+    {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put("cross_account_role_arn", "arn:aws:iam::123456789012:role/TestRole");
+
+        try {
+            CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, null);
+            fail("Expected AthenaConnectorException when assuming role with null session name");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should reference failed to assume role",
+                    ex.getMessage() != null && ex.getMessage().contains("Failed to assume role"));
+        }
     }
 }
