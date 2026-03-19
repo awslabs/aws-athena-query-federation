@@ -247,7 +247,7 @@ public class PostGreSqlMetadataHandler
             partitionsFieldReader.setPosition(0);
 
             if (ALL_PARTITIONS.equals(partitionsSchemaFieldReader.readText().toString()) && ALL_PARTITIONS.equals(partitionsFieldReader.readText().toString())) {
-                for (String splitClause : getSplitClauses(getSplitsRequest.getTableName())) {
+                for (String splitClause : getSplitClauses(getSplitsRequest.getTableName(), getSplitsRequest)) {
                     //Every split must have a unique location if we wish to spill to avoid failures
                     SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 

@@ -450,8 +450,14 @@ public abstract class JdbcSplitQueryBuilder
             
             LOGGER.debug("CalciteSql parameterized sql with dialect {}: {}", sqlDialect.toString(), parameterizedNode.toSqlString(sqlDialect).getSql());
             LOGGER.debug("CalciteSql parameters: {}", accumulator.toString());
-            
-            PreparedStatement statement = jdbcConnection.prepareStatement(parameterizedNode.toSqlString(sqlDialect).getSql());
+
+            String sql = parameterizedNode.toSqlString(sqlDialect).getSql();
+            List<String> splitClauses = getPartitionWhereClauses(split);
+            if (!splitClauses.isEmpty()) {
+                String splitWhere = String.join(" AND ", splitClauses);
+                sql = sql.toUpperCase().contains("WHERE") ? sql + " AND " + splitWhere : sql + " WHERE " + splitWhere;
+            }
+            PreparedStatement statement = jdbcConnection.prepareStatement(sql);
             ParameterMetaData metaData = statement.getParameterMetaData();
             if (metaData != null && metaData.getParameterCount() != accumulator.size()) {
                 LOGGER.warn("Parameter count mismatch: SQL has {} parameters, accumulator has {}. Skipping parameter binding.",
