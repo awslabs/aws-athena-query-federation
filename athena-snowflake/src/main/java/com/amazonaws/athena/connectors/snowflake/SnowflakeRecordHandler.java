@@ -247,17 +247,6 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     }
 
     @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        final String secretName = getDatabaseConnectionConfig().getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            return new SnowflakeCredentialsProvider(secretName);
-        }
-
-        return null;
-    }
-    
-    @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         return new SnowflakeCredentialsProvider(secretName);

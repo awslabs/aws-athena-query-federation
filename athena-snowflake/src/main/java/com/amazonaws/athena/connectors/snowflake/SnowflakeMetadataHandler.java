@@ -682,17 +682,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         return Optional.ofNullable(configOptions.get(STORAGE_INTEGRATION_CONFIG_KEY));
     }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        final String secretName = getDatabaseConnectionConfig().getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            return new SnowflakeCredentialsProvider(secretName);
-        }
-
-        return null;
-    }
     
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)

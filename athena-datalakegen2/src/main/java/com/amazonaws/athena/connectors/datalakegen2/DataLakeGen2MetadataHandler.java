@@ -373,16 +373,6 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         }
         return schemaBuilder;
     }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-                getDatabaseConnectionConfig().getSecret(),
-                getCachableSecretsManager(),
-                new DataLakeGen2OAuthCredentialsProvider()
-        );
-    }
     
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)

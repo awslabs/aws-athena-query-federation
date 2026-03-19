@@ -144,16 +144,6 @@ public class SynapseRecordHandler extends JdbcRecordHandler
             }
         }
     }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-            getDatabaseConnectionConfig().getSecret(),
-            getCachableSecretsManager(),
-            new SynapseOAuthCredentialsProvider()
-        );
-    }
     
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)

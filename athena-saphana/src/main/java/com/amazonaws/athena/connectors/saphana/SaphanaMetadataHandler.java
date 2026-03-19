@@ -451,16 +451,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         columnName = columnName.replace(SAPHANA_QUOTE_CHARACTER, SAPHANA_QUOTE_CHARACTER + SAPHANA_QUOTE_CHARACTER);
         return SAPHANA_QUOTE_CHARACTER + columnName + SAPHANA_QUOTE_CHARACTER;
     }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-                getDatabaseConnectionConfig().getSecret(),
-                getCachableSecretsManager(),
-                new SaphanaOAuthCredentialsProvider()
-        );
-    }
     
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)

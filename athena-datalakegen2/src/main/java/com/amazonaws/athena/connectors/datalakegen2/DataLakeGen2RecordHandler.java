@@ -91,16 +91,6 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;
     }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-            getDatabaseConnectionConfig().getSecret(),
-            getCachableSecretsManager(),
-            new DataLakeGen2OAuthCredentialsProvider()
-        );
-    }
     
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)

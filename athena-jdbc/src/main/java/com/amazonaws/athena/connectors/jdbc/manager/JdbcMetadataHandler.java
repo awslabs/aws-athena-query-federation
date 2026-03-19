@@ -172,11 +172,6 @@ public abstract class JdbcMetadataHandler
         return databaseConnectionConfig;
     }
 
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return getCredentialProvider(null);
-    }
-
     @Override
     public String getDatabaseConnectionSecret()
     {

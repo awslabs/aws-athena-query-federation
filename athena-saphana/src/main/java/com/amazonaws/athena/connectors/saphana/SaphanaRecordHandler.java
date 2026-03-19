@@ -117,16 +117,6 @@ public class SaphanaRecordHandler extends JdbcRecordHandler
     }
 
     @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-                getDatabaseConnectionConfig().getSecret(),
-                getCachableSecretsManager(),
-                new SaphanaOAuthCredentialsProvider()
-        );
-    }
-    
-    @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         return CredentialsProviderFactory.createCredentialProvider(
