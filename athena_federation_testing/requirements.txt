@@ -35,7 +35,7 @@ pyarrow==19.0.1
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
 pycparser==2.22
-PyJWT==2.10.1
+PyJWT==2.12.0
 pymssql==2.3.7
 PyMySQL==1.1.1
 pyodbc==5.2.0
