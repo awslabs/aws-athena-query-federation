@@ -185,7 +185,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         rowCountSt.add("name", getTableLayoutRequest.getTableName().getTableName());
         rowCountSt.add("schemaname", getTableLayoutRequest.getTableName().getSchemaName());
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              Statement st = connection.createStatement();
              Statement st2 = connection.createStatement();
              ResultSet resultSet = st.executeQuery(getPartitionsSt.render());
@@ -350,7 +350,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder;
         HashMap<String, List<String>> columnNameAndDataTypeMap = new HashMap<>();
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype information.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
@@ -483,6 +483,16 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             }
         }
         return schemaBuilder;
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new SynapseOAuthCredentialsProvider()
+        );
     }
     
     @Override

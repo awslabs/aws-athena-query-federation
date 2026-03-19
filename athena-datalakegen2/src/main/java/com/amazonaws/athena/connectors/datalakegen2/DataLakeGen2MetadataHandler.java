@@ -236,7 +236,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         HashMap<String, ColumnInfo> hashMap = new HashMap<>();
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
@@ -374,6 +374,16 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         return schemaBuilder;
     }
 
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new DataLakeGen2OAuthCredentialsProvider()
+        );
+    }
+    
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {

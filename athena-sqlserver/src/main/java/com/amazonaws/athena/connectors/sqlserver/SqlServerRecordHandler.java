@@ -93,6 +93,16 @@ public class SqlServerRecordHandler extends JdbcRecordHandler
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;
     }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new SqlServerOAuthCredentialsProvider()
+        );
+    }
     
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)

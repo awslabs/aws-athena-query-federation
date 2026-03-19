@@ -128,7 +128,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null));
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              Statement stmt = connection.createStatement();
              PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase())) {
             boolean isTablePartitioned = false;
@@ -303,7 +303,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-                Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
+                Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             try (PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
                 Map<String, String> meteHashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {

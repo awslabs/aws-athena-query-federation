@@ -515,7 +515,7 @@ public class SnowflakeRecordHandlerTest
         SnowflakeRecordHandler handler = new SnowflakeRecordHandler(
             configWithSecret, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, Collections.emptyMap());
         
-        CredentialsProvider provider = handler.getCredentialProvider(null);
+        CredentialsProvider provider = handler.getCredentialProvider();
         assertNotNull(provider);
     }
 
@@ -596,7 +596,7 @@ public class SnowflakeRecordHandlerTest
         SnowflakeRecordHandler handler = new SnowflakeRecordHandler(
             configWithoutSecret, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, Collections.emptyMap());
         
-        CredentialsProvider provider = handler.getCredentialProvider(null);
+        CredentialsProvider provider = handler.getCredentialProvider();
         assertNull(provider);
     }
 

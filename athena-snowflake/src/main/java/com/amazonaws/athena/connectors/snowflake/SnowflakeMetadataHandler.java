@@ -275,7 +275,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             return;
         }
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             /**
              * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
              * this is to handle timeout issues because of huge partitions
@@ -396,7 +396,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         // Sanitize and validate integration name to follow Snowflake naming rules
         Set<Split> splits = new HashSet<>();
         Optional<S3Uri> s3Uri = Optional.empty();
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             String sfIntegrationName = this.getStorageIntegrationName();
             String sfS3ExportPathPrefix = this.getStorageIntegrationS3PathFromSnowFlake(connection, sfIntegrationName);
             String snowflakeExportSQL = this.getSnowFlakeCopyIntoBaseSQL(request);
@@ -620,7 +620,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.debug("getPrimaryKey tableName: " + tableName);
         List<String> primaryKeys = new ArrayList<String>();
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
@@ -643,7 +643,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      */
     private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
@@ -666,7 +666,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         boolean viewFlag = false;
         List<String> viewparameters = Arrays.asList(tableName.getSchemaName(), tableName.getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(null))) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(viewparameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
@@ -681,6 +681,17 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     public Optional<String> getSFStorageIntegrationNameFromConfig()
     {
         return Optional.ofNullable(configOptions.get(STORAGE_INTEGRATION_CONFIG_KEY));
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        final String secretName = getDatabaseConnectionConfig().getSecret();
+        if (StringUtils.isNotBlank(secretName)) {
+            return new SnowflakeCredentialsProvider(secretName);
+        }
+
+        return null;
     }
     
     @Override
