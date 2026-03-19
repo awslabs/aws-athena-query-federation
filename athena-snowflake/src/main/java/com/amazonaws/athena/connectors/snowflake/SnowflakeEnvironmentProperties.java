@@ -43,14 +43,6 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
     private static final String DB_PROPERTY_KEY = "db";
     private static final String SCHEMA_PROPERTY_KEY = "schema";
     private static final String SNOWFLAKE_ESCAPE_CHARACTER = "\"";
-    public static final String ENABLE_S3_EXPORT = "SNOWFLAKE_ENABLE_S3_EXPORT";
-
-    private final boolean enableS3Export;
-
-    public SnowflakeEnvironmentProperties(Map<String, String> properties)
-    {
-        this.enableS3Export = Boolean.parseBoolean(properties.getOrDefault(ENABLE_S3_EXPORT, "false"));
-    }
 
     @Override
     public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
@@ -66,13 +58,22 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
         StringBuilder connectionStringBuilder = new StringBuilder(getConnectionStringPrefix(connectionProperties));
         connectionStringBuilder.append(connectionProperties.get(HOST));
         if (connectionProperties.containsKey(PORT)) {
-            connectionStringBuilder
-                    .append(":")
-                    .append(connectionProperties.get(PORT));
+            String portValue = connectionProperties.get(PORT);
+            if (portValue != null) {
+                portValue = portValue.trim();
+            }
+            if (isValidPort(portValue)) {
+                connectionStringBuilder
+                        .append(":")
+                        .append(portValue);
+            }
+            else {
+                LOGGER.warn("Invalid port value '{}' provided, skipping port in connection string", connectionProperties.get(PORT));
+            }
         }
 
         String jdbcParametersString = getJdbcParameters(connectionProperties);
-        if (!Strings.isNullOrEmpty(jdbcParametersString)) {
+        if (!Strings.isNullOrEmpty(jdbcParametersString) && !jdbcParametersString.equals(getJdbcParametersSeparator())) {
             LOGGER.info("JDBC parameters found, adding to JDBC String");
             connectionStringBuilder.append(getSnowflakeJDBCParameterPrefix()).append(getJdbcParameters(connectionProperties));
         }
@@ -89,6 +90,7 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
 
     /**
      * For Snowflake, we don't put warehouse, database or schema information to the JDBC String to avoid casing issues.
+     *
      * @param connectionProperties
      * @return
      */
@@ -107,6 +109,27 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
     private String getSnowflakeJDBCParameterPrefix()
     {
         return "/?";
+    }
+
+    /**
+     * Validates if the port value is a valid port number (1-65535).
+     *
+     * @param portValue the port value to validate
+     * @return true if the port is valid, false otherwise
+     */
+    private boolean isValidPort(String portValue)
+    {
+        if (Strings.isNullOrEmpty(portValue)) {
+            return false;
+        }
+
+        try {
+            int port = Integer.parseInt(portValue.trim());
+            return port > 0;
+        }
+        catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private static String getValueWrapperWithEscapedCharacter(String input)
@@ -132,19 +155,24 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
             logger.debug("No schema specified in connection string");
         }
 
-        parameters.put(WAREHOUSE_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(connectionProperties.get(WAREHOUSE)));
-        parameters.put(DB_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(connectionProperties.get(DATABASE)));
+        String warehouse = connectionProperties.get(WAREHOUSE);
+        if (warehouse != null) {
+            parameters.put(WAREHOUSE_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(warehouse));
+        }
+
+        String database = connectionProperties.get(DATABASE);
+        if (database != null) {
+            parameters.put(DB_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(database));
+        }
 
         if (connectionProperties.containsKey(SCHEMA)) {
-            logger.debug("Found schema specified");
-            parameters.put(SCHEMA_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(connectionProperties.get(SCHEMA)));
+            String schema = connectionProperties.get(SCHEMA);
+            if (schema != null) {
+                logger.debug("Found schema specified");
+                parameters.put(SCHEMA_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(schema));
+            }
         }
 
         return parameters;
-    }
-
-    public boolean isS3ExportEnabled()
-    {
-        return enableS3Export;
     }
 }

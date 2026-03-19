@@ -23,22 +23,6 @@ import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateDayExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.DecimalExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float4Extractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.SmallIntExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.TinyIntExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
-import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
-import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -60,21 +44,18 @@ import org.apache.arrow.dataset.scanner.ScanOptions;
 import org.apache.arrow.dataset.scanner.Scanner;
 import org.apache.arrow.dataset.source.Dataset;
 import org.apache.arrow.dataset.source.DatasetFactory;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BitVectorHelper;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.TimeStampMilliTZVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-import org.apache.arrow.vector.holders.NullableDateDayHolder;
-import org.apache.arrow.vector.holders.NullableDateMilliHolder;
-import org.apache.arrow.vector.holders.NullableFloat4Holder;
-import org.apache.arrow.vector.holders.NullableFloat8Holder;
-import org.apache.arrow.vector.holders.NullableSmallIntHolder;
-import org.apache.arrow.vector.holders.NullableTinyIntHolder;
 import org.apache.arrow.vector.ipc.ArrowReader;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.arrow.vector.util.VectorAppender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -85,24 +66,23 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.utils.StringUtils;
 import software.amazon.awssdk.utils.Validate;
 
-import java.math.BigDecimal;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.HashMap;
+import java.util.Optional;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.JDBC_PROPERTIES;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_EXPORT_BUCKET;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_OBJECT_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_QUERY_ID;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.JDBC_PROPERTIES;
 
 public class SnowflakeRecordHandler extends JdbcRecordHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
+    private static final int EXPORT_READ_BATCH_SIZE_BYTE = 32768;
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
 
@@ -126,7 +106,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(),
-                jdbcConnectionFactory, new SnowflakeQueryStringBuilder(SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER)), configOptions);
+                jdbcConnectionFactory, new SnowflakeQueryStringBuilder(SnowflakeConstants.DOUBLE_QUOTE_CHAR, new SnowflakeFederationExpressionParser(SnowflakeConstants.DOUBLE_QUOTE_CHAR)), configOptions);
     }
 
     @VisibleForTesting
@@ -155,9 +135,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
-        
-        if (envProperties.isS3ExportEnabled()) {
+        if (SnowflakeConstants.isS3ExportEnabled(configOptions)) {
             // Use S3 export path for data transfer
             handleS3ExportRead(spiller, recordsRequest, queryStatusChecker);
         }
@@ -167,59 +145,49 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         }
     }
 
-    private void handleS3ExportRead(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    private void handleS3ExportRead(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker) throws IOException
     {
         LOGGER.info("handleS3ExportRead: schema[{}] tableName[{}]", recordsRequest.getSchema(), recordsRequest.getTableName());
-
-        Schema schemaName = recordsRequest.getSchema();
         Split split = recordsRequest.getSplit();
         String id = split.getProperty(SNOWFLAKE_SPLIT_QUERY_ID);
         String exportBucket = split.getProperty(SNOWFLAKE_SPLIT_EXPORT_BUCKET);
         String s3ObjectKey = split.getProperty(SNOWFLAKE_SPLIT_OBJECT_KEY);
 
-        if (!s3ObjectKey.isEmpty()) {
-            //get column name and type from the Schema
-            HashMap<String, Types.MinorType> mapOfNamesAndTypes = new HashMap<>();
-            HashMap<String, Object> mapOfCols = new HashMap<>();
+        if (s3ObjectKey.isEmpty()) {
+            LOGGER.debug("S3 object key is empty from request, skip read from S3");
+            return;
+        }
 
-            for (Field field : schemaName.getFields()) {
-                Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(field.getType());
-                mapOfNamesAndTypes.put(field.getName(), minorTypeForArrowType);
-                mapOfCols.put(field.getName(), null);
-            }
+        String s3path = constructS3Uri(exportBucket, s3ObjectKey);
+        try (ArrowReader reader = constructArrowReader(s3path, recordsRequest.getSchema())) {
+            VectorSchemaRoot root = reader.getVectorSchemaRoot();
+            while (reader.loadNextBatch()) {
+                // use writeRows method as it handle the spilling to s3.
+                spiller.writeRows((Block block, int startRowNum) -> {
+                    // Copy vectors directly to the block
+                    // Write all rows in the batch at once
+                    for (Field field : root.getSchema().getFields()) {
+                        if (recordsRequest.getSchema().findField(field.getName()) != null) {
+                            FieldVector originalVector = block.getFieldVector(field.getName());
+                            FieldVector toAppend = root.getVector(field.getName());
 
-            // creating a RowContext class to hold the column name and value.
-            final RowContext rowContext = new RowContext(id);
+                            // to_append block, both vector must be same time
+                            // However, Athena treat TSWithTZ as DateTimeMilli(UTC), hence we will need a conversion from TimeStampMilliTZ to DateTimeMilli
+                            if (toAppend instanceof TimeStampMilliTZVector) {
+                               toAppend = convertTimestampTZMilliToDateMilliFast((TimeStampMilliTZVector) toAppend, toAppend.getAllocator());
+                            }
 
-            //Generating the RowWriter and Extractor
-            GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
-            for (Field next : recordsRequest.getSchema().getFields()) {
-                Extractor extractor = makeExtractor(next, mapOfNamesAndTypes, mapOfCols);
-                builder.withExtractor(next.getName(), extractor);
-            }
-            GeneratedRowWriter rowWriter = builder.build();
-
-            /*
-            Using Arrow Dataset to read the S3 Parquet file generated in the split
-            */
-            try (ArrowReader reader = constructArrowReader(constructS3Uri(exportBucket, s3ObjectKey))) {
-                while (reader.loadNextBatch()) {
-                    VectorSchemaRoot root = reader.getVectorSchemaRoot();
-                    for (int row = 0; row < root.getRowCount(); row++) {
-                        HashMap<String, Object> map = new HashMap<>();
-                        for (Field field : root.getSchema().getFields()) {
-                            map.put(field.getName(), root.getVector(field).getObject(row));
+                            VectorAppender appender = new VectorAppender(originalVector);
+                            toAppend.accept(appender, null);
                         }
-                        rowContext.setNameValue(map);
-
-                        //Passing the RowContext to BlockWriter;
-                        spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
                     }
-                }
+                    return root.getRowCount();
+                });
             }
-            catch (Exception e) {
-                throw new AthenaConnectorException("Error in object content for object : " + s3ObjectKey + " " + e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
-            }
+        }
+        catch (Exception e) {
+            throw new AthenaConnectorException("Error in object content for object : " + s3path + " " + e.getMessage(), e,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -229,186 +197,8 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
       super.readWithConstraint(spiller, recordsRequest, queryStatusChecker);
     }
 
-    /**
-     * Creates an Extractor for the given field.
-     */
-    private Extractor makeExtractor(Field field, HashMap<String, Types.MinorType> mapOfNamesAndTypes, HashMap<String, Object> mapOfcols)
-    {
-        String fieldName = field.getName();
-        Types.MinorType fieldType = mapOfNamesAndTypes.get(fieldName);
-        switch (fieldType) {
-            case BIT:
-                return (BitExtractor) (Object context, NullableBitHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = ((boolean) value) ? 1 : 0;
-                        dst.isSet = 1;
-                    }
-                };
-            case TINYINT:
-                return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = Byte.parseByte(value.toString());
-                        dst.isSet = 1;
-                    }
-                };
-            case SMALLINT:
-                return (SmallIntExtractor) (Object context, NullableSmallIntHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = Short.parseShort(value.toString());
-                        dst.isSet = 1;
-                    }
-                };
-            case INT:
-            case BIGINT:
-                return (BigIntExtractor) (Object context, NullableBigIntHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = Long.parseLong(value.toString());
-                        dst.isSet = 1;
-                    }
-                };
-            case FLOAT4:
-                return (Float4Extractor) (Object context, NullableFloat4Holder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = Float.parseFloat(value.toString());
-                        dst.isSet = 1;
-                    }
-                };
-            case FLOAT8:
-                return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = Double.parseDouble(value.toString());
-                        dst.isSet = 1;
-                    }
-                };
-            case DECIMAL:
-                return (DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = new BigDecimal(value.toString());
-                        dst.isSet = 1;
-                    }
-                };
-            case DATEDAY:
-                return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = (int) value;
-                        dst.isSet = 1;
-                    }
-                };
-            case DATEMILLI:
-                return (DateMilliExtractor) (Object context, NullableDateMilliHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = (long) value;
-                        dst.isSet = 1;
-                    }
-                };
-            case VARCHAR:
-                return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
-                        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-                        try {
-                            // Try parsing the input as a datetime string
-                            LocalDateTime dateTime = LocalDateTime.parse(value.toString(), inputFormatter);
-                            // If successful, return formatted time
-                            dst.value = dateTime.toLocalTime().format(outputFormatter);
-                        }
-                        catch (DateTimeParseException e) {
-                            // If parsing fails, return input as is
-                            dst.value = value.toString();
-                        }
-                        dst.isSet = 1;
-                    }
-                };
-            case VARBINARY:
-                return (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    if (value == null) {
-                        dst.isSet = 0;
-                    }
-                    else {
-                        dst.value = value.toString().getBytes();
-                        dst.isSet = 1;
-                    }
-                };
-            default:
-                throw new AthenaConnectorException("Unhandled type " + fieldType, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
-        }
-    }
-
-    private static class RowContext
-    {
-        private final String queryId;
-        private HashMap<String, Object> nameValue;
-
-        public RowContext(String queryId)
-        {
-            this.queryId = queryId;
-        }
-
-        public void setNameValue(HashMap<String, Object> map)
-        {
-            this.nameValue = map;
-        }
-
-        public HashMap<String, Object> getNameValue()
-        {
-            return this.nameValue;
-        }
-    }
-
     @VisibleForTesting
-    protected ArrowReader constructArrowReader(String uri)
+    protected ArrowReader constructArrowReader(String uri, Schema schema)
     {
         LOGGER.debug("URI {}", uri);
         BufferAllocator allocator = new RootAllocator();
@@ -418,7 +208,14 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
                 FileFormat.PARQUET,
                 uri);
         Dataset dataset = datasetFactory.finish();
-        ScanOptions options = new ScanOptions(/*batchSize*/ 32768);
+
+        // do a scan projection, only getting the column we want
+        ScanOptions options = new ScanOptions(/*batchSize*/ EXPORT_READ_BATCH_SIZE_BYTE,
+                Optional.of(schema.getFields().stream()
+                        .map(Field::getName)
+                        .filter(name -> !name.equalsIgnoreCase(BLOCK_PARTITION_COLUMN_NAME))
+                        .toArray(String[]::new))); // Project the column we needed only.
+
         Scanner scanner = dataset.newScan(options);
         return scanner.scanBatches();
     }
@@ -458,5 +255,45 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         }
 
         return null;
+    }
+
+    // TSmilli and DateTimeMilli vector both have same width of 8bytes and same data type(long)
+    // direct copy the value.
+     static DateMilliVector convertTimestampTZMilliToDateMilliFast(
+            TimeStampMilliTZVector tsVector,
+            BufferAllocator allocator)
+     {
+        // record's timezone must be in UTC
+        if (!tsVector.getTimeZone().equalsIgnoreCase("UTC")) {
+            throw new IllegalArgumentException("Athena S3 Export only support Timezone with UTC");
+        }
+
+        int rowCount = tsVector.getValueCount();
+        DateMilliVector resultVector = new DateMilliVector(tsVector.getName(), allocator);
+        resultVector.allocateNew(rowCount);
+
+        // Copy data buffer directly to save time
+        ArrowBuf srcData = tsVector.getDataBuffer();
+        ArrowBuf dstData = resultVector.getDataBuffer();
+        long bytes = (long) rowCount * Long.BYTES;
+
+        // copy the data value into destination
+        dstData.setBytes(0, srcData, 0, bytes);
+
+        // copy the bitmap as well, otherwise it will show as empty(no value present)
+        ArrowBuf srcValidity = tsVector.getValidityBuffer();
+        ArrowBuf dstValidity = resultVector.getValidityBuffer();
+
+        dstValidity.setBytes(
+                0,
+                srcValidity,
+                0,
+                BitVectorHelper.getValidityBufferSize(rowCount)
+        );
+
+        // finalized the actual value, without this vector will see no data.
+        resultVector.setValueCount(rowCount);
+
+        return resultVector;
     }
 }
