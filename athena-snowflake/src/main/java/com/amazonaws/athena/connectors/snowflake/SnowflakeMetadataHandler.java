@@ -686,7 +686,11 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
-        return new SnowflakeCredentialsProvider(secretName);
+        if (StringUtils.isNotBlank(secretName)) {
+            return new SnowflakeCredentialsProvider(secretName);
+        }
+
+        return null;
     }
 
     @VisibleForTesting
