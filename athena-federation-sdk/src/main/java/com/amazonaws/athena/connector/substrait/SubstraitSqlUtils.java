@@ -22,28 +22,27 @@ package com.amazonaws.athena.connector.substrait;
 import io.substrait.extension.SimpleExtension;
 import io.substrait.isthmus.SubstraitToCalcite;
 import io.substrait.plan.ProtoPlanConverter;
-import io.substrait.proto.NamedStruct;
 import io.substrait.proto.Plan;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
-import io.substrait.proto.Type;
-import org.apache.arrow.vector.types.DateUnit;
-import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.rel2sql.RelToSqlConverter;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Utility class for converting Substrait plans to SQL and extracting schema information.
@@ -84,7 +83,7 @@ public final class SubstraitSqlUtils
         return converter.visitRoot(node).asStatement();
     }
 
-    public static Schema getTableSchemaFromSubstraitPlan(final String planString, final SqlDialect sqlDialect)
+    public static RelDataType getTableSchemaFromSubstraitPlan(final String planString, final SqlDialect sqlDialect)
     {
         try {
             final Plan protoPlan = SubstraitRelUtils.deserializeSubstraitPlan(planString);
@@ -95,8 +94,19 @@ public final class SubstraitSqlUtils
             throw new RuntimeException("Failed to extract table schema from Substrait plan", e);
         }
     }
+    
+    public static Map<String, String> getColumnRemapping(final String planString, final SqlDialect sqlDialect)
+    {
+        final Plan protoPlan = SubstraitRelUtils.deserializeSubstraitPlan(planString);
+        final Map<String, String> columnRemapping = new LinkedHashMap<>();
+        final RelNode relNode = getRelNodeFromSubstraitPlan(protoPlan, sqlDialect);
+        RelDataTypeFactory.Builder builder = relNode.getCluster().getTypeFactory().builder();
+        traverse(relNode, builder, columnRemapping);
+        LOGGER.debug("Column rename mapping (original → renamed): {}", columnRemapping);
+        return columnRemapping;
+    }
 
-    private static Schema getTableSchemaFromSubstraitPlan(final Plan protoPlan, final SqlDialect sqlDialect)
+    private static RelDataType getTableSchemaFromSubstraitPlan(final Plan protoPlan, final SqlDialect sqlDialect)
     {
         final Rel rel = protoPlan.getRelations(0).getRoot().getInput();
         final ReadRel readRel = SubstraitRelUtils.getReadRel(rel);
@@ -104,80 +114,12 @@ public final class SubstraitSqlUtils
         if (readRel == null || !readRel.hasBaseSchema()) {
             throw new RuntimeException("Unable to extract base table schema from Substrait plan");
         }
-
-        return convertSubstraitTypeToArrowSchema(readRel.getBaseSchema());
-    }
-
-    private static Schema convertSubstraitTypeToArrowSchema(final NamedStruct namedStruct)
-    {
-        final List<Field> fields = new ArrayList<>();
-        final Type.Struct struct = namedStruct.getStruct();
-
-        for (int i = 0; i < struct.getTypesCount(); i++) {
-            final String name = i < namedStruct.getNamesCount() ? namedStruct.getNames(i) : "field_" + i;
-            final ArrowType type = convertSubstraitTypeToArrowType(struct.getTypes(i));
-            fields.add(new Field(name, new FieldType(true, type, null), null));
-        }
-
-        return new Schema(fields);
-    }
-
-    private static ArrowType convertSubstraitTypeToArrowType(final Type type)
-    {
-        if (type.hasBool()) {
-            return ArrowType.Bool.INSTANCE;
-        }
-        if (type.hasI8()) {
-            return new ArrowType.Int(8, true);
-        }
-        if (type.hasI16()) {
-            return new ArrowType.Int(16, true);
-        }
-        if (type.hasI32()) {
-            return new ArrowType.Int(32, true);
-        }
-        if (type.hasI64()) {
-            return new ArrowType.Int(64, true);
-        }
-        if (type.hasFp32()) {
-            return new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
-        }
-        if (type.hasFp64()) {
-            return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
-        }
-        if (type.hasString()) {
-            return ArrowType.Utf8.INSTANCE;
-        }
-        if (type.hasBinary()) {
-            return ArrowType.Binary.INSTANCE;
-        }
-        if (type.hasDate()) {
-            return new ArrowType.Date(DateUnit.DAY);
-        }
-        if (type.hasTime()) {
-            return new ArrowType.Time(TimeUnit.MICROSECOND, 64);
-        }
-        if (type.hasTimestamp() || type.hasPrecisionTimestamp()) {
-            return new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
-        }
-        if (type.hasTimestampTz() || type.hasPrecisionTimestampTz()) {
-            return new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC");
-        }
-        if (type.hasDecimal()) {
-            return new ArrowType.Decimal(type.getDecimal().getPrecision(), type.getDecimal().getScale(), 128);
-        }
-        if (type.hasList()) {
-            return new ArrowType.List();
-        }
-        if (type.hasMap()) {
-            return new ArrowType.Map(false);
-        }
-        if (type.hasStruct()) {
-            return new ArrowType.Struct();
-        }
-
-        LOGGER.warn("Unsupported Substrait type: {}, defaulting to Utf8", type);
-        return ArrowType.Utf8.INSTANCE;
+        
+        final RelNode relNode = getRelNodeFromSubstraitPlan(protoPlan, sqlDialect);
+        RelDataTypeFactory.Builder builder = relNode.getCluster().getTypeFactory().builder();
+        traverse(relNode, builder, new LinkedHashMap<>());
+        
+        return builder.build();
     }
 
     private static RelNode getRelNodeFromSubstraitPlan(final Plan protoPlan, final SqlDialect sqlDialect)
@@ -196,6 +138,93 @@ public final class SubstraitSqlUtils
         catch (final Exception e) {
             LOGGER.error("Failed to convert from Substrait plan to RelNode", e);
             throw new RuntimeException("Failed to convert from Substrait plan to RelNode", e);
+        }
+    }
+    
+    /**
+     * Traverses the RelNode tree, adding fields to the builder only for TableScan (leaf)
+     * or Project/Aggregate (select with renaming) nodes, and builds a column rename mapping.
+     * <p>
+     * The rename mapping tracks how output column names map back to the original
+     * base table column names. For example:
+     * <ul>
+     *   <li>{@code varchar_col0 → varchar_col} (direct column reference renamed by Calcite)</li>
+     *   <li>{@code $f24 → null} (computed expression, no direct column mapping)</li>
+     * </ul>
+     *
+     * @param node The current RelNode being traversed
+     * @param builder The builder collecting the schema fields
+     * @param renameMapping Output map: renamed column name → original base table column name (null for computed expressions)
+     */
+    private static void traverse(RelNode node, RelDataTypeFactory.Builder builder, Map<String, String> renameMapping)
+    {
+        if (node.getInputs().isEmpty()) {
+            // Case 1: TableScan (leaf node) - add base table fields
+            builder.addAll(node.getRowType().getFieldList());
+        }
+        else if (node instanceof Project) {
+            // Case 2: Project (SELECT with renaming) - add renamed fields and build rename mapping
+            Project project = (Project) node;
+            List<RelDataTypeField> inputFields = project.getInput().getRowType().getFieldList();
+            List<RelDataTypeField> outputFields = project.getRowType().getFieldList();
+
+            // Add the renamed column names and their types to the builder
+            builder.addAll(outputFields);
+
+            for (int i = 0; i < project.getProjects().size(); i++) {
+                RexNode rex = project.getProjects().get(i);
+                String outputName = outputFields.get(i).getName();
+                if (rex instanceof RexInputRef) {
+                    int inputIndex = ((RexInputRef) rex).getIndex();
+                    String originalName = inputFields.get(inputIndex).getName();
+                    if (!outputName.equals(originalName)) {
+                        renameMapping.put(outputName, originalName);
+                    }
+                }
+                else {
+                    renameMapping.put(outputName, null);
+                }
+            }
+        }
+        else if (node instanceof Aggregate) {
+            // Case 2b: Aggregate (GROUP BY with renaming) - add renamed fields and build rename mapping
+            Aggregate aggregate = (Aggregate) node;
+            List<RelDataTypeField> inputFields = aggregate.getInput().getRowType().getFieldList();
+            List<RelDataTypeField> outputFields = aggregate.getRowType().getFieldList();
+
+            // Add the renamed column names and their types to the builder
+            builder.addAll(outputFields);
+
+            int outputIdx = 0;
+            // Group key columns map back to input columns via groupSet indices
+            for (int groupIndex : aggregate.getGroupSet()) {
+                String outputName = outputFields.get(outputIdx).getName();
+                String originalName = inputFields.get(groupIndex).getName();
+                if (!outputName.equals(originalName)) {
+                    renameMapping.put(outputName, originalName);
+                }
+                outputIdx++;
+            }
+            
+            // Aggregate function columns (SUM, COUNT, AVG, etc.) are computed expressions with no base column mapping
+            while (outputIdx < outputFields.size()) {
+                String outputName = outputFields.get(outputIdx).getName();
+                renameMapping.put(outputName, null);
+                outputIdx++;
+            }
+        }
+
+        // Recurse into child nodes
+        for (RelNode input : node.getInputs()) {
+            traverse(input, builder, renameMapping);
+        }
+
+        // Resolve transitive renames: if output maps to intermediate, and intermediate maps further, follow the chain
+        for (Map.Entry<String, String> entry : renameMapping.entrySet()) {
+            String intermediate = entry.getValue();
+            if (intermediate != null && renameMapping.containsKey(intermediate)) {
+                entry.setValue(renameMapping.get(intermediate));
+            }
         }
     }
 }
