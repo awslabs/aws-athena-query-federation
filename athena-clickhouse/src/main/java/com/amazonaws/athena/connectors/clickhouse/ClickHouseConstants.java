@@ -39,6 +39,7 @@ public final class ClickHouseConstants
     // 9000; // Native-TCP
     // 9004; // MySQL
     static final Map<String, String> JDBC_PROPERTIES = Collections.singletonMap("databaseTerm", "SCHEMA");
+    static final int FETCH_SIZE = 1000;
 
     private ClickHouseConstants() {}
 }
