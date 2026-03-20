@@ -1,6 +1,12 @@
 # Argument for Java version, defaulting to 11
 ARG JAVA_VERSION=11
-# Use the specified version of Java
+FROM public.ecr.aws/lambda/java:${JAVA_VERSION} AS builder
+
+ARG JAR_VERSION=2022.47.1
+COPY target/athena-docdb-${JAR_VERSION}.jar /app/
+WORKDIR /app
+RUN jar xf athena-docdb-${JAR_VERSION}.jar && rm -f athena-docdb-${JAR_VERSION}.jar
+
 FROM public.ecr.aws/lambda/java:${JAVA_VERSION}
 
 # Argument for Java tool options
@@ -11,15 +17,6 @@ ENV JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/var/lang/lib/security/cacerts
 # Install necessary tools
 RUN yum update -y
 RUN yum install -y curl perl openssl11
-
-# Copy function code and runtime dependencies from Maven layout
-COPY target/athena-docdb-2022.47.1.jar ${LAMBDA_TASK_ROOT}
-
-# Unpack the jar
-RUN jar xf athena-docdb-2022.47.1.jar
-
-# Clean up JAR
-RUN rm ${LAMBDA_TASK_ROOT}/athena-docdb-2022.47.1.jar
 
 # Set up environment variables
 ENV truststore=/var/lang/lib/security/cacerts
@@ -46,6 +43,8 @@ RUN echo "Trust store content is: " && \
         expiry=$(keytool -list -v -keystore "$truststore" -storepass ${storepassword} -alias "${alias}" | grep Valid | perl -ne 'if(/until: (.*?)\n/) { print "$1\n"; }'); \
         echo " Certificate ${alias} expires in '$expiry'"; \
     done
+
+COPY --from=builder /app/ ${LAMBDA_TASK_ROOT}/
 
 # Set the CMD to your handler
 # No need to specify here (already defined in .yaml file)
