@@ -38,44 +38,44 @@ RUN echo "Trust store content is: " && \
     done
 
 # Set the connector version to use
-ARG VERSION=2022.47.1
+ARG JAR_VERSION=2022.47.1
 
 # Copy all jar files from their respective target directories into the Lambda task root.
-# Notice how we substitute the version using ${VERSION}.
+# Notice how we substitute the version using ${JAR_VERSION}.
 COPY \
-  athena-aws-cmdb/target/athena-aws-cmdb-${VERSION}.jar \
-  athena-clickhouse/target/athena-clickhouse-${VERSION}.jar \
-  athena-cloudera-hive/target/athena-cloudera-hive-${VERSION}.jar \
-  athena-cloudera-impala/target/athena-cloudera-impala-${VERSION}.jar \
-  athena-cloudwatch/target/athena-cloudwatch-${VERSION}.jar \
-  athena-cloudwatch-metrics/target/athena-cloudwatch-metrics-${VERSION}.jar \
-  athena-datalakegen2/target/athena-datalakegen2-${VERSION}.jar \
-  athena-db2/target/athena-db2-${VERSION}.jar \
-  athena-db2-as400/target/athena-db2-as400-${VERSION}.jar \
-  athena-docdb/target/athena-docdb-${VERSION}.jar \
-  athena-dynamodb/target/athena-dynamodb-${VERSION}.jar \
-  athena-elasticsearch/target/athena-elasticsearch-${VERSION}.jar \
+  athena-aws-cmdb/target/athena-aws-cmdb-${JAR_VERSION}.jar \
+  athena-clickhouse/target/athena-clickhouse-${JAR_VERSION}.jar \
+  athena-cloudera-hive/target/athena-cloudera-hive-${JAR_VERSION}.jar \
+  athena-cloudera-impala/target/athena-cloudera-impala-${JAR_VERSION}.jar \
+  athena-cloudwatch/target/athena-cloudwatch-${JAR_VERSION}.jar \
+  athena-cloudwatch-metrics/target/athena-cloudwatch-metrics-${JAR_VERSION}.jar \
+  athena-datalakegen2/target/athena-datalakegen2-${JAR_VERSION}.jar \
+  athena-db2/target/athena-db2-${JAR_VERSION}.jar \
+  athena-db2-as400/target/athena-db2-as400-${JAR_VERSION}.jar \
+  athena-docdb/target/athena-docdb-${JAR_VERSION}.jar \
+  athena-dynamodb/target/athena-dynamodb-${JAR_VERSION}.jar \
+  athena-elasticsearch/target/athena-elasticsearch-${JAR_VERSION}.jar \
   athena-gcs/target/athena-gcs.zip \
-  athena-google-bigquery/target/athena-google-bigquery-${VERSION}.jar \
-  athena-hbase/target/athena-hbase-${VERSION}.jar \
-  athena-hortonworks-hive/target/athena-hortonworks-hive-${VERSION}.jar \
-  athena-kafka/target/athena-kafka-${VERSION}.jar \
-  athena-msk/target/athena-msk-${VERSION}.jar \
-  athena-mysql/target/athena-mysql-${VERSION}.jar \
-  athena-neptune/target/athena-neptune-${VERSION}.jar \
-  athena-oracle/target/athena-oracle-${VERSION}.jar \
-  athena-postgresql/target/athena-postgresql-${VERSION}.jar \
-  athena-redis/target/athena-redis-${VERSION}.jar \
-  athena-redshift/target/athena-redshift-${VERSION}.jar \
+  athena-google-bigquery/target/athena-google-bigquery-${JAR_VERSION}.jar \
+  athena-hbase/target/athena-hbase-${JAR_VERSION}.jar \
+  athena-hortonworks-hive/target/athena-hortonworks-hive-${JAR_VERSION}.jar \
+  athena-kafka/target/athena-kafka-${JAR_VERSION}.jar \
+  athena-msk/target/athena-msk-${JAR_VERSION}.jar \
+  athena-mysql/target/athena-mysql-${JAR_VERSION}.jar \
+  athena-neptune/target/athena-neptune-${JAR_VERSION}.jar \
+  athena-oracle/target/athena-oracle-${JAR_VERSION}.jar \
+  athena-postgresql/target/athena-postgresql-${JAR_VERSION}.jar \
+  athena-redis/target/athena-redis-${JAR_VERSION}.jar \
+  athena-redshift/target/athena-redshift-${JAR_VERSION}.jar \
   athena-saphana/target/athena-saphana.zip \
   athena-snowflake/target/athena-snowflake.zip \
-  athena-sqlserver/target/athena-sqlserver-${VERSION}.jar \
-  athena-synapse/target/athena-synapse-${VERSION}.jar \
-  athena-teradata/target/athena-teradata-${VERSION}.jar \
-  athena-timestream/target/athena-timestream-${VERSION}.jar \
-  athena-tpcds/target/athena-tpcds-${VERSION}.jar \
-  athena-udfs/target/athena-udfs-${VERSION}.jar \
-  athena-vertica/target/athena-vertica-${VERSION}.jar \
+  athena-sqlserver/target/athena-sqlserver-${JAR_VERSION}.jar \
+  athena-synapse/target/athena-synapse-${JAR_VERSION}.jar \
+  athena-teradata/target/athena-teradata-${JAR_VERSION}.jar \
+  athena-timestream/target/athena-timestream-${JAR_VERSION}.jar \
+  athena-tpcds/target/athena-tpcds-${JAR_VERSION}.jar \
+  athena-udfs/target/athena-udfs-${JAR_VERSION}.jar \
+  athena-vertica/target/athena-vertica-${JAR_VERSION}.jar \
   ${LAMBDA_TASK_ROOT}/
 
 # Run a shell loop to iterate over all jar/zip files and extract each one.
