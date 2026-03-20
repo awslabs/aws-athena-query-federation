@@ -56,6 +56,7 @@ import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.VectorAppender;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
@@ -246,6 +247,16 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         return preparedStatement;
     }
 
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        if (StringUtils.isNotBlank(secretName)) {
+            return new SnowflakeCredentialsProvider(secretName);
+        }
+
+        return null;
+    }
+
     // TSmilli and DateTimeMilli vector both have same width of 8bytes and same data type(long)
     // direct copy the value.
      static DateMilliVector convertTimestampTZMilliToDateMilliFast(
@@ -284,11 +295,5 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         resultVector.setValueCount(rowCount);
 
         return resultVector;
-    }
-
-    @Override
-    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
-    {
-        return new SnowflakeCredentialsProvider(secretName, requestOverrideConfiguration);
     }
 }
