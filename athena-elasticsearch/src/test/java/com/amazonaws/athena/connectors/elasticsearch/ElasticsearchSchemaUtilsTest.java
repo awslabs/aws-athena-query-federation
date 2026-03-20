@@ -347,4 +347,39 @@ public class ElasticsearchSchemaUtilsTest
 
         logger.info("parseMappingWithInvalidMeta - exit");
     }
+
+    @Test
+    public void parseMappingWithJsonMetaTest()
+            throws IOException
+    {
+        logger.info("parseMappingWithJsonMetaTest - enter");
+
+        // Expected Schema with a VARCHAR field having \"json\":\"true\" in metadata.
+        Schema expected = SchemaBuilder.newBuilder()
+                .addField(new Field("myobject",
+                        new FieldType(true, Types.MinorType.VARCHAR.getType(), null,
+                                ImmutableMap.of("json", "true")), null))
+                .build();
+
+        // Actual mapping containing a field of type \"object\" and \"_meta\" with \"json\" attribute.
+        LinkedHashMap<String, Object> actual = new ObjectMapper().readValue("{\n" +
+                "    \"_meta\": {\n" +
+                "        \"myobject\": \"json\"\n" +
+                "    },\n" +
+                "    \"properties\": {\n" +
+                "        \"myobject\": {\n" +
+                "            \"type\": \"object\"\n" +
+                "        }\n" +
+                "    }\n" +
+                "}", LinkedHashMap.class);
+
+        // Generate the schema from the mapping.
+        Schema builtSchema = ElasticsearchSchemaUtils.parseMapping(actual);
+
+        // The built mapping and expected mapping should match.
+        assertTrue("Real and mocked mappings are different!",
+                ElasticsearchSchemaUtils.mappingsEqual(expected, builtSchema));
+
+        logger.info("parseMappingWithJsonMetaTest - exit");
+    }
 }
