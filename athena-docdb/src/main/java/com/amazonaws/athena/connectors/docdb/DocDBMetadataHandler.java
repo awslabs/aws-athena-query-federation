@@ -73,6 +73,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.ENFORCE_SSL;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HOST;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.JDBC_PARAMS;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
@@ -118,7 +119,6 @@ public class DocDBMetadataHandler
     // JSON credential field names
     private static final String USERNAME_FIELD = "username";
     private static final String PASSWORD_FIELD = "password";
-    public static final String HOST = "host";
 
     private final GlueClient glue;
     private final DocDBConnectionFactory connectionFactory;
@@ -464,19 +464,19 @@ public class DocDBMetadataHandler
         final String credentials = getSecret(secretName, getRequestOverrideConfig(configOptions));
         final String username;
         final String password;
-        final String host;
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode credNode = mapper.readTree(credentials);
             username = credNode.get(USERNAME_FIELD).asText();
             password = credNode.get(PASSWORD_FIELD).asText();
-            host = credNode.get(HOST).asText();
         }
         catch (Exception e) {
             logger.error("Failed to parse JSON credentials", e);
-            throw new RuntimeException("Invalid JSON credentials format", e);
+            throw new RuntimeException("Invalid JSON credentials format make sure username and " +
+                    "password are present in secrets manager ", e);
         }
 
+        String host = configOptions.get(HOST);
         String jdbcParams = configOptions.get(JDBC_PARAMS);
         String enforceSsl = configOptions.get(ENFORCE_SSL);
         String authDb = configOptions.getOrDefault(AUTH_DB_KEY, "");
