@@ -105,6 +105,8 @@ public class AmazonMskRecordHandlerTest
     private static final Logger logger = LoggerFactory.getLogger(AmazonMskRecordHandlerTest.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final String EARLIEST = "earliest";
+    private static final String TEST_TOPIC = "myTopic";
+    private static final int PARTITION = 0;
     private MockedStatic<GlueClient> awsGlueClientBuilder;
 
     @Mock
@@ -198,57 +200,28 @@ public class AmazonMskRecordHandlerTest
     @Test
     public void readWithConstraint_whenTopicHasCsvRecords_consumesAndSpillsData() throws Exception
     {
-        HashMap<TopicPartition, Long> offsets;
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("myTopic", 0), 0L);
-        consumer.updateBeginningOffsets(offsets);
-
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("myTopic", 0), 1L);
-        consumer.updateEndOffsets(offsets);
-
-        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
-
-        mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
-        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
-        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getJsonSchemaVersionResponse());
+        setupMskMocks(consumer, 1L, schema);
+        setupGlueMocks(getJsonSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
-        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
-        amazonMskRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
+        amazonMskRecordHandler.readWithConstraint(createBlockSpiller(schema), request, queryStatusChecker);
     }
     @Test
     public void readWithConstraint_whenTopicHasAvroRecords_consumesAndReturnsOneRow() throws Exception
     {
-        HashMap<TopicPartition, Long> offsets;
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("greetings", 0), 0L);
-        avroConsumer.updateBeginningOffsets(offsets);
-
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("greetings", 0), 1L);
-        avroConsumer.updateEndOffsets(offsets);
-
-        SplitParameters splitParameters = new SplitParameters("greetings", 0, 0, 1);
         Schema schema = createAvroSchema(createAvroTopicSchema());
-
-        mockedMskUtils.when(() -> AmazonMskUtils.getAvroKafkaConsumer(com.google.common.collect.ImmutableMap.of())).thenReturn(avroConsumer);
-        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
-        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
-        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getAvroSchemaVersionResponse());
+        setupMskMocks(avroConsumer, 1L, schema);
+        setupGlueMocks(getAvroSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
-        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
+        BlockSpiller spiller = createBlockSpiller(schema);
         amazonMskRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
         assertEquals(1, spiller.getBlock().getRowCount());
     }
@@ -256,29 +229,15 @@ public class AmazonMskRecordHandlerTest
     @Test
     public void readWithConstraint_whenTopicHasProtobufRecords_consumesAndReturnsOneRow() throws Exception
     {
-        HashMap<TopicPartition, Long> offsets;
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("protobuftest", 0), 0L);
-        protobufConsumer.updateBeginningOffsets(offsets);
-
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("protobuftest", 0), 1L);
-        protobufConsumer.updateEndOffsets(offsets);
-
-        SplitParameters splitParameters = new SplitParameters("protobuftest", 0, 0, 1);
         Schema schema = createProtobufSchema(createProtobufSchemaDefinition());
-
-        mockedMskUtils.when(() -> AmazonMskUtils.getProtobufKafkaConsumer(com.google.common.collect.ImmutableMap.of())).thenReturn(protobufConsumer);
-        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
-        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
-        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getProtobufSchemaVersionResponse());
+        setupMskMocks(protobufConsumer, 1L, schema);
+        setupGlueMocks(getProtobufSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
-        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
+        BlockSpiller spiller = createBlockSpiller(schema);
         amazonMskRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
         assertEquals(1, spiller.getBlock().getRowCount());
     }
@@ -286,23 +245,9 @@ public class AmazonMskRecordHandlerTest
     @Test
     public void readWithConstraint_whenQueryNotRunning_completesWithoutSpiller() throws Exception
     {
-        HashMap<TopicPartition, Long> offsets;
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("myTopic", 0), 0L);
-        consumer.updateBeginningOffsets(offsets);
-
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("myTopic", 0), 1L);
-        consumer.updateEndOffsets(offsets);
-
-        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
-
-        mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
-        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
-        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getJsonSchemaVersionResponse());
+        setupMskMocks(consumer, 1L, schema);
+        setupGlueMocks(getJsonSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(false);
@@ -317,23 +262,9 @@ public class AmazonMskRecordHandlerTest
     {
         consumer = new MockConsumer<>(EARLIEST);
 
-        HashMap<TopicPartition, Long> offsets;
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("myTopic", 0), 0L);
-        consumer.updateBeginningOffsets(offsets);
-
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("myTopic", 0), 0L);
-        consumer.updateEndOffsets(offsets);
-
-        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
-
-        mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
-        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
-        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getJsonSchemaVersionResponse());
+        setupMskMocks(consumer, 0L, schema);
+        setupGlueMocks(getJsonSchemaVersionResponse());
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
         amazonMskRecordHandler.readWithConstraint(null, request, null);
@@ -344,23 +275,9 @@ public class AmazonMskRecordHandlerTest
     {
         consumer = new MockConsumer<>(EARLIEST);
 
-        HashMap<TopicPartition, Long> offsets;
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("myTopic", 0), 0L);
-        consumer.updateBeginningOffsets(offsets);
-
-        offsets = new HashMap<>();
-        offsets.put(new TopicPartition("myTopic", 0), 10L);
-        consumer.updateEndOffsets(offsets);
-
-        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
-
-        mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
-        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
-        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getJsonSchemaVersionResponse());
+        setupMskMocks(consumer, 10L, schema);
+        setupGlueMocks(getJsonSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -403,23 +320,23 @@ public class AmazonMskRecordHandlerTest
 
     private ConsumerRecord<String, TopicResultSet> createConsumerRecord(long offset, String key, TopicResultSet data)
     {
-        return new ConsumerRecord<>("myTopic", 0, offset, key, data);
+        return new ConsumerRecord<>(TEST_TOPIC, PARTITION, offset, key, data);
     }
 
     private ConsumerRecord<String, GenericRecord> createAvroConsumerRecord(long offset, String key, GenericRecord data)
     {
-        return new ConsumerRecord<>("greetings", 0, offset, key, data);
+        return new ConsumerRecord<>(TEST_TOPIC, PARTITION, offset, key, data);
     }
 
     private ConsumerRecord<String, DynamicMessage> createProtobufConsumerRecord(long offset, String key, DynamicMessage data)
     {
-        return new ConsumerRecord<>("protobuftest", 0, offset, key, data);
+        return new ConsumerRecord<>(TEST_TOPIC, PARTITION, offset, key, data);
     }
 
     private TopicResultSet createTopicResultSet()
     {
         TopicResultSet resultSet = new TopicResultSet();
-        resultSet.setTopicName("myTopic");
+        resultSet.setTopicName(TEST_TOPIC);
         resultSet.setDataFormat(Message.DATA_FORMAT_CSV);
         resultSet.getFields().add(new MSKField("id", "0", "INTEGER", "", Integer.parseInt("1")));
         resultSet.getFields().add(new MSKField("name", "1", "VARCHAR", "", "Smith"));
@@ -696,5 +613,46 @@ public class AmazonMskRecordHandlerTest
                 .dataFormat("protobuf")
                 .schemaDefinition(createProtobufSchemaDefinition())
                 .build();
+    }
+    
+    private void setupConsumerOffsets(MockConsumer<?, ?> consumer, long endOffset)
+    {
+        HashMap<TopicPartition, Long> offsets = new HashMap<>();
+        offsets.put(new TopicPartition(TEST_TOPIC, PARTITION), 0L);
+        consumer.updateBeginningOffsets(offsets);
+        
+        offsets = new HashMap<>();
+        offsets.put(new TopicPartition(TEST_TOPIC, PARTITION), endOffset);
+        consumer.updateEndOffsets(offsets);
+    }
+    
+    private void setupMskMocks(MockConsumer<?, ?> consumer, long endOffset, Schema schema)
+    {
+        setupConsumerOffsets(consumer, endOffset);
+        SplitParameters splitParameters = new SplitParameters(TEST_TOPIC, PARTITION, 0, 1);
+        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
+        if (consumer == avroConsumer) {
+            mockedMskUtils.when(() -> AmazonMskUtils.getAvroKafkaConsumer(com.google.common.collect.ImmutableMap.of()))
+                    .thenReturn(consumer);
+        }
+        else if (consumer == protobufConsumer) {
+            mockedMskUtils.when(() -> AmazonMskUtils.getProtobufKafkaConsumer(com.google.common.collect.ImmutableMap.of()))
+                    .thenReturn(consumer);
+        }
+        else {
+            mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of()))
+                    .thenReturn(consumer);
+        }
+    }
+    
+    private void setupGlueMocks(GetSchemaVersionResponse schemaVersionResponse)
+    {
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(schemaVersionResponse);
+    }
+    
+    private BlockSpiller createBlockSpiller(Schema schema)
+    {
+        return new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
     }
 }
