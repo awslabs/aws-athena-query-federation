@@ -938,7 +938,7 @@ public class PostGreSqlMetadataHandlerTest
 
         PostGreSqlMetadataHandler handler = new PostGreSqlMetadataHandler(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions) {
             @Override
-            protected List<String> getSplitClauses(TableName tableName) {
+            protected List<String> getSplitClauses(TableName tableName, GetSplitsRequest getSplitsRequest) {
                 return Arrays.asList("split1", "split2", "split3");
             }
 
