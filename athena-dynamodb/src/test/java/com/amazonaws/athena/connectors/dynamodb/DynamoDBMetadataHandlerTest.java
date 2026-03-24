@@ -357,8 +357,9 @@ public class DynamoDBMetadataHandlerTest
             fail("Expected AthenaConnectorException was not thrown");
         }
         catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should not be null or empty",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+            assertTrue("Exception message should contain error about non-existent table",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty()
+                            && ex.getMessage().contains("non-existent table"));
         }
     }
 
@@ -373,7 +374,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 new TableName(DEFAULT_SCHEMA, "test_table2"), // Different case from Test_table2
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(ImmutableMap.of(), Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.emptySet());
 
@@ -395,7 +396,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 new TableName(TEST_CATALOG_NAME, TEST_TABLE),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
@@ -435,7 +436,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 new TableName(TEST_CATALOG_NAME, TEST_TABLE),
-                new Constraints(null, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan),
+                getConstraints(null, Collections.emptyMap(), queryPlan),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
@@ -469,7 +470,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(null, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan),
+                getConstraints(null, Collections.emptyMap(), queryPlan),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
@@ -510,7 +511,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
@@ -542,7 +543,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that only the upper bound is present
@@ -559,7 +560,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that both bounds are present for col_6 which is not a sort key
@@ -575,7 +576,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that only the upper bound is present
@@ -592,7 +593,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that both bounds are present for col_6 which is not a sort key
@@ -609,7 +610,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 > :v0)"));
@@ -623,7 +624,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0)"));
@@ -637,7 +638,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
@@ -651,7 +652,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
@@ -666,18 +667,14 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(ImmutableMap.of(), Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
-        GetSplitsRequest req = new GetSplitsRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
+        GetSplitsRequest req = getSplitsRequest(
                 layoutResponse.getPartitions(),
                 ImmutableList.of(),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                null);
+                getConstraints(ImmutableMap.of(), Collections.emptyMap(), null));
         logger.info("doGetSplits: req[{}]", req);
 
         MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
@@ -710,18 +707,14 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
-        GetSplitsRequest req = new GetSplitsRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
+        GetSplitsRequest req = getSplitsRequest(
                 layoutResponse.getPartitions(),
                 ImmutableList.of("col_0"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                null);
+                getConstraints(constraintsMap, Collections.emptyMap(), null));
         logger.info("doGetSplits: req[{}]", req);
 
         GetSplitsResponse response = handler.doGetSplits(allocator, req);
@@ -777,7 +770,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 tableName,
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(ImmutableMap.of(), Collections.emptyMap(), null),
                 getTableResponse.getSchema(),
                 Collections.EMPTY_SET);
 
@@ -827,7 +820,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 tableName,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                getConstraints(constraintsMap, Collections.emptyMap(), null),
                 getTableResponse.getSchema(),
                 Collections.EMPTY_SET);
 
@@ -928,8 +921,8 @@ public class DynamoDBMetadataHandlerTest
             fail("Expected AthenaConnectorException was not thrown");
         }
         catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain error about missing passthrough",
-                    ex.getMessage() != null && ex.getMessage().contains("No Query passed through"));
+            assertTrue("Exception message should contain error about missing query passthrough",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("No Query passed through"));
         }
     }
 
@@ -945,28 +938,14 @@ public class DynamoDBMetadataHandlerTest
                 .addField(COL_0, Types.MinorType.VARCHAR.getType())
                 .build();
 
-        // Create constraints with QPT arguments
-        Constraints constraints = new Constraints(
-            new HashMap<>(),
-            Collections.emptyList(),
-            Collections.emptyList(),
-            DEFAULT_NO_LIMIT,
-            qptArgs, // queryPassthroughArguments
-            null
-        );
-
-        // Create GetSplitsRequest
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                allocator.createBlock(schema),
+        Block partitions = allocator.createBlock(schema);
+        GetSplitsRequest splitsRequest = getSplitsRequest(
+                partitions,
                 Collections.emptyList(),
-                constraints,
-                null);
+                getConstraints(Collections.emptyMap(), qptArgs, null));
 
         // Get splits response
-        GetSplitsResponse response = handler.doGetSplits(allocator, getSplitsRequest);
+        GetSplitsResponse response = handler.doGetSplits(allocator, splitsRequest);
 
         // Verify we get exactly one split for QPT
         assertNotNull("Response should not be null", response);
@@ -1022,22 +1001,13 @@ public class DynamoDBMetadataHandlerTest
     public void doGetSplits_withMissingPartitionTypeMetadata_throwsAthenaConnectorException()
     {
         try {
-            // Create a schema without partition type metadata
-            Schema schema = SchemaBuilder.newBuilder()
-                    .addField(TEST_FIELD, Types.MinorType.VARCHAR.getType())
-                    .build();
-
+            Schema schema = getSchema();
             Block partitions = allocator.createBlock(schema);
             partitions.setRowCount(1);
-
-            GetSplitsRequest request = new GetSplitsRequest(TEST_IDENTITY,
-                    TEST_QUERY_ID,
-                    TEST_CATALOG_NAME,
-                    TEST_TABLE_NAME,
+            GetSplitsRequest request = getSplitsRequest(
                     partitions,
                     ImmutableList.of(),
-                    new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                    null);
+                    getConstraints(ImmutableMap.of(), Collections.emptyMap(), null));
 
             // This should throw AthenaConnectorException
             handler.doGetSplits(allocator, request);
@@ -1045,7 +1015,7 @@ public class DynamoDBMetadataHandlerTest
         }
         catch (AthenaConnectorException ex) {
             assertTrue("Exception message should contain error about missing partition type metadata",
-                    ex.getMessage() != null && ex.getMessage().contains(PARTITION_TYPE_METADATA));
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains(PARTITION_TYPE_METADATA));
         }
     }
 
@@ -1053,23 +1023,13 @@ public class DynamoDBMetadataHandlerTest
     public void doGetSplits_withInvalidPartitionType_throwsAthenaConnectorException()
     {
         try {
-            // Create a schema with invalid partition type
-            Schema schema = SchemaBuilder.newBuilder()
-                    .addField(TEST_FIELD, Types.MinorType.VARCHAR.getType())
-                    .addMetadata(PARTITION_TYPE_METADATA, "INVALID_TYPE")
-                    .build();
-
+            Schema schema = getSchemaWithPartitionType();
             Block partitions = allocator.createBlock(schema);
             partitions.setRowCount(1);
-
-            GetSplitsRequest request = new GetSplitsRequest(TEST_IDENTITY,
-                    TEST_QUERY_ID,
-                    TEST_CATALOG_NAME,
-                    TEST_TABLE_NAME,
+            GetSplitsRequest request = getSplitsRequest(
                     partitions,
                     ImmutableList.of(),
-                    new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                    null);
+                    getConstraints(ImmutableMap.of(), Collections.emptyMap(), null));
 
             // This should throw AthenaConnectorException
             handler.doGetSplits(allocator, request);
@@ -1080,6 +1040,47 @@ public class DynamoDBMetadataHandlerTest
                     ex.getMessage() != null && (ex.getMessage().contains("INVALID_TYPE") || 
                                                  ex.getMessage().contains("partition")));
         }
+    }
+
+    private static Constraints getConstraints(
+            Map<String, ValueSet> summary,
+            Map<String, String> queryPassthroughArguments,
+            QueryPlan queryPlan)
+    {
+        return new Constraints(
+                summary,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                DEFAULT_NO_LIMIT,
+                queryPassthroughArguments,
+                queryPlan);
+    }
+
+    private Schema getSchema()
+    {
+        return SchemaBuilder.newBuilder()
+                .addField(TEST_FIELD, Types.MinorType.VARCHAR.getType())
+                .build();
+    }
+
+    private Schema getSchemaWithPartitionType()
+    {
+        return SchemaBuilder.newBuilder()
+                .addField(TEST_FIELD, Types.MinorType.VARCHAR.getType())
+                .addMetadata(PARTITION_TYPE_METADATA, "INVALID_TYPE")
+                .build();
+    }
+
+    private GetSplitsRequest getSplitsRequest(Block partitions, List<String> partitionCols, Constraints splitConstraints)
+    {
+        return new GetSplitsRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                partitions,
+                partitionCols,
+                splitConstraints,
+                null);
     }
 
 }

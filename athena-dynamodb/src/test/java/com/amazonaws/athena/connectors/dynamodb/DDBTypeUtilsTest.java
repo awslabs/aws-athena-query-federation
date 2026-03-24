@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
-import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
@@ -102,9 +102,7 @@ public class DDBTypeUtilsTest
     private DDBRecordMetadata ddbRecordMetadata;
 
     @Before
-    public void setUp()
-            throws IOException
-    {
+    public void setUp() {
         ddbRecordMetadata = mock(DDBRecordMetadata.class);
     }
 
@@ -202,9 +200,7 @@ public class DDBTypeUtilsTest
     }
     
     @Test
-    public void inferArrowField_withListContainingNull_infersListFieldWithVarcharChild()
-            throws Exception
-    {
+    public void inferArrowField_withListContainingNull_infersListFieldWithVarcharChild() {
         List<String> inputArray = new ArrayList<>();
         inputArray.add("value1");
         inputArray.add(null);
@@ -363,7 +359,7 @@ public class DDBTypeUtilsTest
         }
         catch (AthenaConnectorException ex) {
             assertTrue("Exception message should contain error about unknown type",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Unknown type["));
         }
     }
 
@@ -497,7 +493,7 @@ public class DDBTypeUtilsTest
         }
         catch (AthenaConnectorException ex) {
             assertTrue("Exception message should contain error about map instead of list",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Unexpected type (Map) encountered for:"));
         }
     }
 
@@ -554,8 +550,8 @@ public class DDBTypeUtilsTest
             fail("Expected AthenaConnectorException was not thrown");
         }
         catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain error about unsupported type",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+            assertTrue("Exception message should contain error about unsupported value type",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Unsupported value type:"));
         }
     }
 
@@ -568,8 +564,8 @@ public class DDBTypeUtilsTest
             fail("Expected AthenaConnectorException was not thrown");
         }
         catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain error about unknown key",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+            assertTrue("Exception message should contain error about unknown attribute key",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Unknown attribute Key"));
         }
     }
 
@@ -584,8 +580,8 @@ public class DDBTypeUtilsTest
             fail("Expected AthenaConnectorException was not thrown");
         }
         catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain error about unsupported set type",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+            assertTrue("Exception message should contain error about unsupported set element type",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Unsupported Set element type:"));
         }
     }
 
@@ -633,7 +629,7 @@ public class DDBTypeUtilsTest
         }
         catch (AthenaConnectorException ex) {
             assertTrue("Exception message should contain error about unknown type",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Unknown type["));
         }
     }
 
@@ -656,8 +652,8 @@ public class DDBTypeUtilsTest
             fail("Expected AthenaConnectorException was not thrown");
         }
         catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain error about unsupported type",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+            assertTrue("Exception message should contain error about unsupported value type",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Unsupported value type:"));
         }
     }
 
@@ -672,8 +668,8 @@ public class DDBTypeUtilsTest
             fail("Expected AthenaConnectorException was not thrown");
         }
         catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain error about unsupported type",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+            assertTrue("Exception message should contain error about unsupported value type",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Unsupported value type:"));
         }
     }
 
@@ -726,12 +722,12 @@ public class DDBTypeUtilsTest
         try {
             String invalidJson = "{invalid json}";
             DDBTypeUtils.jsonToAttributeValue(invalidJson, EXPECTED_KEY);
-            fail("Expected exception was not thrown");
+            fail("Expected UncheckedIOException was not thrown");
         }
-        catch (Exception ex) {
-            // Could be JsonParseException wrapped in AthenaConnectorException or RuntimeException
-            assertTrue("Exception should be thrown for invalid JSON",
-                    ex != null && (ex instanceof AthenaConnectorException || ex.getCause() != null));
+        catch (UncheckedIOException ex) {
+            assertTrue("Exception message should indicate JSON parse failure",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty()
+                            && ex.getMessage().contains("JsonParseException"));
         }
     }
 
@@ -743,8 +739,8 @@ public class DDBTypeUtilsTest
             fail("Expected AthenaConnectorException was not thrown");
         }
         catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain error about missing key",
-                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+            assertTrue("Exception message should contain error about missing attribute key",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Unknown attribute Key"));
         }
     }
 
