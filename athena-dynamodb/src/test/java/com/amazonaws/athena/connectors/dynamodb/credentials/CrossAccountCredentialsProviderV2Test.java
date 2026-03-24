@@ -74,7 +74,7 @@ public class CrossAccountCredentialsProviderV2Test
         }
         catch (AthenaConnectorException ex) {
             assertTrue("Exception message should contain error about failed to assume role",
-                    ex.getMessage() != null && ex.getMessage().contains("Failed to assume role"));
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Failed to assume role"));
         }
     }
 
@@ -90,7 +90,7 @@ public class CrossAccountCredentialsProviderV2Test
         }
         catch (AthenaConnectorException ex) {
             assertTrue("Exception message should reference failed to assume role",
-                    ex.getMessage() != null && ex.getMessage().contains("Failed to assume role"));
+                    ex.getMessage() != null && !ex.getMessage().isEmpty() && ex.getMessage().contains("Failed to assume role"));
         }
     }
 }

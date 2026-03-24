@@ -170,7 +170,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -202,7 +202,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                constraintsWithQueryPlan(queryPlan),
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -237,7 +237,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                constraintsWithQueryPlan(queryPlan),
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -260,7 +260,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                constraintsWithLimit(5));
+                getConstraints(5, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -281,7 +281,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                constraintsWithLimit(10_000));
+                getConstraints(10_000, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -311,7 +311,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -341,7 +341,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -371,7 +371,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                constraintsWithLimit(1));
+                getConstraints(1, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -401,7 +401,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -452,7 +452,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_3_NAME,
                 schema3,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -511,7 +511,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_4_NAME,
                 schema4,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -546,7 +546,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_4_NAME,
                 schema4,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -595,7 +595,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_5_NAME,
                 schema5,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -639,7 +639,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_6_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -685,7 +685,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_7_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -756,7 +756,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_8_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -811,7 +811,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_8_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -826,15 +826,14 @@ public class DynamoDBRecordHandlerTest
     }
 
     @Test
-    public void doReadRecords_withNonExistentTable_throwsAthenaConnectorException() throws Exception
-    {
+    public void doReadRecords_withNonExistentTable_throwsAthenaConnectorException() {
         Split split = createScanSplit("nonexistent_table");
 
         ReadRecordsRequest request = createReadRecordsRequest(
                 new TableName(DEFAULT_SCHEMA, "nonexistent_table"),
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         AthenaConnectorException exception = assertThrows(AthenaConnectorException.class, () -> {
             handler.doReadRecords(allocator, request);
@@ -853,14 +852,7 @@ public class DynamoDBRecordHandlerTest
                 DDBQueryPassthrough.QUERY, SELECT_COL_0_COL_1_QUERY
         );
 
-        Constraints constraints = new Constraints(
-                Collections.emptyMap(),
-                Collections.emptyList(),
-                Collections.emptyList(),
-                DEFAULT_NO_LIMIT,
-                qptArguments,
-                null
-        );
+        Constraints readConstraints = getConstraints(DEFAULT_NO_LIMIT, qptArguments, null);
 
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
@@ -871,7 +863,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                constraints);
+                readConstraints);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -908,7 +900,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -926,7 +918,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -943,7 +935,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -964,7 +956,7 @@ public class DynamoDBRecordHandlerTest
                     new TableName(DEFAULT_SCHEMA, "invalid_table"),
                     schema,
                     invalidSplit,
-                    defaultConstraints());
+                    getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
             handler.doReadRecords(allocator, request);
             fail("Expected exception was not thrown for invalid split metadata");
@@ -985,7 +977,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_2_NAME,
                 schema,
                 split,
-                defaultConstraints());
+                getConstraints(DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = assertAndCastToReadRecordsResponse(rawResponse);
@@ -1049,18 +1041,17 @@ public class DynamoDBRecordHandlerTest
         return (ReadRecordsResponse) rawResponse;
     }
 
-    private static Constraints defaultConstraints()
+    private static Constraints getConstraints(
+            long limit,
+            Map<String, String> queryPassthroughArguments,
+            QueryPlan queryPlan)
     {
-        return new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
-    }
-
-    private static Constraints constraintsWithLimit(long limit)
-    {
-        return new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), limit, Collections.emptyMap(), null);
-    }
-
-    private static Constraints constraintsWithQueryPlan(QueryPlan queryPlan)
-    {
-        return new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
+        return new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                limit,
+                queryPassthroughArguments,
+                queryPlan);
     }
 }
