@@ -523,9 +523,9 @@ public class Db2MetadataHandlerTest extends TestBase {
                         PARTITION_NUMBER, "0",
                         Db2MetadataHandler.PARTITIONING_COLUMN, "PC"));
         
-        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
+        assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
-        Assert.assertEquals(expectedSplits, actualSplits);
+        assertEquals(expectedSplits, actualSplits);
     }
 
     /**
