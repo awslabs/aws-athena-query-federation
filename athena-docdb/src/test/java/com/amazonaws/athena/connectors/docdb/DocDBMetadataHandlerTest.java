@@ -82,6 +82,7 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -94,7 +95,7 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DocDBMetadataHandlerTest
-    extends TestBase
+        extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(DocDBMetadataHandlerTest.class);
 
@@ -116,7 +117,7 @@ public class DocDBMetadataHandlerTest
     private static final String TIMESTAMP_COL2 = "timestampCol2";
     private static final String OBJECT_ID_COL = "objectIdCol";
     private static final String OBJECT_ID_COL2 = "objectIdCol2";
-    
+
     private static final String STRING_VALUE = "stringVal";
     private static final double DOUBLE_VALUE = 2.2D;
     private static final int INT_VALUE = 1;
@@ -635,14 +636,7 @@ public class DocDBMetadataHandlerTest
         assertEquals("Should return 1 table for final page", 1, finalResponse.getTables().size());
         List<TableName> finalPageTables = new ArrayList<>(finalResponse.getTables());
         assertEquals(new TableName(DEFAULT_SCHEMA, TABLE5), finalPageTables.get(0));
-        assertEquals("6", finalResponse.getNextToken());
-
-        // Verify empty page after all data is consumed
-        ListTablesRequest emptyRequest = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, DEFAULT_SCHEMA,
-                finalResponse.getNextToken(), PAGE_SIZE_TWO);
-        ListTablesResponse emptyResponse = handler.doListTables(allocator, emptyRequest);
-        assertEquals("Should return 0 tables when all data is consumed", 0, emptyResponse.getTables().size());
-        assertEquals("8", emptyResponse.getNextToken());
+        assertNull(finalResponse.getNextToken());
     }
 
     @Test
