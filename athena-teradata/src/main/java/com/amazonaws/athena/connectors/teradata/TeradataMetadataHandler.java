@@ -188,7 +188,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
         boolean viewFlag = false;
         //Check if input table is a view
         List<String> viewparameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(viewparameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
@@ -221,7 +221,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
             }
             else {
                 List<String> parameters = Arrays.asList(Integer.toString(1));
-                try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+                try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
                     getPartitionDetails(blockWriter, getPartitionsQuery, parameters, connection);
                 }
             }
@@ -245,7 +245,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
         int  partitionCount = 0;
         boolean nonPartitionApproach = false;
         List<String> params = Arrays.asList(Integer.toString(1));
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(getPartitionsCountQuery).withParameters(params).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {

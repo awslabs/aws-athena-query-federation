@@ -25,6 +25,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.TeradataSqlDialect;
 
 import java.util.Collections;
 import java.util.List;
@@ -66,5 +68,20 @@ public class TeradataQueryStringBuilder extends JdbcSplitQueryBuilder
     protected String appendLimitOffset(Split split, Constraints constraints)
     {
         return emptyString;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return TeradataSqlDialect.DEFAULT;
+    }
+
+    /**
+     *  Teradata does not support FETCH clause, so removing it from the query
+     */
+    @Override
+    protected boolean removeFetch()
+    {
+        return true;
     }
 }
