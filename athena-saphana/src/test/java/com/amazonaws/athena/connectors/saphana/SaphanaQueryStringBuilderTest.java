@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.saphana;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -30,6 +29,9 @@ import java.util.List;
 
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.SAPHANA_QUOTE_CHARACTER;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class SaphanaQueryStringBuilderTest
 {
@@ -44,8 +46,8 @@ public class SaphanaQueryStringBuilderTest
         SaphanaQueryStringBuilder builder = new SaphanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER, new SaphanaFederationExpressionParser(SAPHANA_QUOTE_CHARACTER));
         String fromClauseWithSplit1 = builder.getFromClauseWithSplit("default", "", "table", split);
         String fromClauseWithSplit2 = builder.getFromClauseWithSplit("default", "schema", "table", split);
-        Assert.assertEquals(expectedString1, fromClauseWithSplit1);
-        Assert.assertEquals(expectedString2, fromClauseWithSplit2);
+        assertEquals(expectedString1, fromClauseWithSplit1);
+        assertEquals(expectedString2, fromClauseWithSplit2);
     }
 
     @Test
@@ -57,7 +59,7 @@ public class SaphanaQueryStringBuilderTest
         Mockito.when(split.getProperty(Mockito.eq(BLOCK_PARTITION_COLUMN_NAME))).thenReturn("0");
         SaphanaQueryStringBuilder builder = new SaphanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER, new SaphanaFederationExpressionParser(SAPHANA_QUOTE_CHARACTER));
         String fromClauseWithSplit = builder.getFromClauseWithSplit("default", "schema", "table", split);
-        Assert.assertEquals(expectedString, fromClauseWithSplit);
+        assertEquals(expectedString, fromClauseWithSplit);
     }
 
     @Test
@@ -70,7 +72,7 @@ public class SaphanaQueryStringBuilderTest
 
         SaphanaQueryStringBuilder builder = new SaphanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER, new SaphanaFederationExpressionParser(SAPHANA_QUOTE_CHARACTER));
         List<String> partitionWhereClauseList1 = builder.getPartitionWhereClauses(split);
-        Assert.assertEquals(expectedPartitionWhereClauseList1, partitionWhereClauseList1);
+        assertEquals(expectedPartitionWhereClauseList1, partitionWhereClauseList1);
     }
 
     @Test
@@ -81,9 +83,9 @@ public class SaphanaQueryStringBuilderTest
         Mockito.when(split.getProperty(Mockito.eq(BLOCK_PARTITION_COLUMN_NAME))).thenReturn(null);
         SaphanaQueryStringBuilder builder = new SaphanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER, new SaphanaFederationExpressionParser(SAPHANA_QUOTE_CHARACTER));
         String fromClauseWithSplit = builder.getFromClauseWithSplit("cat", "schema", "table", split);
-        Assert.assertTrue("From clause should contain ' FROM '", fromClauseWithSplit.contains(" FROM "));
-        Assert.assertTrue("From clause should contain quoted table name", fromClauseWithSplit.contains("\"table\""));
-        Assert.assertFalse("From clause should not contain PARTITION when partition property is null", fromClauseWithSplit.contains("PARTITION"));
+        assertTrue("From clause should contain ' FROM '", fromClauseWithSplit.contains(" FROM "));
+        assertTrue("From clause should contain quoted table name", fromClauseWithSplit.contains("\"table\""));
+        assertFalse("From clause should not contain PARTITION when partition property is null", fromClauseWithSplit.contains("PARTITION"));
     }
 
     @Test
@@ -94,8 +96,8 @@ public class SaphanaQueryStringBuilderTest
         Mockito.when(split.getProperty(Mockito.eq(BLOCK_PARTITION_COLUMN_NAME))).thenReturn("p0");
         SaphanaQueryStringBuilder builder = new SaphanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER, new SaphanaFederationExpressionParser(SAPHANA_QUOTE_CHARACTER));
         String fromClauseWithSplit = builder.getFromClauseWithSplit("", "schema", "table", split);
-        Assert.assertTrue("From clause should contain quoted schema name", fromClauseWithSplit.contains("\"schema\""));
-        Assert.assertTrue("From clause should contain quoted table name", fromClauseWithSplit.contains("\"table\""));
-        Assert.assertTrue("From clause should contain PARTITION (p0)", fromClauseWithSplit.contains("PARTITION (p0)"));
+        assertTrue("From clause should contain quoted schema name", fromClauseWithSplit.contains("\"schema\""));
+        assertTrue("From clause should contain quoted table name", fromClauseWithSplit.contains("\"table\""));
+        assertTrue("From clause should contain PARTITION (p0)", fromClauseWithSplit.contains("PARTITION (p0)"));
     }
 }
