@@ -171,7 +171,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test
-    public void getPartitionSchema()
+    public void getPartitionSchema_withCatalog_returnsBlockPartitionColumnSchema()
     {
         Assert.assertEquals(SchemaBuilder.newBuilder()
                         .addField(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
@@ -179,7 +179,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_withDistinctPartitionValues_returnsExpectedPartitionRows()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -219,7 +219,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayoutWithNoPartitions()
+    public void doGetTableLayout_withEmptyDistinctResult_returnsAllPartitionsRow()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -260,7 +260,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void doGetTableLayoutWithSQLException()
+    public void doGetTableLayout_withSearchStringEscapeSQLException_throwsRuntimeException()
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -279,7 +279,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_withTwoPartitions_returnsSplitPerPartition()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -319,7 +319,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplitsContinuation()
+    public void doGetSplits_withContinuationToken_returnsRemainingPartitionSplit()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -356,7 +356,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplitsForView()
+    public void doGetSplits_forView_returnsSingleWildcardSplit()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -383,7 +383,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_withIntegerVarcharTimestampColumns_returnsExpectedSchema()
             throws Exception
     {
         String[] schema = {DATA_TYPE_COLUMN, COLUMN_SIZE_COLUMN, COLUMN_NAME_COLUMN, DECIMAL_DIGITS_COLUMN, NUM_PREC_RADIX_COLUMN};
@@ -412,7 +412,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test(expected = SQLException.class)
-    public void doGetTableSQLException()
+    public void doGetTable_withGetColumnsSQLException_throwsSQLException()
             throws Exception
     {
         TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -422,7 +422,7 @@ public class TeradataMetadataHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void doGetTableNoColumns() throws Exception
+    public void doGetTable_withEmptyResultSet_throwsRuntimeException() throws Exception
     {
         TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         this.teradataMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG, inputTableName, Collections.emptyMap()));
