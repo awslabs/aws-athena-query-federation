@@ -68,7 +68,7 @@ public class TeradataMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint()
+    public void readWithConstraint_withCatalogName_invokesTeradataRecordHandlerReadWithConstraintOnce()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -79,7 +79,7 @@ public class TeradataMuxJdbcRecordHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void readWithConstraintWithUnsupportedCatalog()
+    public void readWithConstraint_withCatalogAbsentFromMuxMap_throwsRuntimeException()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -89,7 +89,7 @@ public class TeradataMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql()
+    public void buildSplitSql_withCatalogName_invokesTeradataRecordHandlerBuildSplitSqlOnce()
             throws SQLException
     {
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
