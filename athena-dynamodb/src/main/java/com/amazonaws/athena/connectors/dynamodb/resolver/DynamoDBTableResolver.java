@@ -94,7 +94,7 @@ public class DynamoDBTableResolver
         do {
             ListTablesRequest ddbRequest = ListTablesRequest.builder()
                     .exclusiveStartTableName(nextToken)
-                    .limit(limit)
+                    .limit(Math.min(100, limit))
                     .overrideConfiguration(awsRequestOverrideConfiguration)
                     .build();
             ListTablesResponse response = invoker.invoke(() -> ddbClient.listTables(ddbRequest));

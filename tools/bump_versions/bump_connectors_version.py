@@ -13,7 +13,8 @@ import common
 EXCLUDE_DIRS={
     "athena-federation-sdk",
     "athena-federation-integ-test",
-    "athena-federation-sdk-tools"
+    "athena-federation-sdk-tools",
+    "athena_federation_testing"
 }
 
 

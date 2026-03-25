@@ -65,6 +65,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -296,9 +297,12 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 }
             }
             catch (SQLServerException e) {
-                // for permission denied sqlServer exception retuning single partition
-                if (e.getMessage().contains("VIEW DATABASE STATE permission denied")) {
-                    LOGGER.warn("Permission denied to view database state for {}", e.getMessage());
+                // For permission denied SQL Server exception, return single partition
+                // SQL Server 2022 and later: "VIEW DATABASE PERFORMANCE STATE permission denied"
+                String message = e.getMessage();
+                if (message != null && (message.contains("VIEW DATABASE STATE permission denied")
+                        || message.contains("VIEW DATABASE PERFORMANCE STATE permission denied"))) {
+                    LOGGER.warn("Permission denied while accessing partition metadata: {}", message);
                     handleSinglePartition(blockWriter);
                 }
                 else {
@@ -422,7 +426,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @throws Exception
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
@@ -508,9 +512,9 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             return schemaNames.build();
         }
     }
-
+    
     @Override
-    protected CredentialsProvider getCredentialProvider()
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         return CredentialsProviderFactory.createCredentialProvider(
                 getDatabaseConnectionConfig().getSecret(),

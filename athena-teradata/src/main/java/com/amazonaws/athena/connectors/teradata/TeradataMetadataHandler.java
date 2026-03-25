@@ -60,6 +60,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -363,7 +364,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      * @throws SQLException
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws SQLException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
