@@ -102,7 +102,7 @@ public class SaphanaMetadataHandlerTest
     }
 
     @Test
-    public void getPartitionSchema()
+    public void getPartitionSchema_withCatalogName_returnsSchemaWithPartitionColumn()
     {
         assertEquals(SchemaBuilder.newBuilder()
                         .addField(BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
@@ -392,7 +392,7 @@ public class SaphanaMetadataHandlerTest
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
         TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
-        
+
         // Mock schema case resolution queries - return single schema match
         String[] schemaQuerySchema = {"SCHEMA_NAME"};
         Object[][] schemaQueryValues = {{"TESTSCHEMA"}};
@@ -402,13 +402,13 @@ public class SaphanaMetadataHandlerTest
         PreparedStatement schemaStmt = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement("select * from SYS.SCHEMAS where lower(SCHEMA_NAME) = ?")).thenReturn(schemaStmt);
         Mockito.when(schemaStmt.executeQuery()).thenReturn(schemaResultSet);
-        
+
         // Mock table case resolution queries - return single table match
         String[] tableQuerySchema = {"TABLE_NAME"};
         Object[][] tableQueryValues = {{"TESTTABLE"}};
         AtomicInteger tableRowNumber = new AtomicInteger(-1);
         ResultSet tableResultSet = mockResultSet(tableQuerySchema, tableQueryValues, tableRowNumber);
-        
+
         PreparedStatement tableStmt = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement("select * from SYS.TABLES where SCHEMA_NAME = ? and lower(TABLE_NAME) = ?")).thenReturn(tableStmt);
         Mockito.when(tableStmt.executeQuery()).thenReturn(tableResultSet);
@@ -454,7 +454,7 @@ public class SaphanaMetadataHandlerTest
     }
 
     @Test(expected = SQLException.class)
-    public void doGetTableSQLException()
+    public void doGetTable_whenGetColumnsThrowsSqlException_throwsSqlException()
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
