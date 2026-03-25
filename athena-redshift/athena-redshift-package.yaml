@@ -78,11 +78,12 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
+          JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED -XX:-TieredCompilation
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.redshift.RedshiftMuxCompositeHandler"
       CodeUri: "./target/athena-redshift-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with Redshift using JDBC"
-      Runtime: java11
+      Runtime: java17
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]

@@ -81,11 +81,12 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
           is_FIPS_Enabled: !Ref IsFIPSEnabled
+          JAVA_TOOL_OPTIONS: "-Djavax.net.ssl.trustStore=/var/lang/lib/security/cacerts --add-opens=java.base/java.nio=ALL-UNNAMED -XX:-TieredCompilation"
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.oracle.OracleMuxCompositeHandler"
       CodeUri: "./target/athena-oracle-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with ORACLE using JDBC"
-      Runtime: java11
+      Runtime: java17
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
