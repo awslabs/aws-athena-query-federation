@@ -47,6 +47,7 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -54,12 +55,12 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 import static com.amazonaws.athena.connector.substrait.SubstraitRelUtils.deserializeSubstraitPlan;
 import static com.amazonaws.athena.connector.substrait.util.LimitAndSortHelper.getLimit;
 
@@ -82,6 +83,8 @@ public class ElasticsearchRecordHandler
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
     // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
     private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
+    // Secret Name that provides credentials
+    private static final String SECRET_NAME = "secret_name";
 
     // Env. variable that holds the query timeout period for the Search queries.
     private static final String QUERY_TIMEOUT_SEARCH = "query_timeout_search";
@@ -94,8 +97,6 @@ public class ElasticsearchRecordHandler
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
 
-    private Map<String, DefaultCredentialsProvider> secretMap;
-
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
     private final ElasticsearchQueryPassthrough queryPassthrough = new ElasticsearchQueryPassthrough();
@@ -106,7 +107,6 @@ public class ElasticsearchRecordHandler
                 AthenaClient.create(), SOURCE_TYPE, configOptions);
 
         this.typeUtils = new ElasticsearchTypeUtils();
-        this.secretMap = new HashMap<>();
         this.clientFactory = new AwsRestHighLevelClientFactory(configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true"));
         this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_SEARCH, "720"));
         this.scrollTimeout = Long.parseLong(configOptions.getOrDefault(SCROLL_TIMEOUT, "60"));
@@ -128,6 +128,25 @@ public class ElasticsearchRecordHandler
         this.clientFactory = clientFactory;
         this.queryTimeout = queryTimeout;
         this.scrollTimeout = scrollTimeout;
+    }
+
+    /**
+     * Fetches credentials from Secrets Manager if using Glue Connection.
+     * For non-Glue connections, returns null (credentials are either embedded in URL or use IAM auth).
+     *
+     * @return DefaultCredentialsProvider if credentials are available, null otherwise
+     */
+    private DefaultCredentialsProvider getCredentials()
+    {
+        if (StringUtils.isNotBlank(configOptions.getOrDefault(DEFAULT_GLUE_CONNECTION, ""))) {
+            logger.info("Fetching credentials from Secrets Manager via Glue Connection");
+            String secretName = configOptions.get(SECRET_NAME);
+            if (secretName != null) {
+                AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(configOptions);
+                return new DefaultCredentialsProvider(getSecret(secretName, overrideConfig));
+            }
+        }
+        return null;
     }
 
     /**
@@ -195,16 +214,23 @@ public class ElasticsearchRecordHandler
 
         String endpoint = recordsRequest.getSplit().getProperty(domain);
         String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
-        String username = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_USERNAME);
-        String password = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_PASSWORD);
-        boolean useSecret = StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
+
+        // Fetch credentials from Secrets Manager (Glue Connection only)
+        DefaultCredentialsProvider creds = getCredentials();
+
         logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}, Query: {}",
                 domain, index,
                 recordsRequest.getSchema(), query);
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
-            AwsRestHighLevelClient client = useSecret ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
+            AwsRestHighLevelClient client;
+            if (creds != null) {
+                client = clientFactory.getOrCreateClient(endpoint, creds.getCredential().getUser(), creds.getCredential().getPassword());
+            }
+            else {
+                client = clientFactory.getOrCreateClient(endpoint);
+            }
             try {
                 // Create field extractors for all data types in the schema.
                 GeneratedRowWriter rowWriter = createFieldExtractors(recordsRequest);

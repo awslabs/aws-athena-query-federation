@@ -63,6 +63,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -85,6 +87,7 @@ import java.util.UUID;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -538,5 +541,59 @@ public class ElasticsearchRecordHandlerTest
                 .withSplitId(UUID.randomUUID().toString())
                 .withIsDirectory(true)
                 .build();
+    }
+
+    /**
+     * Test that getCredentials() fetches credentials from Secrets Manager
+     * when using Glue Connection, and passes them to clientFactory.
+     */
+    @Test
+    public void testReadWithConstraintUsesCredentialsFromGlueConnection() throws Exception
+    {
+        logger.info("testReadWithConstraintUsesCredentialsFromGlueConnection: enter");
+
+        String secretName = "my-es-secret";
+        String endpoint = "https://search-domain.us-east-1.es.amazonaws.com";
+        String expectedUsername = "elastic_user";
+        String expectedPassword = "elastic_pass";
+
+        when(awsSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+                .thenReturn(GetSecretValueResponse.builder()
+                        .secretString("{\"username\": \"" + expectedUsername + "\", \"password\": \"" + expectedPassword + "\"}")
+                        .build());
+
+        Map<String, String> configOptions = ImmutableMap.of(
+                DEFAULT_GLUE_CONNECTION, "my-connection",
+                "secret_name", secretName);
+
+        ElasticsearchRecordHandler handlerWithGlue = new ElasticsearchRecordHandler(
+                amazonS3, awsSecretsManager, athena, clientFactory, 720, 60, configOptions);
+
+        Split glueConnectionSplit = Split.newBuilder(makeSpillLocation(), null)
+                .add("default", endpoint)
+                .add(ElasticsearchMetadataHandler.SHARD_KEY, "_shards:5")
+                .add(ElasticsearchMetadataHandler.INDEX_KEY, "index1")
+                .build();
+
+        when(clientFactory.getOrCreateClient(endpoint, expectedUsername, expectedPassword))
+                .thenReturn(mockClient);
+
+        ReadRecordsRequest recordsRequest = new ReadRecordsRequest(fakeIdentity(),
+                "elasticsearch",
+                "queryId-" + System.currentTimeMillis(),
+                new TableName("default", "index1"),
+                mapping,
+                glueConnectionSplit,
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L,
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handlerWithGlue.doReadRecords(allocator, recordsRequest);
+        assertTrue("Should return ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
+
+        // Verify credentials were passed to clientFactory
+        verify(clientFactory).getOrCreateClient(endpoint, expectedUsername, expectedPassword);
+
+        logger.info("testReadWithConstraintUsesCredentialsFromGlueConnection: exit");
     }
 }
