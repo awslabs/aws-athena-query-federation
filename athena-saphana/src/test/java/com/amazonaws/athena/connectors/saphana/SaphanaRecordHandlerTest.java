@@ -39,7 +39,6 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -62,6 +61,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.SAPHANA_QUOTE_CHARACTER;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -203,7 +203,7 @@ public class SaphanaRecordHandlerTest
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.saphanaRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
         Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 2);
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "1");
@@ -264,7 +264,7 @@ public class SaphanaRecordHandlerTest
             PreparedStatement preparedStatement = this.saphanaRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
             Date expectedDate = new Date(TimeUnit.DAYS.toMillis(dateDays));
-            Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+            assertEquals(expectedPreparedStatement, preparedStatement);
             Mockito.verify(preparedStatement, Mockito.times(1))
                     .setDate(1, expectedDate);
             Timestamp expectedTimestamp = new Timestamp(timestamp.toInstant(ZoneOffset.UTC).toEpochMilli());
@@ -300,7 +300,7 @@ public class SaphanaRecordHandlerTest
             //For QPT, connection and constraints params are enough.
             PreparedStatement preparedStatement = this.saphanaRecordHandler.buildSplitSql(this.connection, null, null, null, constraints, null);
 
-            Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+            assertEquals(expectedPreparedStatement, preparedStatement);
             Mockito.verify(this.connection).prepareStatement(testQuery);
         }
         catch (Exception e) {
@@ -342,7 +342,7 @@ public class SaphanaRecordHandlerTest
 
         PreparedStatement preparedStatement = this.saphanaRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        assertEquals(expectedPreparedStatement, preparedStatement);
     }
 
     private TableName createTableName()
