@@ -40,6 +40,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
 
 /**
  * This class is used to test the ElasticsearchFieldResolver class.
@@ -178,9 +183,9 @@ public class ElasticsearchFieldResolverTest
      * Test field resolver and type coercion.
      */
     @Test
-    public void getFieldValueTest()
+    public void getFieldValue_withValidMapping_returnsExtractedValues()
     {
-        logger.info("getFieldValueTest - enter");
+        logger.info("getFieldValue_withValidMapping_returnsExtractedValues - enter");
 
         Map<String, Object> extractedResults = new HashMap<>();
 
@@ -191,6 +196,92 @@ public class ElasticsearchFieldResolverTest
 
         assertEquals("Extracted values mismatch!", expectedResults, extractedResults);
 
-        logger.info("getFieldValueTest - exit");
+        logger.info("getFieldValue_withValidMapping_returnsExtractedValues - exit");
+    }
+
+    @Test
+    public void getFieldValue_withNonMapValue_throwsAthenaConnectorException()
+    {
+        Field field = new Field("test", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+
+        try {
+            resolver.getFieldValue(field, "not-a-map");
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException ex) {
+            assertTrue("Exception message should contain Invalid argument type",
+                    ex.getMessage().contains("Invalid argument type"));
+        }
+        catch (Exception e) {
+            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
+        }
+    }
+
+    @Test
+    public void getFieldValue_withStructFieldAndNonMapValue_throwsAthenaConnectorException()
+    {
+        Field structField = new Field("mystruct", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                ImmutableList.of(new Field("nested", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null)));
+        Map<String, Object> document = ImmutableMap.of("mystruct", "not-a-map");
+
+        try {
+            resolver.getFieldValue(structField, document);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException ex) {
+            assertTrue("Exception message should contain Invalid field value",
+                    ex.getMessage().contains("Invalid field value encountered in Document"));
+        }
+        catch (Exception e) {
+            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
+        }
+    }
+
+    @Test
+    public void getFieldValue_withListFieldAndMapValue_throwsAthenaConnectorException()
+    {
+        Field childField = new Field("child", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+        Field listField = new Field("test", FieldType.nullable(Types.MinorType.LIST.getType()), 
+                ImmutableList.of(childField));
+        Map<String, Object> document = ImmutableMap.of("test", ImmutableMap.of("nested", "value"));
+
+        try {
+            resolver.getFieldValue(listField, document);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException ex) {
+            assertTrue("Exception message should contain Invalid field value",
+                    ex.getMessage().contains("Invalid field value encountered in Document"));
+        }
+    }
+
+    @Test
+    public void getFieldValue_withListValueAndNonListFieldType_returnsFirstElement()
+    {
+        Field field = new Field("test", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+        Map<String, Object> document = ImmutableMap.of("test", ImmutableList.of("value1", "value2"));
+
+        Object result = resolver.getFieldValue(field, document);
+        assertEquals("Should return first element of list", "value1", result);
+    }
+
+    @Test
+    public void getFieldValue_withEmptyListValueAndNonListFieldType_throwsException()
+    {
+        Field field = new Field("test", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+        Map<String, Object> document = ImmutableMap.of("test", ImmutableList.of());
+
+        IndexOutOfBoundsException ex = assertThrows(IndexOutOfBoundsException.class,
+                () -> resolver.getFieldValue(field, document));
+        assertNotNull("Exception message should be present", ex.getMessage());
+    }
+
+    @Test
+    public void getMapValue_withDateMilliAndInvalidString_returnsNull()
+    {
+        Field field = new Field("test", FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null);
+
+        Object result = resolver.getMapValue(field, "invalid-date-format");
+        assertNull("Should return null for invalid date format", result);
     }
 }
