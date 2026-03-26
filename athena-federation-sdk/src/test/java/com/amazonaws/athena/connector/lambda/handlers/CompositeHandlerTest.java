@@ -81,11 +81,14 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 public class CompositeHandlerTest {
     private static final Logger logger = LoggerFactory.getLogger(CompositeHandlerTest.class);
@@ -108,40 +111,40 @@ public class CompositeHandlerTest {
 
         allocator = new BlockAllocatorImpl();
         objectMapper = ObjectMapperFactory.create(allocator);
-        mockMetadataHandler = mock(MetadataHandler.class);
-        mockRecordHandler = mock(RecordHandler.class);
+        mockMetadataHandler = mock(MetadataHandler.class, withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        mockRecordHandler = mock(RecordHandler.class, withSettings().defaultAnswer(CALLS_REAL_METHODS));
         mockUserDefinedFunctionHandler = mock(UserDefinedFunctionHandler.class);
 
         schemaForRead = SchemaBuilder.newBuilder()
                 .addField("col1", new ArrowType.Int(32, true))
                 .build();
 
-        when(mockMetadataHandler.doGetTableLayout(nullable(BlockAllocatorImpl.class), nullable(GetTableLayoutRequest.class)))
-                .thenReturn(new GetTableLayoutResponse("catalog",
-                        new TableName("schema", "table"),
-                        BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)));
+        doReturn(new GetTableLayoutResponse("catalog",
+                new TableName("schema", "table"),
+                BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)))
+                .when(mockMetadataHandler).doGetTableLayout(nullable(BlockAllocatorImpl.class), nullable(GetTableLayoutRequest.class));
 
-        when(mockMetadataHandler.doListTables(nullable(BlockAllocatorImpl.class), nullable(ListTablesRequest.class)))
-                .thenReturn(new ListTablesResponse("catalog",
-                        Collections.singletonList(new TableName("schema", "table")), null));
+        doReturn(new ListTablesResponse("catalog",
+                Collections.singletonList(new TableName("schema", "table")), null))
+                .when(mockMetadataHandler).doListTables(nullable(BlockAllocatorImpl.class), nullable(ListTablesRequest.class));
 
-        when(mockMetadataHandler.doGetTable(nullable(BlockAllocatorImpl.class), nullable(GetTableRequest.class)))
-                .thenReturn(new GetTableResponse("catalog",
-                        new TableName("schema", "table"),
-                        SchemaBuilder.newBuilder().addStringField("col1").build()));
+        doReturn(new GetTableResponse("catalog",
+                new TableName("schema", "table"),
+                SchemaBuilder.newBuilder().addStringField("col1").build()))
+                .when(mockMetadataHandler).doGetTable(nullable(BlockAllocatorImpl.class), nullable(GetTableRequest.class));
 
-        when(mockMetadataHandler.doListSchemaNames(nullable(BlockAllocatorImpl.class), nullable(ListSchemasRequest.class)))
-                .thenReturn(new ListSchemasResponse("catalog", Collections.singleton("schema1")));
+        doReturn(new ListSchemasResponse("catalog", Collections.singleton("schema1")))
+                .when(mockMetadataHandler).doListSchemaNames(nullable(BlockAllocatorImpl.class), nullable(ListSchemasRequest.class));
 
-        when(mockMetadataHandler.doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class)))
-                .thenReturn(new GetSplitsResponse("catalog", Split.newBuilder(null, null).build()));
+        doReturn(new GetSplitsResponse("catalog", Split.newBuilder(null, null).build()))
+                .when(mockMetadataHandler).doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class));
 
-        when(mockMetadataHandler.doPing(nullable(PingRequest.class)))
-                .thenReturn(new PingResponse("catalog", "queryId", "type", 23, 2));
+        doReturn(new PingResponse("catalog", "queryId", "type", 23, 2))
+                .when(mockMetadataHandler).doPing(nullable(PingRequest.class));
 
-        when(mockRecordHandler.doReadRecords(nullable(BlockAllocatorImpl.class), nullable(ReadRecordsRequest.class)))
-                .thenReturn(new ReadRecordsResponse("catalog",
-                        BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))));
+        doReturn(new ReadRecordsResponse("catalog",
+                BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))))
+                .when(mockRecordHandler).doReadRecords(nullable(BlockAllocatorImpl.class), nullable(ReadRecordsRequest.class));
 
         compositeHandler = new CompositeHandler(mockMetadataHandler, mockRecordHandler);
     }
@@ -275,12 +278,11 @@ public class CompositeHandlerTest {
                 5
         );
 
-        when(mockMetadataHandler.doListTables(any(BlockAllocator.class), eq(expectedRequest)))
-                .thenReturn(new ListTablesResponse(
-                        "testCatalog",
-                        Collections.singletonList(new TableName("testSchema", "testTable")),
-                        null
-                ));
+        doReturn(new ListTablesResponse(
+                "testCatalog",
+                Collections.singletonList(new TableName("testSchema", "testTable")),
+                null))
+                .when(mockMetadataHandler).doListTables(any(BlockAllocator.class), eq(expectedRequest));
 
         compositeHandler.handleRequest(inputStream, outputStream, mockContext);
 

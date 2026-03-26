@@ -288,7 +288,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
                 0,
                 srcValidity,
                 0,
-                BitVectorHelper.getValidityBufferSize(rowCount)
+                BitVectorHelper.getValidityBufferSizeFromCount(rowCount)
         );
 
         // finalized the actual value, without this vector will see no data.
