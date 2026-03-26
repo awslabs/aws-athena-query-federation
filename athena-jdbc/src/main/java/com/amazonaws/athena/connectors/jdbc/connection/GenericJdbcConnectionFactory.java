@@ -43,8 +43,8 @@ import java.util.regex.Pattern;
 
 /**
  * Provides a generic jdbc connection factory that can be used to connect to standard databases.
- * When running as a Glue managed connection ({@code GLUE_MANAGED_CONNECTION=true} in configOptions),
- * uses direct DriverManager connections that close immediately. Otherwise uses HikariCP connection pooling.
+ * When running as a Glue managed connection (configOptions contains {@code fas_token}),
+ * uses direct DriverManager connections instead of HikariCP connection pooling.
  */
 public class GenericJdbcConnectionFactory
         implements JdbcConnectionFactory
@@ -71,7 +71,7 @@ public class GenericJdbcConnectionFactory
     /**
      * @param databaseConnectionConfig database connection configuration {@link DatabaseConnectionConfig}
      * @param properties JDBC connection properties.
-     * @param configOptions environment/config options; when {@code GLUE_MANAGED_CONNECTION=true}, disables connection pooling.
+     * @param configOptions environment/config options; when {@code fas_token} is present, disables connection pooling.
      */
     public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties, final DatabaseConnectionInfo databaseConnectionInfo, final Map<String, String> configOptions)
     {
@@ -83,7 +83,7 @@ public class GenericJdbcConnectionFactory
             this.jdbcProperties.putAll(properties);
         }
 
-        this.useDirectConnection = configOptions != null && "true".equalsIgnoreCase(configOptions.get(EnvironmentConstants.GLUE_MANAGED_CONNECTION));
+        this.useDirectConnection = configOptions != null && configOptions.containsKey(EnvironmentConstants.FAS_TOKEN);
         if (this.useDirectConnection) {
             LOGGER.info("Glue managed connection detected, using direct JDBC connections");
             try {
