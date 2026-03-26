@@ -21,6 +21,8 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -31,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
@@ -41,6 +44,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -52,6 +56,7 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -68,12 +73,23 @@ import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.NAME;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.SCHEMA_NAME;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class HiveRecordHandlerTest
 {
+    private static final String CATALOG_NAME = "testCatalog";
+    private static final String QUERY_ID = "queryId";
+    private static final String BASE_CONNECTION_STRING = "hive://jdbc:hive2://testHost:21050/default;AuthMech=3;";
+    private static final String SECRET_NAME = "testSecret";
+    
     private HiveRecordHandler hiveRecordHandler;
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
@@ -103,13 +119,13 @@ public class HiveRecordHandlerTest
         this.amazonS3 = Mockito.mock(S3Client.class);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId(SECRET_NAME).build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
-        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,
-                "hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;UID=hive;PWD=hive");
+        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(CATALOG_NAME, HiveConstants.HIVE_NAME,
+                BASE_CONNECTION_STRING);
 
         this.hiveRecordHandler = new HiveRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
@@ -710,5 +726,106 @@ public class HiveRecordHandlerTest
         assertSame(expectedPreparedStatement, preparedStatement);
         Mockito.verify(this.connection).prepareStatement(Mockito.eq(expectedSql));
         return expectedPreparedStatement;
+    }
+
+    @Test
+    public void createCredentialsProvider_withSecret_returnsHiveCredentialsProvider() throws Exception
+    {
+        DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig(
+                CATALOG_NAME, HiveConstants.HIVE_NAME,
+                BASE_CONNECTION_STRING + "${" + SECRET_NAME + "}", SECRET_NAME);
+
+        mockSecretManagerResponse();
+        CredentialsProvider provider = captureCredentialsProvider(configWithSecret, true);
+
+        assertNotNull("Expected non-null CredentialsProvider when secret configured", provider);
+        assertTrue("Expected HiveCredentialsProvider type", provider instanceof HiveCredentialsProvider);
+    }
+
+    @Test
+    public void getCredentialProvider_withoutSecret_returnsNull() throws Exception
+    {
+        DatabaseConnectionConfig configWithoutSecret = new DatabaseConnectionConfig(
+                CATALOG_NAME, HiveConstants.HIVE_NAME,
+                BASE_CONNECTION_STRING);
+
+        CredentialsProvider provider = captureCredentialsProvider(configWithoutSecret, false);
+
+        assertNull("Expected null CredentialsProvider when no secret configured", provider);
+    }
+
+    /**
+     * Captures the CredentialsProvider used by the JDBC connection factory
+     */
+    private CredentialsProvider captureCredentialsProvider(DatabaseConnectionConfig config, boolean hasSecret) throws Exception
+    {
+        Connection mockConn = mockConnectionAndMetadata();
+        if (hasSecret) {
+            when(jdbcConnectionFactory.getConnection(Mockito.any(CredentialsProvider.class)))
+                    .thenReturn(mockConn);
+        }
+        else {
+            when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
+                    .thenReturn(mockConn);
+        }
+
+        HiveRecordHandler handler = new HiveRecordHandler(
+                config, amazonS3, secretsManager, athena, jdbcConnectionFactory,
+                jdbcSplitQueryBuilder, ImmutableMap.of());
+
+        handler.readWithConstraint(
+                mock(BlockSpiller.class),
+                mockReadRecordsRequest(),
+                mock(QueryStatusChecker.class));
+
+        ArgumentCaptor<CredentialsProvider> captor = ArgumentCaptor.forClass(CredentialsProvider.class);
+        verify(jdbcConnectionFactory).getConnection(captor.capture());
+        return captor.getValue();
+    }
+
+    private void mockSecretManagerResponse()
+    {
+        GetSecretValueResponse mockResponse =
+                GetSecretValueResponse.builder()
+                        .secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}")
+                        .build();
+
+        when(secretsManager.getSecretValue(
+                        Mockito.any(GetSecretValueRequest.class)))
+                .thenReturn(mockResponse);
+    }
+
+    private Connection mockConnectionAndMetadata() throws Exception
+    {
+        Connection mockConn = mock(Connection.class);
+        java.sql.DatabaseMetaData metaData = mock(java.sql.DatabaseMetaData.class);
+        when(metaData.getDatabaseProductName()).thenReturn("Hive");
+        when(mockConn.getMetaData()).thenReturn(metaData);
+
+        PreparedStatement stmt = mock(PreparedStatement.class);
+        ResultSet rs = mock(ResultSet.class);
+        when(mockConn.prepareStatement(Mockito.anyString())).thenReturn(stmt);
+        when(stmt.executeQuery()).thenReturn(rs);
+        when(rs.next()).thenReturn(false);
+
+        return mockConn;
+    }
+
+    private ReadRecordsRequest mockReadRecordsRequest()
+    {
+        ReadRecordsRequest req = mock(ReadRecordsRequest.class);
+        Split split = mock(Split.class);
+        SchemaBuilder sb = SchemaBuilder.newBuilder();
+        sb.addField(FieldBuilder.newBuilder("testCol", Types.MinorType.VARCHAR.getType()).build());
+
+        when(req.getQueryId()).thenReturn(QUERY_ID);
+        when(req.getCatalogName()).thenReturn(CATALOG_NAME);
+        when(req.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
+        when(req.getSplit()).thenReturn(split);
+        when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "*"));
+        when(split.getProperty("partition")).thenReturn("*");
+        when(req.getSchema()).thenReturn(sb.build());
+        when(req.getConstraints()).thenReturn(mock(Constraints.class));
+        return req;
     }
 }
