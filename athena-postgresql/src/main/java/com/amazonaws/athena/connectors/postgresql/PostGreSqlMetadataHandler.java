@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.postgresql;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -116,7 +117,7 @@ public class PostGreSqlMetadataHandler
     public PostGreSqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         super(databaseConnectionConfig,
-                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT)),
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT), configOptions),
                 configOptions,
                 new PostGreSqlJDBCCaseResolver(POSTGRES_NAME));
     }
@@ -246,13 +247,18 @@ public class PostGreSqlMetadataHandler
             partitionsFieldReader.setPosition(0);
 
             if (ALL_PARTITIONS.equals(partitionsSchemaFieldReader.readText().toString()) && ALL_PARTITIONS.equals(partitionsFieldReader.readText().toString())) {
-                for (String splitClause : getSplitClauses(getSplitsRequest.getTableName())) {
+                for (String splitClause : getSplitClauses(getSplitsRequest.getTableName(), getSplitsRequest)) {
                     //Every split must have a unique location if we wish to spill to avoid failures
                     SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 
                     Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                             .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
                             .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(splitClause));
+
+                    if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                        LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                        splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                    }
 
                     splits.add(splitBuilder.build());
 
@@ -279,6 +285,11 @@ public class PostGreSqlMetadataHandler
                 Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                         .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
                         .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(partitionsFieldReader.readText()));
+
+                if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                    LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                    splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                }
 
                 splits.add(splitBuilder.build());
 
