@@ -118,7 +118,7 @@ public class SnowflakeQueryStringBuilderTest
         Split split = Split.newBuilder(
                 S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
                 null
-        ).add("partition", "test-partition").build();
+        ).add("partition", "partition-primary-col1-limit-1000-offset-0").build();
 
         PreparedStatement result = queryBuilder.buildSql(
                 mockConnection,
@@ -155,7 +155,7 @@ public class SnowflakeQueryStringBuilderTest
         Split split = Split.newBuilder(
                 S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
                 null
-        ).add("partition", "test-partition").build();
+        ).add("partition", "partition-primary-col1-limit-1000-offset-0").build();
 
         PreparedStatement result = queryBuilder.buildSql(
                 mockConnection,
