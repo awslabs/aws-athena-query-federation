@@ -56,6 +56,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -88,6 +91,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -992,30 +996,38 @@ public class ElasticsearchMetadataHandlerTest
     {
         String domain = "movies";
         String index = "customer";
-        String endpoint = "https://search-movies.us-east-1.es.amazonaws.com";
 
-        when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of(domain, endpoint));
+        List<Column> glueColumns = new ArrayList<>();
+        glueColumns.add(Column.builder().name("id").type("int").build());
+        glueColumns.add(Column.builder().name("name").type("string").build());
 
-        Schema mockGlueSchema = SchemaBuilder.newBuilder()
-                .addField("id", Types.MinorType.INT.getType())
-                .addField("name", Types.MinorType.VARCHAR.getType())
-                .build();
+        StorageDescriptor storageDescriptor = StorageDescriptor.builder().columns(glueColumns).build();
+        Table glueTable = Table.builder().name(index).storageDescriptor(storageDescriptor).build();
 
-        GetTableResponse mockGlueResponse = new GetTableResponse("elasticsearch", new TableName(domain, index), mockGlueSchema, Collections.emptySet());
+        software.amazon.awssdk.services.glue.model.GetTableResponse glueGetTableResponse =
+                software.amazon.awssdk.services.glue.model.GetTableResponse.builder()
+                        .table(glueTable)
+                        .build();
 
-        ElasticsearchMetadataHandler testHandler = org.mockito.Mockito.spy(createElasticsearchMetadataHandler());
+        when(awsGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class)))
+                .thenReturn(glueGetTableResponse);
 
-        GetTableRequest request = org.mockito.Mockito.mock(GetTableRequest.class);
-        lenient().when(request.getCatalogName()).thenReturn("elasticsearch");
-        lenient().when(request.getTableName()).thenReturn(new TableName(domain, index));
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of(), false);
 
-        org.mockito.Mockito.doReturn(mockGlueResponse).when((com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler) testHandler)
-                .doGetTable(org.mockito.ArgumentMatchers.any(com.amazonaws.athena.connector.lambda.data.BlockAllocator.class), org.mockito.ArgumentMatchers.any(GetTableRequest.class));
+        GetTableRequest request = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
+                new TableName(domain, index), Collections.emptyMap());
 
-        GetTableResponse response = testHandler.doGetTable(allocator, request);
+        GetTableResponse response = handler.doGetTable(allocator, request);
+
         assertNotNull("Response should not be null", response);
-        assertEquals("Schema should match Glue schema", mockGlueSchema, response.getSchema());
-        assertEquals("Catalog name should match", "elasticsearch", response.getCatalogName());
+        assertNotNull("Schema should not be null", response.getSchema());
+        assertNotNull("Schema should contain id field from Glue", response.getSchema().findField("id"));
+        assertNotNull("Schema should contain name field from Glue", response.getSchema().findField("name"));
+        assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(response.getSchema().findField("id").getType()));
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(response.getSchema().findField("name").getType()));
+
+        verify(mockClient, never()).getMapping(nullable(String.class));
     }
 
     @Test
