@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.lambda.handlers;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -50,6 +51,8 @@ import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,6 +74,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -207,5 +211,136 @@ public class RecordHandlerTest
         recordHandler.handleRequest(pingInputStream, pingTestOutputStream, mock(Context.class));
         FederationResponse response = objectMapper.readValue(pingTestOutputStream.toByteArray(), FederationResponse.class);
         assertNotNull(response);
+    }
+
+    @Test
+    public void testApplyUppercaseCasing()
+    {
+        // Create test schema with mixed case fields and a partition column
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
+                .addField("customer_id", Types.MinorType.BIGINT.getType())
+                .addField("order_date", Types.MinorType.VARCHAR.getType())
+                .addField("part_id", Types.MinorType.VARCHAR.getType());
+        
+        // Create split with partition column
+        Split split = Split.newBuilder(S3SpillLocation.newBuilder()
+                        .withBucket("test-bucket")
+                        .withSplitId("test-split")
+                        .withQueryId("test-query")
+                        .withIsDirectory(true)
+                        .build(),
+                keyFactory.create())
+                .add("part_id", "1") // Partition column
+                .build();
+        
+        // Create identity with uppercase casing filter
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY);
+        FederatedIdentity identityWithCasing = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), configOptions);
+        
+        // Create original request
+        ReadRecordsRequest originalRequest = new ReadRecordsRequest(
+                identityWithCasing,
+                CATALOG,
+                QUERY_ID,
+                new TableName("test_schema", "test_table"),
+                schemaBuilder.build(),
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                1000L,
+                0
+        );
+        
+        // Test the method directly
+        ReadRecordsRequest upperCaseRequest = recordHandler.applyUppercaseCasing(originalRequest);
+        
+        // Verify table name transformation
+        assertEquals("TEST_SCHEMA", upperCaseRequest.getTableName().getSchemaName());
+        assertEquals("TEST_TABLE", upperCaseRequest.getTableName().getTableName());
+        
+        // Verify field transformations
+        assertEquals("CUSTOMER_ID", upperCaseRequest.getSchema().getFields().get(0).getName());
+        assertEquals("ORDER_DATE", upperCaseRequest.getSchema().getFields().get(1).getName());
+        assertEquals("part_id", upperCaseRequest.getSchema().getFields().get(2).getName()); // Preserved
+    }
+
+    @Test
+    public void testApplyUppercasingWithNullValues()
+    {
+        // Test null safety for schema name
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
+                .addField("test_field", Types.MinorType.VARCHAR.getType());
+        
+        Split split = Split.newBuilder(S3SpillLocation.newBuilder()
+                        .withBucket("test-bucket")
+                        .withSplitId("test-split")
+                        .withQueryId("test-query")
+                        .withIsDirectory(true)
+                        .build(),
+                keyFactory.create())
+                .build();
+        
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY);
+        FederatedIdentity identityWithCasing = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), configOptions);
+        
+        // Test with empty schema name
+        ReadRecordsRequest originalRequest = new ReadRecordsRequest(
+                identityWithCasing,
+                CATALOG,
+                QUERY_ID,
+                new TableName("", "test_table"), // empty schema
+                schemaBuilder.build(),
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                1000L,
+                0
+        );
+        
+        // Test the method directly - should not throw NPE
+        ReadRecordsRequest upperCaseRequest = recordHandler.applyUppercaseCasing(originalRequest);
+        
+        // Verify transformations
+        assertEquals("", upperCaseRequest.getTableName().getSchemaName()); // Empty string preserved
+        assertEquals("TEST_TABLE", upperCaseRequest.getTableName().getTableName());
+        assertEquals("TEST_FIELD", upperCaseRequest.getSchema().getFields().get(0).getName());
+    }
+
+    @Test
+    public void testNoCasingFilterApplied()
+    {
+        // Test that method preserves original request when no casing filter
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
+                .addField("customer_id", Types.MinorType.BIGINT.getType());
+        
+        Split split = Split.newBuilder(S3SpillLocation.newBuilder()
+                        .withBucket("test-bucket")
+                        .withSplitId("test-split")
+                        .withQueryId("test-query")
+                        .withIsDirectory(true)
+                        .build(),
+                keyFactory.create())
+                .build();
+        
+        // Identity without casing filter
+        FederatedIdentity identityNoCasing = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
+        
+        ReadRecordsRequest originalRequest = new ReadRecordsRequest(
+                identityNoCasing,
+                CATALOG,
+                QUERY_ID,
+                new TableName("test_schema", "test_table"),
+                schemaBuilder.build(),
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                1000L,
+                0
+        );
+        
+        // This should return the same request since no casing filter is applied
+        ReadRecordsRequest upperCaseRequest = recordHandler.applyUppercaseCasing(originalRequest);
+        
+        // Should be the same object reference since no transformation
+        assertEquals(originalRequest, upperCaseRequest);
     }
 }
