@@ -59,17 +59,23 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.kms.model.KmsException;
 
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.Collection;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -87,6 +93,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@RunWith(Enclosed.class)
 public class CompositeHandlerTest {
     private static final Logger logger = LoggerFactory.getLogger(CompositeHandlerTest.class);
 
@@ -351,5 +358,45 @@ public class CompositeHandlerTest {
         Exception result = compositeHandler.handleException(runtimeException);
 
         assertEquals(runtimeException, result);
+    }
+
+    /**
+     * Parameterized test for mapHTTPErrorCode with various HTTP error codes
+     */
+    @RunWith(Parameterized.class)
+    public static class MapHTTPErrorCodeTest {
+
+        @Parameters(name = "HTTP {0} should map to {1}")
+        public static Collection<Object[]> data() {
+            return Arrays.asList(new Object[][] {
+                { 400, FederationSourceErrorCode.INVALID_INPUT_EXCEPTION },
+                { 401, FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION },
+                { 403, FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION },
+                { 404, FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION },
+                { 408, FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION },
+                { 409, FederationSourceErrorCode.INVALID_INPUT_EXCEPTION },
+                { 429, FederationSourceErrorCode.THROTTLING_EXCEPTION },
+                { 500, FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION },
+                { 501, FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION },
+                { 502, FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION },
+                { 503, FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION },
+                { 504, FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION },
+                { 0, FederationSourceErrorCode.INVALID_INPUT_EXCEPTION },
+                { 999, FederationSourceErrorCode.INVALID_INPUT_EXCEPTION }
+            });
+        }
+
+        private final int httpCode;
+        private final FederationSourceErrorCode expectedErrorCode;
+
+        public MapHTTPErrorCodeTest(int httpCode, FederationSourceErrorCode expectedErrorCode) {
+            this.httpCode = httpCode;
+            this.expectedErrorCode = expectedErrorCode;
+        }
+
+        @Test
+        public void testMapHTTPErrorCodeMapping() {
+            assertEquals(expectedErrorCode, CompositeHandler.mapHTTPErrorCode(httpCode));
+        }
     }
 }
