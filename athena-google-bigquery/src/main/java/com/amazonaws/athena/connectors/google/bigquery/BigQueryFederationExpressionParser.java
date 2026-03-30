@@ -30,16 +30,18 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.functions.Function
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.OperatorType;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.NotImplementedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
@@ -50,10 +52,11 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.
 public class BigQueryFederationExpressionParser extends FederationExpressionParser
 {
     private static final String quoteCharacter = "'";
+    private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryFederationExpressionParser.class);
 
-    public String writeArrayConstructorClause(List<String> arguments)
+    public String writeArrayConstructorClause(ArrowType type, List<String> arguments)
     {
-        return BigQuerySqlUtils.renderTemplate("comma_separated_list_with_parentheses", Map.of("items", arguments));
+        return Joiner.on(", ").join(arguments);
     }
 
     public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints)
@@ -116,7 +119,7 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
                     .collect(Collectors.toList());
         }
 
-        return BigQuerySqlUtils.renderTemplate("comma_separated_list", Map.of("items", constants));
+        return Joiner.on(",").join(constants);
     }
 
     @Override
@@ -125,7 +128,7 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
         StandardFunctions functionEnum = StandardFunctions.fromFunctionName(functionName);
         OperatorType operatorType = functionEnum.getOperatorType();
 
-        if (arguments == null || arguments.isEmpty()) {
+        if (arguments == null || arguments.size() == 0) {
             throw new IllegalArgumentException("Arguments cannot be null or empty.");
         }
         switch (operatorType) {
@@ -148,67 +151,69 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
         String clause = "";
         switch (functionEnum) {
             case ADD_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " + "));
+                clause = Joiner.on(" + ").join(arguments);
                 break;
             case AND_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " AND "));
+                clause = Joiner.on(" AND ").join(arguments);
                 break;
             case ARRAY_CONSTRUCTOR_FUNCTION_NAME: // up to subclass
-                clause = writeArrayConstructorClause(arguments);
+                clause = writeArrayConstructorClause(type, arguments);
                 break;
             case DIVIDE_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " / "));
+                clause = Joiner.on(" / ").join(arguments);
                 break;
             case EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " = "));
+                clause = Joiner.on(" = ").join(arguments);
                 break;
             case GREATER_THAN_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " > "));
+                clause = Joiner.on(" > ").join(arguments);
                 break;
             case GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " >= "));
+                clause = Joiner.on(" >= ").join(arguments);
                 break;
             case IN_PREDICATE_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("in_expression", Map.of("column", arguments.get(0), "values", arguments.get(1)));
+                clause = arguments.get(0) + " IN " + arguments.get(1);
                 break;
             case IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("is_distinct_from", Map.of("left", arguments.get(0), "right", arguments.get(1)));
+                String argZero = arguments.get(0);
+                String argOne = arguments.get(1);
+                clause = argZero + " IS DISTINCT FROM " + argOne;
                 break;
             case IS_NULL_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", arguments.get(0), "isNull", true));
+                clause = arguments.get(0) + " IS NULL";
                 break;
             case LESS_THAN_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " < "));
+                clause = Joiner.on(" < ").join(arguments);
                 break;
             case LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " <= "));
+                clause = Joiner.on(" <= ").join(arguments);
                 break;
             case LIKE_PATTERN_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("like_expression", Map.of("column", arguments.get(0), "pattern", arguments.get(1)));
+                clause = arguments.get(0) + " LIKE " + arguments.get(1);
                 break;
             case MODULUS_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("function_call_2args", Map.of("functionName", "MOD", "arg1", arguments.get(0), "arg2", arguments.get(1)));
+                clause = " MOD(" + arguments.get(0) + "," + arguments.get(1) + ")";
                 break;
             case MULTIPLY_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " * "));
+                clause = Joiner.on(" * ").join(arguments);
                 break;
             case NEGATE_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("unary_operator", Map.of("operator", "-", "operand", arguments.get(0)));
+                clause = "-" + arguments.get(0);
                 break;
             case NOT_EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " <> "));
+                clause = Joiner.on(" <> ").join(arguments);
                 break;
             case NOT_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("unary_operator", Map.of("operator", "NOT ", "operand", arguments.get(0)));
+                clause = " NOT " + arguments.get(0);
                 break;
             case NULLIF_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("function_call_2args", Map.of("functionName", "NULLIF", "arg1", arguments.get(0), "arg2", arguments.get(1)));
+                clause = "NULLIF(" + arguments.get(0) + ", " + arguments.get(1) + ")";
                 break;
             case OR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " OR "));
+                clause = Joiner.on(" OR ").join(arguments);
                 break;
             case SUBTRACT_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " - "));
+                clause = Joiner.on(" - ").join(arguments);
                 break;
             default:
                 throw new NotImplementedException("The function " + functionName.getFunctionName() + " does not have an implementation");
@@ -216,6 +221,6 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
         if (clause == null) {
             return "";
         }
-        return clause;
+        return "(" + clause + ")";
     }
 }

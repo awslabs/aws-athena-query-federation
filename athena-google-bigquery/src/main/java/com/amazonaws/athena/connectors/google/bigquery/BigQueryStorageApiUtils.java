@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -41,7 +42,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Utf8;
@@ -89,17 +89,16 @@ public class BigQueryStorageApiUtils
 
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", true));
+                return String.format("%s IS NULL", columnName);
             }
 
             if (valueSet.isNullAllowed()) {
-                disjuncts.add(BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", true)));
+                disjuncts.add(String.format("%s IS NULL", columnName));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
-
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", false));
+                return String.format("%s IS NOT NULL", columnName);
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -138,7 +137,7 @@ public class BigQueryStorageApiUtils
                     }
                     // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
                     Preconditions.checkState(!rangeConjuncts.isEmpty());
-                    disjuncts.add(BigQuerySqlUtils.renderTemplate("range_predicate", Map.of("conjuncts", rangeConjuncts)));
+                    disjuncts.add(Joiner.on(" AND ").join(rangeConjuncts));
                 }
             }
 
@@ -151,26 +150,21 @@ public class BigQueryStorageApiUtils
                 for (Object value : singleValues) {
                     val.add(((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? quote(getValueForWhereClause(columnName, value, type).getValue()) : getValueForWhereClause(columnName, value, type).getValue()));
                 }
-                disjuncts.add(BigQuerySqlUtils.renderTemplate("storage_api_in_predicate", 
-                    Map.of("columnName", columnName, "placeholderList", val)));
+                String values = Joiner.on(",").join(val);
+                disjuncts.add(columnName + " IN (" + values + ")");
             }
         }
 
-        return BigQuerySqlUtils.renderTemplate("or_predicate", Map.of("disjuncts", disjuncts));
+        return Joiner.on(" OR ").join(disjuncts);
     }
 
     private static String toPredicate(String columnName, String operator, Object value, ArrowType type)
     {
-        String formattedValue = (type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? 
-                               quote(getValueForWhereClause(columnName, value, type).getValue()) :
-                getValueForWhereClause(columnName, value, type).getValue();
-        
-        return BigQuerySqlUtils.renderTemplate("storage_api_comparison_predicate", 
-                Map.of("columnName", columnName, "operator", operator, "value", formattedValue));
+        return columnName + " " + operator + " " + ((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? quote(getValueForWhereClause(columnName, value, type).getValue()) : getValueForWhereClause(columnName, value, type).getValue());
     }
 
     //Gets the representation of a value that can be used in a where clause, ie String values need to be quoted, numeric doesn't.
-    public static QueryParameterValue getValueForWhereClause(String columnName, Object value, ArrowType arrowType)
+    private static QueryParameterValue getValueForWhereClause(String columnName, Object value, ArrowType arrowType)
     {
         LOGGER.info("Inside getValueForWhereClause(-, -, -): ");
         LOGGER.info("arrowType.getTypeID():" + arrowType.getTypeID());
@@ -192,7 +186,8 @@ public class BigQueryStorageApiUtils
             case Date:
                 val = value.toString();
                 // Timestamp search: timestamp parameter in  where clause will come as string so it will be converted to date
-                if (val.contains("-")) {
+                if
+                (val.contains("-")) {
                     // Adding dot zero when parameter does not have micro seconds
                     tempVal = new StringBuilder(val);
                     tempVal = tempVal.length() == 19 ? tempVal.append(".0") : tempVal;
@@ -235,7 +230,7 @@ public class BigQueryStorageApiUtils
         List<String> clauses = toConjuncts(schema.getFields(), constraints);
 
         if (!clauses.isEmpty()) {
-            String clause = BigQuerySqlUtils.renderTemplate("where_clause", Map.of("clauses", clauses));
+            String clause = Joiner.on(" AND ").join(clauses);
             LOGGER.debug("clause {}", clause);
             optionsBuilder = optionsBuilder.setRowRestriction(clause);
         }
