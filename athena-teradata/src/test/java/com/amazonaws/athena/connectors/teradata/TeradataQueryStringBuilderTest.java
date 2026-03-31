@@ -113,12 +113,7 @@ public class TeradataQueryStringBuilderTest
     @Test
     public void testGetSqlDialect()
     {
-        assertEquals(TeradataSqlDialect.DEFAULT, queryBuilder.getSqlDialect());
+        assertEquals(TeradataAthenaSqlDialect.class, queryBuilder.getSqlDialect().getClass());
     }
 
-    @Test
-    public void testRemoveFetch()
-    {
-        assertTrue(queryBuilder.removeFetch());
-    }
 }
