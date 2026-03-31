@@ -66,7 +66,6 @@ import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
-import java.util.TreeMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
