@@ -486,11 +486,6 @@ public abstract class JdbcSplitQueryBuilder
         }
     }
 
-    protected boolean removeFetch()
-    {
-        return false;
-    }
-
     private PreparedStatement handleDataTypesForPreparedStatement(PreparedStatement statement,
             List<SubstraitTypeAndValue> accumulator) throws SQLException
     {

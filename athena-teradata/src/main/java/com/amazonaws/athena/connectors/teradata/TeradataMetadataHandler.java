@@ -110,7 +110,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
             new GenericJdbcConnectionFactory(databaseConnectionConfig,
             null,
             new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS,
-            TeradataConstants.TERADATA_DEFAULT_PORT)),
+            TeradataConstants.TERADATA_DEFAULT_PORT), configOptions),
             configOptions);
     }
 
