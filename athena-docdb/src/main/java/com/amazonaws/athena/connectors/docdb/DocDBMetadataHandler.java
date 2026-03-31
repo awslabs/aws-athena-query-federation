@@ -46,7 +46,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -66,6 +66,7 @@ import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
+import java.util.TreeMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -466,9 +467,10 @@ public class DocDBMetadataHandler
         final String password;
         try {
             ObjectMapper mapper = new ObjectMapper();
-            JsonNode credNode = mapper.readTree(credentials);
-            username = credNode.get(USERNAME_FIELD).asText();
-            password = credNode.get(PASSWORD_FIELD).asText();
+            TreeMap<String, String> credMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            credMap.putAll(mapper.readValue(credentials, new TypeReference<Map<String, String>>() {}));
+            username = credMap.get(USERNAME_FIELD);
+            password = credMap.get(PASSWORD_FIELD);
         }
         catch (Exception e) {
             logger.error("Failed to parse JSON credentials", e);
