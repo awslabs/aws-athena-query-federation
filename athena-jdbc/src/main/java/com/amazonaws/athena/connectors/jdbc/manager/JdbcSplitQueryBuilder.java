@@ -451,6 +451,7 @@ public abstract class JdbcSplitQueryBuilder
             if (!(sqlNode instanceof SqlSelect)) {
                 throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
             }
+
             root = (SqlSelect) sqlNode;
 
             RelDataType tableSchema = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect);
