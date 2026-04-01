@@ -38,8 +38,10 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -58,10 +60,13 @@ import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.StorageDescriptor;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient;
+import software.amazon.awssdk.services.timestreamquery.model.ColumnInfo;
 import software.amazon.awssdk.services.timestreamquery.model.Datum;
 import software.amazon.awssdk.services.timestreamquery.model.QueryRequest;
 import software.amazon.awssdk.services.timestreamquery.model.QueryResponse;
 import software.amazon.awssdk.services.timestreamquery.model.Row;
+import software.amazon.awssdk.services.timestreamquery.model.ScalarType;
+import software.amazon.awssdk.services.timestreamquery.model.Type;
 import software.amazon.awssdk.services.timestreamwrite.TimestreamWriteClient;
 import software.amazon.awssdk.services.timestreamwrite.model.Database;
 import software.amazon.awssdk.services.timestreamwrite.model.ListDatabasesRequest;
@@ -70,14 +75,19 @@ import software.amazon.awssdk.services.timestreamwrite.model.Table;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -105,9 +115,7 @@ public class TimestreamMetadataHandlerTest
     protected GlueClient mockGlue;
 
     @Before
-    public void setUp()
-            throws Exception
-    {
+    public void setUp() {
         handler = new TimestreamMetadataHandler(mockTsQuery,
                 mockTsMeta,
                 mockGlue,
@@ -122,9 +130,7 @@ public class TimestreamMetadataHandlerTest
     }
 
     @After
-    public void tearDown()
-            throws Exception
-    {
+    public void tearDown() {
         allocator.close();
     }
 
@@ -461,5 +467,78 @@ public class TimestreamMetadataHandlerTest
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
 
         logger.info("doGetSplits - exit");
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema_scalarColumns_returnsSchema()
+            throws Exception
+    {
+        Map<String, String> queryPassthroughArgs = new HashMap<>();
+        queryPassthroughArgs.put(SCHEMA_FUNCTION_NAME, TimestreamQueryPassthrough.SCHEMA_NAME + "." + TimestreamQueryPassthrough.NAME);
+        queryPassthroughArgs.put(TimestreamQueryPassthrough.QUERY,
+                "SELECT id, measure_value, time FROM \"db\".\"table\"");
+
+        GetTableRequest request = new GetTableRequest(identity, "query-id", "default",
+                new TableName("system", "query"), queryPassthroughArgs);
+
+        List<ColumnInfo> columnInfos = new ArrayList<>();
+        columnInfos.add(ColumnInfo.builder().name("id")
+                .type(Type.builder().scalarType(ScalarType.VARCHAR).build()).build());
+        columnInfos.add(ColumnInfo.builder().name("measure_value")
+                .type(Type.builder().scalarType(ScalarType.DOUBLE).build()).build());
+        columnInfos.add(ColumnInfo.builder().name("time")
+                .type(Type.builder().scalarType(ScalarType.TIMESTAMP).build()).build());
+
+        QueryResponse queryResponse = QueryResponse.builder()
+                .columnInfo(columnInfos)
+                .rows(Collections.emptyList())
+                .build();
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenReturn(queryResponse);
+
+        GetTableResponse res = handler.doGetQueryPassthroughSchema(allocator, request);
+
+        assertEquals(3, res.getSchema().getFields().size());
+        assertEquals(Types.MinorType.VARCHAR,
+                Types.getMinorTypeForArrowType(res.getSchema().findField("id").getType()));
+        assertEquals(Types.MinorType.FLOAT8,
+                Types.getMinorTypeForArrowType(res.getSchema().findField("measure_value").getType()));
+        assertEquals(Types.MinorType.DATEMILLI,
+                Types.getMinorTypeForArrowType(res.getSchema().findField("time").getType()));
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema_timeseriesColumn_throwsException()
+            throws Exception
+    {
+        Map<String, String> queryPassthroughArgs = new HashMap<>();
+        queryPassthroughArgs.put(SCHEMA_FUNCTION_NAME, TimestreamQueryPassthrough.SCHEMA_NAME + "." + TimestreamQueryPassthrough.NAME);
+        
+        queryPassthroughArgs.put(TimestreamQueryPassthrough.QUERY,
+                "SELECT id, my_time_series FROM \"db\".\"table\"");
+
+        GetTableRequest request = new GetTableRequest(identity, "query-id", "default",
+                new TableName("system", "query"), queryPassthroughArgs);
+
+        // Simulate Timestream returning a timeseries/non-scalar column: Type with no scalar (scalarTypeAsString() null).
+        Type timeseriesType = Type.builder().build();
+        ColumnInfo timeseriesColumn = ColumnInfo.builder().name("my_time_series").type(timeseriesType).build();
+        QueryResponse queryResponse = QueryResponse.builder()
+                .columnInfo(Collections.singletonList(timeseriesColumn))
+                .rows(Collections.emptyList())
+                .build();
+
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenReturn(queryResponse);
+
+        try {
+            handler.doGetQueryPassthroughSchema(allocator, request);
+            fail("Expected AthenaConnectorException for timeseries column");
+        }
+        catch (AthenaConnectorException e) {
+            assertNotNull(e.getMessage());
+            assertTrue("Message should mention supported scalar types",
+                    e.getMessage().contains("varchar") && e.getMessage().contains("double") && e.getMessage().contains("timestamp"));
+            assertTrue("Message should mention the column name", e.getMessage().contains("my_time_series"));
+            assertTrue("Message should mention docs link", e.getMessage().contains("connectors-timestream.html"));
+        }
     }
 }
