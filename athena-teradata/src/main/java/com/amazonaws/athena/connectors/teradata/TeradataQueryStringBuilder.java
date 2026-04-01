@@ -72,6 +72,6 @@ public class TeradataQueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected SqlDialect getSqlDialect()
     {
-        return new TeradataAthenaSqlDialect();
+        return new TeradataSqlDialect();
     }
 }

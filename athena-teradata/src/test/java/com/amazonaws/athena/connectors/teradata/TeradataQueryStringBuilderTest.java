@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.teradata;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
-import org.apache.calcite.sql.dialect.TeradataSqlDialect;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -113,7 +112,7 @@ public class TeradataQueryStringBuilderTest
     @Test
     public void testGetSqlDialect()
     {
-        assertEquals(TeradataAthenaSqlDialect.class, queryBuilder.getSqlDialect().getClass());
+        assertEquals(TeradataSqlDialect.class, queryBuilder.getSqlDialect().getClass());
     }
 
 }
