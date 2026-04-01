@@ -107,7 +107,7 @@ public class BigQueryStorageApiUtilsTest
             ReadSession.TableReadOptions.Builder optionsBuilder =
                     ReadSession.TableReadOptions.newBuilder()
                             .addAllSelectedFields(fields);
-            ReadSession.TableReadOptions.Builder option = BigQueryStorageApiUtils.setConstraints(optionsBuilder, makeSchema(constraintMap), constraints);
+            ReadSession.TableReadOptions.Builder option = BigQueryStorageApiUtils.setConstraints(optionsBuilder, makeSchema(constraintMap), constraints, false);
 
             assertEquals("selected_fields: \"integerRange\"\n" +
                     "selected_fields: \"isNullRange\"\n" +
@@ -139,7 +139,7 @@ public class BigQueryStorageApiUtilsTest
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
 
         ReadSession.TableReadOptions.Builder optionsBuilder = ReadSession.TableReadOptions.newBuilder();
-        ReadSession.TableReadOptions.Builder result = BigQueryStorageApiUtils.setConstraints(optionsBuilder, testSchema, constraints);
+        ReadSession.TableReadOptions.Builder result = BigQueryStorageApiUtils.setConstraints(optionsBuilder, testSchema, constraints, false);
 
         String rowRestriction = result.build().getRowRestriction();
         assertTrue("Row restriction mismatch",
@@ -161,7 +161,7 @@ public class BigQueryStorageApiUtilsTest
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
 
         ReadSession.TableReadOptions.Builder optionsBuilder = ReadSession.TableReadOptions.newBuilder();
-        ReadSession.TableReadOptions.Builder result = BigQueryStorageApiUtils.setConstraints(optionsBuilder, testSchema, constraints);
+        ReadSession.TableReadOptions.Builder result = BigQueryStorageApiUtils.setConstraints(optionsBuilder, testSchema, constraints, false);
 
         String rowRestriction = result.build().getRowRestriction();
         assertEquals("Row restriction should be empty for query with no WHERE clause", "", rowRestriction);
@@ -179,7 +179,7 @@ public class BigQueryStorageApiUtilsTest
 
         QueryPlan queryPlan = new QueryPlan("1.0", invalidSubstraitPlan);
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
-        BigQueryStorageApiUtils.getWhereClauseFromQueryPlan(constraints, testSchema);
+        BigQueryStorageApiUtils.getWhereClauseFromQueryPlan(constraints, testSchema, false);
     }
 
     @Test
@@ -196,7 +196,7 @@ public class BigQueryStorageApiUtilsTest
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            BigQueryStorageApiUtils.getWhereClauseFromQueryPlan(constraints, testSchema);
+            BigQueryStorageApiUtils.getWhereClauseFromQueryPlan(constraints, testSchema, false);
         });
         assertTrue("Exception message should indicate unsupported query type",
                 exception.getMessage().contains("Unsupported Query Type. Only SELECT Query is supported."));

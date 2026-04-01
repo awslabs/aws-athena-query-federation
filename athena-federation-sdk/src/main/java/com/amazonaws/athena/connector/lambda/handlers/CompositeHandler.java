@@ -242,7 +242,7 @@ public class CompositeHandler
 
             default:
                 // Default to invalid input for unknown error codes
-                logger.warn("Unknown BigQuery error code: {}", errorCode);
+                logger.warn("Unknown error code: {}", errorCode);
                 return FederationSourceErrorCode.INVALID_INPUT_EXCEPTION;
         }
     }

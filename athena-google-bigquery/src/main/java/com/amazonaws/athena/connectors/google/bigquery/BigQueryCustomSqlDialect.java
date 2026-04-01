@@ -43,12 +43,10 @@ public class BigQueryCustomSqlDialect extends BigQuerySqlDialect
     public StringBuilder quoteIdentifier(StringBuilder buf, String identifier)
     {
         if (catalogCasingFilterUpperCase) {
-            // Uppercase mode
-            return buf.append(identifier.toUpperCase());
+            return super.quoteIdentifier(buf, identifier.toUpperCase());
         }
         else {
-            // Default: lowercase
-            return buf.append(identifier.toLowerCase());
+            return super.quoteIdentifier(buf, identifier.toLowerCase());
         }
     }
 }

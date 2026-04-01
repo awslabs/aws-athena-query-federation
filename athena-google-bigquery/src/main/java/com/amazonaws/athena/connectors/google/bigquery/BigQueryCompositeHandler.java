@@ -73,6 +73,7 @@ public class BigQueryCompositeHandler
             if (e instanceof BigQueryException) {
                 errorCode = ((BigQueryException) e).getCode();
             }
+            logger.info("Mapping BigQuery exception to AthenaConnectorException. HTTP error code: {}, exception type: {}", errorCode, e.getClass().getSimpleName());
             return new AthenaConnectorException(
                     e.getMessage() != null ? e.getMessage() : "",
                     ErrorDetails.builder()

@@ -36,7 +36,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
-import org.apache.calcite.sql.dialect.BigQuerySqlDialect;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -236,14 +235,14 @@ public class BigQueryStorageApiUtils
         }
     }
 
-    public static ReadSession.TableReadOptions.Builder setConstraints(ReadSession.TableReadOptions.Builder optionsBuilder, Schema schema, Constraints constraints)
+    public static ReadSession.TableReadOptions.Builder setConstraints(ReadSession.TableReadOptions.Builder optionsBuilder, Schema schema, Constraints constraints, boolean catalogCasingFilterUpperCase)
     {
         List<String> clauses;
         final QueryPlan queryPlan = constraints.getQueryPlan();
 
-        if (queryPlan != null) {
+        if (queryPlan != null && queryPlan.getSubstraitPlan() != null && !queryPlan.getSubstraitPlan().isEmpty()) {
             LOGGER.info("Using Substrait query plan for Storage API row restrictions");
-            String whereClause = getWhereClauseFromQueryPlan(constraints, schema);
+            String whereClause = getWhereClauseFromQueryPlan(constraints, schema, catalogCasingFilterUpperCase);
             LOGGER.info("Generated WHERE clause: {}", whereClause);
             if (!StringUtils.isEmpty(whereClause)) {
                 optionsBuilder = optionsBuilder.setRowRestriction(whereClause);
@@ -261,11 +260,12 @@ public class BigQueryStorageApiUtils
         return optionsBuilder;
     }
 
-    public static String getWhereClauseFromQueryPlan(Constraints constraints, Schema schema)
+    public static String getWhereClauseFromQueryPlan(Constraints constraints, Schema schema, boolean catalogCasingFilterUpperCase)
     {
         try {
+            BigQueryCustomSqlDialect dialect = new BigQueryCustomSqlDialect(catalogCasingFilterUpperCase);
             SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(constraints.getQueryPlan().getSubstraitPlan(),
-                    BigQuerySqlDialect.DEFAULT);
+                    dialect);
             if (!(sqlNode instanceof SqlSelect)) {
                 throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
             }
@@ -275,7 +275,7 @@ public class BigQueryStorageApiUtils
             if (whereClause == null) {
                 return ""; // No WHERE clause
             }
-            return whereClause.toSqlString(BigQuerySqlDialect.DEFAULT).getSql();
+            return whereClause.toSqlString(dialect).getSql();
         }
         catch (Exception e) {
             LOGGER.warn("Failed to parse Substrait plan for Storage API: {}.", e.getMessage(), e);

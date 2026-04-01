@@ -247,6 +247,8 @@ public class BigQueryRecordHandler
     private void getTableData(BlockSpiller spiller, ReadRecordsRequest recordsRequest, List<QueryParameterValue> parameterValues, String projectName, String datasetName, String tableName) throws IOException
     {
         String secret = getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions));
+        boolean catalogCasingFilterUpperCase = "UPPERCASE_ONLY".equalsIgnoreCase(
+                configOptions.getOrDefault(CATALOG_CASING_FILTER, "LOWERCASE_ONLY"));
 
         // Create BigQueryReadClient with credentials from Secrets Manager
         BigQueryReadSettings settings = BigQueryReadSettings.newBuilder()
@@ -270,7 +272,7 @@ public class BigQueryRecordHandler
             ReadSession.TableReadOptions.Builder optionsBuilder =
                     ReadSession.TableReadOptions.newBuilder()
                             .addAllSelectedFields(fields);
-            ReadSession.TableReadOptions options = BigQueryStorageApiUtils.setConstraints(optionsBuilder, recordsRequest.getSchema(), recordsRequest.getConstraints()).build();
+            ReadSession.TableReadOptions options = BigQueryStorageApiUtils.setConstraints(optionsBuilder, recordsRequest.getSchema(), recordsRequest.getConstraints(), catalogCasingFilterUpperCase).build();
 
             // Start specifying the read session we want created.
             ReadSession.Builder sessionBuilder =
@@ -341,8 +343,10 @@ public class BigQueryRecordHandler
                             .map(Field::getName)
                             .filter(name -> name.equalsIgnoreCase(vector.getField().getName()))
                             .findFirst()
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "Field '" + vector.getField().getName() + "' from BigQuery response not found in schema. Schema fields: "));
+                            .orElseThrow(() -> {
+                                return new IllegalStateException(
+                                        "Field '" + vector.getField().getName() + "' from BigQuery response not found in schema.");
+                            });
                     switch (vector.getMinorType()) {
                         case LIST:
                         case STRUCT:
