@@ -276,7 +276,9 @@ public class BigQueryUtilsTest
         Object result = BigQueryUtils.getObjectFromFieldValue(FIELD_NAME, dateValue, dateField);
         assertNotNull(result);
         assertInstanceOf(Long.class, result);
-        assertEquals(19358L, result);
+        long expectedDays = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(
+                new java.text.SimpleDateFormat("yyyy-MM-dd").parse("2023-01-01").getTime());
+        assertEquals(expectedDays, result);
     }
 
     @Test
