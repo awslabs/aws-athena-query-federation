@@ -153,8 +153,7 @@
                                 <filter>
                                     <artifact>org.apache.arrow:*</artifact>
                                     <excludes>
-                                        <exclude>**/arrow_dataset_jni/x86_64/**</exclude>
-                                        <exclude>**/arrow_dataset_jni/aarch_64/libarrow_dataset_jni.dylib</exclude>
+                                        <exclude>**/arrow_dataset_jni/**</exclude>
                                     </excludes>
                                 </filter>
                                 <!-- Snowflake JDBC - Keep only essential classes for Linux ARM64 -->
