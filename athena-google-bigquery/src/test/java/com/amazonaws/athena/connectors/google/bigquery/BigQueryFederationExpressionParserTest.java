@@ -39,10 +39,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Date;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
@@ -52,8 +51,6 @@ public class BigQueryFederationExpressionParserTest
 {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryFederationExpressionParserTest.class);
-    private static final String COLUMN_QUOTE_CHAR = "\"";
-    private static final String CONSTANT_QUOTE_CHAR = "'";
     private static final String INPUT_ARGUMENT1 = "110";
     private static final String INPUT_ARGUMENT2 = "120";
 
@@ -101,18 +98,28 @@ public class BigQueryFederationExpressionParserTest
                         rawStrings), new ArrowType.Utf8()
         );
 
-        List<String> quotedStrings = rawStrings.stream().map(str -> CONSTANT_QUOTE_CHAR + str + CONSTANT_QUOTE_CHAR).collect(Collectors.toList());
+        List<String> quotedStrings = rawStrings.stream()
+                .map(str -> BigQuerySqlUtils.singleQuotedStringLiteral((String) str))
+                .collect(Collectors.toList());
         String expected = Joiner.on(",").join(quotedStrings);
         String actual = bigQueryExpressionParser.parseConstantExpression(listOfStrings);
         assertEquals(expected, actual);
     }
 
+    @Test
+    public void testParseConstantExpression_stringWithApostropheIsEscaped()
+    {
+        ConstantExpression irishName = new ConstantExpression(
+                BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, ArrowType.Utf8.INSTANCE,
+                        ImmutableList.of("O'Brien")), ArrowType.Utf8.INSTANCE);
+        assertEquals("'O''Brien'", bigQueryExpressionParser.parseConstantExpression(irishName));
+    }
 
     @Test
     public void testParseVariableExpression()
     {
         VariableExpression colThree = new VariableExpression("colThree", intType);
-        assertEquals(bigQueryExpressionParser.parseVariableExpression(colThree),  "colThree" );
+        assertEquals(bigQueryExpressionParser.parseVariableExpression(colThree), "`colThree`");
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -248,7 +255,7 @@ public class BigQueryFederationExpressionParserTest
                 StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
                 ltArguments);
 
-        assertEquals("((colOne + colThree) < 10)", bigQueryExpressionParser.parseFunctionCallExpression((FunctionCallExpression) fullExpression));
+        assertEquals("((`colOne` + `colThree`) < 10)", bigQueryExpressionParser.parseFunctionCallExpression((FunctionCallExpression) fullExpression));
     }
 
     // (colOne + colTwo > colThree) AND (colFour IN ("banana", "dragonfruit"))
@@ -328,8 +335,9 @@ public class BigQueryFederationExpressionParserTest
         // colOne + colThree < 10
         VariableExpression colOne = new VariableExpression("colOne", new ArrowType.Date(DateUnit.DAY));
 
+        long epochDay = LocalDate.of(2020, 1, 5).toEpochDay();
         Block b = BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Date(DateUnit.DAY),
-                ImmutableList.of(TimeUnit.MILLISECONDS.toDays(Date.valueOf("2020-01-05").getTime())));
+                ImmutableList.of(epochDay));
         ConstantExpression dateConstantExpression = new ConstantExpression(b, new ArrowType.Int(32, true));
 
 
@@ -338,17 +346,16 @@ public class BigQueryFederationExpressionParserTest
                 StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
                 ImmutableList.of(colOne, dateConstantExpression));
 
-        String s = bigQueryExpressionParser.parseFunctionCallExpression((FunctionCallExpression) gtFunctionCall);
-        assertEquals("(colOne > '2020-01-05')", bigQueryExpressionParser.parseFunctionCallExpression((FunctionCallExpression) gtFunctionCall));
+        assertEquals("(`colOne` > '2020-01-05')", bigQueryExpressionParser.parseFunctionCallExpression((FunctionCallExpression) gtFunctionCall));
     }
 
     private String quoteColumn(String columnName)
     {
-        return columnName;
+        return BigQuerySqlUtils.backtickQuotedIdentifier(columnName);
     }
 
     private String quoteConstant(String constant)
     {
-        return CONSTANT_QUOTE_CHAR + constant + CONSTANT_QUOTE_CHAR;
+        return BigQuerySqlUtils.singleQuotedStringLiteral(constant);
     }
 }

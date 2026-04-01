@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static com.amazonaws.athena.connectors.google.bigquery.BigQuerySqlUtils.backtickQuotedIdentifier;
 import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Utf8;
 
 /**
@@ -53,15 +54,8 @@ public class BigQueryStorageApiUtils
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageApiUtils.class);
 
-    private static final String BIGQUERY_QUOTE_CHAR = "\"";
-
     private BigQueryStorageApiUtils()
     {
-    }
-
-    private static String quote(final String identifier)
-    {
-        return BIGQUERY_QUOTE_CHAR + identifier + BIGQUERY_QUOTE_CHAR;
     }
 
     private static List<String> toConjuncts(List<Field> columns, Constraints constraints)
@@ -89,17 +83,17 @@ public class BigQueryStorageApiUtils
 
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", true));
+                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "isNull", true));
             }
 
             if (valueSet.isNullAllowed()) {
-                disjuncts.add(BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", true)));
+                disjuncts.add(BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "isNull", true)));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
 
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", false));
+                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "isNull", false));
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -149,10 +143,12 @@ public class BigQueryStorageApiUtils
             else if (singleValues.size() > 1) {
                 List<String> val = new ArrayList<>();
                 for (Object value : singleValues) {
-                    val.add(((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? quote(getValueForWhereClause(columnName, value, type).getValue()) : getValueForWhereClause(columnName, value, type).getValue()));
+                    val.add(((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date))
+                            ? BigQuerySqlUtils.singleQuotedStringLiteral(getValueForWhereClause(columnName, value, type).getValue())
+                            : getValueForWhereClause(columnName, value, type).getValue()));
                 }
                 disjuncts.add(BigQuerySqlUtils.renderTemplate("storage_api_in_predicate", 
-                    Map.of("columnName", columnName, "placeholderList", val)));
+                    Map.of("columnName", backtickQuotedIdentifier(columnName), "placeholderList", val)));
             }
         }
 
@@ -161,12 +157,12 @@ public class BigQueryStorageApiUtils
 
     private static String toPredicate(String columnName, String operator, Object value, ArrowType type)
     {
-        String formattedValue = (type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? 
-                               quote(getValueForWhereClause(columnName, value, type).getValue()) :
-                getValueForWhereClause(columnName, value, type).getValue();
-        
+        String formattedValue = (type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date))
+                ? BigQuerySqlUtils.singleQuotedStringLiteral(getValueForWhereClause(columnName, value, type).getValue())
+                : getValueForWhereClause(columnName, value, type).getValue();
+
         return BigQuerySqlUtils.renderTemplate("storage_api_comparison_predicate", 
-                Map.of("columnName", columnName, "operator", operator, "value", formattedValue));
+                Map.of("columnName", backtickQuotedIdentifier(columnName), "operator", operator, "value", formattedValue));
     }
 
     //Gets the representation of a value that can be used in a where clause, ie String values need to be quoted, numeric doesn't.
