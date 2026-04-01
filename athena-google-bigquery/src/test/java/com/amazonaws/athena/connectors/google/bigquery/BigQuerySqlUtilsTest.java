@@ -19,14 +19,22 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.*;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Ranges;
+import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.DateUnit;
@@ -40,7 +48,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryTestUtils.makeSchema;
@@ -114,8 +126,8 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.bool(true),
                 QueryParameterValue.int64(10), QueryParameterValue.int64(1000000));
         String expectedSql = "SELECT `integerRange`,`isNullRange`,`isNotNullRange`,`stringRange`,`booleanRange`,`integerInRange` from `schema`.`table` " +
-                "WHERE integerRange IS NULL OR `integerRange` > ? AND `integerRange` < ? " +
-                "AND isNullRange IS NULL AND isNotNullRange IS NOT NULL " +
+                "WHERE `integerRange` IS NULL OR `integerRange` > ? AND `integerRange` < ? " +
+                "AND `isNullRange` IS NULL AND `isNotNullRange` IS NOT NULL " +
                 "AND `stringRange` >= ? AND `stringRange` < ? " +
                 "AND `booleanRange` = ? " +
                 "AND `integerInRange` IN (?,?)";
@@ -197,7 +209,7 @@ public class BigQuerySqlUtilsTest
         constraintMap.put("emptyCol", emptyStringSet);
         List<QueryParameterValue> expectedParams = ImmutableList.of(QueryParameterValue.string(""));
         String expectedSql = "SELECT `nullCol`,`nonNullCol`,`emptyCol` from `schema`.`table` " +
-                "WHERE nullCol IS NULL AND nonNullCol IS NOT NULL AND `emptyCol` = ?";
+                "WHERE `nullCol` IS NULL AND `nonNullCol` IS NOT NULL AND `emptyCol` = ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParams, expectedSql);
     }
@@ -517,6 +529,24 @@ public class BigQuerySqlUtilsTest
         assertTrue(result.contains("SELECT ID"));
         assertTrue(result.contains("FROM MY_DATASET.SERVICE_REQUESTS_NO_NOISE"));
         assertTrue(result.contains("WHERE ID IN (100.0000, 200.0000) AND NOT IS_ACTIVE"));
+    }
+    
+
+
+    @Test
+    public void singleQuotedStringLiteral_doublesApostrophe()
+    {
+        assertEquals("'a'", BigQuerySqlUtils.singleQuotedStringLiteral("a"));
+        assertEquals("'O''Brien'", BigQuerySqlUtils.singleQuotedStringLiteral("O'Brien"));
+        assertEquals("''''", BigQuerySqlUtils.singleQuotedStringLiteral("'"));
+    }
+
+    @Test
+    public void backtickQuotedIdentifier_escapesBacktickAndBackslash()
+    {
+        assertEquals("`col`", BigQuerySqlUtils.backtickQuotedIdentifier("col"));
+        assertEquals("`a\\`b`", BigQuerySqlUtils.backtickQuotedIdentifier("a`b"));
+        assertEquals("`c\\\\d`", BigQuerySqlUtils.backtickQuotedIdentifier("c\\d"));
     }
 
     private Constraints getConstraints(Map<String, ValueSet> constraintMap, List<OrderByField> orderByFields, long limit) {

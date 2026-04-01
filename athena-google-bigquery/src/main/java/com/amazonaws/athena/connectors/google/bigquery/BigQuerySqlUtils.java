@@ -37,10 +37,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Utilities that help with Sql operations using StringTemplate.
+ * Utilities that help with Sql operations using StringTemplate, and escaping for dynamic SQL fragments.
  */
 public class BigQuerySqlUtils
 {
+    private static final String SQL_SINGLE_QUOTE = "'";
+    private static final String BIGQUERY_QUOTE_CHAR = "`";
     private static final BigQueryQueryFactory queryFactory = new BigQueryQueryFactory();
     private static final Logger logger = LoggerFactory.getLogger(BigQuerySqlUtils.class);
 
@@ -112,5 +114,29 @@ public class BigQuerySqlUtils
         params.forEach(template::add);
         
         return template.render().trim();
+    }
+
+    /**
+     * Escape a value for use inside a BigQuery single-quoted string literal (SQL standard: double each apostrophe).
+     */
+    public static String escapeForSingleQuotedStringLiteral(String value)
+    {
+        return value.replace(SQL_SINGLE_QUOTE, SQL_SINGLE_QUOTE + SQL_SINGLE_QUOTE);
+    }
+
+    /**
+     * A BigQuery Standard SQL single-quoted string literal for the given value.
+     */
+    public static String singleQuotedStringLiteral(String value)
+    {
+        return SQL_SINGLE_QUOTE + escapeForSingleQuotedStringLiteral(value) + SQL_SINGLE_QUOTE;
+    }
+
+    /**
+     * BigQuery Standard SQL backtick-quoted identifier; escape backslash and backtick inside the identifier.
+     */
+    public static String backtickQuotedIdentifier(String identifier)
+    {
+        return BIGQUERY_QUOTE_CHAR + identifier.replace("\\", "\\\\").replace(BIGQUERY_QUOTE_CHAR, "\\" + BIGQUERY_QUOTE_CHAR) + BIGQUERY_QUOTE_CHAR;
     }
 }

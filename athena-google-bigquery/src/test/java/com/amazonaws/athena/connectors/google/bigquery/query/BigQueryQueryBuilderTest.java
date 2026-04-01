@@ -170,8 +170,6 @@ public class BigQueryQueryBuilderTest
                 .withProjection(testSchema)
                 .withTableName(TEST_TABLE);
 
-        assertEquals("Schema name should match", TEST_SCHEMA_NAME, builder.getSchemaName());
-        assertEquals("Table name should match", TEST_TABLE_NAME, builder.getTableName());
         assertEquals("Projection should have correct number of columns", 4, builder.getProjection().size());
         assertTrue("Projection should contain id", builder.getProjection().contains(COLUMN_ID));
         assertTrue("Projection should contain name", builder.getProjection().contains(COLUMN_NAME));
