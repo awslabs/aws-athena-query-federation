@@ -199,6 +199,19 @@
                                         <!-- 6. Exclude old junit POM metadata directly -->
                                         <exclude>META-INF/maven/junit/junit/pom.xml</exclude>
                                         <exclude>META-INF/maven/junit/junit/pom.properties</exclude>
+                                        <!-- Exclude unnecessary test frameworks -->
+                                        <exclude>org/testng/**</exclude>
+                                        <exclude>org/junit/**</exclude>
+                                        <!-- Exclude unused AWS service classes -->
+                                        <exclude>com/amazonaws/services/sandstoneconfigurationservice/**</exclude>
+                                        <exclude>com/amazonaws/services/licensemanager/**</exclude>
+                                        <exclude>models/sandstoneconfigurationservice/**</exclude>
+                                        <exclude>lambda-*/**</exclude>
+                                        <exclude>models/license-manager-*/**</exclude>
+                                        <!-- Exclude unused SDK and native libraries -->
+                                        <exclude>software/amazon/awssdk/services/dynamodb/**</exclude>
+                                        <exclude>org/locationtech/**</exclude>
+                                        <exclude>win/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
