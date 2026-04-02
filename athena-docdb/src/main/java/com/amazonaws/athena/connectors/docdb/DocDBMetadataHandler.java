@@ -473,12 +473,25 @@ public class DocDBMetadataHandler
             password = credMap.get(PASSWORD_FIELD);
         }
         catch (Exception e) {
-            logger.error("Failed to parse JSON credentials", e);
-            throw new RuntimeException("Invalid JSON credentials format make sure username and " +
-                    "password are present in secrets manager ", e);
+            throw new RuntimeException("Invalid JSON credentials format, make sure username and " +
+                    "password are present in Secrets Manager", e);
+        }
+
+        if (Strings.isNullOrEmpty(username)) {
+            throw new IllegalArgumentException("Username is missing from the credentials in Secrets Manager");
+        }
+        if (Strings.isNullOrEmpty(password)) {
+            throw new IllegalArgumentException("Password is missing from the credentials in Secrets Manager");
         }
 
         String host = configOptions.get(HOST);
+        if (Strings.isNullOrEmpty(host)) {
+            throw new IllegalArgumentException("HOST is missing from the configuration options");
+        }
+        String port = configOptions.get(PORT);
+        if (Strings.isNullOrEmpty(port)) {
+            throw new IllegalArgumentException("PORT is missing from the configuration options");
+        }
         String jdbcParams = configOptions.get(JDBC_PARAMS);
         String enforceSsl = configOptions.get(ENFORCE_SSL);
         String authDb = configOptions.getOrDefault(AUTH_DB_KEY, "");
@@ -492,8 +505,7 @@ public class DocDBMetadataHandler
             }
         }
 
-        String connStr = String.format(CONNECTION_STRING_TEMPLATE, username, password, host, configOptions.get(PORT),
-                authDb);
+        String connStr = String.format(CONNECTION_STRING_TEMPLATE, username, password, host, port, authDb);
         if (jdbcParams != null) {
             connStr += "?" + jdbcParams;
         }
@@ -515,12 +527,22 @@ public class DocDBMetadataHandler
      * 
      * @param secretArn The full AWS Secrets Manager ARN
      * @return The extracted secret name without the suffix
-     * @throws ArrayIndexOutOfBoundsException if the ARN format is invalid
+     * @throws IllegalArgumentException if the ARN is null, empty, or has an invalid format
      */
-    private static String getSecretNameFromArn(String secretArn)
+    static String getSecretNameFromArn(String secretArn)
     {
+        if (secretArn == null || secretArn.isEmpty()) {
+            throw new IllegalArgumentException("Secret ARN must not be null or empty");
+        }
         final String[] parts = secretArn.split(":");
+        if (parts.length < 7) {
+            throw new IllegalArgumentException("Invalid ARN format: expected at least 7 colon-separated parts, got " + parts.length);
+        }
         final String nameWithSuffix = parts[6];
-        return nameWithSuffix.substring(0, nameWithSuffix.lastIndexOf('-'));
+        final int lastHyphen = nameWithSuffix.lastIndexOf('-');
+        if (lastHyphen == -1) {
+            return nameWithSuffix;
+        }
+        return nameWithSuffix.substring(0, lastHyphen);
     }
 }

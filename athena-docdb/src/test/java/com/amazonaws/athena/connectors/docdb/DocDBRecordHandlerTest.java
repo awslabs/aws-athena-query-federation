@@ -70,6 +70,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -692,6 +693,70 @@ public class DocDBRecordHandlerTest
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
 
         assertEquals(limitValue, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void testReadWithQueryPassthrough() throws Exception
+    {
+        List<Document> documents = new ArrayList<>();
+        Document doc1 = DocumentGenerator.makeRandomRow(schemaForRead.getFields(), 1);
+        documents.add(doc1);
+        Document doc2 = DocumentGenerator.makeRandomRow(schemaForRead.getFields(), 2);
+        documents.add(doc2);
+
+        MongoDatabase qptDatabase = mock(MongoDatabase.class);
+        MongoCollection qptCollection = mock(MongoCollection.class);
+        FindIterable qptIterable = mock(FindIterable.class);
+
+        when(mockClient.getDatabase(eq(EXAMPLE_DATABASE))).thenReturn(qptDatabase);
+        when(qptDatabase.getCollection(eq(TPCDS_COLLECTION))).thenReturn(qptCollection);
+
+        ArgumentCaptor<Document> queryCaptor = ArgumentCaptor.forClass(Document.class);
+        when(qptCollection.find(queryCaptor.capture())).thenReturn(qptIterable);
+        when(qptIterable.batchSize(anyInt())).thenReturn(qptIterable);
+        when(qptIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(DOCDB_CONN_STR, CONNECTION_STRING)
+                .build();
+
+        Map<String, String> qptArguments = new HashMap<>();
+        qptArguments.put("schemaFunctionName", "system.query");
+        qptArguments.put("DATABASE", EXAMPLE_DATABASE);
+        qptArguments.put("COLLECTION", TPCDS_COLLECTION);
+        qptArguments.put("FILTER", "{\"year\": 1791}");
+
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                DEFAULT_NO_LIMIT,
+                qptArguments,
+                null
+        );
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                IDENTITY,
+                DEFAULT_CATALOG,
+                QUERY_ID,
+                TABLE_NAME,
+                schemaForRead,
+                split,
+                constraints,
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        assertEquals(2, response.getRecords().getRowCount());
+
+        // Validate the filter document was correctly parsed and passed to MongoDB
+        Document capturedQuery = queryCaptor.getValue();
+        assertNotNull("Query filter should not be null", capturedQuery);
+        assertEquals("Filter should contain year field", 1791, capturedQuery.get("year"));
     }
 
     private class ByteHolder

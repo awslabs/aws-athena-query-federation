@@ -158,7 +158,6 @@ public class DocDBRecordHandler
             executeQueryPassthrough(spiller, recordsRequest, queryStatusChecker, client);
         }
         else {
-            //executeConstraintBased(spiller, recordsRequest, queryStatusChecker, client, schemaName, tableName);
             final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
             final Plan plan = queryPlan != null ? deserializeSubstraitPlan(queryPlan.getSubstraitPlan()) : null;
 
@@ -179,8 +178,6 @@ public class DocDBRecordHandler
             final boolean disableProjectionAndCasing = getDisableProjectionAndCasing();
             final Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
 
-            // LIMIT and SORT pushdown
-            // todo; confirm we might still need this in case of QPT
             final Optional<Integer> limit = getLimit(plan, recordsRequest.getConstraints());
             final Optional<List<LimitAndSortHelper.GenericSortField>> sort = getSortFromPlan(plan);
             FindIterable<Document> findIterable = table.find(query).projection(projection);

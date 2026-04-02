@@ -67,6 +67,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
+import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResponse;
+import software.amazon.awssdk.services.glue.paginators.GetDatabasesIterable;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
@@ -199,6 +204,11 @@ public class DocDBMetadataHandlerTest
         schemaNames.add("schema2");
         schemaNames.add("schema3");
 
+        // Stub Glue to return an empty paginator so super.doListSchemaNames doesn't NPE
+        GetDatabasesIterable mockDatabasesIterable = mock(GetDatabasesIterable.class);
+        when(awsGlue.getDatabasesPaginator(any(GetDatabasesRequest.class))).thenReturn(mockDatabasesIterable);
+        when(mockDatabasesIterable.stream()).thenReturn(java.util.stream.Stream.empty());
+
         when(mockClient.listDatabaseNames()).thenReturn(StubbingCursor.iterate(schemaNames));
 
         ListSchemasRequest req = new ListSchemasRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG);
@@ -221,6 +231,10 @@ public class DocDBMetadataHandlerTest
                         Arrays.asList(new Document(NAME_KEY, TABLE1),
                                 new Document(NAME_KEY, TABLE2),
                                 new Document(NAME_KEY, TABLE3))));
+
+        // Stub Glue to return an empty tables response so super.doListTables doesn't NPE
+        when(awsGlue.getTables(any(GetTablesRequest.class)))
+                .thenReturn(GetTablesResponse.builder().tableList(Collections.emptyList()).build());
 
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
@@ -599,6 +613,10 @@ public class DocDBMetadataHandlerTest
                                 new Document(NAME_KEY, TABLE4),
                                 new Document(NAME_KEY, TABLE5))));
 
+        // Stub Glue to return an empty tables response so super.doListTables doesn't NPE
+        when(awsGlue.getTables(any(GetTablesRequest.class)))
+                .thenReturn(GetTablesResponse.builder().tableList(Collections.emptyList()).build());
+
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
         when(mockDatabase.runCommand(any())).thenReturn(tableNamesDocument);
@@ -732,6 +750,40 @@ public class DocDBMetadataHandlerTest
             assertTrue("Exception message should contain Missing Query Passthrough Argument",
                     ex.getMessage().contains("Missing Query Passthrough Argument"));
         }
+    }
+
+    @Test
+    public void getSecretNameFromArn_validArn_returnsSecretName()
+    {
+        String result = DocDBMetadataHandler.getSecretNameFromArn(
+                "arn:aws:secretsmanager:us-east-1:123456789012:secret:mySecret-aBcDeF");
+        assertEquals("mySecret", result);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void getSecretNameFromArn_nullArn_throwsIllegalArgument()
+    {
+        DocDBMetadataHandler.getSecretNameFromArn(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void getSecretNameFromArn_emptyArn_throwsIllegalArgument()
+    {
+        DocDBMetadataHandler.getSecretNameFromArn("");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void getSecretNameFromArn_invalidArnFormat_throwsIllegalArgument()
+    {
+        DocDBMetadataHandler.getSecretNameFromArn("not:a:valid:arn");
+    }
+
+    @Test
+    public void getSecretNameFromArn_noHyphenInSecretName_returnsFullName()
+    {
+        String result = DocDBMetadataHandler.getSecretNameFromArn(
+                "arn:aws:secretsmanager:us-east-1:123456789012:secret:mySecretNoSuffix");
+        assertEquals("mySecretNoSuffix", result);
     }
 
     private void assertMinorType(Schema schema, String field, Types.MinorType expected)

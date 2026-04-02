@@ -98,6 +98,7 @@ public final class QueryUtils
     private static final String NOTIN_OP = "$nin";
     private static final String COLUMN_NAME_ID = "_id";
     private static final Logger log = LoggerFactory.getLogger(QueryUtils.class);
+    private static final long MICROSECONDS_PER_MILLISECOND = 1000L;
 
     private QueryUtils()
     {
@@ -324,7 +325,8 @@ public final class QueryUtils
             }
         }
         catch (Exception e) {
-            log.warn("Tree-based parsing failed {}. Returning empty document to return all results.", e.getMessage(), e);
+            throw new RuntimeException("Failed to parse Substrait plan into query filter. "
+                    + "Refusing to return all documents unfiltered.", e);
         }
         return new Document();
     }
@@ -418,86 +420,109 @@ public final class QueryUtils
                     otherPredicates.add(new Document(LTE_OP, value));
                     break;
                 case NOT_IN:
-                    if (value instanceof List) {
-                        List<Object> notInValues = (List<Object>) value;
-                        if (!notInValues.isEmpty()) {
-                            Document notInPredicate;
-                            if (column.equals(COLUMN_NAME_ID)) {
-                                List<ObjectId> objectIdList = notInValues.stream()
-                                        .map(v -> new ObjectId(v.toString()))
-                                        .collect(Collectors.toList());
-                                notInPredicate = new Document(NOTIN_OP, objectIdList);
-                            }
-                            else {
-                                notInPredicate = new Document(NOTIN_OP, notInValues);
-                            }
-                            otherPredicates.add(notInPredicate);
-                        }
-                    }
+                    handleNotInOperator(column, value, otherPredicates);
                     break;
                 case NAND:
-                    // NAND operation: NOT(A AND B AND C) - exclude records where ALL conditions are true
-                    // Also exclude records where any filtered field is null
-                    List<Document> andConditions = buildChildDocuments((List<ColumnPredicate>) value);
-                    Set<String> nandColumns = new HashSet<>();
-
-                    // Collect column names for null exclusion (silently skip null column names)
-                    for (ColumnPredicate child : (List<ColumnPredicate>) value) {
-                        if (child.getColumn() != null) {
-                            nandColumns.add(child.getColumn());
-                        }
-                    }
-
-                    // NAND = $nor applied to a single $and group, with null exclusion for filtered columns
-                    // Example: {"$and": [{"col1": {"$ne": null}}, {"col2": {"$ne": null}}, {"$nor": [{"$and": [conditions]}]}]}
-                    Document nandCondition = new Document(NOR_OP, Collections.singletonList(new Document(AND_OP, andConditions)));
-                    List<Document> nandFinalConditions = new ArrayList<>();
-
-                    // Add null exclusion for each column involved in NAND operation
-                    for (String col : nandColumns) {
-                        nandFinalConditions.add(new Document(col, isNotNullPredicate()));
-                    }
-                    nandFinalConditions.add(nandCondition);
-                    return new Document(AND_OP, nandFinalConditions);
+                    return handleNandOperator((List<ColumnPredicate>) value);
                 case NOR:
-                    List<Document> orConditions = buildChildDocuments((List<ColumnPredicate>) value);
-                    Set<String> norColumns = new HashSet<>();
-                    for (ColumnPredicate child : (List<ColumnPredicate>) value) {
-                        if (child.getColumn() != null) {
-                            norColumns.add(child.getColumn());
-                        }
-                    }
-                    // NOR = $nor applied directly on child conditions, with null exclusion for filtered columns for
-                    // filtered columns for maintaining backward compatibility with filtration through Constraints.
-                    Document norCondition = new Document(NOR_OP, orConditions);
-                    List<Document> norFinalConditions = new ArrayList<>();
-                    for (String col : norColumns) {
-                        norFinalConditions.add(new Document(col, isNotNullPredicate()));
-                    }
-                    norFinalConditions.add(norCondition);
-                    return new Document(AND_OP, norFinalConditions);
+                    return handleNorOperator((List<ColumnPredicate>) value);
                 default:
                     throw new UnsupportedOperationException("Unsupported operator: " + op);
             }
         }
-        // Handle multiple EQUAL values -> $in
+        return buildFinalDocument(column, equalValues, otherPredicates);
+    }
+
+    /**
+     * Handles NOT_IN operator by building a $nin predicate with ObjectId conversion for _id fields.
+     */
+    private static void handleNotInOperator(String column, Object value, List<Document> otherPredicates)
+    {
+        if (value instanceof List) {
+            List<Object> notInValues = (List<Object>) value;
+            if (!notInValues.isEmpty()) {
+                Document notInPredicate;
+                if (column.equals(COLUMN_NAME_ID)) {
+                    List<ObjectId> objectIdList = notInValues.stream()
+                            .map(v -> new ObjectId(v.toString()))
+                            .collect(Collectors.toList());
+                    notInPredicate = new Document(NOTIN_OP, objectIdList);
+                }
+                else {
+                    notInPredicate = new Document(NOTIN_OP, notInValues);
+                }
+                otherPredicates.add(notInPredicate);
+            }
+        }
+    }
+
+    /**
+     * Handles NAND operator: NOT(A AND B AND C) with null exclusion for filtered columns.
+     */
+    private static Document handleNandOperator(List<ColumnPredicate> children)
+    {
+        List<Document> andConditions = buildChildDocuments(children);
+        Set<String> columns = collectColumns(children);
+
+        Document nandCondition = new Document(NOR_OP, Collections.singletonList(new Document(AND_OP, andConditions)));
+        List<Document> finalConditions = buildNullExclusionConditions(columns);
+        finalConditions.add(nandCondition);
+        return new Document(AND_OP, finalConditions);
+    }
+
+    /**
+     * Handles NOR operator with null exclusion for filtered columns to maintain backward
+     * compatibility with filtration through Constraints.
+     */
+    private static Document handleNorOperator(List<ColumnPredicate> children)
+    {
+        List<Document> orConditions = buildChildDocuments(children);
+        Set<String> columns = collectColumns(children);
+
+        Document norCondition = new Document(NOR_OP, orConditions);
+        List<Document> finalConditions = buildNullExclusionConditions(columns);
+        finalConditions.add(norCondition);
+        return new Document(AND_OP, finalConditions);
+    }
+
+    /**
+     * Collects non-null column names from a list of predicates.
+     */
+    private static Set<String> collectColumns(List<ColumnPredicate> predicates)
+    {
+        Set<String> columns = new HashSet<>();
+        for (ColumnPredicate child : predicates) {
+            if (child.getColumn() != null) {
+                columns.add(child.getColumn());
+            }
+        }
+        return columns;
+    }
+
+    /**
+     * Builds null exclusion conditions ({$ne: null}) for the given columns.
+     */
+    private static List<Document> buildNullExclusionConditions(Set<String> columns)
+    {
+        List<Document> conditions = new ArrayList<>();
+        for (String col : columns) {
+            conditions.add(new Document(col, isNotNullPredicate()));
+        }
+        return conditions;
+    }
+
+    /**
+     * Builds the final MongoDB document from accumulated equality values and other predicates.
+     */
+    private static Document buildFinalDocument(String column, List<Object> equalValues, List<Document> otherPredicates)
+    {
         if (equalValues.size() > 1) {
-            Document inPredicate;
-            if (column.equals(COLUMN_NAME_ID)) {
-                List<ObjectId> objectIdList = equalValues.stream()
-                        .map(v -> new ObjectId(v.toString()))
-                        .collect(Collectors.toList());
-                inPredicate = new Document(IN_OP, objectIdList);
-            }
-            else {
-                inPredicate = new Document(IN_OP, equalValues);
-            }
+            Document inPredicate = buildValueListPredicate(column, IN_OP, equalValues);
             if (!otherPredicates.isEmpty()) {
                 return buildAndConditionsForColumn(column, inPredicate, otherPredicates);
             }
             return documentOf(column, inPredicate);
         }
-        // Single EQUAL
         else if (equalValues.size() == 1) {
             Object eqValue = equalValues.get(0);
             Document equalPredicate;
@@ -512,32 +537,46 @@ public final class QueryUtils
             }
             return documentOf(column, equalPredicate);
         }
-        // Handle non-EQUAL predicates with special null exclusion for NOT_EQUAL operations
-        // NOT_EQUAL operations should exclude records where the field is null to match SQL semantics
         else if (!otherPredicates.isEmpty()) {
-            // Check if any predicate is NOT_EQUAL with a non-null value - these need null exclusion
-            // Example: "column <> 'value'" should not match records where column is null
-            // Exclude IS_NOT_NULL predicates (which are {$ne: null}) from this check
-            boolean hasNotEqual = otherPredicates.stream()
-                    .anyMatch(doc -> doc.containsKey(NOT_EQ_OP) && doc.get(NOT_EQ_OP) != null);
-
-            if (hasNotEqual && otherPredicates.size() == 1) {
-                // Single NOT_EQUAL case - wrap with null exclusion
-                // Generate: {"$and": [{"column": {"$ne": null}}, {"column": {"$ne": "value"}}]}
-                Document notEqualPred = otherPredicates.get(0);
-                Document nullExclusion = new Document(column, isNotNullPredicate());
-                return new Document(AND_OP, Arrays.asList(nullExclusion, new Document(column, notEqualPred)));
-            }
-            else if (otherPredicates.size() > 1) {
-                // Multiple predicates in OR - handle NOT_EQUAL with null exclusion, others unchanged
-                return buildOrConditionsWithNotEqualHandling(column, otherPredicates);
-            }
-            else {
-                // Single non-NOT_EQUAL predicate - no null exclusion needed
-                return documentOf(column, otherPredicates.get(0));
-            }
+            return buildNotEqualAwareResult(column, otherPredicates);
         }
         return new Document();
+    }
+
+    /**
+     * Builds a $in or $nin predicate with ObjectId conversion for _id fields.
+     */
+    private static Document buildValueListPredicate(String column, String operator, List<Object> values)
+    {
+        if (column.equals(COLUMN_NAME_ID)) {
+            List<ObjectId> objectIdList = values.stream()
+                    .map(v -> new ObjectId(v.toString()))
+                    .collect(Collectors.toList());
+            return new Document(operator, objectIdList);
+        }
+        return new Document(operator, values);
+    }
+
+    /**
+     * Handles non-EQUAL predicates with special null exclusion for NOT_EQUAL operations
+     * to match SQL semantics where column <> 'value' should not match null rows.
+     */
+    private static Document buildNotEqualAwareResult(String column, List<Document> otherPredicates)
+    {
+        boolean hasNotEqual = otherPredicates.stream()
+                .anyMatch(doc -> doc.containsKey(NOT_EQ_OP) && doc.get(NOT_EQ_OP) != null);
+
+        if (hasNotEqual && otherPredicates.size() == 1) {
+            Document notEqualPred = otherPredicates.get(0);
+            Document nullExclusion = new Document(column, isNotNullPredicate());
+            return new Document(AND_OP, Arrays.asList(nullExclusion, new Document(column, notEqualPred)));
+        }
+        else if (otherPredicates.size() > 1) {
+            return buildOrConditionsWithNotEqualHandling(column, otherPredicates);
+        }
+        else {
+            return documentOf(column, otherPredicates.get(0));
+        }
     }
 
     private static Document documentOf(String key, Object value)
@@ -581,8 +620,7 @@ public final class QueryUtils
         // Check if this is a datetime field and value is NumberLong
         if (value instanceof Long && pred.getArrowType() instanceof ArrowType.Timestamp) {
             Long epochValue = (Long) value;
-            // Convert microseconds to milliseconds (divide by 1000)
-            Long milliseconds = epochValue / 1000;
+            Long milliseconds = epochValue / MICROSECONDS_PER_MILLISECOND;
             // Convert to Date object for MongoDB ISODate format
             return new Date(milliseconds);
         }
