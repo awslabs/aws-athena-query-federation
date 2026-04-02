@@ -503,11 +503,11 @@ public abstract class JdbcMetadataHandler
                         ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
                                 wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
                     minMaxResultSet.next(); // expecting one result row
+                    long min = minMaxResultSet.getLong(1);
+                    long max = minMaxResultSet.getLong(2);
                     Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
 
                     if (optionalSplitter.isPresent()) {
-                        long min = minMaxResultSet.getLong(1);
-                        long max = minMaxResultSet.getLong(2);
                         if (max - min < DEFAULT_NUM_SPLITS) {
                             LOGGER.info("Range too small for splitting (min={}, max={}), skipping", min, max);
                             return splitClauses;
@@ -516,7 +516,7 @@ public abstract class JdbcMetadataHandler
                         Splitter splitter = optionalSplitter.get();
                         while (splitter.hasNext()) {
                             String splitClause = splitter.nextRangeClause();
-                            LOGGER.info("Split generated {}", splitClause);
+                            LOGGER.debug("Split generated {}", splitClause);
                             splitClauses.add(splitClause);
                         }
                     }

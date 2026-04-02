@@ -21,6 +21,10 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 
 import org.apache.calcite.sql.SqlDialect;
 
+/**
+ * Abstract SQL dialect that applies catalog casing (uppercase) to quoted identifiers
+ * when the catalog casing filter is enabled. Subclasses provide database-specific quoting characters.
+ */
 public abstract class JdbcCasingSqlDialect extends SqlDialect
 {
     private final boolean catalogCasingFilter;

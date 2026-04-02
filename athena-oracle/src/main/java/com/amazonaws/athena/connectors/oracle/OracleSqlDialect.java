@@ -22,6 +22,9 @@ package com.amazonaws.athena.connectors.oracle;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcCasingSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
 
+/**
+ * Oracle-specific SQL dialect with catalog casing filter support. Uses double-quote ({@code "}) for identifier quoting.
+ */
 public class OracleSqlDialect extends JdbcCasingSqlDialect
 {
     public static final SqlDialect DEFAULT = org.apache.calcite.sql.dialect.OracleSqlDialect.DEFAULT;

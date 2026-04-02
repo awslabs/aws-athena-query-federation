@@ -22,6 +22,9 @@ package com.amazonaws.athena.connectors.postgresql;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcCasingSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
 
+/**
+ * PostgreSQL-specific SQL dialect with catalog casing filter support. Uses double-quote ({@code "}) for identifier quoting.
+ */
 public class PostgresqlSqlDialect extends JdbcCasingSqlDialect
 {
     public static final SqlDialect DEFAULT = org.apache.calcite.sql.dialect.PostgresqlSqlDialect.DEFAULT;

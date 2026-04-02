@@ -67,6 +67,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -75,6 +76,8 @@ import java.util.stream.Collectors;
 public abstract class JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcSplitQueryBuilder.class);
+
+    private static final Pattern WHERE_PATTERN = Pattern.compile("\\bWHERE\\b", Pattern.CASE_INSENSITIVE);
 
     private static final int MILLIS_SHIFT = 12;
 
@@ -419,6 +422,13 @@ public abstract class JdbcSplitQueryBuilder
         return AnsiSqlDialect.DEFAULT;
     }
 
+    /**
+     * Returns the SQL dialect to use for query generation with catalog casing filter support.
+     * Subclasses should override to return a database-specific dialect.
+     *
+     * @param catalogCasingFilter whether to apply catalog casing to quoted identifiers
+     * @return the {@link SqlDialect} instance
+     */
     protected SqlDialect getSqlDialect(boolean catalogCasingFilter)
     {
         return AnsiSqlDialect.DEFAULT;
@@ -455,7 +465,7 @@ public abstract class JdbcSplitQueryBuilder
             List<String> splitClauses = getPartitionWhereClauses(split);
             if (!splitClauses.isEmpty()) {
                 String splitWhere = String.join(" AND ", splitClauses);
-                sql = sql.toUpperCase().contains("WHERE") ? sql + " AND " + splitWhere : sql + " WHERE " + splitWhere;
+                sql = WHERE_PATTERN.matcher(sql).find() ? sql + " AND " + splitWhere : sql + " WHERE " + splitWhere;
             }
             PreparedStatement statement = jdbcConnection.prepareStatement(sql);
             ParameterMetaData metaData = statement.getParameterMetaData();

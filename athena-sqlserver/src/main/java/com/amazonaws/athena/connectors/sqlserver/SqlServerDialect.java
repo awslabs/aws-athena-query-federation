@@ -22,6 +22,9 @@ package com.amazonaws.athena.connectors.sqlserver;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcCasingSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
 
+/**
+ * SQL Server-specific SQL dialect with catalog casing filter support. Uses square brackets ({@code []}) for identifier quoting.
+ */
 public class SqlServerDialect extends JdbcCasingSqlDialect
 {
     public static final SqlDialect DEFAULT = org.apache.calcite.sql.dialect.MssqlSqlDialect.DEFAULT;

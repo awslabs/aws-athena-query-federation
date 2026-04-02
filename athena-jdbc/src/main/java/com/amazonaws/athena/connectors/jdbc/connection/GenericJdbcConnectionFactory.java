@@ -118,6 +118,10 @@ public class GenericJdbcConnectionFactory
         return getPooledConnection(derivedJdbcString);
     }
 
+    /**
+     * Creates a direct JDBC connection using {@link DriverManager}, bypassing connection pooling.
+     * Used for Glue managed connections.
+     */
     private Connection getDirectConnection(String jdbcUrl) throws SQLException
     {
         Properties connectionProps = new Properties();
@@ -131,6 +135,9 @@ public class GenericJdbcConnectionFactory
         }
     }
 
+    /**
+     * Returns a connection from the HikariCP connection pool, initializing the pool on first call.
+     */
     private Connection getPooledConnection(String jdbcUrl) throws SQLException
     {
         if (ds == null) {
@@ -152,7 +159,7 @@ public class GenericJdbcConnectionFactory
         }
         catch (SQLException e) {
             handleSQLException(e);
-            return null;
+            throw e;
         }
     }
 
