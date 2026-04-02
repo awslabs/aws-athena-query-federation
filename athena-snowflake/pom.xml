@@ -210,7 +210,6 @@
                                         <exclude>models/license-manager-*/**</exclude>
                                         <!-- Exclude unused SDK and native libraries -->
                                         <exclude>software/amazon/awssdk/services/dynamodb/**</exclude>
-                                        <exclude>org/locationtech/**</exclude>
                                         <exclude>win/**</exclude>
                                     </excludes>
                                 </filter>
