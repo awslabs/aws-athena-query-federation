@@ -180,7 +180,7 @@ public class DocDBMetadataHandler
         if (isRequestFederated(request)) {
             logger.info("Using federated request to frame default_docdb connection string.");
             final Map<String, String> configOptionsFromFederatedIdentity = request.getIdentity().getConfigOptions();
-            conStr = getConfigOptionsFromFederatedIdentity(configOptionsFromFederatedIdentity);
+            conStr = getConnectionStringForFederatedRequests(configOptionsFromFederatedIdentity);
         }
         return conStr;
     }
@@ -369,7 +369,7 @@ public class DocDBMetadataHandler
         catch (RuntimeException ex) {
             logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
                     request.getTableName().getSchemaName(),
-                    request.getTableName().getTableName());
+                    request.getTableName().getTableName(), ex);
         }
 
         if (schema == null) {
@@ -459,10 +459,9 @@ public class DocDBMetadataHandler
      * @return Fully constructed MongoDB connection string in format: mongodb://username:password@host:port/?jdbcParams
      * @throws RuntimeException if JSON credential parsing fails or required parameters are missing
      */
-    private String getConfigOptionsFromFederatedIdentity(Map<String, String> configOptions)
+    private String getConnectionStringForFederatedRequests(Map<String, String> configOptions)
     {
-        final String secretName = getSecretNameFromArn(configOptions.get(SECRET_ARN_KEY));
-        final String credentials = getSecret(secretName, getRequestOverrideConfig(configOptions));
+        final String credentials = getSecret(configOptions.get(SECRET_ARN_KEY), getRequestOverrideConfig(configOptions));
         final String username;
         final String password;
         try {
@@ -510,39 +509,5 @@ public class DocDBMetadataHandler
             connStr += "?" + jdbcParams;
         }
         return connStr;
-    }
-
-    /**
-     * Extracts the secret name from an AWS Secrets Manager ARN.
-     * 
-     * <p>AWS Secrets Manager ARNs follow the format:
-     * {@code arn:aws:secretsmanager:region:account:secret:name-suffix}
-     * 
-     * <p>This method extracts the secret name by:
-     * <ul>
-     *   <li>Splitting the ARN by colons to get individual components</li>
-     *   <li>Taking the 7th component (index 6) which contains "name-suffix"</li>
-     *   <li>Removing the suffix (everything after the last hyphen) to get the clean secret name</li>
-     * </ul>
-     * 
-     * @param secretArn The full AWS Secrets Manager ARN
-     * @return The extracted secret name without the suffix
-     * @throws IllegalArgumentException if the ARN is null, empty, or has an invalid format
-     */
-    static String getSecretNameFromArn(String secretArn)
-    {
-        if (secretArn == null || secretArn.isEmpty()) {
-            throw new IllegalArgumentException("Secret ARN must not be null or empty");
-        }
-        final String[] parts = secretArn.split(":");
-        if (parts.length < 7) {
-            throw new IllegalArgumentException("Invalid ARN format: expected at least 7 colon-separated parts, got " + parts.length);
-        }
-        final String nameWithSuffix = parts[6];
-        final int lastHyphen = nameWithSuffix.lastIndexOf('-');
-        if (lastHyphen == -1) {
-            return nameWithSuffix;
-        }
-        return nameWithSuffix.substring(0, lastHyphen);
     }
 }

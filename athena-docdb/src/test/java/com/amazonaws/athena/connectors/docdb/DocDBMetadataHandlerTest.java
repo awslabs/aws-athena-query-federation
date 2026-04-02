@@ -752,40 +752,6 @@ public class DocDBMetadataHandlerTest
         }
     }
 
-    @Test
-    public void getSecretNameFromArn_validArn_returnsSecretName()
-    {
-        String result = DocDBMetadataHandler.getSecretNameFromArn(
-                "arn:aws:secretsmanager:us-east-1:123456789012:secret:mySecret-aBcDeF");
-        assertEquals("mySecret", result);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void getSecretNameFromArn_nullArn_throwsIllegalArgument()
-    {
-        DocDBMetadataHandler.getSecretNameFromArn(null);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void getSecretNameFromArn_emptyArn_throwsIllegalArgument()
-    {
-        DocDBMetadataHandler.getSecretNameFromArn("");
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void getSecretNameFromArn_invalidArnFormat_throwsIllegalArgument()
-    {
-        DocDBMetadataHandler.getSecretNameFromArn("not:a:valid:arn");
-    }
-
-    @Test
-    public void getSecretNameFromArn_noHyphenInSecretName_returnsFullName()
-    {
-        String result = DocDBMetadataHandler.getSecretNameFromArn(
-                "arn:aws:secretsmanager:us-east-1:123456789012:secret:mySecretNoSuffix");
-        assertEquals("mySecretNoSuffix", result);
-    }
-
     private void assertMinorType(Schema schema, String field, Types.MinorType expected)
     {
         Field f = schema.findField(field);
