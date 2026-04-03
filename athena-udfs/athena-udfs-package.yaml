@@ -38,11 +38,14 @@ Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
     Properties:
+      Environment:
+        Variables:
+          JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED -XX:-TieredCompilation
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.udfs.AthenaUDFHandler"
       CodeUri: "./target/athena-udfs-2022.47.1.jar"
       Description: "This connector enables Amazon Athena to leverage common UDFs made available via Lambda."
-      Runtime: java11
+      Runtime: java17
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
