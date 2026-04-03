@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
@@ -57,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -613,17 +615,10 @@ public class ElasticsearchTypeUtilsTest
     {
         Field field = new Field("test", FieldType.nullable(Types.MinorType.INTERVALDAY.getType()), null);
 
-        try {
-            typeUtils.makeFactory(field);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException ex) {
-            assertTrue("Exception message should contain is not supported",
-                    ex.getMessage().contains("is not supported"));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> typeUtils.makeFactory(field));
+        assertTrue("Exception message should contain is not supported",
+                ex.getMessage().contains("is not supported"));
     }
 
     @Test

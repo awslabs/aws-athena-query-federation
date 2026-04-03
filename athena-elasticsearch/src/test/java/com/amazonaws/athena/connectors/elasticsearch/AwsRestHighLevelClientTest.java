@@ -53,8 +53,8 @@ import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -156,23 +156,16 @@ public class AwsRestHighLevelClientTest
     }
 
     @Test
-    public void getMapping_whenNoMappingFound_throwsAthenaConnectorException()
+    public void getMapping_whenNoMappingFound_throwsAthenaConnectorException() throws IOException
     {
-        try {
-            when(mockIndicesClient.getMapping(any(GetMappingsRequest.class), eq(RequestOptions.DEFAULT)))
-                    .thenReturn(mockGetMappingsResponse);
-            when(mockGetMappingsResponse.mappings()).thenReturn(Collections.emptyMap());
+        when(mockIndicesClient.getMapping(any(GetMappingsRequest.class), eq(RequestOptions.DEFAULT)))
+                .thenReturn(mockGetMappingsResponse);
+        when(mockGetMappingsResponse.mappings()).thenReturn(Collections.emptyMap());
 
-            client.getMapping(TEST_INDEX);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Could not find mapping",
-                    ex.getMessage().contains("Could not find mapping for data stream name"));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> client.getMapping(TEST_INDEX));
+        assertTrue("Exception message should contain Could not find mapping",
+                ex.getMessage().contains("Could not find mapping for data stream name"));
     }
 
     @Test
@@ -195,22 +188,15 @@ public class AwsRestHighLevelClientTest
     }
 
     @Test
-    public void getAliases_whenExceptionOccurs_throwsAthenaConnectorException()
+    public void getAliases_whenExceptionOccurs_throwsAthenaConnectorException() throws IOException
     {
-        try {
-            when(mockIndicesClient.getAlias(any(GetAliasesRequest.class), eq(RequestOptions.DEFAULT)))
-                    .thenThrow(new IOException(ERROR_MESSAGE));
+        when(mockIndicesClient.getAlias(any(GetAliasesRequest.class), eq(RequestOptions.DEFAULT)))
+                .thenThrow(new IOException(ERROR_MESSAGE));
 
-            client.getAliases();
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain error message",
-                    ex.getMessage().contains(ERROR_MESSAGE));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> client.getAliases());
+        assertTrue("Exception message should contain error message",
+                ex.getMessage().contains(ERROR_MESSAGE));
     }
 
     @Test
@@ -305,14 +291,10 @@ public class AwsRestHighLevelClientTest
                 .thenReturn(mockClusterHealthResponse);
         when(mockClusterHealthResponse.isTimedOut()).thenReturn(true);
 
-        try {
-            client.getShardIds(TEST_INDEX, MAX_SHARDS);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Request timed out",
-                    ex.getMessage().contains("Request timed out"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> client.getShardIds(TEST_INDEX, MAX_SHARDS));
+        assertTrue("Exception message should contain Request timed out",
+                ex.getMessage().contains("Request timed out"));
     }
 
     @Test
@@ -325,14 +307,10 @@ public class AwsRestHighLevelClientTest
         when(mockClusterHealthResponse.isTimedOut()).thenReturn(false);
         when(mockClusterHealthResponse.getActiveShards()).thenReturn(0);
 
-        try {
-            client.getShardIds(TEST_INDEX, MAX_SHARDS);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain no active shards",
-                    ex.getMessage().contains("no active shards"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> client.getShardIds(TEST_INDEX, MAX_SHARDS));
+        assertTrue("Exception message should contain no active shards",
+                ex.getMessage().contains("no active shards"));
     }
 
     @Test
@@ -346,14 +324,10 @@ public class AwsRestHighLevelClientTest
         when(mockClusterHealthResponse.getActiveShards()).thenReturn(5);
         when(mockClusterHealthResponse.getStatus()).thenReturn(ClusterHealthStatus.RED);
 
-        try {
-            client.getShardIds(TEST_INDEX, MAX_SHARDS);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain RED",
-                    ex.getMessage().contains("RED"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> client.getShardIds(TEST_INDEX, MAX_SHARDS));
+        assertTrue("Exception message should contain RED",
+                ex.getMessage().contains("RED"));
     }
 
     @Test
@@ -368,14 +342,10 @@ public class AwsRestHighLevelClientTest
         when(mockClusterHealthResponse.getStatus()).thenReturn(ClusterHealthStatus.GREEN);
         when(mockClusterHealthResponse.getIndices()).thenReturn(Collections.emptyMap());
 
-        try {
-            client.getShardIds(TEST_INDEX, MAX_SHARDS);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain invalid index",
-                    ex.getMessage().contains("invalid index"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> client.getShardIds(TEST_INDEX, MAX_SHARDS));
+        assertTrue("Exception message should contain invalid index",
+                ex.getMessage().contains("invalid index"));
     }
 
     @Test

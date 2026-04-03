@@ -82,8 +82,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -627,17 +627,10 @@ public class ElasticsearchMetadataHandlerTest
         GetTableRequest request = org.mockito.Mockito.mock(GetTableRequest.class);
         when(request.isQueryPassthrough()).thenReturn(false);
 
-        try {
-            handler.doGetQueryPassthroughSchema(allocator, request);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain No Query passed through",
-                    ex.getMessage().contains("No Query passed through"));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName() + " with message: " + e.getMessage());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> handler.doGetQueryPassthroughSchema(allocator, request));
+        assertTrue("Exception message should contain No Query passed through",
+                ex.getMessage().contains("No Query passed through"));
     }
 
     @Test
@@ -657,18 +650,11 @@ public class ElasticsearchMetadataHandlerTest
         when(request.isQueryPassthrough()).thenReturn(true);
         when(request.getQueryPassthroughArguments()).thenReturn(queryPassthroughArgs);
 
-        try {
-            handler.doGetQueryPassthroughSchema(allocator, request);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            String message = ex.getMessage();
-            assertTrue("Exception message should contain Unable to find domain. Actual message: " + message,
-                    message != null && message.contains("Unable to find domain"));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName() + " with message: " + e.getMessage());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> handler.doGetQueryPassthroughSchema(allocator, request));
+        String message = ex.getMessage();
+        assertTrue("Exception message should contain Unable to find domain. Actual message: " + message,
+                message != null && message.contains("Unable to find domain"));
     }
 
     @Test
@@ -790,7 +776,7 @@ public class ElasticsearchMetadataHandlerTest
     }
 
     @Test
-    public void getShardsIDsFromES_whenIOException_throwsAthenaConnectorException()
+    public void getShardsIDsFromES_whenIOException_throwsAthenaConnectorException() throws IOException
     {
         String domain = "movies";
         String index = "customer";
@@ -800,32 +786,25 @@ public class ElasticsearchMetadataHandlerTest
 
         handler = createElasticsearchMetadataHandler();
 
-        try {
-            when(mockClient.getShardIds(nullable(String.class), anyLong())).thenThrow(new IOException("Connection failed"));
+        when(mockClient.getShardIds(nullable(String.class), anyLong())).thenThrow(new IOException("Connection failed"));
 
-            IndicesClient indices = mock(IndicesClient.class);
-            GetIndexResponse mockIndexResponse = mock(GetIndexResponse.class);
-            when(mockIndexResponse.getIndices()).thenReturn(new String[]{index});
-            when(indices.get(nullable(GetIndexRequest.class), eq(RequestOptions.DEFAULT))).thenReturn(mockIndexResponse);
-            when(mockClient.indices()).thenReturn(indices);
+        IndicesClient indices = mock(IndicesClient.class);
+        GetIndexResponse mockIndexResponse = mock(GetIndexResponse.class);
+        when(mockIndexResponse.getIndices()).thenReturn(new String[]{index});
+        when(indices.get(nullable(GetIndexRequest.class), eq(RequestOptions.DEFAULT))).thenReturn(mockIndexResponse);
+        when(mockClient.indices()).thenReturn(indices);
 
-            Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 0);
-            GetSplitsRequest request = new GetSplitsRequest(fakeIdentity(), "queryId", "elasticsearch",
-                    new TableName(domain, index), partitions, Collections.emptyList(),
-                    new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                    null);
+        Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 0);
+        GetSplitsRequest request = new GetSplitsRequest(fakeIdentity(), "queryId", "elasticsearch",
+                new TableName(domain, index), partitions, Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                null);
 
-            handler.doGetSplits(allocator, request);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertNotNull("Exception should not be null", ex);
-            assertTrue("Exception message should contain Error trying to get shards ids",
-                    ex.getMessage().contains("Error trying to get shards ids"));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> handler.doGetSplits(allocator, request));
+        assertNotNull("Exception should not be null", ex);
+        assertTrue("Exception message should contain Error trying to get shards ids",
+                ex.getMessage().contains("Error trying to get shards ids"));
     }
 
     @Test
@@ -865,7 +844,7 @@ public class ElasticsearchMetadataHandlerTest
     }
 
     @Test
-    public void getSchema_whenIOException_throwsAthenaConnectorException()
+    public void getSchema_whenIOException_throwsAthenaConnectorException() throws IOException
     {
         String domain = "movies";
         String index = "customer";
@@ -875,22 +854,15 @@ public class ElasticsearchMetadataHandlerTest
 
         handler = createElasticsearchMetadataHandler();
 
-        try {
-            when(mockClient.getMapping(nullable(String.class))).thenThrow(new IOException("Mapping retrieval failed"));
+        when(mockClient.getMapping(nullable(String.class))).thenThrow(new IOException("Mapping retrieval failed"));
 
-            GetTableRequest request = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
-                    new TableName(domain, index), Collections.emptyMap());
-            
-            handler.doGetTable(allocator, request);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException e) {
-            assertTrue("Exception message should contain Error retrieving mapping information",
-                    e.getMessage().contains("Error retrieving mapping information for index"));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
-        }
+        GetTableRequest request = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
+                new TableName(domain, index), Collections.emptyMap());
+
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> handler.doGetTable(allocator, request));
+        assertTrue("Exception message should contain Error retrieving mapping information",
+                ex.getMessage().contains("Error retrieving mapping information for index"));
     }
 
     @Test
@@ -1082,15 +1054,11 @@ public class ElasticsearchMetadataHandlerTest
         GetSplitsRequest splitsRequest = new GetSplitsRequest(fakeIdentity(), "queryId", "elasticsearch",
                 new TableName(domain, "test-index"), partitions, Collections.emptyList(),
                 new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
-        
-        try {
-            handler.doGetSplits(allocator, splitsRequest);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should indicate domain not found. Actual: " + ex.getMessage(),
-                    ex.getMessage() != null && ex.getMessage().contains("Unable to find domain"));
-        }
+
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> handler.doGetSplits(allocator, splitsRequest));
+        assertTrue("Exception message should indicate domain not found. Actual: " + ex.getMessage(),
+                ex.getMessage() != null && ex.getMessage().contains("Unable to find domain"));
     }
 
     @Test

@@ -44,8 +44,8 @@ import java.util.Map;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * This class is used to test the ElasticsearchSchemaUtils class.
@@ -348,14 +348,10 @@ public class ElasticsearchSchemaUtilsTest
 
         logger.info("parseMapping_withInvalidMeta_throwsAthenaConnectorException - enter");
 
-        try {
-            ElasticsearchSchemaUtils.parseMapping(actual);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain _meta only support value",
-                    ex.getMessage().contains("_meta only support value"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> ElasticsearchSchemaUtils.parseMapping(actual));
+        assertTrue("Exception message should contain _meta only support value",
+                ex.getMessage().contains("_meta only support value"));
 
         logger.info("parseMapping_withInvalidMeta_throwsAthenaConnectorException - exit");
     }
