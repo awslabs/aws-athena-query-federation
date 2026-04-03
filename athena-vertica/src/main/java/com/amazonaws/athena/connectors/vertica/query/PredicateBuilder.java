@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -72,16 +71,16 @@ public class PredicateBuilder {
 
         if (valueSet instanceof SortedRangeSet){
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return String.format("(%s IS NULL)", columnName);
+                return String.format("(%s IS NULL)", quote(columnName));
             }
 
             if (valueSet.isNullAllowed()) {
-                disjuncts.add(String.format("(%s IS NULL)", columnName));
+                disjuncts.add(String.format("(%s IS NULL)", quote(columnName)));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return String.format("(%s IS NOT NULL)", columnName);
+                return String.format("(%s IS NOT NULL)", quote(columnName));
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -199,7 +198,7 @@ public class PredicateBuilder {
         }
     }
 
-    protected static String getFromClauseWithSplit(String schema, String table)
+    public static String getFromClauseWithSplit(String schema, String table)
     {
         StringBuilder tableName = new StringBuilder();
         if (!Strings.isNullOrEmpty(schema))

@@ -117,7 +117,7 @@ public class VerticaExportQueryBuilder {
                 colN.append(castedField).append(",");
             }
             else {
-                colN.append(f.getName()).append(",");
+                colN.append(PredicateBuilder.quote(f.getName())).append(",");
             }
         }
         this.colNames = colN.deleteCharAt(colN.length() - 1).toString();
@@ -185,7 +185,7 @@ public class VerticaExportQueryBuilder {
                     sqlTemplate.add(colName, LocalDateTime.parse(typeAndValue.getValue().toString()).atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
                     break;
                 case VARCHAR:
-                    String val = "'" + typeAndValue.getValue() + "'";
+                    String val = "'" + escapeSqlStringLiteral(typeAndValue.getValue().toString()) + "'";
                     sqlTemplate.add(colName, val);
                     break;
                 case VARBINARY:
@@ -203,9 +203,13 @@ public class VerticaExportQueryBuilder {
 
     protected String castTimestamp(String name)
     {
-        ST castFieldST = new ST("CAST(<name> AS VARCHAR) AS <name>");
-        castFieldST.add("name", name);
-        return castFieldST.render();
+        String quotedColumnName = PredicateBuilder.quote(name);
+        return "CAST(" + quotedColumnName + " AS VARCHAR) AS " + quotedColumnName;
+    }
+
+    private static String escapeSqlStringLiteral(String value)
+    {
+        return value.replace("'", "''");
     }
 
     //build the Vertica SQL to set the AWS Region
@@ -214,9 +218,7 @@ public class VerticaExportQueryBuilder {
         if (awsRegion == null || awsRegion.equals("")) { 
             awsRegion = "us-east-1"; 
         }
-        ST regionST=  new ST("ALTER SESSION SET AWSRegion='<defaultRegion>'") ;
-        regionST.add("defaultRegion", awsRegion);
-        return regionST.render();
+        return "ALTER SESSION SET AWSRegion='" + escapeSqlStringLiteral(awsRegion) + "'";
     }
 
     public String getS3ExportBucket(){return s3ExportBucket;}

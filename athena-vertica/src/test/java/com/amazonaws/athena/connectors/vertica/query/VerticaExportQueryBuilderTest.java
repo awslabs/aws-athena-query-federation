@@ -87,7 +87,7 @@ public class VerticaExportQueryBuilderTest {
         mockSchema(new String[]{"id", "name"});
 
         builder.withColumns(resultSet, schema);
-        assertEquals("id,name", builder.getColNames());
+        assertEquals("\"id\",\"name\"", builder.getColNames());
     }
 
     @Test
@@ -96,7 +96,7 @@ public class VerticaExportQueryBuilderTest {
         mockSchema(new String[]{"id", "created_at"});
 
         builder.withColumns(resultSet, schema);
-        assertEquals("id,CAST(created_at AS VARCHAR) AS created_at", builder.getColNames());
+        assertEquals("\"id\",CAST(\"created_at\" AS VARCHAR) AS \"created_at\"", builder.getColNames());
     }
 
     @Test

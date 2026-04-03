@@ -165,7 +165,7 @@ public class PredicateBuilderTest {
         Constraints constraints = createConstraints(ImmutableMap.of("col1", inValues(col1Int.getType(), true, 10, 20)));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertEquals(1, conjuncts.size());
-        assertEquals("((col1 IS NULL) OR \"col1\" IN (<col1_0>,<col1_1>))", conjuncts.get(0));
+        assertEquals("((\"col1\" IS NULL) OR \"col1\" IN (<col1_0>,<col1_1>))", conjuncts.get(0));
         assertEquals(2, accumulator.size());
         assertEquals(10, accumulator.get("col1_0").getValue());
         assertEquals(20, accumulator.get("col1_1").getValue());
@@ -197,7 +197,7 @@ public class PredicateBuilderTest {
         Constraints constraints = createConstraints(ImmutableMap.of("col2", isNullOnly(col2Varchar.getType())));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertEquals(1, conjuncts.size());
-        assertEquals("(col2 IS NULL)", conjuncts.get(0));
+        assertEquals("(\"col2\" IS NULL)", conjuncts.get(0));
         assertTrue(accumulator.isEmpty());
     }
 
@@ -206,7 +206,7 @@ public class PredicateBuilderTest {
         Constraints constraints = createConstraints(ImmutableMap.of("col3", isNotNullOnly(col3Double.getType())));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertEquals(1, conjuncts.size());
-        assertEquals("(col3 IS NOT NULL)", conjuncts.get(0));
+        assertEquals("(\"col3\" IS NOT NULL)", conjuncts.get(0));
         assertTrue(accumulator.isEmpty());
     }
 
