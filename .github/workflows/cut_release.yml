@@ -86,7 +86,7 @@ jobs:
 
       - name: Push the release branch
         run: |
-          git push --force origin release_${NEW_RELEASE_VERSION}:release_${NEW_RELEASE_VERSION}
+          git push --force-with-lease origin release_${NEW_RELEASE_VERSION}:release_${NEW_RELEASE_VERSION}
 
       - name: Sync up with origin again now that the new branch has been pushed
         run: |
