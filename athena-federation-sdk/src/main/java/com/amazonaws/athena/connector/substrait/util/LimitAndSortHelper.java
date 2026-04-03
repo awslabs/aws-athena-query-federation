@@ -36,7 +36,17 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Utility class for Substrait plan processing operations like LIMIT and SORT pushdown.
+ * Utility class that extracts LIMIT and ORDER BY information from Substrait plans
+ * to enable pushdown of these operations to the underlying data source.
+ *
+ * <p>This helper parses {@link Plan} objects to extract:
+ * <ul>
+ *   <li>LIMIT values from {@link FetchRel} nodes, falling back to {@link Constraints} when no plan is available</li>
+ *   <li>ORDER BY sort fields from {@link SortRel} nodes, mapped to column names via table metadata</li>
+ * </ul>
+ *
+ * <p>Connectors can use the extracted {@link GenericSortField} representations to build
+ * data-source-specific sort clauses (e.g., MongoDB sort documents, SQL ORDER BY clauses).
  */
 public final class LimitAndSortHelper
 {
@@ -45,8 +55,14 @@ public final class LimitAndSortHelper
     private LimitAndSortHelper() {}
 
     /**
-     * Determines if a LIMIT can be applied and extracts the limit value from either
-     * the Substrait plan or constraints.
+     * Determines if a LIMIT can be applied and extracts the limit value.
+     *
+     * <p>When a Substrait {@link Plan} is provided, the limit is extracted from its
+     * {@link FetchRel} node. Otherwise, falls back to the limit defined in {@link Constraints}.
+     *
+     * @param plan        the Substrait plan to extract the limit from, or {@code null} to use constraints
+     * @param constraints the query constraints containing a fallback limit value
+     * @return an {@link Optional} containing the limit value if one can be applied, or empty otherwise
      */
     public static Optional<Integer> getLimit(Plan plan, Constraints constraints)
     {
@@ -69,7 +85,14 @@ public final class LimitAndSortHelper
     }
 
     /**
-     * Extracts sort information from Substrait plan for ORDER BY pushdown optimization.
+     * Extracts sort field information from a Substrait plan for ORDER BY pushdown.
+     *
+     * <p>Parses the {@link SortRel} node in the plan to produce a list of {@link GenericSortField}
+     * objects, each containing a column name and sort direction. If the plan is {@code null},
+     * has no relations, or contains no sort relation, returns empty.
+     *
+     * @param plan the Substrait plan to extract sort information from, or {@code null}
+     * @return an {@link Optional} containing the list of sort fields, or empty if no sort is present
      */
     public static Optional<List<GenericSortField>> getSortFromPlan(Plan plan)
     {
@@ -142,24 +165,38 @@ public final class LimitAndSortHelper
     }
 
     /**
-     * Generic sort field representation that connectors can use to build their specific sort formats.
+     * A data-source-agnostic representation of a sort field, containing the column name
+     * and sort direction. Connectors use this to build native sort clauses for their
+     * respective data sources.
      */
     public static class GenericSortField
     {
         private final String columnName;
         private final boolean ascending;
 
+        /**
+         * Creates a new sort field.
+         *
+         * @param columnName the name of the column to sort by
+         * @param ascending  {@code true} for ascending order, {@code false} for descending
+         */
         public GenericSortField(String columnName, boolean ascending)
         {
             this.columnName = columnName;
             this.ascending = ascending;
         }
 
+        /**
+         * @return the name of the column to sort by
+         */
         public String getColumnName()
         {
             return columnName;
         }
 
+        /**
+         * @return {@code true} if the sort direction is ascending, {@code false} if descending
+         */
         public boolean isAscending()
         {
             return ascending;

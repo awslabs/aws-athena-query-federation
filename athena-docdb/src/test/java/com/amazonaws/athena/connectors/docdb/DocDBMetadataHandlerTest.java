@@ -91,7 +91,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
@@ -303,9 +302,9 @@ public class DocDBMetadataHandlerTest
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
         when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
-        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
-        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.limit(any())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(any())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(any())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
         GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME, Collections.emptyMap());
@@ -398,9 +397,9 @@ public class DocDBMetadataHandlerTest
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
         when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
-        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
-        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.limit(any())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(any())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(any())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
         TableName tableNameInput = new TableName("DEfault", TEST_TABLE.toUpperCase());
@@ -507,8 +506,8 @@ public class DocDBMetadataHandlerTest
         when(mockClient.getDatabase(eq(MIXED_CASE_SCHEMA))).thenReturn(mockDatabase);
         when(mockDatabase.getCollection(eq(MIXED_CASE_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
-        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.limit(any())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(any())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
         TableName tableNameInput = new TableName(MIXED_CASE_SCHEMA, MIXED_CASE_TABLE);
@@ -691,8 +690,8 @@ public class DocDBMetadataHandlerTest
         when(mockClient.getDatabase(eq(EXAMPLE_DATABASE))).thenReturn(mockDatabase);
         when(mockDatabase.getCollection(eq(TPCDS_COLLECTION))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
-        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.limit(any())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(any())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
         Map<String, String> queryPassthroughParameters = new HashMap<>();

@@ -461,6 +461,11 @@ public class DocDBMetadataHandler
      */
     private String getConnectionStringForFederatedRequests(Map<String, String> configOptions)
     {
+        String secretName = configOptions.get(SECRET_ARN_KEY);
+        if (Strings.isNullOrEmpty(secretName)) {
+            throw new IllegalArgumentException("Secret ARN is missing in the request");
+        }
+
         final String credentials = getSecret(configOptions.get(SECRET_ARN_KEY), getRequestOverrideConfig(configOptions));
         final String username;
         final String password;

@@ -82,6 +82,8 @@ import static java.util.stream.Collectors.toList;
  */
 public final class QueryUtils
 {
+    private static final Logger logger = LoggerFactory.getLogger(QueryUtils.class);
+
     private static final String OR_OP = "$or";
     private static final String AND_OP = "$and";
     private static final String NOT_OP = "$not";
@@ -319,16 +321,17 @@ public final class QueryUtils
                     substraitRelModel.getFilterRel().getCondition(),
                     tableColumns);
 
-            if (logicalExpr != null) {
-                // Successfully parsed expression tree - convert to MongoDB query
-                return makeQueryFromLogicalExpression(logicalExpr);
+            if (logicalExpr == null) {
+                throw new RuntimeException("Failed to parse the filter into a logical expression. "
+                        + "Refusing to return all documents unfiltered.");
             }
+            return makeQueryFromLogicalExpression(logicalExpr);
         }
         catch (Exception e) {
+            logger.error("Failed to parse Substrait plan into query filter.", e);
             throw new RuntimeException("Failed to parse Substrait plan into query filter. "
                     + "Refusing to return all documents unfiltered.", e);
         }
-        return new Document();
     }
     /**
      * Converts a LogicalExpression tree to MongoDB filter Document while preserving logical structure
