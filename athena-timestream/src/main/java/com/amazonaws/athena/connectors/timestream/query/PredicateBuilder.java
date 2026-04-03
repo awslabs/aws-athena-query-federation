@@ -78,16 +78,16 @@ public class PredicateBuilder
 
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return String.format("(%s IS NULL)", columnName);
+                return String.format("(%s IS NULL)", quoteColumn(columnName));
             }
 
             if (valueSet.isNullAllowed()) {
-                disjuncts.add(String.format("(%s IS NULL)", columnName));
+                disjuncts.add(String.format("(%s IS NULL)", quoteColumn(columnName)));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return String.format("(%s IS NOT NULL)", columnName);
+                return String.format("(%s IS NOT NULL)", quoteColumn(columnName));
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -157,19 +157,24 @@ public class PredicateBuilder
         return quoteColumn(columnName) + " " + operator + " " + quoteValue(value, type);
     }
 
-    private static String quoteColumn(String name)
+    static String quoteColumn(String name)
     {
-        return "\"" + name + "\"";
+        String escaped = name.replace("\"", "\"\"");
+        return "\"" + escaped + "\"";
+    }
+    
+    static String escapeSqlStringLiteral(String value)
+    {
+        return value.replace("'", "''");
     }
 
     private static String quoteValue(Object value, ArrowType type)
     {
-        //TODO: add escaping
         switch (Types.getMinorTypeForArrowType(type)) {
             case VARCHAR:
-                return "\'" + value + "\'";
+                return "'" + escapeSqlStringLiteral(String.valueOf(value)) + "'";
             case DATEMILLI:
-                return "\'" + ((LocalDateTime) value).format(TIMESTAMP_FORMATTER) + "\'";
+                return "'" + ((LocalDateTime) value).format(TIMESTAMP_FORMATTER) + "'";
             default:
                 return String.valueOf(value);
         }
