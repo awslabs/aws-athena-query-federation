@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":9,"i1":9};
+var data = {"i0":9,"i1":9,"i2":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -163,10 +163,18 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i1" class="rowColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getWhereClauseFromQueryPlan(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,org.apache.arrow.vector.types.pojo.Schema,boolean)">getWhereClauseFromQueryPlan</a></span>&#8203;(<a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
+                           org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
+                           boolean&nbsp;catalogCasingFilterUpperCase)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>static com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setConstraints(com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">setConstraints</a></span>&#8203;(com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder&nbsp;optionsBuilder,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setConstraints(com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,boolean)">setConstraints</a></span>&#8203;(com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder&nbsp;optionsBuilder,
               org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
-              <a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</code></th>
+              <a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
+              boolean&nbsp;catalogCasingFilterUpperCase)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -204,15 +212,27 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
                                                                                    org.apache.arrow.vector.types.pojo.ArrowType&nbsp;arrowType)</pre>
 </li>
 </ul>
-<a id="setConstraints(com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">
+<a id="setConstraints(com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,boolean)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>setConstraints</h4>
 <pre class="methodSignature">public static&nbsp;com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder&nbsp;setConstraints&#8203;(com.google.cloud.bigquery.storage.v1.ReadSession.TableReadOptions.Builder&nbsp;optionsBuilder,
                                                                                                        org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
-                                                                                                       <a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</pre>
+                                                                                                       <a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
+                                                                                                       boolean&nbsp;catalogCasingFilterUpperCase)</pre>
+</li>
+</ul>
+<a id="getWhereClauseFromQueryPlan(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,org.apache.arrow.vector.types.pojo.Schema,boolean)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getWhereClauseFromQueryPlan</h4>
+<pre class="methodSignature">public static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;getWhereClauseFromQueryPlan&#8203;(<a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
+                                                 org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
+                                                 boolean&nbsp;catalogCasingFilterUpperCase)</pre>
 </li>
 </ul>
 </li>

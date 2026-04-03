@@ -27,8 +27,8 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
+var data = {"i0":10,"i1":10,"i2":10,"i3":9};
+var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -198,7 +198,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t1" class="tableTab"><span><a href="javascript:show(1);">Static Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colSecond" scope="col">Method</th>
@@ -226,6 +226,13 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
              com.amazonaws.services.lambda.runtime.Context&nbsp;context)</code></th>
 <td class="colLast">
 <div class="block">Required by Lambda's RequestStreamHandler interface.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>static software.amazon.awssdk.services.glue.model.FederationSourceErrorCode</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#mapHTTPErrorCode(int)">mapHTTPErrorCode</a></span>&#8203;(int&nbsp;errorCode)</code></th>
+<td class="colLast">
+<div class="block">Maps HTTP error codes to appropriate FederationSourceErrorCode.</div>
 </td>
 </tr>
 </table>
@@ -342,10 +349,26 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <a id="handleException(java.lang.Exception)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>handleException</h4>
 <pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a>&nbsp;handleException&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a>&nbsp;e)</pre>
+</li>
+</ul>
+<a id="mapHTTPErrorCode(int)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>mapHTTPErrorCode</h4>
+<pre class="methodSignature">public static&nbsp;software.amazon.awssdk.services.glue.model.FederationSourceErrorCode&nbsp;mapHTTPErrorCode&#8203;(int&nbsp;errorCode)</pre>
+<div class="block">Maps HTTP error codes to appropriate FederationSourceErrorCode.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>errorCode</code> - HTTP status code</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Appropriate FederationSourceErrorCode</dd>
+</dl>
 </li>
 </ul>
 </li>

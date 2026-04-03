@@ -157,34 +157,53 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#CASING_LOWERCASE_ONLY">CASING_LOWERCASE_ONLY</a></span></code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#CASING_UPPERCASE_ONLY">CASING_UPPERCASE_ONLY</a></span></code></th>
+<td class="colLast">
+<div class="block">Casing filter values for CATALOG_CASING_FILTER configuration.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#CATALOG_CASING_FILTER">CATALOG_CASING_FILTER</a></span></code></th>
+<td class="colLast">
+<div class="block">Environment variable key for configuring identifier casing behavior.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#ENV_BIG_QUERY_CREDS_SM_ID">ENV_BIG_QUERY_CREDS_SM_ID</a></span></code></th>
 <td class="colLast">
 <div class="block">The name of the secret within Secrets Manager that contains credentials JSON that provides this Lambda access
  to call Google BigQuery.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#GCP_PROJECT_ID">GCP_PROJECT_ID</a></span></code></th>
 <td class="colLast">
 <div class="block">The Project ID within the Google Cloud Platform where the datasets and tables exist to query.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>static long</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#MAX_RESULTS">MAX_RESULTS</a></span></code></th>
 <td class="colLast">
 <div class="block">The maximum number of datasets and tables that can be returned from Google BigQuery API calls for metadata.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#SOURCE_TYPE">SOURCE_TYPE</a></span></code></th>
 <td class="colLast">
 <div class="block">The source type that is used to aid in logging diagnostic info when raising a support case.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#TMP_SERVICE_ACCOUNT_JSON">TMP_SERVICE_ACCOUNT_JSON</a></span></code></th>
 <td class="colLast">&nbsp;</td>
@@ -297,13 +316,54 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <a id="TMP_SERVICE_ACCOUNT_JSON">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>TMP_SERVICE_ACCOUNT_JSON</h4>
 <pre>public static final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a> TMP_SERVICE_ACCOUNT_JSON</pre>
 <dl>
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../../../../../constant-values.html#com.amazonaws.athena.connectors.google.bigquery.BigQueryConstants.TMP_SERVICE_ACCOUNT_JSON">Constant Field Values</a></dd>
+</dl>
+</li>
+</ul>
+<a id="CATALOG_CASING_FILTER">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>CATALOG_CASING_FILTER</h4>
+<pre>public static final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a> CATALOG_CASING_FILTER</pre>
+<div class="block">Environment variable key for configuring identifier casing behavior.</div>
+<dl>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../../constant-values.html#com.amazonaws.athena.connectors.google.bigquery.BigQueryConstants.CATALOG_CASING_FILTER">Constant Field Values</a></dd>
+</dl>
+</li>
+</ul>
+<a id="CASING_UPPERCASE_ONLY">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>CASING_UPPERCASE_ONLY</h4>
+<pre>public static final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a> CASING_UPPERCASE_ONLY</pre>
+<div class="block">Casing filter values for CATALOG_CASING_FILTER configuration.</div>
+<dl>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../../constant-values.html#com.amazonaws.athena.connectors.google.bigquery.BigQueryConstants.CASING_UPPERCASE_ONLY">Constant Field Values</a></dd>
+</dl>
+</li>
+</ul>
+<a id="CASING_LOWERCASE_ONLY">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>CASING_LOWERCASE_ONLY</h4>
+<pre>public static final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a> CASING_LOWERCASE_ONLY</pre>
+<dl>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../../constant-values.html#com.amazonaws.athena.connectors.google.bigquery.BigQueryConstants.CASING_LOWERCASE_ONLY">Constant Field Values</a></dd>
 </dl>
 </li>
 </ul>
