@@ -121,8 +121,8 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.bool(true),
                 QueryParameterValue.int64(10), QueryParameterValue.int64(1000000));
         String expectedSql = "SELECT `integerRange`,`isNullRange`,`isNotNullRange`,`stringRange`,`booleanRange`,`integerInRange` from `schema`.`table` " +
-                "WHERE integerRange IS NULL OR `integerRange` > ? AND `integerRange` < ? " +
-                "AND isNullRange IS NULL AND isNotNullRange IS NOT NULL " +
+                "WHERE `integerRange` IS NULL OR `integerRange` > ? AND `integerRange` < ? " +
+                "AND `isNullRange` IS NULL AND `isNotNullRange` IS NOT NULL " +
                 "AND `stringRange` >= ? AND `stringRange` < ? " +
                 "AND `booleanRange` = ? " +
                 "AND `integerInRange` IN (?,?)";
@@ -204,7 +204,7 @@ public class BigQuerySqlUtilsTest
         constraintMap.put("emptyCol", emptyStringSet);
         List<QueryParameterValue> expectedParams = ImmutableList.of(QueryParameterValue.string(""));
         String expectedSql = "SELECT `nullCol`,`nonNullCol`,`emptyCol` from `schema`.`table` " +
-                "WHERE nullCol IS NULL AND nonNullCol IS NOT NULL AND `emptyCol` = ?";
+                "WHERE `nullCol` IS NULL AND `nonNullCol` IS NOT NULL AND `emptyCol` = ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, makeSchema(constraintMap), expectedParams, expectedSql);
     }
@@ -474,6 +474,22 @@ public class BigQuerySqlUtilsTest
         } catch (IllegalArgumentException e) {
             assertEquals("High marker should never use ABOVE bound", e.getMessage());
         }
+    }
+
+    @Test
+    public void singleQuotedStringLiteral_doublesApostrophe()
+    {
+        assertEquals("'a'", BigQuerySqlUtils.singleQuotedStringLiteral("a"));
+        assertEquals("'O''Brien'", BigQuerySqlUtils.singleQuotedStringLiteral("O'Brien"));
+        assertEquals("''''", BigQuerySqlUtils.singleQuotedStringLiteral("'"));
+    }
+
+    @Test
+    public void backtickQuotedIdentifier_escapesBacktickAndBackslash()
+    {
+        assertEquals("`col`", BigQuerySqlUtils.backtickQuotedIdentifier("col"));
+        assertEquals("`a\\`b`", BigQuerySqlUtils.backtickQuotedIdentifier("a`b"));
+        assertEquals("`c\\\\d`", BigQuerySqlUtils.backtickQuotedIdentifier("c\\d"));
     }
 
     private Constraints getConstraints(Map<String, ValueSet> constraintMap, List<OrderByField> orderByFields, long limit) {
