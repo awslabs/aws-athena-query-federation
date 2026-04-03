@@ -35,18 +35,30 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.AND_BOOL;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.EQUAL_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.EQUAL_DATE_DATE;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.EQUAL_TS_TS;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GTE_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GTE_DATE_DATE;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GTE_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GTE_TS_TS;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GT_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GT_DATE_DATE;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GT_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GT_TS_TS;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.IS_NOT_NULL_ANY;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.IS_NULL_ANY;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LTE_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LTE_DATE_DATE;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LTE_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LTE_TS_TS;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LT_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LT_DATE_DATE;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LT_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LT_TS_TS;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.NOT_BOOL;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.NOT_EQUAL_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.NOT_EQUAL_DATE_DATE;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.NOT_EQUAL_TS_TS;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.OR_BOOL;
 
 /**
@@ -308,19 +320,31 @@ public final class SubstraitFunctionParser
         switch (functionName) {
             case GT_ANY_ANY:
             case GT_PTS_PTS:
+            case GT_DATE_DATE:
+            case GT_TS_TS:
                 return SubstraitOperator.GREATER_THAN;
             case GTE_ANY_ANY:
             case GTE_PTS_PTS:
+            case GTE_DATE_DATE:
+            case GTE_TS_TS:
                 return SubstraitOperator.GREATER_THAN_OR_EQUAL_TO;
             case LT_ANY_ANY:
             case LT_PTS_PTS:
+            case LT_DATE_DATE:
+            case LT_TS_TS:
                 return SubstraitOperator.LESS_THAN;
             case LTE_ANY_ANY:
             case LTE_PTS_PTS:
+            case LTE_DATE_DATE:
+            case LTE_TS_TS:
                 return SubstraitOperator.LESS_THAN_OR_EQUAL_TO;
             case EQUAL_ANY_ANY:
+            case EQUAL_DATE_DATE:
+            case EQUAL_TS_TS:
                 return SubstraitOperator.EQUAL;
             case NOT_EQUAL_ANY_ANY:
+            case NOT_EQUAL_DATE_DATE:
+            case NOT_EQUAL_TS_TS:
                 return SubstraitOperator.NOT_EQUAL;
             case IS_NULL_ANY:
                 return SubstraitOperator.IS_NULL;
