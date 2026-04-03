@@ -48,6 +48,7 @@ import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableResult;
@@ -83,6 +84,7 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.ArgumentCaptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -193,7 +195,7 @@ public class BigQueryRecordHandlerTest
         //Mock the BigQuery Client to return Datasets, and Table Schema information.
         Table table = mock(Table.class);
         TableDefinition def = mock(TableDefinition.class);
-        when(bigQuery.getTable(any())).thenReturn(table);
+        when(bigQuery.getTable(any(com.google.cloud.bigquery.TableId.class))).thenReturn(table);
         when(table.getDefinition()).thenReturn(def);
         when(def.getType()).thenReturn(TableDefinition.Type.TABLE);
         
@@ -289,7 +291,11 @@ public class BigQueryRecordHandlerTest
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
 
             // Verify
-            verify(bigQuery).create(any(JobInfo.class));
+            ArgumentCaptor<JobInfo> jobInfoCaptor = ArgumentCaptor.forClass(JobInfo.class);
+            verify(bigQuery).create(jobInfoCaptor.capture());
+            QueryJobConfiguration config = jobInfoCaptor.getValue().getConfiguration();
+            assertTrue("Query should contain passthrough SQL",
+                    config.getQuery().contains("SELECT * FROM test_table"));
             verify(queryJob).getQueryResults();
             verify(queryStatusChecker).isQueryRunning();
         }
@@ -345,8 +351,12 @@ public class BigQueryRecordHandlerTest
             // Execute test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
 
-            // Verify SQL API was used (not Storage API)
-            verify(bigQuery).create(any(JobInfo.class));
+            // Verify SQL API was used and capture the generated SQL
+            ArgumentCaptor<JobInfo> jobInfoCaptor = ArgumentCaptor.forClass(JobInfo.class);
+            verify(bigQuery).create(jobInfoCaptor.capture());
+            QueryJobConfiguration config = jobInfoCaptor.getValue().getConfiguration();
+            assertTrue("SQL should contain SELECT",
+                    config.getQuery().contains("SELECT"));
         }
     }
 

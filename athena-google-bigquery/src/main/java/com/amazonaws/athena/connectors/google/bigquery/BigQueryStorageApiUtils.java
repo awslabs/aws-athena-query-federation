@@ -278,8 +278,7 @@ public class BigQueryStorageApiUtils
             return whereClause.toSqlString(dialect).getSql();
         }
         catch (Exception e) {
-            LOGGER.warn("Failed to parse Substrait plan for Storage API: {}.", e.getMessage(), e);
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to parse Substrait plan for Storage API: " + e.getMessage(), e);
         }
     }
 }

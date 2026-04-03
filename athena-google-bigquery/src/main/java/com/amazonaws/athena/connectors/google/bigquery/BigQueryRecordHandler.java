@@ -93,7 +93,6 @@ public class BigQueryRecordHandler
     private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandler.class);
     private final ThrottlingInvoker invoker;
     BufferAllocator allocator;
-    private static final String CATALOG_CASING_FILTER = "CATALOG_CASING_FILTER";
 
     private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
 
@@ -183,9 +182,7 @@ public class BigQueryRecordHandler
                          BigQuery bigQueryClient,
                          String datasetName, String tableName) throws TimeoutException
     {
-        // Parse CATALOG_CASING_FILTER: UPPERCASE_ONLY = true, LOWERCASE_ONLY or null = false (default)
-        boolean catalogCasingFilterUpperCase = "UPPERCASE_ONLY".equalsIgnoreCase(
-                configOptions.getOrDefault(CATALOG_CASING_FILTER, "LOWERCASE_ONLY"));
+        boolean catalogCasingFilterUpperCase = isCasingFilterUpperCase();
         String query = BigQuerySqlUtils.buildSql(new TableName(datasetName, tableName),
                 recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues, catalogCasingFilterUpperCase);
         getData(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient, query);
@@ -247,8 +244,7 @@ public class BigQueryRecordHandler
     private void getTableData(BlockSpiller spiller, ReadRecordsRequest recordsRequest, List<QueryParameterValue> parameterValues, String projectName, String datasetName, String tableName) throws IOException
     {
         String secret = getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions));
-        boolean catalogCasingFilterUpperCase = "UPPERCASE_ONLY".equalsIgnoreCase(
-                configOptions.getOrDefault(CATALOG_CASING_FILTER, "LOWERCASE_ONLY"));
+        boolean catalogCasingFilterUpperCase = isCasingFilterUpperCase();
 
         // Create BigQueryReadClient with credentials from Secrets Manager
         BigQueryReadSettings settings = BigQueryReadSettings.newBuilder()
@@ -344,8 +340,10 @@ public class BigQueryRecordHandler
                             .filter(name -> name.equalsIgnoreCase(vector.getField().getName()))
                             .findFirst()
                             .orElseThrow(() -> {
-                                return new IllegalStateException(
-                                        "Field '" + vector.getField().getName() + "' from BigQuery response not found in schema.");
+                        List<String> schemaFieldNames = recordsRequest.getSchema().getFields().stream()
+                                .map(Field::getName).collect(java.util.stream.Collectors.toList());
+                        return new IllegalStateException("Field '" + vector.getField().getName()
+                                + "' from BigQuery response not found in schema. Schema fields: " + schemaFieldNames);
                             });
                     switch (vector.getMinorType()) {
                         case LIST:
@@ -401,5 +399,15 @@ public class BigQueryRecordHandler
                 });
             }
         }
+    }
+
+    /**
+     * Checks CATALOG_CASING_FILTER config: returns true for UPPERCASE_ONLY, false otherwise (default LOWERCASE_ONLY).
+     */
+    private boolean isCasingFilterUpperCase()
+    {
+        return BigQueryConstants.CASING_UPPERCASE_ONLY.equalsIgnoreCase(
+                configOptions.getOrDefault(BigQueryConstants.CATALOG_CASING_FILTER,
+                        BigQueryConstants.CASING_LOWERCASE_ONLY));
     }
 }
