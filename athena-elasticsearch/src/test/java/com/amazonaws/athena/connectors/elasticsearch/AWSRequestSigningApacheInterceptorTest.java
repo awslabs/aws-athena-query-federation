@@ -47,8 +47,8 @@ import java.util.function.Consumer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -120,17 +120,10 @@ public class AWSRequestSigningApacheInterceptorTest
     {
         HttpRequest request = new BasicHttpRequest(HTTP_METHOD_GET, TEST_URI_INVALID);
 
-        try {
-            interceptor.process(request, context);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Invalid URI",
-                    ex.getMessage().contains(INVALID_URI_MESSAGE));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> interceptor.process(request, context));
+        assertTrue("Exception message should contain Invalid URI",
+                ex.getMessage().contains(INVALID_URI_MESSAGE));
     }
 
     @Test
@@ -198,16 +191,9 @@ public class AWSRequestSigningApacheInterceptorTest
         lenient().when(requestLine.getMethod()).thenReturn(HTTP_METHOD_GET);
         lenient().when(requestLine.getUri()).thenReturn("https://test.com/path?query=value%");
 
-        try {
-            interceptor.process(request, context);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Invalid URI",
-                    ex.getMessage().contains(INVALID_URI_MESSAGE));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> interceptor.process(request, context));
+        assertTrue("Exception message should contain Invalid URI",
+                ex.getMessage().contains(INVALID_URI_MESSAGE));
     }
 }

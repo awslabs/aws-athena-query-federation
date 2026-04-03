@@ -27,6 +27,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,9 +43,8 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /**
  * This class is used to test the ElasticsearchFieldResolver class.
@@ -204,17 +204,10 @@ public class ElasticsearchFieldResolverTest
     {
         Field field = new Field("test", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
 
-        try {
-            resolver.getFieldValue(field, "not-a-map");
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Invalid argument type",
-                    ex.getMessage().contains("Invalid argument type"));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> resolver.getFieldValue(field, "not-a-map"));
+        assertTrue("Exception message should contain Invalid argument type",
+                ex.getMessage().contains("Invalid argument type"));
     }
 
     @Test
@@ -224,17 +217,10 @@ public class ElasticsearchFieldResolverTest
                 ImmutableList.of(new Field("nested", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null)));
         Map<String, Object> document = ImmutableMap.of("mystruct", "not-a-map");
 
-        try {
-            resolver.getFieldValue(structField, document);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Invalid field value",
-                    ex.getMessage().contains("Invalid field value encountered in Document"));
-        }
-        catch (Exception e) {
-            fail("Expected AthenaConnectorException but got: " + e.getClass().getName());
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> resolver.getFieldValue(structField, document));
+        assertTrue("Exception message should contain Invalid field value",
+                ex.getMessage().contains("Invalid field value encountered in Document"));
     }
 
     @Test
@@ -245,14 +231,10 @@ public class ElasticsearchFieldResolverTest
                 ImmutableList.of(childField));
         Map<String, Object> document = ImmutableMap.of("test", ImmutableMap.of("nested", "value"));
 
-        try {
-            resolver.getFieldValue(listField, document);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Invalid field value",
-                    ex.getMessage().contains("Invalid field value encountered in Document"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> resolver.getFieldValue(listField, document));
+        assertTrue("Exception message should contain Invalid field value",
+                ex.getMessage().contains("Invalid field value encountered in Document"));
     }
 
     @Test
