@@ -86,8 +86,8 @@ import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
@@ -540,15 +540,11 @@ public class ElasticsearchRecordHandlerTest
 
         BlockSpiller spiller = mock(BlockSpiller.class);
 
-        try {
-            handler.readWithConstraint(spiller, request, queryStatusChecker);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Error sending search query",
-                    ex.getMessage() != null && ex.getMessage().contains("Error sending search query"));
-            assertTrue("Exception message should contain original error",
-                    ex.getMessage() != null && ex.getMessage().contains("Search failed"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> handler.readWithConstraint(spiller, request, queryStatusChecker));
+        assertTrue("Exception message should contain Error sending search query",
+                ex.getMessage() != null && ex.getMessage().contains("Error sending search query"));
+        assertTrue("Exception message should contain original error",
+                ex.getMessage() != null && ex.getMessage().contains("Search failed"));
     }
 }

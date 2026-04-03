@@ -40,8 +40,8 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -137,14 +137,10 @@ public class ElasticsearchDomainMapProviderTest
     {
         ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
 
-        try {
-            domainMapProvider.getDomainMap("");
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Empty or null value",
-                    ex.getMessage().contains("Empty or null value found in DomainMapping"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> domainMapProvider.getDomainMap(""));
+        assertTrue("Exception message should contain Empty or null value",
+                ex.getMessage().contains("Empty or null value found in DomainMapping"));
     }
 
     @Test
@@ -152,14 +148,10 @@ public class ElasticsearchDomainMapProviderTest
     {
         ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
 
-        try {
-            domainMapProvider.getDomainMap(null);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Empty or null value",
-                    ex.getMessage().contains("Empty or null value found in DomainMapping"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> domainMapProvider.getDomainMap(null));
+        assertTrue("Exception message should contain Empty or null value",
+                ex.getMessage().contains("Empty or null value found in DomainMapping"));
     }
 
     @Test
@@ -180,14 +172,10 @@ public class ElasticsearchDomainMapProviderTest
         ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
         String invalidDomainMapping = "invalid=format=with=too=many=equals";
 
-        try {
-            domainMapProvider.getDomainMap(invalidDomainMapping);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain Parsing error",
-                    ex.getMessage().contains("DomainMapping Parsing error"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> domainMapProvider.getDomainMap(invalidDomainMapping));
+        assertTrue("Exception message should contain Parsing error",
+                ex.getMessage().contains("DomainMapping Parsing error"));
     }
 
     @Test
@@ -222,14 +210,10 @@ public class ElasticsearchDomainMapProviderTest
         when(mockClient.describeElasticsearchDomains(any(DescribeElasticsearchDomainsRequest.class)))
                 .thenThrow(new RuntimeException("Describe domains failed"));
 
-        try {
-            domainProvider.getDomainMap(null);
-            fail("Expected RuntimeException was not thrown");
-        }
-        catch (RuntimeException ex) {
-            assertTrue("Exception message should contain Describe domains failed",
-                    ex.getMessage().contains("Describe domains failed"));
-        }
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> domainProvider.getDomainMap(null));
+        assertTrue("Exception message should contain Describe domains failed",
+                ex.getMessage().contains("Describe domains failed"));
     }
 
     @Test
@@ -245,14 +229,10 @@ public class ElasticsearchDomainMapProviderTest
         when(mockClient.listDomainNames()).thenReturn(mockDomainInfo);
         when(mockDomainInfo.domainNames()).thenReturn(ImmutableList.of());
 
-        try {
-            domainProvider.getDomainMap(null);
-            fail("Expected AthenaConnectorException was not thrown");
-        }
-        catch (AthenaConnectorException ex) {
-            assertTrue("Exception message should contain no domain information",
-                    ex.getMessage().contains("no domain information"));
-        }
+        AthenaConnectorException ex = assertThrows(AthenaConnectorException.class,
+                () -> domainProvider.getDomainMap(null));
+        assertTrue("Exception message should contain no domain information",
+                ex.getMessage().contains("no domain information"));
     }
 
     @Test
