@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":9,"i1":9};
+var data = {"i0":9,"i1":9,"i2":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -175,6 +175,15 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="block">Recursively parses a Substrait expression to extract all column predicates.</div>
 </td>
 </tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>static <a href="model/LogicalExpression.html" title="class in com.amazonaws.athena.connector.substrait.model">LogicalExpression</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#parseLogicalExpression(java.util.List,io.substrait.proto.Expression,java.util.List)">parseLogicalExpression</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;io.substrait.proto.SimpleExtensionDeclaration&gt;&nbsp;extensionDeclarationList,
+                      io.substrait.proto.Expression&nbsp;expression,
+                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;columnNames)</code></th>
+<td class="colLast">
+<div class="block">Parses a Substrait expression into a logical expression tree that preserves AND/OR/NOT hierarchy.</div>
+</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.java.lang.Object">
@@ -223,7 +232,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <a id="parseColumnPredicates(java.util.List,io.substrait.proto.Expression,java.util.List)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>parseColumnPredicates</h4>
 <pre class="methodSignature">public static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="model/ColumnPredicate.html" title="class in com.amazonaws.athena.connector.substrait.model">ColumnPredicate</a>&gt;&nbsp;parseColumnPredicates&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;io.substrait.proto.SimpleExtensionDeclaration&gt;&nbsp;extensionDeclarationList,
@@ -238,6 +247,27 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <dd><code>columnNames</code> - List of column names in the schema for field reference resolution</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>A flat list of all column predicates found in the expression</dd>
+</dl>
+</li>
+</ul>
+<a id="parseLogicalExpression(java.util.List,io.substrait.proto.Expression,java.util.List)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>parseLogicalExpression</h4>
+<pre class="methodSignature">public static&nbsp;<a href="model/LogicalExpression.html" title="class in com.amazonaws.athena.connector.substrait.model">LogicalExpression</a>&nbsp;parseLogicalExpression&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;io.substrait.proto.SimpleExtensionDeclaration&gt;&nbsp;extensionDeclarationList,
+                                                       io.substrait.proto.Expression&nbsp;expression,
+                                                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;columnNames)</pre>
+<div class="block">Parses a Substrait expression into a logical expression tree that preserves AND/OR/NOT hierarchy.
+ This method maintains the original logical structure instead of flattening it.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>extensionDeclarationList</code> - List of function extension declarations from the Substrait plan</dd>
+<dd><code>expression</code> - The Substrait expression to parse</dd>
+<dd><code>columnNames</code> - List of column names in the schema for field reference resolution</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>LogicalExpression tree preserving the original logical structure</dd>
 </dl>
 </li>
 </ul>
