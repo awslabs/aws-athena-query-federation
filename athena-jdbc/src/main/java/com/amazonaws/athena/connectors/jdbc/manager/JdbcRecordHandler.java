@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -51,6 +50,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
@@ -69,6 +69,8 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,11 +138,6 @@ public abstract class JdbcRecordHandler
         return databaseConnectionConfig;
     }
 
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return getCredentialProvider(null);
-    }
-
     @Override
     public String getDatabaseConnectionSecret()
     {
@@ -171,6 +168,7 @@ public abstract class JdbcRecordHandler
                     readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
                     ResultSet resultSet = preparedStatement.executeQuery()) {
                 Map<String, String> partitionValues = readRecordsRequest.getSplit().getProperties();
+                Map<String, String> colNameRemapping = getColumnNameRemapping(readRecordsRequest);
 
                 GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(readRecordsRequest.getConstraints());
                 for (Field next : readRecordsRequest.getSchema().getFields()) {
@@ -178,7 +176,7 @@ public abstract class JdbcRecordHandler
                         rowWriterBuilder.withFieldWriterFactory(next.getName(), makeFactory(next));
                     }
                     else {
-                        rowWriterBuilder.withExtractor(next.getName(), makeExtractor(next, resultSet, partitionValues));
+                        rowWriterBuilder.withExtractor(next.getName(), makeExtractor(next, resultSet, partitionValues, colNameRemapping));
                     }
                 }
 
@@ -232,13 +230,18 @@ public abstract class JdbcRecordHandler
     }
 
     /**
-     * Creates an Extractor for the given field. In this example the extractor just creates some random data.
+     * Creates an Extractor for the given field.
      */
     @VisibleForTesting
     protected Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues)
     {
+        return makeExtractor(field, resultSet, partitionValues, Map.of());
+    }
+    
+    private Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues, Map<String, String> colNameRemapping)
+    {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
-        final String fieldName = field.getName();
+        final String fieldName = colNameRemapping.getOrDefault(field.getName(), field.getName());
 
         if (partitionValues.containsKey(fieldName)) {
             return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
@@ -246,6 +249,15 @@ public abstract class JdbcRecordHandler
                 dst.isSet = 1;
                 dst.value = partitionValues.get(fieldName);
             };
+        }
+
+        // Check if column exists in ResultSet - if not, return null extractor
+        try {
+            resultSet.findColumn(fieldName);
+        }
+        catch (SQLException e) {
+            LOGGER.debug("Column {} not found in ResultSet, returning null extractor", fieldName);
+            return makeNullExtractor(fieldType);
         }
 
         switch (fieldType) {
@@ -364,5 +376,64 @@ public abstract class JdbcRecordHandler
         String clientPassQuery = constraints.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
         preparedStatement = jdbcConnection.prepareStatement(clientPassQuery);
         return preparedStatement;
+    }
+    
+    protected Map<String, String> getColumnNameRemapping(ReadRecordsRequest request)
+    {
+        if (request.getConstraints() != null 
+                && request.getConstraints().getQueryPlan() != null 
+                && request.getConstraints().getQueryPlan().getSubstraitPlan() != null) {
+            // Get renamed → original mapping from SubstraitSqlUtils
+            Map<String, String> renamedToOriginal = SubstraitSqlUtils.getColumnRemapping(
+                    request.getConstraints().getQueryPlan().getSubstraitPlan(), getSqlDialect());
+            
+            // Invert to original → renamed mapping (filtering out null values for computed expressions)
+            Map<String, String> originalToRenamed = new java.util.HashMap<>();
+            for (Map.Entry<String, String> entry : renamedToOriginal.entrySet()) {
+                if (entry.getValue() != null) {
+                    originalToRenamed.put(entry.getValue(), entry.getKey());
+                }
+            }
+            return originalToRenamed;
+        }
+        return Map.of();
+    }
+    
+    protected SqlDialect getSqlDialect() 
+    {
+        return AnsiSqlDialect.DEFAULT;
+    }
+    
+    private Extractor makeNullExtractor(Types.MinorType fieldType)
+    {
+        switch (fieldType) {
+            case BIT:
+                return (BitExtractor) (Object context, NullableBitHolder dst) -> dst.isSet = 0;
+            case TINYINT:
+                return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) -> dst.isSet = 0;
+            case SMALLINT:
+                return (SmallIntExtractor) (Object context, NullableSmallIntHolder dst) -> dst.isSet = 0;
+            case INT:
+                return (IntExtractor) (Object context, NullableIntHolder dst) -> dst.isSet = 0;
+            case BIGINT:
+                return (BigIntExtractor) (Object context, NullableBigIntHolder dst) -> dst.isSet = 0;
+            case FLOAT4:
+                return (Float4Extractor) (Object context, NullableFloat4Holder dst) -> dst.isSet = 0;
+            case FLOAT8:
+                return (Float8Extractor) (Object context, NullableFloat8Holder dst) -> dst.isSet = 0;
+            case DECIMAL:
+                return (DecimalExtractor) (Object context, NullableDecimalHolder dst) -> dst.isSet = 0;
+            case DATEDAY:
+                return (DateDayExtractor) (Object context, NullableDateDayHolder dst) -> dst.isSet = 0;
+            case DATEMILLI:
+                return (DateMilliExtractor) (Object context, NullableDateMilliHolder dst) -> dst.isSet = 0;
+            case VARCHAR:
+                return (VarCharExtractor) (Object context, NullableVarCharHolder dst) -> dst.isSet = 0;
+            case VARBINARY:
+                return (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) -> dst.isSet = 0;
+            default:
+                throw new AthenaConnectorException("Unhandled type " + fieldType,
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+        }
     }
 }
