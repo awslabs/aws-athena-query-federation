@@ -137,4 +137,4 @@ public class SaphanaEnvironmentPropertiesTest
         String database = saphanaEnvironmentProperties.getDatabase(null);
         assertEquals("/", database);
     }
-} 
+}
