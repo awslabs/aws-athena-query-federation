@@ -59,7 +59,12 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRespon
 
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.SAPHANA_NAME;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class SaphanaMetadataHandlerTest
@@ -239,96 +244,107 @@ public class SaphanaMetadataHandlerTest
     }
 
     @Test
-    public void doListTables_withPagination_returnsListOfTablesWithNextToken()
+    public void doListTables_withPageSizeOneAndNullToken_returnsNextTokenAndTable()
             throws Exception
     {
-        SaphanaMetadataHandler metadataHandler = new SaphanaMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new SaphanaJDBCCaseResolver(SAPHANA_NAME, CaseResolver.FederationSDKCasingMode.NONE));
+        SaphanaMetadataHandler metadataHandler = newMetadataHandlerWithNoneCasing();
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
-
-        // Test 1: Testing Single table returned in request of page size 1 and nextToken null
-        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(saphanaMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
-        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
-        Object[][] values = {{"testSchema", "testTable"}};
-        TableName[] expected = {new TableName("testSchema", "testTable")};
-        ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
-        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        mockListPaginatedTablesQuery(new Object[][] {{"testSchema", "testTable"}});
 
         ListTablesResponse listTablesResponse = metadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", null, 1));
 
         assertEquals("1", listTablesResponse.getNextToken());
+        TableName[] expected = {new TableName("testSchema", "testTable")};
         assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+    }
 
-        // Test 2: Testing next table returned of page size 1 and nextToken 1
-        preparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(saphanaMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
-        values = new Object[][]{{"testSchema", "testTable2"}};
-        expected = new TableName[]{new TableName("testSchema", "testTable2")};
-        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
-        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
-        listTablesResponse = metadataHandler.doListTables(
+    @Test
+    public void doListTables_withPageSizeOneAndTokenOne_returnsNextTokenAndSecondTable()
+            throws Exception
+    {
+        SaphanaMetadataHandler metadataHandler = newMetadataHandlerWithNoneCasing();
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        mockListPaginatedTablesQuery(new Object[][] {{"testSchema", "testTable2"}});
+
+        ListTablesResponse listTablesResponse = metadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "1", 1));
+
         assertEquals("2", listTablesResponse.getNextToken());
+        TableName[] expected = {new TableName("testSchema", "testTable2")};
         assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+    }
 
-        // Test 3: Testing single table returned when requesting pageSize 2 signifying end of pagination where nextToken is null
-        preparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(saphanaMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
-        values = new Object[][]{{"testSchema", "testTable2"}};
-        expected = new TableName[]{new TableName("testSchema", "testTable2")};
-        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
-        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+    @Test
+    public void doListTables_withPageSizeTwoAndTokenTwo_returnsLastPageWithoutNextToken()
+            throws Exception
+    {
+        SaphanaMetadataHandler metadataHandler = newMetadataHandlerWithNoneCasing();
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        mockListPaginatedTablesQuery(new Object[][] {{"testSchema", "testTable2"}});
 
-        listTablesResponse = metadataHandler.doListTables(blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                "testCatalog", "testSchema", "2", 2));
+        ListTablesResponse listTablesResponse = metadataHandler.doListTables(blockAllocator,
+                new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "2", 2));
+
         assertNull(listTablesResponse.getNextToken());
+        TableName[] expected = {new TableName("testSchema", "testTable2")};
         assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+    }
 
-        // Test 4: nextToken is 2 and pageSize is UNLIMITED. Return all tables starting from index 2.
-        preparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(saphanaMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
-        values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
-        expected = new TableName[]{new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4")};
-        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
-        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+    @Test
+    public void doListTables_withUnlimitedPageSizeAndTokenTwo_returnsRemainingTables()
+            throws Exception
+    {
+        SaphanaMetadataHandler metadataHandler = newMetadataHandlerWithNoneCasing();
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        mockListPaginatedTablesQuery(new Object[][] {
+                {"testSchema", "testTable3"},
+                {"testSchema", "testTable4"}
+        });
 
-        listTablesResponse = metadataHandler.doListTables(
+        ListTablesResponse listTablesResponse = metadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "2", ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE));
+
         assertNull(listTablesResponse.getNextToken());
+        TableName[] expected = {
+                new TableName("testSchema", "testTable3"),
+                new TableName("testSchema", "testTable4")
+        };
         assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+    }
 
-        // Test 5: AthenaConnectorException with negative nextToken value
-        preparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(saphanaMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
-        values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
-        expected = new TableName[]{new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4")};
-        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
-        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+    @Test
+    public void doListTables_withNegativeNextToken_throwsAthenaConnectorException()
+            throws Exception {
+        try (BlockAllocator blockAllocator = new BlockAllocatorImpl()) {
+            mockListPaginatedTablesQuery(new Object[][]{
+                    {"testSchema", "testTable3"},
+                    {"testSchema", "testTable4"}
+            });
 
-        assertThrows(AthenaConnectorException.class, () -> this.saphanaMetadataHandler.doListTables(
-                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                        "testCatalog", "testSchema", "-1", 3)));
-        assertNull(listTablesResponse.getNextToken());
-        assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+            assertThrows(AthenaConnectorException.class, () -> this.saphanaMetadataHandler.doListTables(
+                    blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                            "testCatalog", "testSchema", "-1", 3)));
+        }
+    }
 
-        // Test 6: AthenaConnectorException with negative pageSize value
-        preparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(saphanaMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
-        values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
-        expected = new TableName[]{new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4")};
-        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
-        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+    @Test
+    public void doListTables_withNegativePageSize_throwsAthenaConnectorException()
+            throws Exception {
+        try (BlockAllocator blockAllocator = new BlockAllocatorImpl()) {
+            mockListPaginatedTablesQuery(new Object[][]{
+                    {"testSchema", "testTable3"},
+                    {"testSchema", "testTable4"}
+            });
 
-        assertThrows(AthenaConnectorException.class, () -> this.saphanaMetadataHandler.doListTables(
-                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                        "testCatalog", "testSchema", "0", -3)));
-        assertNull(listTablesResponse.getNextToken());
-        assertArrayEquals(expected, listTablesResponse.getTables().toArray());
-
+            assertThrows(AthenaConnectorException.class, () -> this.saphanaMetadataHandler.doListTables(
+                    blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                            "testCatalog", "testSchema", "0", -3)));
+        }
     }
 
     @Test
@@ -508,14 +524,6 @@ public class SaphanaMetadataHandlerTest
                 {Types.TIMESTAMP, 93, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
-        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
-
-        PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
-        Schema expected = expectedSchemaBuilder.build();
 
         String schemaName = "testSchema";
         String tableName = "testTable";
@@ -655,5 +663,23 @@ public class SaphanaMetadataHandlerTest
 
             this.saphanaMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         }
+    }
+
+    private SaphanaMetadataHandler newMetadataHandlerWithNoneCasing()
+    {
+        return new SaphanaMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory,
+                com.google.common.collect.ImmutableMap.of(),
+                new SaphanaJDBCCaseResolver(SAPHANA_NAME, CaseResolver.FederationSDKCasingMode.NONE));
+    }
+
+    private void mockListPaginatedTablesQuery(Object[][] rows)
+            throws SQLException
+    {
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(SaphanaMetadataHandler.LIST_PAGINATED_TABLES_QUERY))
+                .thenReturn(preparedStatement);
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        ResultSet resultSet = mockResultSet(schema, rows, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
     }
 }
