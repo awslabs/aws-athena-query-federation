@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -171,11 +170,6 @@ public abstract class JdbcMetadataHandler
     protected DatabaseConnectionConfig getDatabaseConnectionConfig()
     {
         return databaseConnectionConfig;
-    }
-
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return getCredentialProvider(null);
     }
 
     @Override

@@ -344,13 +344,9 @@ public class OracleMetadataHandler
 
                 String columnName = resultSet.getString(COLUMN_NAME);
                 int jdbcColumnType = resultSet.getInt("DATA_TYPE");
-                int precision = resultSet.getInt("COLUMN_SIZE");
-                int scale = resultSet.getInt("DECIMAL_DIGITS");
-
+                
                 LOGGER.debug("columnName: {}", columnName);
                 LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
-                LOGGER.debug("precision: {}", precision);
-                LOGGER.debug("scale: {}", scale);
                 LOGGER.debug("arrowColumnType: {}", arrowColumnType);
 
                 /**
@@ -367,16 +363,16 @@ public class OracleMetadataHandler
                 }
 
                 /**
-                 * Converting an Oracle date data type into DATEDAY MinorType
+                 * Converting an Oracle Date, TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType.
+                 * <p>
+                 * Oracle DATE columns store both date and time (to second precision), but the Oracle JDBC driver
+                 * reports them using timestamp-style JDBC type codes (OracleTypes.TIMESTAMP), not a calendar-day-only
+                 * type. If we mapped that to Arrow DATEDAY, the JDBC record path would read values with
+                 * ResultSet.getDate(), which truncates to the calendar day and loses time-of-day in Athena.
                  */
-                if (jdbcColumnType == java.sql.Types.TIMESTAMP && precision == 7) {
-                    arrowColumnType = Optional.of(Types.MinorType.DATEDAY.getType());
-                }
-
-                /**
-                 * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
-                 */
-                if (jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
+                if (jdbcColumnType == OracleTypes.TIMESTAMP
+                        || jdbcColumnType == OracleTypes.TIMESTAMPLTZ
+                        || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
                     arrowColumnType = Optional.of(Types.MinorType.DATEMILLI.getType());
                 }
 
