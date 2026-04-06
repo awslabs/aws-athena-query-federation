@@ -21,10 +21,16 @@ package com.amazonaws.athena.connectors.google.bigquery;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import com.amazonaws.athena.connectors.google.bigquery.query.BigQueryQueryBuilder;
 import com.amazonaws.athena.connectors.google.bigquery.query.BigQueryQueryFactory;
 import com.google.cloud.bigquery.QueryParameterValue;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
 
 import java.util.List;
@@ -36,7 +42,8 @@ import java.util.Map;
 public class BigQuerySqlUtils
 {
     private static final BigQueryQueryFactory queryFactory = new BigQueryQueryFactory();
-    
+    private static final Logger logger = LoggerFactory.getLogger(BigQuerySqlUtils.class);
+
     private BigQuerySqlUtils()
     {
     }
@@ -49,12 +56,32 @@ public class BigQuerySqlUtils
      * @param schema The schema of the table that we are querying.
      * @param constraints The constraints that we want to apply to the query.
      * @param parameterValues Query parameter values for parameterized query.
+     * @param catalogCasingFilterUpperCase true for UPPERCASE_ONLY, false for LOWERCASE_ONLY (default).
      * @return SQL Statement that represents the table, columns, split, and constraints.
      */
-    public static String buildSql(TableName tableName, Schema schema, Constraints constraints, List<QueryParameterValue> parameterValues)
+    public static String buildSql(TableName tableName, Schema schema, Constraints constraints,
+                                   List<QueryParameterValue> parameterValues, boolean catalogCasingFilterUpperCase)
     {
         BigQueryQueryBuilder queryBuilder = queryFactory.createQueryBuilder();
-        
+        if (constraints.getQueryPlan() != null) {
+            try {
+                logger.info("Using Substrait query plan for Sql API");
+                SqlDialect dialect = new BigQueryCustomSqlDialect(catalogCasingFilterUpperCase);
+
+                SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(
+                        constraints.getQueryPlan().getSubstraitPlan(), dialect);
+                SqlSelect root;
+                root = (SqlSelect) sqlNode;
+                String generatedSql = root.toSqlString(dialect).getSql();
+                logger.info("Generated Sql:" + generatedSql);
+                return generatedSql;
+            }
+            catch (Exception e) {
+                logger.error("Failed to prepare statement with Calcite", e);
+                throw new RuntimeException("Failed to prepare statement with Calcite", e);
+            }
+        }
+
         String sql = queryBuilder
                 .withTableName(tableName)
                 .withProjection(schema)
@@ -62,14 +89,14 @@ public class BigQuerySqlUtils
                 .withOrderByClause(constraints)
                 .withLimitClause(constraints)
                 .build();
-        
+
         // Copy the parameter values from the builder to the provided list
         parameterValues.clear();
         parameterValues.addAll(queryBuilder.getParameterValues());
-        
+
         return sql;
     }
-    
+
     /**
      * Generic method to render any string template with parameters
      *
