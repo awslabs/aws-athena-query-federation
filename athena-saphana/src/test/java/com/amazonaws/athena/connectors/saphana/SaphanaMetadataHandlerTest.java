@@ -306,7 +306,7 @@ public class SaphanaMetadataHandlerTest
         listTablesResponse = metadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "2", ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE));
-        assertEquals(null, listTablesResponse.getNextToken());
+        assertNull(listTablesResponse.getNextToken());
         assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
         // Test 5: AthenaConnectorException with negative nextToken value
