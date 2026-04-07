@@ -100,6 +100,18 @@ public class SnowflakeOAuthCredentialsProvider extends OAuthCredentialsProvider
                 && hasUsername;
     }
 
+    /**
+     * Satisfies the {@link OAuthCredentialsProvider} contract; Snowflake does not use the base class token path
+     * ({@link java.net.http.HttpClient} plus a single built {@link HttpRequest}).
+     * <p>
+     * Snowflake OAuth exchanges authorization codes and refresh tokens over {@link HttpURLConnection} with HTTP Basic
+     * client authentication in {@link #getCredential()} / {@code fetchAccessTokenFromSecret}, so this method is never
+     * invoked for normal operation. If called, it fails fast rather than building an incorrect request.
+     *
+     * @param secretMap secret fields (unused; Snowflake token exchange does not use this hook)
+     * @return never returns normally
+     * @throws UnsupportedOperationException always; Snowflake OAuth is not wired to the default OAuth request builder
+     */
     @Override
     protected HttpRequest buildTokenRequest(Map<String, String> secretMap)
     {
