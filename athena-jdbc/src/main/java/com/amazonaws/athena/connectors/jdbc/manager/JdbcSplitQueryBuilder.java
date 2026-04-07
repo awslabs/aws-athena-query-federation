@@ -79,6 +79,9 @@ public abstract class JdbcSplitQueryBuilder
 
     private static final Pattern WHERE_PATTERN = Pattern.compile("\\bWHERE\\b", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern TRAILING_CLAUSES_PATTERN = Pattern.compile(
+            "\\s+(FETCH\\s|ORDER\\s+BY\\s|LIMIT\\s|OFFSET\\s)", Pattern.CASE_INSENSITIVE);
+
     private static final int MILLIS_SHIFT = 12;
 
     private final String quoteCharacters;
@@ -457,7 +460,7 @@ public abstract class JdbcSplitQueryBuilder
             RelDataType tableSchema = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect);
             SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, tableSchema);
             SqlNode parameterizedNode = visitor.visit(root);
-            
+
             LOGGER.debug("CalciteSql parameterized sql with dialect {}: {}", sqlDialect.toString(), parameterizedNode.toSqlString(sqlDialect).getSql());
             LOGGER.debug("CalciteSql parameters: {}", accumulator.toString());
 
@@ -465,7 +468,15 @@ public abstract class JdbcSplitQueryBuilder
             List<String> splitClauses = getPartitionWhereClauses(split);
             if (!splitClauses.isEmpty()) {
                 String splitWhere = String.join(" AND ", splitClauses);
-                sql = WHERE_PATTERN.matcher(sql).find() ? sql + " AND " + splitWhere : sql + " WHERE " + splitWhere;
+                String conjunction = WHERE_PATTERN.matcher(sql).find() ? " AND " : " WHERE ";
+                java.util.regex.Matcher trailingMatcher = TRAILING_CLAUSES_PATTERN.matcher(sql);
+                if (trailingMatcher.find()) {
+                    int insertPos = trailingMatcher.start();
+                    sql = sql.substring(0, insertPos) + conjunction + splitWhere + sql.substring(insertPos);
+                }
+                else {
+                    sql = sql + conjunction + splitWhere;
+                }
             }
             PreparedStatement statement = jdbcConnection.prepareStatement(sql);
             ParameterMetaData metaData = statement.getParameterMetaData();
