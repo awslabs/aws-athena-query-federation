@@ -33,7 +33,7 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
@@ -97,7 +97,7 @@ public class CacheableAwsRestHighLevelClientTest
     {
         logger.info("get_whenClientExceedsMaxCacheAge_evictsClient - enter");
 
-        lenient().when(client1.ping(any())).thenReturn(true);
+        lenient().when(client1.ping(eq(RequestOptions.DEFAULT))).thenReturn(true);
         // Test eviction on the get() method.
         clientCache.addClientEntry(ENDPOINT_1, client1, System.currentTimeMillis() -
                 CacheableAwsRestHighLevelClient.MAX_CACHE_AGE_MS - 1);
@@ -107,7 +107,7 @@ public class CacheableAwsRestHighLevelClientTest
         assertEquals("Cache has wrong number of clients.", 0, clientCache.size());
 
         // Test eviction on the put() method.
-        lenient().when(client2.ping(any())).thenReturn(true);
+        lenient().when(client2.ping(eq(RequestOptions.DEFAULT))).thenReturn(true);
         clientCache.addClientEntry(ENDPOINT_1, client1, System.currentTimeMillis() -
                 CacheableAwsRestHighLevelClient.MAX_CACHE_AGE_MS - 1);
 
@@ -131,7 +131,7 @@ public class CacheableAwsRestHighLevelClientTest
     {
         logger.info("get_whenClientPingFails_evictsUnhealthyClient - enter");
 
-        when(client1.ping(any())).thenReturn(false);
+        when(client1.ping(eq(RequestOptions.DEFAULT))).thenReturn(false);
         clientCache.put(ENDPOINT_1, client1);
 
         assertEquals("Cache has wrong number of clients.", 1, clientCache.size());
@@ -151,7 +151,7 @@ public class CacheableAwsRestHighLevelClientTest
     {
         logger.info("put_whenCapacityExceeded_evictsOldestClient - enter");
 
-        lenient().when(client1.ping(any())).thenReturn(true);
+        lenient().when(client1.ping(eq(RequestOptions.DEFAULT))).thenReturn(true);
         clientCache.put(ENDPOINT_1, client1);
         for (int i = 0; i < CacheableAwsRestHighLevelClient.MAX_CACHE_SIZE; ++i) {
             String endpoint = "newendpoint" + i;
@@ -175,8 +175,8 @@ public class CacheableAwsRestHighLevelClientTest
         assertEquals("Cache should have 2 clients before get", 2, clientCache.size());
 
         // Make client1 unhealthy - get() will call evictCache(endpoint) internally
-        when(client1.ping(any())).thenThrow(new IOException("Connection failed"));
-        when(client2.ping(any())).thenReturn(true);
+        when(client1.ping(eq(RequestOptions.DEFAULT))).thenThrow(new IOException("Connection failed"));
+        when(client2.ping(eq(RequestOptions.DEFAULT))).thenReturn(true);
 
         // get() will detect unhealthy client and evict it
         assertNull("get() should return null for unhealthy client", clientCache.get(ENDPOINT_1));
@@ -199,7 +199,7 @@ public class CacheableAwsRestHighLevelClientTest
         clientCache.put(ENDPOINT_1, client1);
 
         // Make client unhealthy - get() will call evictCache(endpoint) internally, which calls closeClient
-        when(client1.ping(any())).thenThrow(new IOException("Connection failed"));
+        when(client1.ping(eq(RequestOptions.DEFAULT))).thenThrow(new IOException("Connection failed"));
 
         // get() will detect unhealthy client and evict it (closeClient may throw IOException but should be handled)
         clientCache.get(ENDPOINT_1);
