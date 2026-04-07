@@ -65,7 +65,8 @@ import java.util.Map;
 
 /**
  * This class has interfaces used for document field-values extraction after they are retrieved from an Elasticsearch
- * instance. This includes field extractors and field writer factories using the field extractor framework.
+ * instance. This includes field extractors and field writer factories using the field extractor framework. It also
+ * supports exposing object fields marked with json metadata as VARCHAR values containing serialized JSON.
  */
 class ElasticsearchTypeUtils
 {
@@ -123,11 +124,12 @@ class ElasticsearchTypeUtils
         return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
         {
             Object fieldValue = ((Map) context).get(field.getName());
+            Map<String, String> metadata = field.getMetadata();
             dst.isSet = 1;
             if (fieldValue instanceof String) {
                 dst.value = (String) fieldValue;
             }
-            else if (fieldValue instanceof Map && "true".equals(field.getMetadata().get("json"))) {
+            else if (fieldValue instanceof Map && metadata != null && "true".equals(metadata.get("json"))) {
                 try {
                     dst.value = OBJECT_MAPPER.writeValueAsString(fieldValue);
                 }
