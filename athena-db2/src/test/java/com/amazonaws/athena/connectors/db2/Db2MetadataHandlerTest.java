@@ -65,6 +65,7 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -106,6 +107,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     private Db2MetadataHandler db2MetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
+    private DatabaseMetaData databaseMetaData;
     private FederatedIdentity federatedIdentity;
     private SecretsManagerClient secretsManager;
     private BlockAllocator blockAllocator;
@@ -114,8 +116,10 @@ public class Db2MetadataHandlerTest extends TestBase {
     @Before
     public void setup() throws Exception {
         System.setProperty("aws.region", "us-east-1");
-        this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
-        this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
+        this.connection = Mockito.mock(Connection.class);
+        this.databaseMetaData = Mockito.mock(DatabaseMetaData.class);
+        Mockito.when(this.connection.getMetaData()).thenReturn(this.databaseMetaData);
         logger.info(" this.connection..{}", this.connection);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
@@ -189,7 +193,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(colNamePreparedStatement.executeQuery()).thenReturn(colNameResultSet);
         Mockito.when(colNameResultSet.next()).thenReturn(true);
 
-        Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
+        Mockito.when(this.databaseMetaData.getSearchStringEscape()).thenReturn(null);
 
         Schema partitionSchema = this.db2MetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
@@ -304,7 +308,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
-        Mockito.when(connection.getMetaData().getColumns(TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, null)).thenReturn(resultSet);
+        Mockito.when(this.databaseMetaData.getColumns(TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn(TEST_CATALOG);
 
         TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -354,7 +358,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(tableStmt.executeQuery()).thenReturn(tableResultSet);
 
         TableName inputTableName = new TableName(schemaName, tableName);
-        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
+        Mockito.when(this.databaseMetaData.getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
@@ -377,7 +381,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(tablePstmt.executeQuery()).thenReturn(tableResultSet);
 
         TableName inputTableName = new TableName(schemaName, tableName);
-        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
+        Mockito.when(this.databaseMetaData.getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
@@ -399,7 +403,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(tableStmt.executeQuery()).thenReturn(tableResultSet);
 
         TableName inputTableName = new TableName(TEST_SCHEMA, tableName);
-        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
+        Mockito.when(this.databaseMetaData.getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
@@ -421,7 +425,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(tableStmt.executeQuery()).thenReturn(tableResultSet);
 
         TableName inputTableName = new TableName(TEST_SCHEMA, tableName);
-        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
+        Mockito.when(this.databaseMetaData.getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
@@ -506,7 +510,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(colNamePreparedStatement.executeQuery()).thenReturn(colNameResultSet);
         Mockito.when(colNameResultSet.next()).thenReturn(true);
         
-        Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
+        Mockito.when(this.databaseMetaData.getSearchStringEscape()).thenReturn(null);
         
         Schema partitionSchema = this.db2MetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());

@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Ranges;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -117,11 +118,15 @@ public class Db2RecordHandlerTest
 
     private ValueSet getSingleValueSet(Object value)
     {
-        Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        Marker low = Mockito.mock(Marker.class);
+        Mockito.when(low.getValue()).thenReturn(value);
+        Range range = Mockito.mock(Range.class);
         Mockito.when(range.isSingleValue()).thenReturn(true);
-        Mockito.when(range.getLow().getValue()).thenReturn(value);
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        Mockito.when(range.getLow()).thenReturn(low);
+        Ranges ranges = Mockito.mock(Ranges.class);
+        Mockito.when(ranges.getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        SortedRangeSet valueSet = Mockito.mock(SortedRangeSet.class);
+        Mockito.when(valueSet.getRanges()).thenReturn(ranges);
         return valueSet;
     }
 
@@ -565,29 +570,39 @@ public class Db2RecordHandlerTest
 
     private ValueSet getDiscreteValueSet(Object... values)
     {
-        List<Range> ranges = new java.util.ArrayList<>();
+        List<Range> rangeList = new java.util.ArrayList<>();
         for (Object value : values) {
-            Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+            Marker low = Mockito.mock(Marker.class);
+            Mockito.when(low.getValue()).thenReturn(value);
+            Range range = Mockito.mock(Range.class);
             Mockito.when(range.isSingleValue()).thenReturn(true);
-            Mockito.when(range.getLow().getValue()).thenReturn(value);
-            ranges.add(range);
+            Mockito.when(range.getLow()).thenReturn(low);
+            rangeList.add(range);
         }
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(ranges);
+        Ranges ranges = Mockito.mock(Ranges.class);
+        Mockito.when(ranges.getOrderedRanges()).thenReturn(rangeList);
+        SortedRangeSet valueSet = Mockito.mock(SortedRangeSet.class);
+        Mockito.when(valueSet.getRanges()).thenReturn(ranges);
         return valueSet;
     }
 
     private ValueSet getRangeSet(Object lowerValue,
                                  Object upperValue)
     {
-        Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        Marker lowMarker = Mockito.mock(Marker.class);
+        Marker highMarker = Mockito.mock(Marker.class);
+        Mockito.when(lowMarker.getBound()).thenReturn(Marker.Bound.EXACTLY);
+        Mockito.when(lowMarker.getValue()).thenReturn(lowerValue);
+        Mockito.when(highMarker.getBound()).thenReturn(Marker.Bound.BELOW);
+        Mockito.when(highMarker.getValue()).thenReturn(upperValue);
+        Range range = Mockito.mock(Range.class);
         Mockito.when(range.isSingleValue()).thenReturn(false);
-        Mockito.when(range.getLow().getBound()).thenReturn(Marker.Bound.EXACTLY);
-        Mockito.when(range.getLow().getValue()).thenReturn(lowerValue);
-        Mockito.when(range.getHigh().getBound()).thenReturn(Marker.Bound.BELOW);
-        Mockito.when(range.getHigh().getValue()).thenReturn(upperValue);
-        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        Mockito.when(range.getLow()).thenReturn(lowMarker);
+        Mockito.when(range.getHigh()).thenReturn(highMarker);
+        Ranges ranges = Mockito.mock(Ranges.class);
+        Mockito.when(ranges.getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        SortedRangeSet valueSet = Mockito.mock(SortedRangeSet.class);
+        Mockito.when(valueSet.getRanges()).thenReturn(ranges);
         return valueSet;
     }
 
