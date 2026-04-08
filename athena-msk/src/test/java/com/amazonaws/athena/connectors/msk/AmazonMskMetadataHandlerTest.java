@@ -39,7 +39,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.DataFormat;
@@ -101,7 +100,6 @@ public class AmazonMskMetadataHandlerTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.openMocks(this);
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         partitions = Mockito.mock(Block.class);
