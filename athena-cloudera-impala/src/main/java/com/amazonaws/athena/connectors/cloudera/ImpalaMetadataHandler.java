@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudera;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -43,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Lim
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
@@ -83,7 +85,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
     }
     public ImpalaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, ImpalaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(ImpalaConstants.IMPALA_DRIVER_CLASS, ImpalaConstants.IMPALA_DEFAULT_PORT)), configOptions);
+        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, ImpalaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(ImpalaConstants.IMPALA_DRIVER_CLASS, ImpalaConstants.IMPALA_DEFAULT_PORT)), configOptions);
     }
 
     @VisibleForTesting
@@ -380,5 +382,11 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
             }
         }
         return columnHashMap;
+    }
+
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return new ImpalaCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
     }
 }

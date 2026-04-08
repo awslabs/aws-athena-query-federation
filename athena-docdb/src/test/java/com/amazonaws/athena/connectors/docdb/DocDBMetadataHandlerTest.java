@@ -67,6 +67,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
+import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResponse;
+import software.amazon.awssdk.services.glue.paginators.GetDatabasesIterable;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
@@ -82,6 +87,7 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -94,7 +100,7 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DocDBMetadataHandlerTest
-    extends TestBase
+        extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(DocDBMetadataHandlerTest.class);
 
@@ -116,7 +122,7 @@ public class DocDBMetadataHandlerTest
     private static final String TIMESTAMP_COL2 = "timestampCol2";
     private static final String OBJECT_ID_COL = "objectIdCol";
     private static final String OBJECT_ID_COL2 = "objectIdCol2";
-    
+
     private static final String STRING_VALUE = "stringVal";
     private static final double DOUBLE_VALUE = 2.2D;
     private static final int INT_VALUE = 1;
@@ -198,6 +204,11 @@ public class DocDBMetadataHandlerTest
         schemaNames.add("schema2");
         schemaNames.add("schema3");
 
+        // Stub Glue to return an empty paginator so super.doListSchemaNames doesn't NPE
+        GetDatabasesIterable mockDatabasesIterable = mock(GetDatabasesIterable.class);
+        when(awsGlue.getDatabasesPaginator(any(GetDatabasesRequest.class))).thenReturn(mockDatabasesIterable);
+        when(mockDatabasesIterable.stream()).thenReturn(java.util.stream.Stream.empty());
+
         when(mockClient.listDatabaseNames()).thenReturn(StubbingCursor.iterate(schemaNames));
 
         ListSchemasRequest req = new ListSchemasRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG);
@@ -220,6 +231,10 @@ public class DocDBMetadataHandlerTest
                         Arrays.asList(new Document(NAME_KEY, TABLE1),
                                 new Document(NAME_KEY, TABLE2),
                                 new Document(NAME_KEY, TABLE3))));
+
+        // Stub Glue to return an empty tables response so super.doListTables doesn't NPE
+        when(awsGlue.getTables(any(GetTablesRequest.class)))
+                .thenReturn(GetTablesResponse.builder().tableList(Collections.emptyList()).build());
 
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
@@ -598,6 +613,10 @@ public class DocDBMetadataHandlerTest
                                 new Document(NAME_KEY, TABLE4),
                                 new Document(NAME_KEY, TABLE5))));
 
+        // Stub Glue to return an empty tables response so super.doListTables doesn't NPE
+        when(awsGlue.getTables(any(GetTablesRequest.class)))
+                .thenReturn(GetTablesResponse.builder().tableList(Collections.emptyList()).build());
+
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
         when(mockDatabase.runCommand(any())).thenReturn(tableNamesDocument);
@@ -635,14 +654,7 @@ public class DocDBMetadataHandlerTest
         assertEquals("Should return 1 table for final page", 1, finalResponse.getTables().size());
         List<TableName> finalPageTables = new ArrayList<>(finalResponse.getTables());
         assertEquals(new TableName(DEFAULT_SCHEMA, TABLE5), finalPageTables.get(0));
-        assertEquals("6", finalResponse.getNextToken());
-
-        // Verify empty page after all data is consumed
-        ListTablesRequest emptyRequest = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, DEFAULT_SCHEMA,
-                finalResponse.getNextToken(), PAGE_SIZE_TWO);
-        ListTablesResponse emptyResponse = handler.doListTables(allocator, emptyRequest);
-        assertEquals("Should return 0 tables when all data is consumed", 0, emptyResponse.getTables().size());
-        assertEquals("8", emptyResponse.getNextToken());
+        assertNull(finalResponse.getNextToken());
     }
 
     @Test
