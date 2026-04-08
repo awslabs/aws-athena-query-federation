@@ -97,6 +97,7 @@ public class CloudwatchRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudwatchRecordHandlerTest.class);
     private static final Long BLOCK_SIZE = 100_000_000L;
+    private static final int LOG_EVENTS_PAGE_SIZE = 100_000;
 
     private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private List<ByteHolder> mockS3Storage;
@@ -174,7 +175,7 @@ public class CloudwatchRecordHandlerTest
             List<OutputLogEvent> logEvents = new ArrayList<>();
             if (request.nextToken() == null || Integer.valueOf(request.nextToken()) < 3) {
                 long continuation = request.nextToken() == null ? 0 : Integer.valueOf(request.nextToken());
-                for (int i = 0; i < 100_000; i++) {
+                for (int i = 0; i < LOG_EVENTS_PAGE_SIZE; i++) {
                     OutputLogEvent outputLogEvent = OutputLogEvent.builder()
                             .message("message-" + (continuation * i))
                             .timestamp(i * 100L)

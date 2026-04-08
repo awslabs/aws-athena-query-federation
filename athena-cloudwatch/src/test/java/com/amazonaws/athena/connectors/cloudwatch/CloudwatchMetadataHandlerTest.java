@@ -99,6 +99,7 @@ public class CloudwatchMetadataHandlerTest
     private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private static final String CATALOG_NAME = "default";
     private static final String QUERY_ID = "queryId";
+    private static final int LOG_GROUPS_SIZE = 50_000;
     private CloudwatchMetadataHandler handler;
     private BlockAllocator allocator;
 
@@ -638,7 +639,7 @@ public class CloudwatchMetadataHandlerTest
             DescribeLogGroupsResponse.Builder responseBuilder = DescribeLogGroupsResponse.builder();
             List<LogGroup> logGroups = new ArrayList<>();
             // Return enough log groups to exceed MAX_RESULTS (100,000)
-            for (int i = 0; i < 50_000; i++) {
+            for (int i = 0; i < LOG_GROUPS_SIZE; i++) {
                 logGroups.add(LogGroup.builder().logGroupName("schema-" + i).build());
             }
             responseBuilder.logGroups(logGroups);
