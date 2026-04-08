@@ -570,15 +570,24 @@ public class TeradataMetadataHandlerTest
         Assert.assertEquals(inputTableName, getTableResponse.getTableName());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void doGetTable_withUnsupportedType_throwsUnsupportedOperationException() throws Exception
+    @Test
+    public void doGetTable_withUnsupportedType_defaultsColumnToVarchar() throws Exception
     {
         TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Object[][] values = {{Types.OTHER, 10, TEST_COLUMN_1, 0, 10, OTHER_TYPE_NAME}};
         mockGetColumnsResultSet(inputTableName, values);
         GetTableRequest request = new GetTableRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG, inputTableName, Collections.emptyMap());
 
-        this.teradataMetadataHandler.doGetTable(this.blockAllocator, request);
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(TEST_COLUMN_1, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
+        Schema expected = expectedSchemaBuilder.build();
+
+        GetTableResponse getTableResponse = this.teradataMetadataHandler.doGetTable(this.blockAllocator, request);
+
+        Assert.assertNotNull(getTableResponse);
+        Assert.assertEquals(inputTableName, getTableResponse.getTableName());
+        Assert.assertEquals(expected, getTableResponse.getSchema());
     }
 
     @Test
