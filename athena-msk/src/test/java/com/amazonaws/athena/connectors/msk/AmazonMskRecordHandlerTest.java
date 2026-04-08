@@ -66,7 +66,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,8 +146,6 @@ public class AmazonMskRecordHandlerTest
     @Before
     public void setUp() throws Exception
     {
-        MockitoAnnotations.openMocks(this);
-
         consumer = new MockConsumer<>(EARLIEST);
         ConsumerRecord<String, TopicResultSet> record1 = createConsumerRecord(0, "k1", createTopicResultSet());
         ConsumerRecord<String, TopicResultSet> record2 = createConsumerRecord(1, "k2", createTopicResultSet());
