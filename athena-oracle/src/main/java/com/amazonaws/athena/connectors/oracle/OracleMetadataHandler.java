@@ -20,6 +20,7 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -45,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Fil
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
@@ -112,7 +114,7 @@ public class OracleMetadataHandler
      */
     public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new OracleJdbcConnectionFactory(databaseConnectionConfig, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT)), configOptions);
     }
 
     public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
@@ -329,13 +331,9 @@ public class OracleMetadataHandler
 
                 String columnName = resultSet.getString(COLUMN_NAME);
                 int jdbcColumnType = resultSet.getInt("DATA_TYPE");
-                int precision = resultSet.getInt("COLUMN_SIZE");
-                int scale = resultSet.getInt("DECIMAL_DIGITS");
-
+                
                 LOGGER.debug("columnName: {}", columnName);
                 LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
-                LOGGER.debug("precision: {}", precision);
-                LOGGER.debug("scale: {}", scale);
                 LOGGER.debug("arrowColumnType: {}", arrowColumnType);
 
                 /**
@@ -352,16 +350,16 @@ public class OracleMetadataHandler
                 }
 
                 /**
-                 * Converting an Oracle date data type into DATEDAY MinorType
+                 * Converting an Oracle Date, TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType.
+                 * <p>
+                 * Oracle DATE columns store both date and time (to second precision), but the Oracle JDBC driver
+                 * reports them using timestamp-style JDBC type codes (OracleTypes.TIMESTAMP), not a calendar-day-only
+                 * type. If we mapped that to Arrow DATEDAY, the JDBC record path would read values with
+                 * ResultSet.getDate(), which truncates to the calendar day and loses time-of-day in Athena.
                  */
-                if (jdbcColumnType == java.sql.Types.TIMESTAMP && precision == 7) {
-                    arrowColumnType = Optional.of(Types.MinorType.DATEDAY.getType());
-                }
-
-                /**
-                 * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
-                 */
-                if (jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
+                if (jdbcColumnType == OracleTypes.TIMESTAMP
+                        || jdbcColumnType == OracleTypes.TIMESTAMPLTZ
+                        || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
                     arrowColumnType = Optional.of(Types.MinorType.DATEMILLI.getType());
                 }
 
@@ -383,5 +381,13 @@ public class OracleMetadataHandler
             LOGGER.debug("Oracle Table Schema" + schemaBuilder.toString());
             return schemaBuilder.build();
         }
+    }
+
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return new OracleCredentialsProvider(
+                getSecret(secretName, requestOverrideConfiguration),
+                getDatabaseConnectionConfig().getJdbcConnectionString());
     }
 }
