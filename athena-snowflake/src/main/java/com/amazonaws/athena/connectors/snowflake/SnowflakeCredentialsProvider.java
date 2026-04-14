@@ -166,7 +166,11 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
     {
         Map<String, String> credentialMap = new HashMap<>();
         credentialMap.put(SnowflakeConstants.USER, getUsername(oauthConfig));
-        credentialMap.put(SnowflakeConstants.PASSWORD, oauthConfig.getOrDefault(SnowflakeConstants.PASSWORD, oauthConfig.get(SnowflakeConstants.PASSWORD_UPPERCASE)));
+        String password = oauthConfig.getOrDefault(SnowflakeConstants.PASSWORD, oauthConfig.get(SnowflakeConstants.PASSWORD_UPPERCASE));
+        if (password == null) {
+            throw new IllegalArgumentException("Missing required parameter: password/PASSWORD");
+        }
+        credentialMap.put(SnowflakeConstants.PASSWORD, password);
         LOGGER.debug("Using password authentication for user: {}", getUsername(oauthConfig));
         return credentialMap;
     }

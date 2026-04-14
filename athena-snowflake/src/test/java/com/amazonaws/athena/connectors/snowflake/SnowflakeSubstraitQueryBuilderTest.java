@@ -36,6 +36,7 @@ import org.apache.calcite.sql.util.SqlString;
 import org.apache.calcite.sql.dialect.SnowflakeSqlDialect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
@@ -47,7 +48,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -87,40 +87,35 @@ class SnowflakeSubstraitQueryBuilderTest {
     private SqlNode mockWhereClause;
 
     @Mock
-    private SqlNode mockOrderByClause;
-
-    @Mock
-    private SqlNode mockLimitClause;
-
-    @Mock
-    private SqlNode mockOffsetClause;
-
-    @Mock
     private Schema mockSchema;
 
     private static final String CATALOG = "test_catalog";
-    private static final String SCHEMA = "test_schema";
+    private static final String SCHEMA_NAME = "test_schema";
     private static final String TABLE = "test_table";
+    private static final SqlDialect SNOWFLAKE_DIALECT = SnowflakeSqlDialect.DEFAULT;
+
+    private String base64Plan;
+    private List<Field> schemaFields;
 
     @BeforeEach
     void setUp() throws SQLException {
         MockitoAnnotations.openMocks(this);
         queryBuilder = new SnowflakeQueryStringBuilder("\"", null);
-        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+
+        base64Plan = Base64.getEncoder().encodeToString("mock_substrait_plan".getBytes());
+
+        // Setup mock schema with concrete fields
+        schemaFields = new ArrayList<>();
+        schemaFields.add(new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null));
+        schemaFields.add(new Field("name", FieldType.nullable(new ArrowType.Utf8()), null));
+        schemaFields.add(new Field("age", FieldType.nullable(new ArrowType.Int(32, true)), null));
+        schemaFields.add(new Field("created_at", FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)), null));
+        when(mockSchema.getFields()).thenReturn(schemaFields);
 
         // Setup mock operator for SqlSelect
         when(mockSqlSelect.getOperator()).thenReturn(mockSqlOperator);
         when(mockSqlOperator.getKind()).thenReturn(SqlKind.SELECT);
-
-        // Setup mock schema
-        List<Field> fields = new ArrayList<>();
-        fields.add(new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null));
-        fields.add(new Field("name", FieldType.nullable(new ArrowType.Utf8()), null));
-        fields.add(new Field("age", FieldType.nullable(new ArrowType.Int(32, true)), null));
-        fields.add(new Field("created_at", FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)), null));
-        when(mockSchema.getFields()).thenReturn(fields);
     }
-
 
     /**
      * Test the most common success scenario for buildSplitSql where constraints.getQueryPlan()
@@ -129,60 +124,45 @@ class SnowflakeSubstraitQueryBuilderTest {
     @Test
     void testBuildSplitSql_WithQueryPlan_Success() throws SQLException {
         // Arrange
-        String base64Plan = createMockBase64Plan();
         when(mockQueryPlan.getSubstraitPlan()).thenReturn(base64Plan);
         when(mockConstraints.getQueryPlan()).thenReturn(mockQueryPlan);
+        when(mockSplit.getProperties()).thenReturn(new HashMap<>());
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
 
-        // Setup split properties
-        Map<String, String> splitProperties = new HashMap<>();
-        when(mockSplit.getProperties()).thenReturn(splitProperties);
-
-        // Mock SqlSelect with basic structure
+        String expectedSql = "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\" WHERE \"id\" > 10";
         when(mockSqlSelect.getWhere()).thenReturn(mockWhereClause);
         when(mockSqlSelect.getOrderList()).thenReturn(null);
         when(mockSqlSelect.getFetch()).thenReturn(null);
         when(mockSqlSelect.getOffset()).thenReturn(null);
-
-        // Mock the main SqlSelect toSqlString method - this is what's actually called in the code
-        when(mockSqlSelect.toSqlString(any(SqlDialect.class)))
-                .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\" WHERE \"id\" > 10"));
-
-        // Mock the where clause SQL generation
-        when(mockWhereClause.toSqlString(any(SqlDialect.class)))
-                .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "\"id\" > 10"));
+        when(mockSqlSelect.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, expectedSql));
+        when(mockWhereClause.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, "\"id\" > 10"));
 
         try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
-            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SNOWFLAKE_DIALECT)))
                     .thenReturn(mockSqlSelect);
 
             // Act
             PreparedStatement result = queryBuilder.buildSql(
-                    mockConnection,
-                    CATALOG,
-                    SCHEMA,
-                    TABLE,
-                    mockSchema,
-                    mockConstraints,
-                    mockSplit
-            );
+                    mockConnection, CATALOG, SCHEMA_NAME, TABLE, mockSchema, mockConstraints, mockSplit);
 
             // Assert
             assertNotNull(result);
             assertEquals(mockPreparedStatement, result);
 
-            // Verify that prepareStatement was called with expected SQL structure
-            verify(mockConnection).prepareStatement(argThat(sql -> {
-                String sqlStr = sql.toString();
-                return sqlStr.contains("SELECT") &&
-                       sqlStr.contains("\"id\", \"name\", \"age\", \"created_at\"") &&
-                       sqlStr.contains("FROM") &&
-                       sqlStr.contains("WHERE") &&
-                       sqlStr.contains("\"id\" > 10");
-            }));
+            // Capture and verify the actual SQL passed to prepareStatement
+            ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+            verify(mockConnection).prepareStatement(sqlCaptor.capture());
+            String capturedSql = sqlCaptor.getValue();
+            assertTrue(capturedSql.contains("SELECT"), "SQL should contain SELECT");
+            assertTrue(capturedSql.contains("\"id\", \"name\", \"age\", \"created_at\""), "SQL should contain projected columns");
+            assertTrue(capturedSql.contains("WHERE"), "SQL should contain WHERE clause");
+            assertTrue(capturedSql.contains("\"id\" > 10"), "SQL should contain filter predicate");
 
-            // Verify SubstraitSqlUtils was called with SnowflakeSqlDialect
+            // Verify SubstraitSqlUtils was called with the specific SnowflakeSqlDialect
             mockedSubstraitUtils.verify(() ->
-                SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SnowflakeSqlDialect.DEFAULT)));
+                SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SNOWFLAKE_DIALECT)));
         }
     }
 
@@ -192,44 +172,32 @@ class SnowflakeSubstraitQueryBuilderTest {
     @Test
     void testBuildSplitSql_UsesSnowflakeSqlDialect() throws SQLException {
         // Arrange
-        String base64Plan = createMockBase64Plan();
         when(mockQueryPlan.getSubstraitPlan()).thenReturn(base64Plan);
         when(mockConstraints.getQueryPlan()).thenReturn(mockQueryPlan);
-
-        // Setup split properties
-        Map<String, String> splitProperties = new HashMap<>();
-        when(mockSplit.getProperties()).thenReturn(splitProperties);
+        when(mockSplit.getProperties()).thenReturn(new HashMap<>());
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
 
         when(mockSqlSelect.getWhere()).thenReturn(null);
         when(mockSqlSelect.getOrderList()).thenReturn(null);
         when(mockSqlSelect.getFetch()).thenReturn(null);
         when(mockSqlSelect.getOffset()).thenReturn(null);
-
-        // Mock the main SqlSelect toSqlString method
-        when(mockSqlSelect.toSqlString(any(SqlDialect.class)))
-                .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\""));
+        when(mockSqlSelect.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\""));
 
         try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
-            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SNOWFLAKE_DIALECT)))
                     .thenReturn(mockSqlSelect);
 
             // Act
             PreparedStatement result = queryBuilder.buildSql(
-                    mockConnection,
-                    CATALOG,
-                    SCHEMA,
-                    TABLE,
-                    mockSchema,
-                    mockConstraints,
-                    mockSplit
-            );
+                    mockConnection, CATALOG, SCHEMA_NAME, TABLE, mockSchema, mockConstraints, mockSplit);
 
             // Assert
             assertNotNull(result);
 
-            // Verify that the correct SQL dialect (SnowflakeSqlDialect) was used
+            // Verify the specific SnowflakeSqlDialect instance was used
             mockedSubstraitUtils.verify(() ->
-                SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SnowflakeSqlDialect.DEFAULT)));
+                SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SNOWFLAKE_DIALECT)));
         }
     }
 
@@ -239,57 +207,40 @@ class SnowflakeSubstraitQueryBuilderTest {
     @Test
     void testBuildSplitSql_WithParameterBinding() throws SQLException {
         // Arrange
-        String base64Plan = createMockBase64Plan();
         when(mockQueryPlan.getSubstraitPlan()).thenReturn(base64Plan);
         when(mockConstraints.getQueryPlan()).thenReturn(mockQueryPlan);
+        when(mockSplit.getProperties()).thenReturn(new HashMap<>());
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
 
-        // Setup split properties
-        Map<String, String> splitProperties = new HashMap<>();
-        when(mockSplit.getProperties()).thenReturn(splitProperties);
-
-        // Mock SqlSelect with where clause that will generate parameters
+        String expectedSql = "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\" WHERE \"name\" = ?";
         when(mockSqlSelect.getWhere()).thenReturn(mockWhereClause);
         when(mockSqlSelect.getOrderList()).thenReturn(null);
         when(mockSqlSelect.getFetch()).thenReturn(null);
         when(mockSqlSelect.getOffset()).thenReturn(null);
-
-        // Mock the main SqlSelect toSqlString method
-        when(mockSqlSelect.toSqlString(any(SqlDialect.class)))
-                .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\" WHERE \"name\" = ?"));
-
-        // Mock the where clause SQL generation
-        when(mockWhereClause.toSqlString(any(SqlDialect.class)))
-                .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "\"name\" = ?"));
+        when(mockSqlSelect.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, expectedSql));
+        when(mockWhereClause.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, "\"name\" = ?"));
 
         try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
-            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SNOWFLAKE_DIALECT)))
                     .thenReturn(mockSqlSelect);
 
             // Act
             PreparedStatement result = queryBuilder.buildSql(
-                    mockConnection,
-                    CATALOG,
-                    SCHEMA,
-                    TABLE,
-                    mockSchema,
-                    mockConstraints,
-                    mockSplit
-            );
+                    mockConnection, CATALOG, SCHEMA_NAME, TABLE, mockSchema, mockConstraints, mockSplit);
 
             // Assert
             assertNotNull(result);
             assertEquals(mockPreparedStatement, result);
 
-            // Verify that prepareStatement was called
-            verify(mockConnection).prepareStatement(anyString());
-
-            // Verify the SQL structure contains expected elements
-            verify(mockConnection).prepareStatement(argThat(sql -> {
-                String sqlStr = sql.toString();
-                return sqlStr.contains("SELECT") &&
-                       sqlStr.contains("FROM") &&
-                       sqlStr.contains("\"test_schema\".\"test_table\"");
-            }));
+            // Capture and verify the SQL contains expected table reference
+            ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+            verify(mockConnection).prepareStatement(sqlCaptor.capture());
+            String capturedSql = sqlCaptor.getValue();
+            assertTrue(capturedSql.contains("SELECT"), "SQL should contain SELECT");
+            assertTrue(capturedSql.contains("FROM"), "SQL should contain FROM");
+            assertTrue(capturedSql.contains("\"test_schema\".\"test_table\""), "SQL should reference the correct table");
         }
     }
 
@@ -299,57 +250,37 @@ class SnowflakeSubstraitQueryBuilderTest {
     @Test
     void testBuildSplitSql_WithQueryPlan_NoWhereClause() throws SQLException {
         // Arrange
-        String base64Plan = createMockBase64Plan();
         when(mockQueryPlan.getSubstraitPlan()).thenReturn(base64Plan);
         when(mockConstraints.getQueryPlan()).thenReturn(mockQueryPlan);
+        when(mockSplit.getProperties()).thenReturn(new HashMap<>());
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
 
-        // Setup split properties
-        Map<String, String> splitProperties = new HashMap<>();
-        when(mockSplit.getProperties()).thenReturn(splitProperties);
-
-        // Mock SqlSelect with no where clause
         when(mockSqlSelect.getWhere()).thenReturn(null);
         when(mockSqlSelect.getOrderList()).thenReturn(null);
         when(mockSqlSelect.getFetch()).thenReturn(null);
         when(mockSqlSelect.getOffset()).thenReturn(null);
-
-        // Mock the main SqlSelect toSqlString method
-        when(mockSqlSelect.toSqlString(any(SqlDialect.class)))
-                .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\""));
+        when(mockSqlSelect.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\""));
 
         try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
-            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SNOWFLAKE_DIALECT)))
                     .thenReturn(mockSqlSelect);
 
             // Act
             PreparedStatement result = queryBuilder.buildSql(
-                    mockConnection,
-                    CATALOG,
-                    SCHEMA,
-                    TABLE,
-                    mockSchema,
-                    mockConstraints,
-                    mockSplit
-            );
+                    mockConnection, CATALOG, SCHEMA_NAME, TABLE, mockSchema, mockConstraints, mockSplit);
 
             // Assert
             assertNotNull(result);
             assertEquals(mockPreparedStatement, result);
 
-            // Verify that prepareStatement was called with SQL that doesn't contain WHERE
-            verify(mockConnection).prepareStatement(argThat(sql -> {
-                String sqlStr = sql.toString();
-                return sqlStr.contains("SELECT") &&
-                       sqlStr.contains("FROM") &&
-                       !sqlStr.contains("WHERE");
-            }));
+            // Capture and verify the SQL does not contain WHERE
+            ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+            verify(mockConnection).prepareStatement(sqlCaptor.capture());
+            String capturedSql = sqlCaptor.getValue();
+            assertTrue(capturedSql.contains("SELECT"), "SQL should contain SELECT");
+            assertTrue(capturedSql.contains("FROM"), "SQL should contain FROM");
+            assertFalse(capturedSql.contains("WHERE"), "SQL should not contain WHERE clause");
         }
-    }
-
-    // Helper methods
-    private String createMockBase64Plan() {
-        // Create a mock base64-encoded Substrait plan
-        String mockPlan = "mock_substrait_plan";
-        return Base64.getEncoder().encodeToString(mockPlan.getBytes());
     }
 }

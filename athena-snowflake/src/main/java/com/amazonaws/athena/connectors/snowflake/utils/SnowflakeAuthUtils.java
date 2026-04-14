@@ -232,7 +232,11 @@ public class SnowflakeAuthUtils
                 }
                 break;
             case SNOWFLAKE:
-                if (StringUtils.isBlank(credentials.getOrDefault(SnowflakeConstants.PASSWORD, credentials.get(SnowflakeConstants.PASSWORD_UPPERCASE)))) {
+                String password = credentials.get(SnowflakeConstants.PASSWORD);
+                if (password == null) {
+                    password = credentials.get(SnowflakeConstants.PASSWORD_UPPERCASE);
+                }
+                if (StringUtils.isBlank(password)) {
                     throw new IllegalArgumentException("password is required for password authentication");
                 }
                 break;

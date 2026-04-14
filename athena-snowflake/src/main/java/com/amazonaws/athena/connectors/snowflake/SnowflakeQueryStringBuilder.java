@@ -179,25 +179,40 @@ public class SnowflakeQueryStringBuilder
         if (split == null || split.getProperties().isEmpty()) {
             return "";
         }
-        String primaryKey = "";
-        String xLimit = "";
-        String xOffset = "";
-        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next()); //p-primary-<PRIMARYKEY>-limit-3000-offset-0
-        if (!partitionVal.contains("-")) {
+        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next());
+        // Expected format: partition-primary-<PRIMARYKEY>-limit-<LIMIT>-offset-<OFFSET>
+        // Use marker-based parsing to handle primary keys that may contain dashes
+        if (partitionVal == null || !partitionVal.contains("-primary-") || !partitionVal.contains("-limit-") || !partitionVal.contains("-offset-")) {
             return "";
-        }
-        else {
-            String[] arr = partitionVal.split("-");
-            primaryKey = arr[2];
-            xLimit = arr[4];
-            xOffset = arr[6];
         }
 
-        // if no primary key, single split only
-        if (primaryKey.equals("")) {
+        int primaryStart = partitionVal.indexOf("-primary-") + "-primary-".length();
+        int limitMarker = partitionVal.lastIndexOf("-limit-");
+        int offsetMarker = partitionVal.lastIndexOf("-offset-");
+
+        if (primaryStart > limitMarker || limitMarker > offsetMarker) {
+            LOGGER.warn("Malformed partition value: {}", partitionVal);
             return "";
         }
-        return "ORDER BY " + primaryKey + " " +  appendLimitOffsetWithValue(xLimit, xOffset);
+
+        String primaryKey = partitionVal.substring(primaryStart, limitMarker);
+        String xLimit = partitionVal.substring(limitMarker + "-limit-".length(), offsetMarker);
+        String xOffset = partitionVal.substring(offsetMarker + "-offset-".length());
+
+        // if no primary key, single split only
+        if (primaryKey.isEmpty()) {
+            return "";
+        }
+
+        // Validate limit and offset are numeric to prevent injection
+        if (!xLimit.matches("\\d+") || !xOffset.matches("\\d+")) {
+            LOGGER.warn("Non-numeric limit/offset in partition value: limit={}, offset={}", xLimit, xOffset);
+            return "";
+        }
+
+        // Primary key is already quoted from getPrimaryKey() (e.g., "\"col1\",\"col2\"")
+        // so it is safe to use directly in ORDER BY
+        return "ORDER BY " + primaryKey + " " + appendLimitOffsetWithValue(xLimit, xOffset);
     }
 
     @Override
