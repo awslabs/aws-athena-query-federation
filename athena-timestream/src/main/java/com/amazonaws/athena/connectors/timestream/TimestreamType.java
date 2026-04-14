@@ -30,7 +30,13 @@ public enum TimestreamType
     DOUBLE("double", Types.MinorType.FLOAT8),
     BOOLEAN("boolean", Types.MinorType.BIT),
     TIMESTAMP("timestamp", Types.MinorType.DATEMILLI),
-    BIGINT("bigint", Types.MinorType.BIGINT);
+    BIGINT("bigint", Types.MinorType.BIGINT),
+    INT("int", Types.MinorType.INT),
+    DATE("date", Types.MinorType.DATEDAY),
+    TIME("time", Types.MinorType.VARCHAR),
+    INTERVAL_DAY_TO_SECOND("interval_day_to_second", Types.MinorType.VARCHAR),
+    INTERVAL_YEAR_TO_MONTH("interval_year_to_month", Types.MinorType.VARCHAR),
+    UNKNOWN("unknown", Types.MinorType.VARCHAR);
 
     private static final Map<String, TimestreamType> TIMESTREAM_TYPEMAP = new HashMap<>();
 
@@ -38,6 +44,7 @@ public enum TimestreamType
         for (TimestreamType next : values()) {
             TIMESTREAM_TYPEMAP.put(next.id, next);
         }
+        TIMESTREAM_TYPEMAP.put("integer", INT);
     }
 
     private String id;
@@ -51,7 +58,11 @@ public enum TimestreamType
 
     public static TimestreamType fromId(String id)
     {
-        TimestreamType result = TIMESTREAM_TYPEMAP.get(id);
+        if (id == null) {
+            throw new IllegalArgumentException("Unknown type for null");
+        }
+        String normalized = id.trim().toLowerCase();
+        TimestreamType result = TIMESTREAM_TYPEMAP.get(normalized);
         if (result == null) {
             throw new IllegalArgumentException("Unknown type for " + id);
         }
