@@ -384,7 +384,7 @@ public class OracleMetadataHandlerTest
         Object[][] values = {
                 {Types.INTEGER, 12, "testCol1", 0, 0},
                 {Types.VARCHAR, 25, "testCol2", 0, 0},
-                {Types.TIMESTAMP, 7, "testCol3", 0, 0}, // precision = 7, should map to DATEDAY
+                {Types.TIMESTAMP, 7, "testCol3", 0, 0}, // Oracle DATE is JDBC TIMESTAMP(7); preserve time as DATEMILLI
                 {OracleTypes.TIMESTAMPLTZ, 0, "testCol4", 0, 0}, // TIMESTAMP WITH LOCAL TZ → DATEMILLI
                 {OracleTypes.TIMESTAMPTZ, 0, "testCol5", 0, 0}, // TIMESTAMP WITH TZ → DATEMILLI
                 {Types.NUMERIC, 10, "testCol6", 2, 0}
@@ -395,7 +395,7 @@ public class OracleMetadataHandlerTest
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEDAY.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol5", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
         ArrowType.Decimal testCol6ArrowType = ArrowType.Decimal.createDecimal(10, 2, 128);
