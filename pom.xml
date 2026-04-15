@@ -32,7 +32,8 @@
         <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.4</surefire.failsafe.version>
         <log4j2Version>2.25.4</log4j2Version>
-        <apache.arrow.version>19.0.0</apache.arrow.version>
+        <!-- Default Arrow line for JDKs other than 25; jdk25 profile overrides to 19.0.0 -->
+        <apache.arrow.version>18.3.0</apache.arrow.version>
         <guava.version>33.5.0-jre</guava.version>
         <protobuf3.version>3.25.5</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
@@ -572,6 +573,7 @@
             </activation>
             <properties>
                 <maven.compiler.release>25</maven.compiler.release>
+                <apache.arrow.version>19.0.0</apache.arrow.version>
             </properties>
             <dependencies>
                 <dependency>
