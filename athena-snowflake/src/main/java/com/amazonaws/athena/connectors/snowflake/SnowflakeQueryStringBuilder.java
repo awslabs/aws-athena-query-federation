@@ -220,4 +220,10 @@ public class SnowflakeQueryStringBuilder
     {
        return SnowflakeSqlDialect.DEFAULT;
     }
+    
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new SnowflakeDialect(catalogCasingFilterUpperCase);
+    }
 }
