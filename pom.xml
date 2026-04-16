@@ -14,7 +14,7 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.42.30</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.42.34</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
         <aws-sdk.version>1.12.797</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
@@ -44,7 +44,7 @@
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
         <mvn.checkstyle.version>3.6.0</mvn.checkstyle.version>
-        <mvn.shade.plugin.version>3.6.1</mvn.shade.plugin.version>
+        <mvn.shade.plugin.version>3.6.2</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.4.0</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.12.0</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.5.0</mvn.jar.plugin.version>
