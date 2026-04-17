@@ -30,7 +30,7 @@ public final class SnowflakeConstants
      * JDBC related config
      */
     public static final String SNOWFLAKE_NAME = "snowflake";
-    public static final String SNOWFLAKE_DRIVER_CLASS = "com.snowflake.client.jdbc.SnowflakeDriver";
+    public static final String SNOWFLAKE_DRIVER_CLASS = "net.snowflake.client.api.driver.SnowflakeDriver";
     public static final int SNOWFLAKE_DEFAULT_PORT = 1025;
     public static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA", "CLIENT_RESULT_COLUMN_CASE_INSENSITIVE", "true");
     /**
