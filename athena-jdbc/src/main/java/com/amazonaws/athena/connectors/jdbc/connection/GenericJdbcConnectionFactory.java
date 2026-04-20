@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -133,16 +134,13 @@ public class GenericJdbcConnectionFactory
             }
         }
 
-        Connection connection = null;
         try {
-            connection = ds.getConnection();
+            return ds.getConnection();
         }
         catch (SQLException e) {
             handleSQLException(e);
-            return null;
+            throw new RuntimeException(e.getMessage(), e);
         }
-
-        return connection;
     }
 
     private Connection getDirectConnection(String jdbcUrl) throws SQLException
@@ -160,10 +158,10 @@ public class GenericJdbcConnectionFactory
 
     private void handleSQLException(SQLException e)
     {
-        if (e.getMessage().contains("Name or service not known")) {
+        if (StringUtils.isNotBlank(e.getMessage()) && e.getMessage().contains("Name or service not known")) {
             throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
-        else if (e.getMessage().contains("Incorrect username or password was specified.")) {
+        else if (StringUtils.isNotBlank(e.getMessage()) && e.getMessage().contains("Incorrect username or password was specified.")) {
             throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
         }
     }
