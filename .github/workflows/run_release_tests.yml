@@ -41,7 +41,7 @@ jobs:
           echo PATH=$PATH >> $GITHUB_ENV
 
       - name: Setup AWS Cred
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: us-west-2
           role-duration-seconds: 18000
