@@ -26,8 +26,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
 
 import java.math.BigDecimal;
@@ -40,11 +38,9 @@ import java.util.List;
 import java.util.Map;
 
 public class VerticaExportQueryBuilder {
-    private static final Logger LOGGER = LoggerFactory.getLogger(VerticaExportQueryBuilder.class);
     private static final String TEMPLATE_NAME = "templateVerticaExportQuery";
     private static final String QPT_TEMPLATE_NAME = "templateVerticaExportQPTQuery";
     private static final String TEMPLATE_FIELD = "builder";
-    private static final String QUOTE_CHARS = "\"";
     private final ST query;
     private String s3ExportBucket;
     private String table;

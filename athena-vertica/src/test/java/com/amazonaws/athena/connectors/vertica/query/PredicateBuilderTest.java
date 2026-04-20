@@ -73,6 +73,27 @@ public class PredicateBuilderTest {
     public void quote_SimpleName_ReturnsQuotedString() {
         assertEquals("\"simpleName\"", PredicateBuilder.quote("simpleName"));
     }
+    
+    @Test
+    public void quote_NameContainsApostrophe_ReturnsDoubleQuotedIdentifier() {
+        assertEquals("\"O'Brien\"", PredicateBuilder.quote("O'Brien"));
+        assertEquals("\"host-keE37's-test\"", PredicateBuilder.quote("host-keE37's-test"));
+    }
+
+    @Test
+    public void quote_NameContainsDoubleQuote_DoublesDoubleQuote() {
+        assertEquals("\"a\"\"b\"", PredicateBuilder.quote("a\"b"));
+    }
+
+    @Test
+    public void quote_NameContainsMultipleDoubleQuotes_DoublesEach() {
+        assertEquals("\"a\"\"\"\"b\"", PredicateBuilder.quote("a\"\"b"));
+    }
+
+    @Test
+    public void quote_NameContainsApostropheAndDoubleQuote_EscapesOnlyDoubleQuotes() {
+        assertEquals("\"O'Brien\"\"nick\"", PredicateBuilder.quote("O'Brien\"nick"));
+    }
 
     @Test
     public void getFromClauseWithSplit_SchemaAndTable_ReturnsQualifiedTableName() {

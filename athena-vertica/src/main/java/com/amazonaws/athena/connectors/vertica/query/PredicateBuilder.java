@@ -30,17 +30,12 @@ import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.Validate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 public class PredicateBuilder {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(PredicateBuilder.class);
-    private final String quoteCharacters = "\"";
 
     private PredicateBuilder() {}
 
