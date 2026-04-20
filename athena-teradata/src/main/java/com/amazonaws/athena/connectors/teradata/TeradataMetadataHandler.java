@@ -426,13 +426,20 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
     }
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {
-        ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
-                new JdbcFieldInfo(jdbcType, precision, scale),
-                null);
-        if (arrowType instanceof ArrowType.Date) {
-            // Convert from DateMilli to DateDay
-            return new ArrowType.Date(DateUnit.DAY);
+        try {
+            ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
+                    new JdbcFieldInfo(jdbcType, precision, scale),
+                    null);
+            if (arrowType instanceof ArrowType.Date) {
+                // Convert from DateMilli to DateDay
+                return new ArrowType.Date(DateUnit.DAY);
+            }
+            return arrowType;
         }
-        return arrowType;
+        catch (UnsupportedOperationException e) {
+            LOGGER.debug("JdbcToArrowUtils could not map JDBC type {} (precision={}, scale={}): {}",
+                    jdbcType, precision, scale, e.getMessage());
+            return null;
+        }
     }
 }

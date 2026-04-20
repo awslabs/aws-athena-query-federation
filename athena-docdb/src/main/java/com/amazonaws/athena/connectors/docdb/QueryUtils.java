@@ -39,17 +39,35 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.substrait.SubstraitFunctionParser;
+import com.amazonaws.athena.connector.substrait.SubstraitMetadataParser;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.LogicalExpression;
+import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
+import io.substrait.proto.Plan;
+import io.substrait.proto.SimpleExtensionDeclaration;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.bson.Document;
 import org.bson.json.JsonParseException;
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -64,6 +82,8 @@ import static java.util.stream.Collectors.toList;
  */
 public final class QueryUtils
 {
+    private static final Logger logger = LoggerFactory.getLogger(QueryUtils.class);
+
     private static final String OR_OP = "$or";
     private static final String AND_OP = "$and";
     private static final String NOT_OP = "$not";
@@ -79,6 +99,8 @@ public final class QueryUtils
     private static final String IN_OP = "$in";
     private static final String NOTIN_OP = "$nin";
     private static final String COLUMN_NAME_ID = "_id";
+    private static final Logger log = LoggerFactory.getLogger(QueryUtils.class);
+    private static final long MICROSECONDS_PER_MILLISECOND = 1000L;
 
     private QueryUtils()
     {
@@ -248,6 +270,318 @@ public final class QueryUtils
         }
     }
 
+    /**
+     * Parses Substrait plan and extracts filter predicates per column
+     */
+    public static Map<String, List<ColumnPredicate>> buildFilterPredicatesFromPlan(Plan plan)
+    {
+        if (plan == null || plan.getRelationsList().isEmpty()) {
+            return new HashMap<>();
+        }
+
+        SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
+                plan.getRelations(0).getRoot().getInput());
+        if (substraitRelModel.getFilterRel() == null) {
+            return new HashMap<>();
+        }
+
+        List<SimpleExtensionDeclaration> extensionDeclarations = plan.getExtensionsList();
+        List<String> tableColumns = SubstraitMetadataParser.getTableColumns(substraitRelModel);
+
+        return SubstraitFunctionParser.getColumnPredicatesMap(
+                extensionDeclarations,
+                substraitRelModel.getFilterRel().getCondition(),
+                tableColumns);
+    }
+
+    /**
+     * Enhanced query builder that tries tree-based approach, else returns all documents if query generation fails
+     * Example: "job_title IN ('A', 'B') OR job_title < 'C'" → {"$or": [{"job_title": {"$in": ["A", "B"]}}, {"job_title": {"$lt": "C"}}]}
+     */
+    public static Document makeEnhancedQueryFromPlan(Plan plan)
+    {
+        if (plan == null || plan.getRelationsList().isEmpty()) {
+            return new Document();
+        }
+
+        // Extract Substrait relation model from the plan to access filter conditions
+        SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
+                plan.getRelations(0).getRoot().getInput());
+        if (substraitRelModel.getFilterRel() == null) {
+            return new Document();
+        }
+
+        final List<SimpleExtensionDeclaration> extensionDeclarations = plan.getExtensionsList();
+        final List<String> tableColumns = SubstraitMetadataParser.getTableColumns(substraitRelModel);
+
+        // This handles cases like "A OR B OR C" correctly as OR operations
+        try {
+            final LogicalExpression logicalExpr = SubstraitFunctionParser.parseLogicalExpression(
+                    extensionDeclarations,
+                    substraitRelModel.getFilterRel().getCondition(),
+                    tableColumns);
+
+            if (logicalExpr == null) {
+                throw new RuntimeException("Failed to parse the filter into a logical expression. "
+                        + "Refusing to return all documents unfiltered.");
+            }
+            return makeQueryFromLogicalExpression(logicalExpr);
+        }
+        catch (Exception e) {
+            logger.error("Failed to parse Substrait plan into query filter.", e);
+            throw new RuntimeException("Failed to parse Substrait plan into query filter. "
+                    + "Refusing to return all documents unfiltered.", e);
+        }
+    }
+    /**
+     * Converts a LogicalExpression tree to MongoDB filter Document while preserving logical structure
+     * Example: OR(EQUAL(job_title, 'A'), EQUAL(job_title, 'B')) → {"$or": [{"job_title": {"$eq": "A"}}, {"job_title": {"$eq": "B"}}]}
+     */
+    static Document makeQueryFromLogicalExpression(LogicalExpression expression)
+    {
+        if (expression == null) {
+            return new Document();
+        }
+
+        // Handle leaf nodes (individual predicates like job_title = 'Engineer')
+        if (expression.isLeaf()) {
+            // Convert leaf predicate to MongoDB document using existing convertColumnPredicatesToDoc logic
+            // This ensures all existing optimizations (like $in for multiple EQUAL values) are preserved
+            ColumnPredicate predicate = expression.getLeafPredicate();
+            return convertColumnPredicatesToDoc(predicate.getColumn(),
+                    Collections.singletonList(predicate));
+        }
+
+        // Handle logical operators (AND/OR nodes with children)
+        // Recursively convert each child expression to MongoDB document
+        List<Document> childDocuments = new ArrayList<>();
+        for (LogicalExpression child : expression.getChildren()) {
+            Document childDoc = makeQueryFromLogicalExpression(child);
+            if (childDoc != null && !childDoc.isEmpty()) {
+                childDocuments.add(childDoc);
+            }
+        }
+
+        if (childDocuments.isEmpty()) {
+            return new Document();
+        }
+        if (childDocuments.size() == 1) {
+            // Single child - no need for logical operator wrapper
+            return childDocuments.get(0);
+        }
+
+        // Apply the logical operator to combine child documents
+        // Example: AND → {"$and": [child1, child2]}, OR → {"$or": [child1, child2]}
+        switch (expression.getOperator()) {
+            case AND:
+                return new Document(AND_OP, childDocuments); // {"$and": [{"col1": "val1"}, {"col2": "val2"}]}
+            case OR:
+                return new Document(OR_OP, childDocuments);   // {"$or": [{"col1": "val1"}, {"col2": "val2"}]}
+            default:
+                throw new UnsupportedOperationException(
+                        "Unsupported logical operator: " + expression.getOperator());
+        }
+    }
+
+    /**
+     * Converts a list of ColumnPredicates into a MongoDB predicate Document
+     */
+    private static Document convertColumnPredicatesToDoc(String column, List<ColumnPredicate> colPreds)
+    {
+        if (colPreds == null || colPreds.isEmpty()) {
+            return new Document();
+        }
+
+        List<Object> equalValues = new ArrayList<>();
+        List<Document> otherPredicates = new ArrayList<>();
+        for (ColumnPredicate pred : colPreds) {
+            Object value = convertSubstraitValue(pred);
+            SubstraitOperator op = pred.getOperator();
+            switch (op) {
+                case IS_NULL:
+                    otherPredicates.add(isNullPredicate());
+                    break;
+                case IS_NOT_NULL:
+                    otherPredicates.add(isNotNullPredicate());
+                    break;
+                case EQUAL:
+                    equalValues.add(value);
+                    break;
+                case NOT_EQUAL:
+                    otherPredicates.add(new Document(NOT_EQ_OP, value));
+                    break;
+                case GREATER_THAN:
+                    otherPredicates.add(new Document(GT_OP, value));
+                    break;
+                case GREATER_THAN_OR_EQUAL_TO:
+                    otherPredicates.add(new Document(GTE_OP, value));
+                    break;
+                case LESS_THAN:
+                    otherPredicates.add(new Document(LT_OP, value));
+                    break;
+                case LESS_THAN_OR_EQUAL_TO:
+                    otherPredicates.add(new Document(LTE_OP, value));
+                    break;
+                case NOT_IN:
+                    handleNotInOperator(column, value, otherPredicates);
+                    break;
+                case NAND:
+                    return handleNandOperator((List<ColumnPredicate>) value);
+                case NOR:
+                    return handleNorOperator((List<ColumnPredicate>) value);
+                default:
+                    throw new UnsupportedOperationException("Unsupported operator: " + op);
+            }
+        }
+        return buildFinalDocument(column, equalValues, otherPredicates);
+    }
+
+    /**
+     * Handles NOT_IN operator by building a $nin predicate with ObjectId conversion for _id fields.
+     */
+    private static void handleNotInOperator(String column, Object value, List<Document> otherPredicates)
+    {
+        if (value instanceof List) {
+            List<Object> notInValues = (List<Object>) value;
+            if (!notInValues.isEmpty()) {
+                Document notInPredicate;
+                if (column.equals(COLUMN_NAME_ID)) {
+                    List<ObjectId> objectIdList = notInValues.stream()
+                            .map(v -> new ObjectId(v.toString()))
+                            .collect(Collectors.toList());
+                    notInPredicate = new Document(NOTIN_OP, objectIdList);
+                }
+                else {
+                    notInPredicate = new Document(NOTIN_OP, notInValues);
+                }
+                otherPredicates.add(notInPredicate);
+            }
+        }
+    }
+
+    /**
+     * Handles NAND operator: NOT(A AND B AND C) with null exclusion for filtered columns.
+     */
+    private static Document handleNandOperator(List<ColumnPredicate> children)
+    {
+        List<Document> andConditions = buildChildDocuments(children);
+        Set<String> columns = collectColumns(children);
+
+        Document nandCondition = new Document(NOR_OP, Collections.singletonList(new Document(AND_OP, andConditions)));
+        List<Document> finalConditions = buildNullExclusionConditions(columns);
+        finalConditions.add(nandCondition);
+        return new Document(AND_OP, finalConditions);
+    }
+
+    /**
+     * Handles NOR operator with null exclusion for filtered columns to maintain backward
+     * compatibility with filtration through Constraints.
+     */
+    private static Document handleNorOperator(List<ColumnPredicate> children)
+    {
+        List<Document> orConditions = buildChildDocuments(children);
+        Set<String> columns = collectColumns(children);
+
+        Document norCondition = new Document(NOR_OP, orConditions);
+        List<Document> finalConditions = buildNullExclusionConditions(columns);
+        finalConditions.add(norCondition);
+        return new Document(AND_OP, finalConditions);
+    }
+
+    /**
+     * Collects non-null column names from a list of predicates.
+     */
+    private static Set<String> collectColumns(List<ColumnPredicate> predicates)
+    {
+        Set<String> columns = new HashSet<>();
+        for (ColumnPredicate child : predicates) {
+            if (child.getColumn() != null) {
+                columns.add(child.getColumn());
+            }
+        }
+        return columns;
+    }
+
+    /**
+     * Builds null exclusion conditions ({$ne: null}) for the given columns.
+     */
+    private static List<Document> buildNullExclusionConditions(Set<String> columns)
+    {
+        List<Document> conditions = new ArrayList<>();
+        for (String col : columns) {
+            conditions.add(new Document(col, isNotNullPredicate()));
+        }
+        return conditions;
+    }
+
+    /**
+     * Builds the final MongoDB document from accumulated equality values and other predicates.
+     */
+    private static Document buildFinalDocument(String column, List<Object> equalValues, List<Document> otherPredicates)
+    {
+        if (equalValues.size() > 1) {
+            Document inPredicate = buildValueListPredicate(column, IN_OP, equalValues);
+            if (!otherPredicates.isEmpty()) {
+                return buildAndConditionsForColumn(column, inPredicate, otherPredicates);
+            }
+            return documentOf(column, inPredicate);
+        }
+        else if (equalValues.size() == 1) {
+            Object eqValue = equalValues.get(0);
+            Document equalPredicate;
+            if (column.equals(COLUMN_NAME_ID)) {
+                equalPredicate = new Document(EQ_OP, new ObjectId(eqValue.toString()));
+            }
+            else {
+                equalPredicate = new Document(EQ_OP, eqValue);
+            }
+            if (!otherPredicates.isEmpty()) {
+                return buildAndConditionsForColumn(column, equalPredicate, otherPredicates);
+            }
+            return documentOf(column, equalPredicate);
+        }
+        else if (!otherPredicates.isEmpty()) {
+            return buildNotEqualAwareResult(column, otherPredicates);
+        }
+        return new Document();
+    }
+
+    /**
+     * Builds a $in or $nin predicate with ObjectId conversion for _id fields.
+     */
+    private static Document buildValueListPredicate(String column, String operator, List<Object> values)
+    {
+        if (column.equals(COLUMN_NAME_ID)) {
+            List<ObjectId> objectIdList = values.stream()
+                    .map(v -> new ObjectId(v.toString()))
+                    .collect(Collectors.toList());
+            return new Document(operator, objectIdList);
+        }
+        return new Document(operator, values);
+    }
+
+    /**
+     * Handles non-EQUAL predicates with special null exclusion for NOT_EQUAL operations
+     * to match SQL semantics where column <> 'value' should not match null rows.
+     */
+    private static Document buildNotEqualAwareResult(String column, List<Document> otherPredicates)
+    {
+        boolean hasNotEqual = otherPredicates.stream()
+                .anyMatch(doc -> doc.containsKey(NOT_EQ_OP) && doc.get(NOT_EQ_OP) != null);
+
+        if (hasNotEqual && otherPredicates.size() == 1) {
+            Document notEqualPred = otherPredicates.get(0);
+            Document nullExclusion = new Document(column, isNotNullPredicate());
+            return new Document(AND_OP, Arrays.asList(nullExclusion, new Document(column, notEqualPred)));
+        }
+        else if (otherPredicates.size() > 1) {
+            return buildOrConditionsWithNotEqualHandling(column, otherPredicates);
+        }
+        else {
+            return documentOf(column, otherPredicates.get(0));
+        }
+    }
+
     private static Document documentOf(String key, Object value)
     {
         return new Document(key, value);
@@ -278,5 +612,77 @@ public final class QueryUtils
             return ((Text) value).toString();
         }
         return value;
+    }
+
+    /**
+     * Converts NumberLong values to Date objects for datetime fields
+     */
+    private static Object convertSubstraitValue(ColumnPredicate pred)
+    {
+        Object value = pred.getValue();
+        // Check if this is a datetime field and value is NumberLong
+        if (value instanceof Long && pred.getArrowType() instanceof ArrowType.Timestamp) {
+            Long epochValue = (Long) value;
+            Long milliseconds = epochValue / MICROSECONDS_PER_MILLISECOND;
+            // Convert to Date object for MongoDB ISODate format
+            return new Date(milliseconds);
+        }
+        else if (value instanceof Text) {
+            return ((Text) value).toString();
+        }
+        else if (value instanceof BigDecimal) {
+            return ((BigDecimal) value).doubleValue();
+        }
+        return value;
+    }
+
+    /**
+     * Helper method to build AND conditions for a column with multiple predicates
+     */
+    private static Document buildAndConditionsForColumn(String column, Document firstPredicate, List<Document> otherPredicates)
+    {
+        List<Document> andConditions = new ArrayList<>();
+        andConditions.add(new Document(column, firstPredicate));
+        for (Document otherPred : otherPredicates) {
+            andConditions.add(new Document(column, otherPred));
+        }
+        return new Document(AND_OP, andConditions);
+    }
+
+    /**
+     * Helper method to build OR conditions with special NOT_EQUAL handling
+     */
+    private static Document buildOrConditionsWithNotEqualHandling(String column, List<Document> predicates)
+    {
+        List<Document> orConditions = new ArrayList<>();
+        for (Document predicate : predicates) {
+            if (predicate.containsKey(NOT_EQ_OP) && predicate.get(NOT_EQ_OP) != null) {
+                // Add null exclusion only for NOT_EQUAL predicates with non-null values
+                Document nullExclusion = new Document(column, isNotNullPredicate());
+                Document notEqualCondition = new Document(column, predicate);
+                orConditions.add(new Document(AND_OP, Arrays.asList(nullExclusion, notEqualCondition)));
+            }
+            else {
+                // Keep other predicates unchanged (GREATER_THAN, LESS_THAN, etc.)
+                orConditions.add(new Document(column, predicate));
+            }
+        }
+        return new Document(OR_OP, orConditions);
+    }
+
+    /**
+     * Helper method to build conditions from child predicates
+     */
+    private static List<Document> buildChildDocuments(List<ColumnPredicate> children)
+    {
+        List<Document> childDocuments = new ArrayList<>();
+        for (ColumnPredicate child : children) {
+            Document childDoc = convertColumnPredicatesToDoc(
+                    child.getColumn(),
+                    Collections.singletonList(child)
+            );
+            childDocuments.add(childDoc);
+        }
+        return childDocuments;
     }
 }
