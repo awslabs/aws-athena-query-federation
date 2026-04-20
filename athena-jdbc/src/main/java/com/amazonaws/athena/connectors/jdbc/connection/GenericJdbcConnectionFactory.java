@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,11 +34,14 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
 
 /**
  * Provides a generic jdbc connection factory that can be used to connect to standard databases. Configures following
@@ -57,6 +61,7 @@ public class GenericJdbcConnectionFactory
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final Properties jdbcProperties;
+    private final boolean useDirectConnection;
     private volatile HikariDataSource ds;
 
     /**
@@ -65,12 +70,29 @@ public class GenericJdbcConnectionFactory
      */
     public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties, final DatabaseConnectionInfo databaseConnectionInfo)
     {
+        this(databaseConnectionConfig, properties, databaseConnectionInfo, null);
+    }
+
+    public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties, final DatabaseConnectionInfo databaseConnectionInfo, final Map<String, String> configOptions)
+    {
         this.databaseConnectionInfo = Validate.notNull(databaseConnectionInfo, "databaseConnectionInfo must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseEngine must not be null");
 
         this.jdbcProperties = new Properties();
         if (properties != null) {
             this.jdbcProperties.putAll(properties);
+        }
+
+        this.useDirectConnection = configOptions != null && configOptions.containsKey(FAS_TOKEN);
+        if (this.useDirectConnection) {
+            LOGGER.info("Glue managed connection detected, using direct JDBC connections");
+            try {
+                Class.forName(databaseConnectionInfo.getDriverClassName());
+            }
+            catch (ClassNotFoundException e) {
+                throw new AthenaConnectorException("JDBC driver not found: " + databaseConnectionInfo.getDriverClassName(),
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+            }
         }
     }
 
@@ -89,13 +111,22 @@ public class GenericJdbcConnectionFactory
             derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
         }
 
+        if (useDirectConnection) {
+            return getDirectConnection(derivedJdbcString);
+        }
+
+        return getPooledConnection(derivedJdbcString);
+    }
+
+    private Connection getPooledConnection(String jdbcUrl) throws SQLException
+    {
         if (ds == null) {
             synchronized (GenericJdbcConnectionFactory.class) { // Synchronize on the class level
                 if (ds == null) { // Double-check to avoid creating more than one instance
                     HikariConfig config2 = new HikariConfig();
                     config2.setDriverClassName(databaseConnectionInfo.getDriverClassName());
                     config2.setDataSourceProperties(jdbcProperties);
-                    config2.setJdbcUrl(derivedJdbcString);
+                    config2.setJdbcUrl(jdbcUrl);
                     config2.setMinimumIdle(1);
                     ds = new HikariDataSource(config2);
                     LOGGER.debug("Create data source");
@@ -103,20 +134,36 @@ public class GenericJdbcConnectionFactory
             }
         }
 
-        Connection connection = null;
         try {
-            connection = ds.getConnection();
+            return ds.getConnection();
         }
         catch (SQLException e) {
-            if (e.getMessage().contains("Name or service not known")) {
-                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
-            }
-            else if (e.getMessage().contains("Incorrect username or password was specified.")) {
-                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
-            }
+            handleSQLException(e);
+            throw new RuntimeException(e.getMessage(), e);
         }
+    }
 
-        return connection;
+    private Connection getDirectConnection(String jdbcUrl) throws SQLException
+    {
+        Properties connectionProps = new Properties();
+        connectionProps.putAll(jdbcProperties);
+        try {
+            return DriverManager.getConnection(jdbcUrl, connectionProps);
+        }
+        catch (SQLException e) {
+            handleSQLException(e);
+            throw e;
+        }
+    }
+
+    private void handleSQLException(SQLException e)
+    {
+        if (StringUtils.isNotBlank(e.getMessage()) && e.getMessage().contains("Name or service not known")) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+        else if (StringUtils.isNotBlank(e.getMessage()) && e.getMessage().contains("Incorrect username or password was specified.")) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
+        }
     }
 
     private String encodeValue(String value)
