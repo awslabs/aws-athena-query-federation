@@ -208,8 +208,8 @@ public class SAPHanaSqlDialectTest
     {
         SAPHanaSqlDialect dialect = new SAPHanaSqlDialect(SAPHanaSqlDialect.DEFAULT_CONTEXT, true);
         StringBuilder buf = new StringBuilder();
-        dialect.quoteIdentifier(buf, "testIdentifier");
-        assertEquals("testIdentifier", buf.toString());
+        dialect.quoteIdentifier(buf, "TESTIDENTIFIER");
+        assertEquals("TESTIDENTIFIER", buf.toString());
     }
 
     @Test
@@ -217,8 +217,8 @@ public class SAPHanaSqlDialectTest
     {
         SAPHanaSqlDialect dialect = new SAPHanaSqlDialect(SAPHanaSqlDialect.DEFAULT_CONTEXT, false);
         StringBuilder buf = new StringBuilder();
-        dialect.quoteIdentifier(buf, "testIdentifier");
-        assertEquals("\"testIdentifier\"", buf.toString());
+        dialect.quoteIdentifier(buf, "testidentifier");
+        assertEquals("\"testidentifier\"", buf.toString());
     }
 
     @Test

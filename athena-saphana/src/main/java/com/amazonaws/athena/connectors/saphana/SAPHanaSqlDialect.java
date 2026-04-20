@@ -100,6 +100,7 @@ public class SAPHanaSqlDialect extends PostgresqlSqlDialect
      * MAX(boolean) -> BOOLOR_AGG
      * MIN(boolean) -> BOOLAND_AGG
      */
+    @Override
     public SqlNode rewriteMaxMinExpr(SqlNode aggCall, RelDataType relDataType)
     {
         if (!(aggCall instanceof SqlBasicCall)) {
@@ -155,11 +156,10 @@ public class SAPHanaSqlDialect extends PostgresqlSqlDialect
     public StringBuilder quoteIdentifier(StringBuilder buf, String identifier)
     {
         if (upperCaseFilterApplied) {
-            buf.append(identifier);
+            return buf.append(identifier);
         }
         else {
-            buf.append('"').append(identifier).append('"');
+            return super.quoteIdentifier(buf, identifier.toLowerCase());
         }
-        return buf;
     }
 }
