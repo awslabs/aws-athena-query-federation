@@ -21,7 +21,7 @@ grpcio==1.74.0
 grpcio-status==1.74.0
 idna==3.10
 jmespath==1.0.1
-lxml==5.4.0
+lxml==6.1.0
 numpy==2.0.2
 opensearch-py==3.0.0
 oracledb==3.3.0
