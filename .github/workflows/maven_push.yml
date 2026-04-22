@@ -47,12 +47,12 @@ jobs:
       # Fork PRs: upload WITHOUT token
       - name: Upload coverage reports to Codecov (fork PRs, no token)
         if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && matrix.java-version == '11' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
 
       # Pushes & same-repo PRs: upload WITH token
       - name: Upload coverage reports to Codecov (internal only)
         if: ${{ (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork)) && matrix.java-version == '11' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           slug: awslabs/aws-athena-query-federation
           token: ${{ secrets.CODECOV_TOKEN }}
