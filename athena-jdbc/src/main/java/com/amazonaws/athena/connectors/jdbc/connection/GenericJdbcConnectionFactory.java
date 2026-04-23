@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -33,6 +34,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
@@ -40,11 +42,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Provides a generic jdbc connection factory that can be used to connect to standard databases. Configures following
- * defaults if not present:
- * <ul>
- * <li>Default ports will be used for the engine if not present.</li>
- * </ul>
+ * Provides a generic jdbc connection factory that can be used to connect to standard databases.
+ * When running as a Glue managed connection (configOptions contains {@code fas_token}),
+ * uses direct DriverManager connections instead of HikariCP connection pooling.
  */
 public class GenericJdbcConnectionFactory
         implements JdbcConnectionFactory
@@ -57,13 +57,23 @@ public class GenericJdbcConnectionFactory
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final Properties jdbcProperties;
+    private final boolean useDirectConnection;
     private volatile HikariDataSource ds;
+
+    /**
+     * Existing constructor — uses HikariCP.
+     */
+    public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties, final DatabaseConnectionInfo databaseConnectionInfo)
+    {
+        this(databaseConnectionConfig, properties, databaseConnectionInfo, null);
+    }
 
     /**
      * @param databaseConnectionConfig database connection configuration {@link DatabaseConnectionConfig}
      * @param properties JDBC connection properties.
+     * @param configOptions environment/config options; when {@code fas_token} is present, disables connection pooling.
      */
-    public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties, final DatabaseConnectionInfo databaseConnectionInfo)
+    public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties, final DatabaseConnectionInfo databaseConnectionInfo, final Map<String, String> configOptions)
     {
         this.databaseConnectionInfo = Validate.notNull(databaseConnectionInfo, "databaseConnectionInfo must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseEngine must not be null");
@@ -71,6 +81,18 @@ public class GenericJdbcConnectionFactory
         this.jdbcProperties = new Properties();
         if (properties != null) {
             this.jdbcProperties.putAll(properties);
+        }
+
+        this.useDirectConnection = configOptions != null && configOptions.containsKey(EnvironmentConstants.FAS_TOKEN);
+        if (this.useDirectConnection) {
+            LOGGER.info("Glue managed connection detected, using direct JDBC connections");
+            try {
+                Class.forName(databaseConnectionInfo.getDriverClassName());
+            }
+            catch (ClassNotFoundException e) {
+                throw new AthenaConnectorException("JDBC driver not found: " + databaseConnectionInfo.getDriverClassName(),
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+            }
         }
     }
 
@@ -89,13 +111,42 @@ public class GenericJdbcConnectionFactory
             derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
         }
 
+        if (useDirectConnection) {
+            return getDirectConnection(derivedJdbcString);
+        }
+
+        return getPooledConnection(derivedJdbcString);
+    }
+
+    /**
+     * Creates a direct JDBC connection using {@link DriverManager}, bypassing connection pooling.
+     * Used for Glue managed connections.
+     */
+    private Connection getDirectConnection(String jdbcUrl) throws SQLException
+    {
+        Properties connectionProps = new Properties();
+        connectionProps.putAll(jdbcProperties);
+        try {
+            return DriverManager.getConnection(jdbcUrl, connectionProps);
+        }
+        catch (SQLException e) {
+            handleSQLException(e);
+            throw e;
+        }
+    }
+
+    /**
+     * Returns a connection from the HikariCP connection pool, initializing the pool on first call.
+     */
+    private Connection getPooledConnection(String jdbcUrl) throws SQLException
+    {
         if (ds == null) {
-            synchronized (GenericJdbcConnectionFactory.class) { // Synchronize on the class level
-                if (ds == null) { // Double-check to avoid creating more than one instance
+            synchronized (GenericJdbcConnectionFactory.class) {
+                if (ds == null) {
                     HikariConfig config2 = new HikariConfig();
                     config2.setDriverClassName(databaseConnectionInfo.getDriverClassName());
                     config2.setDataSourceProperties(jdbcProperties);
-                    config2.setJdbcUrl(derivedJdbcString);
+                    config2.setJdbcUrl(jdbcUrl);
                     config2.setMinimumIdle(1);
                     ds = new HikariDataSource(config2);
                     LOGGER.debug("Create data source");
@@ -103,20 +154,24 @@ public class GenericJdbcConnectionFactory
             }
         }
 
-        Connection connection = null;
         try {
-            connection = ds.getConnection();
+            return ds.getConnection();
         }
         catch (SQLException e) {
-            if (e.getMessage().contains("Name or service not known")) {
-                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
-            }
-            else if (e.getMessage().contains("Incorrect username or password was specified.")) {
-                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
-            }
+            handleSQLException(e);
+            throw e;
         }
+    }
 
-        return connection;
+    private void handleSQLException(SQLException e)
+    {
+        String message = e.getMessage();
+        if (message != null && message.contains("Name or service not known")) {
+            throw new AthenaConnectorException(message, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+        else if (message != null && message.contains("Incorrect username or password was specified.")) {
+            throw new AthenaConnectorException(message, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
+        }
     }
 
     private String encodeValue(String value)
