@@ -69,7 +69,9 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRespon
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -525,5 +527,100 @@ public class RedshiftMetadataHandlerTest
         Assert.assertNotNull("Expected " + TOP_N_PUSHDOWN + " capability to be present", topNPushdown);
         Assert.assertEquals(TOP_N_PUSHDOWN_SIZE, topNPushdown.size());
         Assert.assertTrue(topNPushdown.stream().anyMatch(subType -> subType.getSubType().equals(SUPPORTS_ORDER_BY)));
+    }
+
+    @Test
+    public void getSplitClauses_NoPrimaryKey_ReturnsEmptyList() throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        mockPrimaryKeysForSplits(null, false);
+
+        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue("Expected empty list when no primary key exists", result.isEmpty());
+    }
+
+    @Test
+    public void getSplitClauses_WithPrimaryKey_ReturnsSplitClauses() throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        mockPrimaryKeysForSplits("order_id", true);
+        mockMinMaxQueryForSplits("order_id");
+
+        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Expected non-empty list when splits can be generated", result.isEmpty());
+    }
+
+    @Test
+    public void getSplitClauses_ExceptionDuringProcessing_ReturnsEmptyList() throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, "errorTable");
+        Mockito.when(connection.getMetaData().getPrimaryKeys(null, TEST_SCHEMA, "errorTable"))
+                .thenThrow(new SQLException("Database connection error"));
+
+        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue("Expected empty list when exception occurs", result.isEmpty());
+    }
+
+    @Test
+    public void getSplitClauses_MultiplePrimaryKeys_UsesFirstColumn() throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        
+        ResultSet primaryKeysResultSet = Mockito.mock(ResultSet.class);
+        Mockito.when(primaryKeysResultSet.next()).thenReturn(true).thenReturn(true).thenReturn(false);
+        Mockito.when(primaryKeysResultSet.getString("COLUMN_NAME")).thenReturn("id").thenReturn("secondary_id");
+        Mockito.when(connection.getMetaData().getPrimaryKeys(null, TEST_SCHEMA, TEST_TABLE))
+                .thenReturn(primaryKeysResultSet);
+        
+        mockMinMaxQueryForSplits("id");
+
+        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName);
+
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Expected splits to be generated using first primary key column", result.isEmpty());
+    }
+
+    /**
+     * Helper method to mock primary keys result set for split tests.
+     */
+    private void mockPrimaryKeysForSplits(String columnName, boolean hasPrimaryKey) throws SQLException
+    {
+        ResultSet primaryKeysResultSet = Mockito.mock(ResultSet.class);
+        if (hasPrimaryKey) {
+            Mockito.when(primaryKeysResultSet.next()).thenReturn(true).thenReturn(false);
+            Mockito.when(primaryKeysResultSet.getString("COLUMN_NAME")).thenReturn(columnName);
+        }
+        else {
+            Mockito.when(primaryKeysResultSet.next()).thenReturn(false);
+        }
+
+        Mockito.when(connection.getMetaData().getPrimaryKeys(null, TEST_SCHEMA, TEST_TABLE))
+                .thenReturn(primaryKeysResultSet);
+    }
+
+    /**
+     * Helper method to mock MIN/MAX query execution for split tests.
+     */
+    private void mockMinMaxQueryForSplits(String columnName) throws SQLException
+    {
+        Statement statement = Mockito.mock(Statement.class);
+        ResultSet minMaxResultSet = Mockito.mock(ResultSet.class);
+        ResultSetMetaData minMaxMetadata = Mockito.mock(ResultSetMetaData.class);
+
+        Mockito.when(connection.createStatement()).thenReturn(statement);
+        Mockito.when(statement.executeQuery(Mockito.contains("select min(" + columnName + "), max(" + columnName + ")")))
+                .thenReturn(minMaxResultSet);
+        Mockito.when(minMaxResultSet.next()).thenReturn(true);
+        Mockito.when(minMaxResultSet.getMetaData()).thenReturn(minMaxMetadata);
+        Mockito.when(minMaxMetadata.getColumnType(1)).thenReturn(Types.INTEGER);
+
+        Mockito.when(minMaxResultSet.getInt(1)).thenReturn(1);
+        Mockito.when(minMaxResultSet.getInt(2)).thenReturn(100);
     }
 }
