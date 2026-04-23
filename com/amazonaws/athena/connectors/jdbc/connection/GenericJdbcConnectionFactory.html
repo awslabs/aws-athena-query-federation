@@ -143,11 +143,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <pre>public class <span class="typeNameLabel">GenericJdbcConnectionFactory</span>
 extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>
 implements <a href="JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a></pre>
-<div class="block">Provides a generic jdbc connection factory that can be used to connect to standard databases. Configures following
- defaults if not present:
- <ul>
- <li>Default ports will be used for the engine if not present.</li>
- </ul></div>
+<div class="block">Provides a generic jdbc connection factory that can be used to connect to standard databases.
+ When running as a Glue managed connection (configOptions contains <code>fas_token</code>),
+ uses direct DriverManager connections instead of HikariCP connection pooling.</div>
 </li>
 </ul>
 </div>
@@ -194,6 +192,15 @@ implements <a href="JdbcConnectionFactory.html" title="interface in com.amazonaw
 <th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo)">GenericJdbcConnectionFactory</a></span>&#8203;(<a href="DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;properties,
                             <a href="DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a>&nbsp;databaseConnectionInfo)</code></th>
+<td class="colLast">
+<div class="block">Existing constructor — uses HikariCP.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo,java.util.Map)">GenericJdbcConnectionFactory</a></span>&#8203;(<a href="DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
+                            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;properties,
+                            <a href="DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a>&nbsp;databaseConnectionInfo,
+                            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -267,16 +274,30 @@ implements <a href="JdbcConnectionFactory.html" title="interface in com.amazonaw
 <a id="&lt;init&gt;(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>GenericJdbcConnectionFactory</h4>
 <pre>public&nbsp;GenericJdbcConnectionFactory&#8203;(<a href="DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
                                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;properties,
                                     <a href="DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a>&nbsp;databaseConnectionInfo)</pre>
+<div class="block">Existing constructor — uses HikariCP.</div>
+</li>
+</ul>
+<a id="&lt;init&gt;(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo,java.util.Map)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>GenericJdbcConnectionFactory</h4>
+<pre>public&nbsp;GenericJdbcConnectionFactory&#8203;(<a href="DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
+                                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;properties,
+                                    <a href="DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a>&nbsp;databaseConnectionInfo,
+                                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>databaseConnectionConfig</code> - database connection configuration <a href="DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection"><code>DatabaseConnectionConfig</code></a></dd>
 <dd><code>properties</code> - JDBC connection properties.</dd>
+<dd><code>configOptions</code> - environment/config options; when <code>fas_token</code> is present, disables connection pooling.</dd>
 </dl>
 </li>
 </ul>

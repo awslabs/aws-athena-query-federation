@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -236,6 +236,13 @@ extends <a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSqlDialect()">getSqlDialect</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr id="i4" class="altColor">
+<td class="colFirst"><code>protected org.apache.calcite.sql.SqlDialect</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSqlDialect(boolean)">getSqlDialect</a></span>&#8203;(boolean&nbsp;catalogCasingFilterUpperCase)</code></th>
+<td class="colLast">
+<div class="block">Returns the SQL dialect to use for query generation with catalog casing filter support.</div>
+</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder">
@@ -353,13 +360,33 @@ extends <a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com
 <a id="getSqlDialect()">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getSqlDialect</h4>
 <pre class="methodSignature">protected&nbsp;org.apache.calcite.sql.SqlDialect&nbsp;getSqlDialect()</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
 <dd><code><a href="../jdbc/manager/JdbcSplitQueryBuilder.html#getSqlDialect()">getSqlDialect</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcSplitQueryBuilder</a></code></dd>
+</dl>
+</li>
+</ul>
+<a id="getSqlDialect(boolean)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getSqlDialect</h4>
+<pre class="methodSignature">protected&nbsp;org.apache.calcite.sql.SqlDialect&nbsp;getSqlDialect&#8203;(boolean&nbsp;catalogCasingFilterUpperCase)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from class:&nbsp;<code><a href="../jdbc/manager/JdbcSplitQueryBuilder.html#getSqlDialect(boolean)">JdbcSplitQueryBuilder</a></code></span></div>
+<div class="block">Returns the SQL dialect to use for query generation with catalog casing filter support.
+ Subclasses should override to return a database-specific dialect.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
+<dd><code><a href="../jdbc/manager/JdbcSplitQueryBuilder.html#getSqlDialect(boolean)">getSqlDialect</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcSplitQueryBuilder</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>catalogCasingFilterUpperCase</code> - whether to apply catalog casing to quoted identifiers</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the <code>SqlDialect</code> instance</dd>
 </dl>
 </li>
 </ul>
