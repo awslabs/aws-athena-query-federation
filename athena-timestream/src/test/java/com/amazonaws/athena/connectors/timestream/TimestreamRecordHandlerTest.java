@@ -196,7 +196,7 @@ public class TimestreamRecordHandlerTest
             throws Exception
     {
         int numRowsGenerated = 1_000;
-        String expectedQuery = "SELECT measure_name, measure_value::double, az, time, hostname, region FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
+        String expectedQuery = "SELECT \"measure_name\", \"measure_value::double\", \"az\", \"time\", \"hostname\", \"region\" FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
 
         QueryResponse mockResult = makeMockQueryResult(schemaForRead, numRowsGenerated);
         when(mockClient.query(nullable(QueryRequest.class)))
@@ -251,7 +251,7 @@ public class TimestreamRecordHandlerTest
     public void doReadRecordsSpill()
             throws Exception
     {
-        String expectedQuery = "SELECT measure_name, measure_value::double, az, time, hostname, region FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
+        String expectedQuery = "SELECT \"measure_name\", \"measure_value::double\", \"az\", \"time\", \"hostname\", \"region\" FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
 
         QueryResponse mockResult = makeMockQueryResult(schemaForRead, 100_000);
         when(mockClient.query(nullable(QueryRequest.class)))
@@ -325,7 +325,7 @@ public class TimestreamRecordHandlerTest
                         DEFAULT_SCHEMA + "\".\"" + TEST_TABLE + "\" group by measure_name, az")
                 .build();
 
-        String expectedQuery = "WITH t1 AS ( select measure_name, az,sum(\"measure_value::double\") as value, count(*) as num_samples from \"my_schema\".\"my_table\" group by measure_name, az )  SELECT measure_name, az, value, num_samples FROM t1 WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
+        String expectedQuery = "WITH t1 AS ( select measure_name, az,sum(\"measure_value::double\") as value, count(*) as num_samples from \"my_schema\".\"my_table\" group by measure_name, az )  SELECT \"measure_name\", \"az\", \"value\", \"num_samples\" FROM t1 WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
 
         QueryResponse mockResult = makeMockQueryResult(schemaForReadView, 1_000);
         when(mockClient.query(nullable(QueryRequest.class)))
@@ -392,7 +392,7 @@ public class TimestreamRecordHandlerTest
                 .addMetadata(VIEW_METADATA_FIELD, "select az, hostname, region,  CREATE_TIME_SERIES(time, measure_value::double) as cpu_utilization from \"" + DEFAULT_SCHEMA + "\".\"" + TEST_TABLE + "\" WHERE measure_name = 'cpu_utilization' GROUP BY measure_name, az, hostname, region")
                 .build();
 
-        String expectedQuery = "WITH t1 AS ( select az, hostname, region,  CREATE_TIME_SERIES(time, measure_value::double) as cpu_utilization from \"my_schema\".\"my_table\" WHERE measure_name = 'cpu_utilization' GROUP BY measure_name, az, hostname, region )  SELECT region, az, hostname, cpu_utilization FROM t1 WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
+        String expectedQuery = "WITH t1 AS ( select az, hostname, region,  CREATE_TIME_SERIES(time, measure_value::double) as cpu_utilization from \"my_schema\".\"my_table\" WHERE measure_name = 'cpu_utilization' GROUP BY measure_name, az, hostname, region )  SELECT \"region\", \"az\", \"hostname\", \"cpu_utilization\" FROM t1 WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
 
         QueryResponse mockResult = makeMockQueryResult(schemaForReadView, 1_000);
         when(mockClient.query(nullable(QueryRequest.class)))
@@ -447,7 +447,7 @@ public class TimestreamRecordHandlerTest
     {
 
         int numRows = 10;
-        String expectedQuery = "SELECT measure_name, measure_value::double, az, time, hostname, region FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a'))";
+        String expectedQuery = "SELECT \"measure_name\", \"measure_value::double\", \"az\", \"time\", \"hostname\", \"region\" FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a'))";
 
         QueryResponse mockResult = makeMockQueryResult(schemaForRead, numRows, numRows, false);
         when(mockClient.query(nullable(QueryRequest.class)))
