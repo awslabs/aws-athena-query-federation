@@ -1,5 +1,12 @@
 # Argument for Java version, defaulting to 11
 ARG JAVA_VERSION=11
+FROM public.ecr.aws/lambda/java:${JAVA_VERSION} AS builder
+
+ARG JAR_VERSION=2022.47.1
+COPY target/athena-oracle-${JAR_VERSION}.jar /app/
+WORKDIR /app
+RUN jar xf athena-oracle-${JAR_VERSION}.jar && rm -f athena-oracle-${JAR_VERSION}.jar
+
 # Use the specified version of Java
 FROM public.ecr.aws/lambda/java:${JAVA_VERSION}
 
@@ -38,13 +45,7 @@ RUN echo "Trust store content is: " && \
         echo " Certificate ${alias} expires in '$expiry'"; \
     done
 
-# Copy function code and runtime dependencies from Maven layout
-COPY target/athena-oracle-2022.47.1.jar ${LAMBDA_TASK_ROOT}
-# Unpack the jar
-RUN jar xf athena-oracle-2022.47.1.jar
-
-# Clean up JAR
-RUN rm ${LAMBDA_TASK_ROOT}/athena-oracle-2022.47.1.jar
+COPY --from=builder /app/ ${LAMBDA_TASK_ROOT}/
 
 # Command can be overwritten by providing a different command in the template directly.
 # No need to specify here (already defined in .yaml file because legacy and connections use different)
