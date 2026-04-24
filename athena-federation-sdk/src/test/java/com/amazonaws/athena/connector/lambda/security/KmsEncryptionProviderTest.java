@@ -21,7 +21,7 @@ package com.amazonaws.athena.connector.lambda.security;
 
 import com.amazonaws.encryptionsdk.AwsCrypto;
 import com.amazonaws.encryptionsdk.CryptoMaterialsManager;
-import com.amazonaws.encryptionsdk.CryptoResult;;
+import com.amazonaws.encryptionsdk.CryptoResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.Cache;
