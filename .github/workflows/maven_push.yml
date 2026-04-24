@@ -17,7 +17,7 @@ jobs:
         with:
           cancel_others: 'true'
           concurrent_skipping: 'same_content_newer'
-          do_not_skip: '["workflow_dispatch", "schedule", "merge_group", "pull_request"]'
+          do_not_skip: '["workflow_dispatch", "schedule", "merge_group", "pull_request", "push"]'
 
   build:
     needs: pre_job
@@ -28,6 +28,8 @@ jobs:
         java-version: ['11', '17']
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Set up JDK ${{ matrix.java-version }}
         uses: actions/setup-java@v5
         with:
