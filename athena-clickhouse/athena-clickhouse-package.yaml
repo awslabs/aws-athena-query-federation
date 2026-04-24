@@ -108,16 +108,9 @@ Resources:
         Version: 2012-10-17
         Statement:
           - Action:
-              - secretsmanager:DescribeSecret
               - secretsmanager:GetSecretValue
-              - secretsmanager:GetResourcePolicy
-              - secretsmanager:ListSecretVersionIds
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*'
-          - Action:
-              - secretsmanager:ListSecrets
-            Effect: Allow
-            Resource: '*'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
           - Action:
               - logs:CreateLogGroup
             Effect: Allow
