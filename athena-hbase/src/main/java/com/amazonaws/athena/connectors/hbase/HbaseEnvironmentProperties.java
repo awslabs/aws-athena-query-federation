@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.hbase;
 
 import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
+import org.apache.arrow.util.VisibleForTesting;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,5 +41,15 @@ public class HbaseEnvironmentProperties extends EnvironmentProperties
                 + ":" + connectionProperties.get(HBASE_PORT)
                 + ":" + connectionProperties.get(ZOOKEEPER_PORT));
         return environment;
+    }
+
+    /**
+     * Extracted method for environment variables to allow overriding in tests.
+     */
+    @Override
+    @VisibleForTesting
+    protected Map<String, String> getEnvMap()
+    {
+        return super.getEnvMap();
     }
 }
