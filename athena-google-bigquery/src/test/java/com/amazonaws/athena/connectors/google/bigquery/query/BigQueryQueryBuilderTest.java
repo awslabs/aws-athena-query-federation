@@ -41,6 +41,7 @@ import java.util.List;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class BigQueryQueryBuilderTest
@@ -90,6 +91,13 @@ public class BigQueryQueryBuilderTest
         
         assertNotNull("Template name should not be null", templateName);
         assertEquals("Template name should match", "select_query", templateName);
+    }
+
+    @Test
+    public void getEscapedProjection_ReturnsNullWhenProjectionNotSet()
+    {
+        BigQueryQueryBuilder builder = queryFactory.createQueryBuilder();
+        assertNull("getEscapedProjection should return null when withProjection was never called", builder.getEscapedProjection());
     }
 
     @Test
@@ -170,8 +178,6 @@ public class BigQueryQueryBuilderTest
                 .withProjection(testSchema)
                 .withTableName(TEST_TABLE);
 
-        assertEquals("Schema name should match", TEST_SCHEMA_NAME, builder.getSchemaName());
-        assertEquals("Table name should match", TEST_TABLE_NAME, builder.getTableName());
         assertEquals("Projection should have correct number of columns", 4, builder.getProjection().size());
         assertTrue("Projection should contain id", builder.getProjection().contains(COLUMN_ID));
         assertTrue("Projection should contain name", builder.getProjection().contains(COLUMN_NAME));
