@@ -48,7 +48,7 @@ public class TeradataEnvironmentPropertiesTest
     }
 
     @Test
-    public void connectionPropertiesWithCustomPort()
+    public void connectionPropertiesToEnvironment_withCustomPort_embedsDbsPortInConnectionString()
     {
         // adding custom port
         connectionProperties.put(PORT, "1234");
@@ -60,7 +60,7 @@ public class TeradataEnvironmentPropertiesTest
     }
 
     @Test
-    public void connectionPropertiesWithDefaultPort()
+    public void connectionPropertiesToEnvironment_withoutPort_usesDefaultDbsPortInConnectionString()
     {
         Map<String, String> teradataConnectionProperties = teradataEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
 
