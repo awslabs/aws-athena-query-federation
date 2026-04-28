@@ -20,6 +20,7 @@
  */
 package com.amazonaws.athena.connectors.saphana;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
@@ -136,8 +137,15 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
             throws SQLException
     {
         if (constraints.getQueryPlan() != null) {
-            boolean casingFilter = isCatalogCasingFilterApplied(split);
-            SqlDialect sqlDialect = getSqlDialect(casingFilter);
+            String catalogCasingFilter = split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER);
+            SqlDialect sqlDialect;
+            if (catalogCasingFilter != null) {
+                LOGGER.debug("Found catalogCasingFilter for getSqlDialect: {}", catalogCasingFilter);
+                sqlDialect = getSqlDialect(catalogCasingFilter.equals(EnvironmentConstants.UPPERCASE_ONLY));
+            }
+            else {
+                sqlDialect = getSqlDialect();
+            }
             return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
         }
 
