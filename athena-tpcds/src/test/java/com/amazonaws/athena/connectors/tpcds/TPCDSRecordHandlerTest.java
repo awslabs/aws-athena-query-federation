@@ -41,7 +41,7 @@ import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.google.common.collect.ImmutableMap;
+import com.amazonaws.athena.connectors.tpcds.qpt.TPCDSQueryPassthrough;
 import com.google.common.io.ByteStreams;
 import com.teradata.tpcds.Table;
 import com.teradata.tpcds.column.Column;
@@ -79,16 +79,18 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_NUMBER_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_SCALE_FACTOR_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_TOTAL_NUMBER_FIELD;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TPCDSRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TPCDSRecordHandlerTest.class);
+    private static final String TEST_CATALOG = "catalog";
+    private static final String TEST_SCHEMA_TPCDS1 = "tpcds1";
 
     private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private List<ByteHolder> mockS3Storage;
@@ -110,7 +112,6 @@ public class TPCDSRecordHandlerTest
 
     @Before
     public void setUp()
-            throws Exception
     {
         for (Table next : Table.getBaseTables()) {
             if (next.getName().equals("customer")) {
@@ -156,13 +157,12 @@ public class TPCDSRecordHandlerTest
 
     @After
     public void tearDown()
-            throws Exception
     {
         allocator.close();
     }
 
     @Test
-    public void doReadRecordsNoSpill()
+    public void doReadRecords_WhenResultFitsInMemory_ReturnsReadRecordsResponse()
             throws Exception
     {
         logger.info("doReadRecordsNoSpill: enter");
@@ -173,26 +173,11 @@ public class TPCDSRecordHandlerTest
                 .add("AAAAAAAACAAAAAAA")
                 .add("AAAAAAAADAAAAAAA").build());
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("tpcds1", table.getName()),
-                schemaForRead,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create())
-                        .add(SPLIT_NUMBER_FIELD, "0")
-                        .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
-                        .add(SPLIT_SCALE_FACTOR_FIELD, "1")
-                        .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+        ReadRecordsRequest request = newReadRecordsRequest(schemaForRead, table.getName(),
+                newSplit("0", "1000", "1"),
+                createConstraints(constraintsMap, Collections.emptyMap()),
                 100_000_000_000L,
-                100_000_000_000L //100GB don't expect this to spill
-        );
+                100_000_000_000L);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -208,7 +193,7 @@ public class TPCDSRecordHandlerTest
     }
 
     @Test
-    public void doReadRecordsSpill()
+    public void doReadRecords_WhenResultExceedsSpillThreshold_ReturnsRemoteReadRecordsResponse()
             throws Exception
     {
         logger.info("doReadRecordsSpill: enter");
@@ -217,26 +202,11 @@ public class TPCDSRecordHandlerTest
         constraintsMap.put("c_current_cdemo_sk", SortedRangeSet.of(
                 Range.range(allocator, Types.MinorType.BIGINT.getType(), 100L, true, 100_000_000L, true)));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("tpcds1", table.getName()),
-                schemaForRead,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create())
-                        .add(SPLIT_NUMBER_FIELD, "0")
-                        .add(SPLIT_TOTAL_NUMBER_FIELD, "10000")
-                        .add(SPLIT_SCALE_FACTOR_FIELD, "1")
-                        .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                1_500_000L, //~1.5MB so we should see some spill
-                0
-        );
+        ReadRecordsRequest request = newReadRecordsRequest(schemaForRead, table.getName(),
+                newSplit("0", "10000", "1"),
+                createConstraints(constraintsMap, Collections.emptyMap()),
+                1_500_000L,
+                0);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -265,7 +235,7 @@ public class TPCDSRecordHandlerTest
     }
 
     @Test
-    public void doReadRecordForTPCDSTIMETypeColumn()
+    public void doReadRecords_WhenTableHasTimeTypeColumn_ReturnsRecords()
             throws Exception
     {
         for (Table next : Table.getBaseTables()) {
@@ -278,26 +248,11 @@ public class TPCDSRecordHandlerTest
             schemaBuilder.addField(TPCDSUtils.convertColumn(nextCol));
         }
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("tpcds1", table.getName()),
-                schemaBuilder.build(),
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create())
-                        .add(SPLIT_NUMBER_FIELD, "0")
-                        .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
-                        .add(SPLIT_SCALE_FACTOR_FIELD, "1")
-                        .build(),
-                new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+        ReadRecordsRequest request = newReadRecordsRequest(schemaBuilder.build(), table.getName(),
+                newSplit("0", "1000", "1"),
+                createConstraints(Collections.emptyMap(), Collections.emptyMap()),
                 100_000_000_000L,
-                100_000_000_000L
-        );
+                100_000_000_000L);
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
@@ -308,6 +263,156 @@ public class TPCDSRecordHandlerTest
         assertEquals(1, response.getRecords().getRowCount()); // TPCDS for `dbgen_version` always generates 1 record.
 
         logger.info("doReadRecordForTPCDSTIMETypeColumn: exit");
+    }
+
+    @Test(expected = NumberFormatException.class)
+    public void doReadRecords_WhenSplitMissingScaleFactorProperty_ThrowsNumberFormatException()
+            throws Exception
+    {
+        ReadRecordsRequest request = newReadRecordsRequest(schemaForRead, table.getName(),
+                newSplit("0", "1000", null),
+                createConstraints(Collections.emptyMap(), Collections.emptyMap()),
+                100_000_000_000L,
+                100_000_000_000L);
+        handler.doReadRecords(allocator, request);
+    }
+
+    @Test(expected = NumberFormatException.class)
+    public void doReadRecords_WhenSplitHasNonNumericScaleFactor_ThrowsNumberFormatException()
+            throws Exception
+    {
+        ReadRecordsRequest request = newReadRecordsRequest(schemaForRead, table.getName(),
+                newSplit("0", "1000", "not_a_number"),
+                createConstraints(Collections.emptyMap(), Collections.emptyMap()),
+                100_000_000_000L,
+                100_000_000_000L);
+        handler.doReadRecords(allocator, request);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doReadRecords_WhenUnknownTableInRequest_ThrowsRuntimeException()
+            throws Exception
+    {
+        ReadRecordsRequest request = newReadRecordsRequest(schemaForRead, "nonexistent_table",
+                newSplit("0", "1000", "1"),
+                createConstraints(Collections.emptyMap(), Collections.emptyMap()),
+                100_000_000_000L,
+                100_000_000_000L);
+        handler.doReadRecords(allocator, request);
+    }
+
+    @Test
+    public void doReadRecords_WhenQueryPassthroughWithValidTable_ReturnsReadRecordsResponse()
+            throws Exception
+    {
+        Map<String, String> qptArguments = new HashMap<>();
+        qptArguments.put(TPCDSQueryPassthrough.TPCDS_CATALOG, TEST_CATALOG);
+        qptArguments.put(TPCDSQueryPassthrough.TPCDS_SCHEMA, TEST_SCHEMA_TPCDS1);
+        qptArguments.put(TPCDSQueryPassthrough.TPCDS_TABLE, "customer");
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("c_customer_id", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                .add("AAAAAAAABAAAAAAA")
+                .add("AAAAAAAACAAAAAAA")
+                .add("AAAAAAAADAAAAAAA").build());
+
+        ReadRecordsRequest request = newReadRecordsRequest(schemaForRead, "ignored_table_name",
+                newSplit("0", "1000", "1"),
+                createConstraints(constraintsMap, qptArguments),
+                100_000_000_000L,
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        assertEquals(3, response.getRecords().getRowCount());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doReadRecords_WhenQueryPassthroughWithUnknownTable_ThrowsRuntimeException()
+            throws Exception
+    {
+        Map<String, String> qptArguments = new HashMap<>();
+        qptArguments.put(TPCDSQueryPassthrough.TPCDS_CATALOG, TEST_CATALOG);
+        qptArguments.put(TPCDSQueryPassthrough.TPCDS_SCHEMA, TEST_SCHEMA_TPCDS1);
+        qptArguments.put(TPCDSQueryPassthrough.TPCDS_TABLE, "nonexistent_table");
+
+        ReadRecordsRequest request = newReadRecordsRequest(schemaForRead, "customer",
+                newSplit("0", "1000", "1"),
+                createConstraints(Collections.emptyMap(), qptArguments),
+                100_000_000_000L,
+                100_000_000_000L);
+
+        handler.doReadRecords(allocator, request);
+    }
+
+    @Test
+    public void doReadRecords_WhenProjectingSubsetOfCustomerColumns_ReturnsReadRecordsResponse()
+            throws Exception
+    {
+        SchemaBuilder subsetBuilder = SchemaBuilder.newBuilder();
+        for (Column nextCol : table.getColumns()) {
+            if ("c_customer_sk".equals(nextCol.getName()) || "c_first_name".equals(nextCol.getName())) {
+                subsetBuilder.addField(TPCDSUtils.convertColumn(nextCol));
+            }
+        }
+        Schema subsetSchema = subsetBuilder.build();
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("c_customer_id", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                .add("AAAAAAAABAAAAAAA")
+                .add("AAAAAAAACAAAAAAA")
+                .add("AAAAAAAADAAAAAAA").build());
+
+        ReadRecordsRequest request = newReadRecordsRequest(subsetSchema, table.getName(),
+                newSplit("0", "1000", "1"),
+                createConstraints(constraintsMap, Collections.emptyMap()),
+                100_000_000_000L,
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        assertEquals(2, response.getSchema().getFields().size());
+        assertTrue("Projected read should return rows", response.getRecords().getRowCount() > 0);
+    }
+
+    @Test
+    public void doReadRecords_WhenNonZeroSplitIndex_ReturnsReadRecordsResponse()
+            throws Exception
+    {
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("c_customer_id", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                .add("AAAAAAAABAAAAAAA")
+                .add("AAAAAAAACAAAAAAA")
+                .add("AAAAAAAADAAAAAAA").build());
+
+        ReadRecordsRequest request = newReadRecordsRequest(schemaForRead, table.getName(),
+                newSplit("1", "1000", "1"),
+                createConstraints(constraintsMap, Collections.emptyMap()),
+                100_000_000_000L,
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        assertNotNull(response.getRecords());
+    }
+
+    private Constraints createConstraints(
+            Map<String, ValueSet> summaryConstraints,
+            Map<String, String> queryPassthroughArguments)
+    {
+        return new Constraints(
+                summaryConstraints,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                DEFAULT_NO_LIMIT,
+                queryPassthroughArguments,
+                null);
     }
 
     private class ByteHolder
@@ -323,5 +428,37 @@ public class TPCDSRecordHandlerTest
         {
             return bytes;
         }
+    }
+
+    private Split newSplit(String splitNumber, String splitTotalNumber, String scaleFactor)
+    {
+        Split.Builder builder = Split.newBuilder(
+                        S3SpillLocation.newBuilder()
+                                .withBucket(UUID.randomUUID().toString())
+                                .withSplitId(UUID.randomUUID().toString())
+                                .withQueryId(UUID.randomUUID().toString())
+                                .withIsDirectory(true)
+                                .build(),
+                        keyFactory.create())
+                .add(SPLIT_NUMBER_FIELD, splitNumber)
+                .add(SPLIT_TOTAL_NUMBER_FIELD, splitTotalNumber);
+        if (scaleFactor != null) {
+            builder.add(SPLIT_SCALE_FACTOR_FIELD, scaleFactor);
+        }
+        return builder.build();
+    }
+
+    private ReadRecordsRequest newReadRecordsRequest(Schema schema, String tableName, Split split,
+                                                     Constraints constraints, long maxBlockSize, long maxInlineBlockSize)
+    {
+        return new ReadRecordsRequest(identity,
+                TEST_CATALOG,
+                "queryId-" + System.currentTimeMillis(),
+                new TableName(TEST_SCHEMA_TPCDS1, tableName),
+                schema,
+                split,
+                constraints,
+                maxBlockSize,
+                maxInlineBlockSize);
     }
 }
