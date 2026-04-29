@@ -390,6 +390,54 @@ public class SnowflakeCredentialsProviderTest
         }
     }
 
+    @Test
+    public void testGetCredentialMapWithUppercasePassword()
+    {
+        // Secret with USERNAME_UPPERCASE and PASSWORD_UPPERCASE keys
+        String secretJson = new ObjectMapper().createObjectNode()
+                .put("USERNAME", TEST_USERNAME)
+                .put("PASSWORD", TEST_PASSWORD)
+                .toString();
+
+        try (MockedConstruction<CachableSecretsManager> mockedConstruction = mockConstruction(CachableSecretsManager.class,
+                (mock, context) -> {
+                    when(mock.getSecret(TEST_SECRET_NAME, null)).thenReturn(secretJson);
+                    when(mock.getSecretsManager()).thenReturn(mockSecretsClient);
+                })) {
+
+            SnowflakeCredentialsProvider provider = new SnowflakeCredentialsProvider(TEST_SECRET_NAME, mockSecretsClient, null);
+
+            Map<String, String> credentialMap = provider.getCredentialMap();
+
+            assertNotNull(credentialMap);
+            assertEquals(TEST_USERNAME, credentialMap.get("user"));
+            assertEquals(TEST_PASSWORD, credentialMap.get("password"));
+        }
+    }
+
+    @Test
+    public void testGetCredentialMapWithMissingPassword()
+    {
+        // Secret with username but no password in any case
+        String secretJson = new ObjectMapper().createObjectNode()
+                .put("username", TEST_USERNAME)
+                .toString();
+
+        try (MockedConstruction<CachableSecretsManager> mockedConstruction = mockConstruction(CachableSecretsManager.class,
+                (mock, context) -> {
+                    when(mock.getSecret(TEST_SECRET_NAME, null)).thenReturn(secretJson);
+                    when(mock.getSecretsManager()).thenReturn(mockSecretsClient);
+                })) {
+
+            SnowflakeCredentialsProvider provider = new SnowflakeCredentialsProvider(TEST_SECRET_NAME, mockSecretsClient, null);
+
+            RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+                provider.getCredentialMap();
+            });
+            assertTrue(exception.getMessage().contains("password is required for password authentication"));
+        }
+    }
+
     // Helper methods
     private String createOAuthSecretJson()
     {
