@@ -30,9 +30,6 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -50,18 +47,18 @@ public class GenericJdbcConnectionFactory
         implements JdbcConnectionFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericJdbcConnectionFactory.class);
-
     private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@!-]+})";
-    public static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
+    protected static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
 
-    private final DatabaseConnectionInfo databaseConnectionInfo;
-    private final DatabaseConnectionConfig databaseConnectionConfig;
-    private final Properties jdbcProperties;
+    protected final DatabaseConnectionConfig databaseConnectionConfig;
+    protected final Properties jdbcProperties;
+    protected final DatabaseConnectionInfo databaseConnectionInfo;
+    
     private final boolean useDirectConnection;
     private volatile HikariDataSource ds;
 
     /**
-     * Existing constructor — uses HikariCP.
+     * Existing constructor — defaults to no configOptions (no Glue managed connection).
      */
     public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties, final DatabaseConnectionInfo databaseConnectionInfo)
     {
@@ -71,7 +68,8 @@ public class GenericJdbcConnectionFactory
     /**
      * @param databaseConnectionConfig database connection configuration {@link DatabaseConnectionConfig}
      * @param properties JDBC connection properties.
-     * @param configOptions environment/config options; when {@code fas_token} is present, disables connection pooling.
+     * @param databaseConnectionInfo Contains JDBC driver and default port details.
+     * @param configOptions environment/config options; when {@code fas_token} is present, uses direct DriverManager connections.
      */
     public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties, final DatabaseConnectionInfo databaseConnectionInfo, final Map<String, String> configOptions)
     {
@@ -100,53 +98,32 @@ public class GenericJdbcConnectionFactory
     public Connection getConnection(final CredentialsProvider credentialsProvider)
             throws Exception
     {
-        final String derivedJdbcString;
-        if (credentialsProvider != null) {
-            Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-            derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
-
-            jdbcProperties.putAll(credentialsProvider.getCredentialMap());
-        }
-        else {
-            derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
-        }
-
         if (useDirectConnection) {
-            return getDirectConnection(derivedJdbcString);
+            return createDirectConnection(credentialsProvider);
         }
 
-        return getPooledConnection(derivedJdbcString);
-    }
-
-    /**
-     * Creates a direct JDBC connection using {@link DriverManager}, bypassing connection pooling.
-     * Used for Glue managed connections.
-     */
-    private Connection getDirectConnection(String jdbcUrl) throws SQLException
-    {
-        Properties connectionProps = new Properties();
-        connectionProps.putAll(jdbcProperties);
-        try {
-            return DriverManager.getConnection(jdbcUrl, connectionProps);
-        }
-        catch (SQLException e) {
-            handleSQLException(e);
-            throw e;
-        }
+        return getConnectionFromManagedPool(credentialsProvider);
     }
 
     /**
      * Returns a connection from the HikariCP connection pool, initializing the pool on first call.
+     * Subclasses can call this directly to bypass the {@code useDirectConnection} check.
+     *
+     * @param credentialsProvider jdbc user and password provider, or null if no credentials.
+     * @return JDBC connection from the pool.
+     * @throws SQLException if a connection cannot be obtained.
      */
-    private Connection getPooledConnection(String jdbcUrl) throws SQLException
+    protected Connection getConnectionFromManagedPool(final CredentialsProvider credentialsProvider) throws SQLException
     {
+        final String derivedJdbcString = getDerivedJdbcString(credentialsProvider);
+
         if (ds == null) {
-            synchronized (GenericJdbcConnectionFactory.class) {
-                if (ds == null) {
+            synchronized (GenericJdbcConnectionFactory.class) { // Synchronize on the class level
+                if (ds == null) { // Double-check to avoid creating more than one instance
                     HikariConfig config2 = new HikariConfig();
                     config2.setDriverClassName(databaseConnectionInfo.getDriverClassName());
                     config2.setDataSourceProperties(jdbcProperties);
-                    config2.setJdbcUrl(jdbcUrl);
+                    config2.setJdbcUrl(derivedJdbcString);
                     config2.setMinimumIdle(1);
                     ds = new HikariDataSource(config2);
                     LOGGER.debug("Create data source");
@@ -158,12 +135,56 @@ public class GenericJdbcConnectionFactory
             return ds.getConnection();
         }
         catch (SQLException e) {
-            handleSQLException(e);
+            handleSQLExceptionWhenGetConnection(e);
             throw e;
         }
     }
 
-    private void handleSQLException(SQLException e)
+    /**
+     * Creates a direct JDBC connection using {@link DriverManager}, bypassing connection pooling.
+     * Used for Glue managed connections.
+     */
+    private Connection createDirectConnection(final CredentialsProvider credentialsProvider) throws SQLException
+    {
+        final String derivedJdbcString = getDerivedJdbcString(credentialsProvider);
+
+        Properties connectionProps = new Properties();
+        connectionProps.putAll(jdbcProperties);
+        try {
+            return DriverManager.getConnection(derivedJdbcString, connectionProps);
+        }
+        catch (SQLException e) {
+            handleSQLExceptionWhenGetConnection(e);
+            throw e;
+        }
+    }
+
+    /**
+     * Derives the JDBC connection string by stripping secret placeholders and merging
+     * credentials into {@link #jdbcProperties}.
+     * <p>
+     * Note: URL encoding in the connection string is passed through as-is. The underlying
+     * JDBC driver is responsible for decoding (e.g. Snowflake's driver decodes %22 to ").
+     *
+     * @param credentialsProvider credential provider, or null if no credentials.
+     * @return the derived JDBC connection string.
+     */
+    private String getDerivedJdbcString(final CredentialsProvider credentialsProvider)
+    {
+        final String derivedJdbcString;
+        if (credentialsProvider != null) {
+            Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
+            derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
+
+            jdbcProperties.putAll(credentialsProvider.getCredentialMap());
+        }
+        else {
+            derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
+        }
+        return derivedJdbcString;
+    }
+
+    private void handleSQLExceptionWhenGetConnection(final SQLException e) throws SQLException
     {
         String message = e.getMessage();
         if (message != null && message.contains("Name or service not known")) {
@@ -172,16 +193,6 @@ public class GenericJdbcConnectionFactory
         else if (message != null && message.contains("Incorrect username or password was specified.")) {
             throw new AthenaConnectorException(message, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
         }
-    }
-
-    private String encodeValue(String value)
-    {
-        try {
-            return URLEncoder.encode(value, StandardCharsets.UTF_8.toString());
-        }
-        catch (UnsupportedEncodingException ex) {
-            throw new AthenaConnectorException("Unsupported Encoding Exception: ",
-                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).errorMessage(ex.getMessage()).build());
-        }
+        throw e;
     }
 }
