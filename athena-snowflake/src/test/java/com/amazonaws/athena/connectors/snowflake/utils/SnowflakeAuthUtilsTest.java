@@ -319,4 +319,64 @@ public class SnowflakeAuthUtilsTest
         // Should not throw exception
         SnowflakeAuthUtils.validateCredentials(credentials, SnowflakeAuthType.SNOWFLAKE_JWT);
     }
+
+    @Test
+    public void testGetUsernameWithUppercaseKey()
+    {
+        Map<String, String> credentials = new HashMap<>();
+        credentials.put(SnowflakeConstants.USERNAME_UPPERCASE, TESTUSER);
+        credentials.put(SnowflakeConstants.PASSWORD, TESTPASSWORD);
+
+        String username = SnowflakeAuthUtils.getUsername(credentials);
+        assertEquals(TESTUSER, username);
+    }
+
+    @Test
+    public void testGetUsernameFallbackOrder()
+    {
+        // Test that SF_USER takes priority over USERNAME and USERNAME_UPPERCASE
+        Map<String, String> credentials = new HashMap<>();
+        credentials.put(SnowflakeConstants.SF_USER, "sfuser");
+        credentials.put(SnowflakeConstants.USERNAME, "username");
+        credentials.put(SnowflakeConstants.USERNAME_UPPERCASE, "USERNAME");
+
+        String username = SnowflakeAuthUtils.getUsername(credentials);
+        assertEquals("sfuser", username);
+    }
+
+    @Test
+    public void testGetUsernameFallbackToUppercase()
+    {
+        // Test that USERNAME_UPPERCASE is used when SF_USER and USERNAME are blank
+        Map<String, String> credentials = new HashMap<>();
+        credentials.put(SnowflakeConstants.SF_USER, "");
+        credentials.put(SnowflakeConstants.USERNAME, "");
+        credentials.put(SnowflakeConstants.USERNAME_UPPERCASE, TESTUSER);
+
+        String username = SnowflakeAuthUtils.getUsername(credentials);
+        assertEquals(TESTUSER, username);
+    }
+
+    @Test
+    public void testValidateCredentialsWithPasswordUppercase()
+    {
+        Map<String, String> credentials = new HashMap<>();
+        credentials.put(SnowflakeConstants.USERNAME, TESTUSER);
+        credentials.put(SnowflakeConstants.PASSWORD_UPPERCASE, TESTPASSWORD);
+
+        // Should not throw exception - PASSWORD_UPPERCASE should be accepted
+        SnowflakeAuthUtils.validateCredentials(credentials, SnowflakeAuthType.SNOWFLAKE);
+    }
+
+    @Test
+    public void testValidateCredentialsWithPasswordMissingBothCases()
+    {
+        Map<String, String> credentials = new HashMap<>();
+        credentials.put(SnowflakeConstants.USERNAME, TESTUSER);
+        // Neither PASSWORD nor PASSWORD_UPPERCASE is set
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            SnowflakeAuthUtils.validateCredentials(credentials, SnowflakeAuthType.SNOWFLAKE);
+        });
+    }
 }

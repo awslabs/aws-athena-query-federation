@@ -29,6 +29,8 @@ import com.google.common.base.Strings;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.SnowflakeSqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,5 +171,59 @@ public class SnowflakeQueryStringBuilder
     {
         name = name.replace(SINGLE_QUOTE_CHAR, SINGLE_QUOTE_CHAR + SINGLE_QUOTE_CHAR);
         return SINGLE_QUOTE_CHAR + name + SINGLE_QUOTE_CHAR;
+    }
+
+    @Override
+    protected String appendLimitOffset(Split split)
+    {
+        if (split == null || split.getProperties().isEmpty()) {
+            return "";
+        }
+        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next());
+        // Expected format: partition-primary-<PRIMARYKEY>-limit-<LIMIT>-offset-<OFFSET>
+        // Use marker-based parsing to handle primary keys that may contain dashes
+        if (partitionVal == null || !partitionVal.contains("-primary-") || !partitionVal.contains("-limit-") || !partitionVal.contains("-offset-")) {
+            return "";
+        }
+
+        int primaryStart = partitionVal.indexOf("-primary-") + "-primary-".length();
+        int limitMarker = partitionVal.lastIndexOf("-limit-");
+        int offsetMarker = partitionVal.lastIndexOf("-offset-");
+
+        if (primaryStart > limitMarker || limitMarker > offsetMarker) {
+            LOGGER.warn("Malformed partition value: {}", partitionVal);
+            return "";
+        }
+
+        String primaryKey = partitionVal.substring(primaryStart, limitMarker);
+        String xLimit = partitionVal.substring(limitMarker + "-limit-".length(), offsetMarker);
+        String xOffset = partitionVal.substring(offsetMarker + "-offset-".length());
+
+        // if no primary key, single split only
+        if (primaryKey.isEmpty()) {
+            return "";
+        }
+
+        // Validate limit and offset are numeric to prevent injection
+        if (!xLimit.matches("\\d+") || !xOffset.matches("\\d+")) {
+            LOGGER.warn("Non-numeric limit/offset in partition value: limit={}, offset={}", xLimit, xOffset);
+            return "";
+        }
+
+        // Primary key is already quoted from getPrimaryKey() (e.g., "\"col1\",\"col2\"")
+        // so it is safe to use directly in ORDER BY
+        return "ORDER BY " + primaryKey + " " + appendLimitOffsetWithValue(xLimit, xOffset);
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+       return SnowflakeSqlDialect.DEFAULT;
+    }
+    
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new SnowflakeDialect(catalogCasingFilterUpperCase);
     }
 }
