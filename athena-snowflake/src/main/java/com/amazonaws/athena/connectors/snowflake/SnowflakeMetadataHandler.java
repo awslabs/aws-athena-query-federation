@@ -110,6 +110,7 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COUNT
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DESCRIBE_STORAGE_INTEGRATION_TEMPLATE;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.JDBC_PROPERTIES;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.LARGE_TABLE_THRESHOLD;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.LIST_PAGINATED_TABLES_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME;
@@ -124,6 +125,7 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORA
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_PROPERTY_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_PROPERTY_VALUE_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.UNIQUENESS_CHECK_TIMEOUT_SECONDS;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.VIEW_CHECK_QUERY;
 
 /**
@@ -295,7 +297,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
              * this is to handle timeout issues because of huge partitions
              */
             LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
-            boolean viewFlag = checkForView(tableName, getRequestOverrideConfig(request));
+            boolean viewFlag = checkForView(tableName, connection);
             //if the input table is a view , there will be single split
             if (viewFlag) {
                 blockWriter.writeRows((Block block, int rowNum) -> {
@@ -317,7 +319,17 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     totalRecordCount = rs.getLong(1);
                 }
                 if (totalRecordCount > 0) {
-                    Optional<String> primaryKey = getPrimaryKey(tableName, getRequestOverrideConfig(request));
+                    Optional<String> primaryKey;
+                    if (totalRecordCount > LARGE_TABLE_THRESHOLD) {
+                        // Guard: skip expensive uniqueness check for very large tables to avoid full-table GROUP BY queries timing out.
+                        LOGGER.info("Table {} has {} rows (exceeds threshold {}). Skipping primary key uniqueness check.",
+                                tableName.getTableName(), (long) totalRecordCount, LARGE_TABLE_THRESHOLD);
+                        primaryKey = Optional.empty();
+                    }
+                    else {
+                        primaryKey = getPrimaryKey(tableName, connection);
+                    }
+
                     long recordsInPartition = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
                     long partitionRecordCount = (totalRecordCount <= SINGLE_SPLIT_LIMIT_COUNT || !primaryKey.isPresent()) ? (long) totalRecordCount : recordsInPartition;
                     LOGGER.info(" Total Page Count: " + partitionRecordCount);
@@ -634,36 +646,34 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         return schemaBuilder.build();
     }
 
-    private Optional<String> getPrimaryKey(TableName tableName, AwsRequestOverrideConfiguration overrideConfig) throws Exception
+    private Optional<String> getPrimaryKey(TableName tableName, Connection connection) throws Exception
     {
         LOGGER.debug("getPrimaryKey tableName: " + tableName);
         List<String> primaryKeys = new ArrayList<String>();
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(overrideConfig))) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
-                 ResultSet rs = preparedStatement.executeQuery()) {
-                while (rs.next()) {
-                    // Concatenate multiple primary keys if they exist
-                    primaryKeys.add(rs.getString(PRIMARY_KEY_COLUMN_NAME));
-                }
+        try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
+             ResultSet rs = preparedStatement.executeQuery()) {
+            while (rs.next()) {
+                // Concatenate multiple primary keys if they exist
+                primaryKeys.add(rs.getString(PRIMARY_KEY_COLUMN_NAME));
             }
+        }
 
-            String primaryKeyString = primaryKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
-            if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString, overrideConfig)) {
-                return Optional.of(primaryKeyString);
-            }
+        String primaryKeyString = primaryKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
+        if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString, connection)) {
+            return Optional.of(primaryKeyString);
         }
         return Optional.empty();
     }
 
     /**
      * Snowflake does not enforce primary key constraints, so we double-check user has unique primary key
-     * before partitioning.
+     * before partitioning. Uses a statement-level timeout to fail fast rather than waiting for Lambda timeout.
      */
-    private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey, AwsRequestOverrideConfiguration overrideConfig) throws Exception
+    private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey, Connection connection) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(overrideConfig))) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
-                 ResultSet rs = preparedStatement.executeQuery()) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC LIMIT 1")) {
+            preparedStatement.setQueryTimeout(UNIQUENESS_CHECK_TIMEOUT_SECONDS);
+            try (ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
                     if (rs.getInt(COUNTS_COLUMN_NAME) == 1) {
                         // Since it is in descending order and 1 is this first count seen,
@@ -673,6 +683,11 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 }
             }
         }
+        catch (SQLException e) {
+            LOGGER.warn("Primary key uniqueness check timed out or failed for table {}.{}. Falling back to single partition. Error: {}",
+                    tableName.getSchemaName(), tableName.getTableName(), e.getMessage());
+            return false;
+        }
         LOGGER.warn("Primary key ,{}, is not unique. Falling back to single partition...", primaryKey);
         return false;
     }
@@ -680,18 +695,16 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     /*
      * Check if the input table is a view and returns viewflag accordingly
      */
-    private boolean checkForView(TableName tableName, AwsRequestOverrideConfiguration overrideConfig) throws Exception
+    private boolean checkForView(TableName tableName, Connection connection) throws Exception
     {
         boolean viewFlag = false;
         List<String> viewparameters = Arrays.asList(tableName.getSchemaName(), tableName.getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(overrideConfig))) {
-            try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(viewparameters).build();
-                 ResultSet resultSet = preparedStatement.executeQuery()) {
-                if (resultSet.next()) {
-                    viewFlag = true;
-                }
-                LOGGER.info("viewFlag: {}", viewFlag);
+        try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(viewparameters).build();
+             ResultSet resultSet = preparedStatement.executeQuery()) {
+            if (resultSet.next()) {
+                viewFlag = true;
             }
+            LOGGER.info("viewFlag: {}", viewFlag);
         }
         return viewFlag;
     }
