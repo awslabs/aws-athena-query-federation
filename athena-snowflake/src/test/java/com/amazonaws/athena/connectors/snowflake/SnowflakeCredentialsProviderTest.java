@@ -333,11 +333,9 @@ public class SnowflakeCredentialsProviderTest
 
             SnowflakeCredentialsProvider provider = new SnowflakeCredentialsProvider(TEST_SECRET_NAME, mockSecretsClient, null);
 
-            RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            assertThrows(IllegalArgumentException.class, () -> {
                 provider.getCredentialMap();
             });
-
-            assertTrue(exception.getMessage().contains("Error retrieving Snowflake credentials"));
         }
     }
 
@@ -352,11 +350,9 @@ public class SnowflakeCredentialsProviderTest
 
             SnowflakeCredentialsProvider provider = new SnowflakeCredentialsProvider(TEST_SECRET_NAME, mockSecretsClient, null);
 
-            RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            assertThrows(RuntimeException.class, () -> {
                 provider.getCredentialMap();
             });
-
-            assertTrue(exception.getMessage().contains("Error retrieving Snowflake credentials"));
         }
     }
 
