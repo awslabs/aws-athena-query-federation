@@ -6929,6 +6929,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/sqlserver/SqlServerQueryStringBuilder.html#getSqlDialect()">getSqlDialect()</a></span> - Method in class com.amazonaws.athena.connectors.sqlserver.<a href="com/amazonaws/athena/connectors/sqlserver/SqlServerQueryStringBuilder.html" title="class in com.amazonaws.athena.connectors.sqlserver">SqlServerQueryStringBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/teradata/TeradataQueryStringBuilder.html#getSqlDialect()">getSqlDialect()</a></span> - Method in class com.amazonaws.athena.connectors.teradata.<a href="com/amazonaws/athena/connectors/teradata/TeradataQueryStringBuilder.html" title="class in com.amazonaws.athena.connectors.teradata">TeradataQueryStringBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html#getSqlDialect(boolean)">getSqlDialect(boolean)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcSplitQueryBuilder</a></dt>
 <dd>
 <div class="block">Returns the SQL dialect to use for query generation with catalog casing filter support.</div>
@@ -12081,6 +12083,16 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/teradata/TeradataRecordHandler.html#%3Cinit%3E(java.util.Map)">TeradataRecordHandler(Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.teradata.<a href="com/amazonaws/athena/connectors/teradata/TeradataRecordHandler.html" title="class in com.amazonaws.athena.connectors.teradata">TeradataRecordHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/teradata/TeradataSqlDialect.html" title="class in com.amazonaws.athena.connectors.teradata"><span class="typeNameLink">TeradataSqlDialect</span></a> - Class in <a href="com/amazonaws/athena/connectors/teradata/package-summary.html">com.amazonaws.athena.connectors.teradata</a></dt>
+<dd>
+<div class="block">Custom SQL dialect for Teradata that extends Calcite's <code>TeradataSqlDialect</code>
+ to handle Teradata-specific SQL generation for Athena query federation.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/teradata/TeradataSqlDialect.html#%3Cinit%3E()">TeradataSqlDialect()</a></span> - Constructor for class com.amazonaws.athena.connectors.teradata.<a href="com/amazonaws/athena/connectors/teradata/TeradataSqlDialect.html" title="class in com.amazonaws.athena.connectors.teradata">TeradataSqlDialect</a></dt>
+<dd>
+<div class="block">Constructs a new <code>TeradataSqlDialect</code> using the <code>TeradataSqlDialect.DEFAULT_CONTEXT</code> from
+ Calcite's built-in Teradata dialect.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html#TEST_DATATYPES_BOOLEAN_VALUE">TEST_DATATYPES_BOOLEAN_VALUE</a></span> - Static variable in class com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integ">IntegrationTestBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html#TEST_DATATYPES_BYTE_ARRAY_VALUE">TEST_DATATYPES_BYTE_ARRAY_VALUE</a></span> - Static variable in class com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integ">IntegrationTestBase</a></dt>
@@ -12504,6 +12516,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/ListTablesRequest.html#UNLIMITED_PAGE_SIZE_VALUE">UNLIMITED_PAGE_SIZE_VALUE</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a></dt>
 <dd>
 <div class="block">Value used to indicate that the page size is unlimited, and therefore, the request should NOT be paginated.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/teradata/TeradataSqlDialect.html#unparseOffsetFetch(org.apache.calcite.sql.SqlWriter,org.apache.calcite.sql.SqlNode,org.apache.calcite.sql.SqlNode)">unparseOffsetFetch(SqlWriter, SqlNode, SqlNode)</a></span> - Method in class com.amazonaws.athena.connectors.teradata.<a href="com/amazonaws/athena/connectors/teradata/TeradataSqlDialect.html" title="class in com.amazonaws.athena.connectors.teradata">TeradataSqlDialect</a></dt>
+<dd>
+<div class="block">No-op override that suppresses OFFSET/FETCH clause generation.</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/connection/UnrecoverableException.html" title="class in com.amazonaws.athena.connectors.hbase.connection"><span class="typeNameLink">UnrecoverableException</span></a> - Exception in <a href="com/amazonaws/athena/connectors/hbase/connection/package-summary.html">com.amazonaws.athena.connectors.hbase.connection</a></dt>
 <dd>
