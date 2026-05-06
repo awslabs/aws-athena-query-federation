@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -165,12 +166,11 @@ public class GenericJdbcConnectionFactory
 
     private void handleSQLException(SQLException e)
     {
-        String message = e.getMessage();
-        if (message != null && message.contains("Name or service not known")) {
-            throw new AthenaConnectorException(message, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        if (StringUtils.isNotBlank(e.getMessage()) && e.getMessage().contains("Name or service not known")) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
-        else if (message != null && message.contains("Incorrect username or password was specified.")) {
-            throw new AthenaConnectorException(message, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
+        else if (StringUtils.isNotBlank(e.getMessage()) && e.getMessage().contains("Incorrect username or password was specified.")) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
         }
     }
 
