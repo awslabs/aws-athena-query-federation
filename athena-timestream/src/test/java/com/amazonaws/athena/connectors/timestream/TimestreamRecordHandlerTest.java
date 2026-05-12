@@ -28,11 +28,12 @@ import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
@@ -40,6 +41,7 @@ import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
@@ -66,8 +68,11 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient;
+import software.amazon.awssdk.services.timestreamquery.model.Datum;
 import software.amazon.awssdk.services.timestreamquery.model.QueryRequest;
 import software.amazon.awssdk.services.timestreamquery.model.QueryResponse;
+import software.amazon.awssdk.services.timestreamquery.model.Row;
+import software.amazon.awssdk.services.timestreamquery.model.TimeSeriesDataPoint;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -79,11 +84,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
-import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
 import static com.amazonaws.athena.connectors.timestream.TestUtils.makeMockQueryResult;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -96,9 +101,7 @@ import static org.mockito.Mockito.when;
 public class TimestreamRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TimestreamRecordHandlerTest.class);
-
     private static final FederatedIdentity IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
-
     private TimestreamRecordHandler handler;
     private BlockAllocator allocator;
     private List<ByteHolder> mockS3Storage = new ArrayList<>();
@@ -110,6 +113,26 @@ public class TimestreamRecordHandlerTest
     private static final String DEFAULT_SCHEMA = "my_schema";
     private static final String TEST_TABLE = "my_table";
     private static final String TEST_VIEW = "my_view";
+    private static final String QUERY_ID_PREFIX = "queryId-";
+    private static final String SYSTEM_QUERY_FUNCTION = "SYSTEM.QUERY";
+    private static final String PASSTHROUGH_QUERY = "SELECT * FROM my_table WHERE col1 = 'value'";
+    private static final String EXPECTED_QUERY_PAGINATION = "SELECT measure_name, measure_value::double, az, time, hostname, region FROM \"my_schema\".\"my_table\"";
+    private static final String US_EAST_1A = "us-east-1a";
+    private static final String REGION_1 = "region1";
+    private static final String MEASURE_PREFIX = "measure_";
+    private static final String HOST_PREFIX = "host";
+    private static final String PAGINATION_TOKEN_PREFIX = "token";
+    private static final String MEASURE_1 = "measure1";
+    private static final String FLOAT_VALUE_1_5 = "1.5";
+    private static final String HOST_1 = "host1";
+    private static final String TRUE_VALUE = "true";
+    private static final String BIGINT_VALUE = "123456789";
+    private static final String COLUMN_NAME_1 = "col1";
+    private static final String COLUMN_NAME_2 = "col2";
+    private static final String COLUMN_NAME_3 = "col3";
+    private static final String COLUMN_NAME_4 = "col4";
+    private static final String TIMESTAMP_2024_01_01 = "2024-01-01 00:00:00.000";
+    private static final String UNSUPPORTED_FIELD_TYPE = "Unsupported field type";
 
     @Rule
     public TestName testName = new TestName();
@@ -187,12 +210,14 @@ public class TimestreamRecordHandlerTest
     @After
     public void after()
     {
-        allocator.close();
+        if (allocator != null) {
+            allocator.close();
+        }
         logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
-    public void doReadRecordsNoSpill()
+    public void doReadRecords_WhenResultFitsInMemory_ReturnsReadRecordsResponseWithFilteredRows()
             throws Exception
     {
         int numRowsGenerated = 1_000;
@@ -202,7 +227,7 @@ public class TimestreamRecordHandlerTest
         when(mockClient.query(nullable(QueryRequest.class)))
                 .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals(expectedQuery, request.queryString().replace("\n", ""));
+                            assertEquals("Executed query should match expected with constraints", normalizeQuery(expectedQuery), normalizeQuery(request.queryString()));
                             return mockResult;
                         }
                 );
@@ -212,43 +237,24 @@ public class TimestreamRecordHandlerTest
                 .add("us-east-1a")
                 .add("us-east-1b").build());
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
-
-        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create());
-
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForRead,
-                splitBuilder.build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
-
+        ReadRecordsRequest request = createReadRecordsRequestWithConstraints(schemaForRead, constraintsMap, 100_000_000_000L, 100_000_000_000L);
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        assertThat("Response should be ReadRecordsResponse when under spill threshold", rawResponse, instanceOf(ReadRecordsResponse.class));
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
         logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
 
-        assertTrue(response.getRecords().getRowCount() > 0);
+        assertTrue("Should return at least one record", response.getRecords().getRowCount() > 0);
 
         //ensure we actually filtered something out
-        assertTrue(response.getRecords().getRowCount() < numRowsGenerated);
+        assertTrue("Filtered row count should be less than generated", response.getRecords().getRowCount() < numRowsGenerated);
 
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("doReadRecords_WhenResultFitsInMemory_ReturnsReadRecordsResponseWithFilteredRows: {}", BlockUtils.rowToString(response.getRecords(), 0));
     }
 
     @Test
-    public void doReadRecordsSpill()
+    public void doReadRecords_WhenResultExceedsSpillThreshold_ReturnsRemoteReadRecordsResponseWithMultipleBlocks()
             throws Exception
     {
         String expectedQuery = "SELECT \"measure_name\", \"measure_value::double\", \"az\", \"time\", \"hostname\", \"region\" FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
@@ -257,7 +263,7 @@ public class TimestreamRecordHandlerTest
         when(mockClient.query(nullable(QueryRequest.class)))
                 .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals(expectedQuery, request.queryString().replace("\n", ""));
+                            assertEquals("Executed query should match expected for spill path", normalizeQuery(expectedQuery), normalizeQuery(request.queryString()));
                             return mockResult;
                         }
                 );
@@ -267,33 +273,15 @@ public class TimestreamRecordHandlerTest
                 .add("us-east-1a")
                 .add("us-east-1b").build());
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
-
-        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create());
-
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForRead,
-                splitBuilder.build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                1_500_000L, //~1.5MB so we should see some spill
-                0L
-        );
+        ReadRecordsRequest request = createReadRecordsRequestWithConstraints(schemaForRead, constraintsMap, 1_500_000L, 0L);
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
-        assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
+        assertThat("Response should be RemoteReadRecordsResponse when data is spilled", rawResponse, instanceOf(RemoteReadRecordsResponse.class));
 
         try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
             logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
 
-            assertTrue(response.getNumberBlocks() > 1);
+            assertTrue("Spilled response should have more than one block", response.getNumberBlocks() > 1);
 
             int blockNum = 0;
             for (SpillLocation next : response.getRemoteBlocks()) {
@@ -303,18 +291,18 @@ public class TimestreamRecordHandlerTest
                     logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
                     // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
 
-                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
-                    assertNotNull(BlockUtils.rowToString(block, 0));
+                    logger.info("doReadRecords_WhenResultExceedsSpillThreshold_ReturnsRemoteReadRecordsResponseWithMultipleBlocks: {}", BlockUtils.rowToString(block, 0));
+                    assertNotNull("Block row string should not be null", BlockUtils.rowToString(block, 0));
                 }
             }
         }
     }
 
     @Test
-    public void readRecordsView()
+    public void doReadRecords_WithViewSchema_ExecutesViewQueryAndReturnsRecords()
             throws Exception
     {
-        logger.info("readRecordsView - enter");
+        logger.info("doReadRecords_WithViewSchema_ExecutesViewQueryAndReturnsRecords - enter");
 
         Schema schemaForReadView = SchemaBuilder.newBuilder()
                 .addField("measure_name", Types.MinorType.VARCHAR.getType())
@@ -331,53 +319,34 @@ public class TimestreamRecordHandlerTest
         when(mockClient.query(nullable(QueryRequest.class)))
                 .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals(expectedQuery, request.queryString().replace("\n", ""));
+                            assertEquals("View query should match expected", normalizeQuery(expectedQuery), normalizeQuery(request.queryString()));
                             return mockResult;
                         }
                 );
-
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
-
-        Split split = Split.newBuilder(splitLoc, null).build();
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("az", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
                 .add("us-east-1a")
                 .add("us-east-1b").build());
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                "default",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_VIEW),
-                schemaForReadView,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
-
+        ReadRecordsRequest request = createReadRecordsRequestWithConstraints(schemaForReadView, "default", TEST_VIEW, constraintsMap, true);
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("readRecordsView: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecords_WithViewSchema_ExecutesViewQueryAndReturnsRecords: rows[{}]", response.getRecordCount());
 
         for (int i = 0; i < response.getRecordCount() && i < 10; i++) {
-            logger.info("readRecordsView: {}", BlockUtils.rowToString(response.getRecords(), i));
+            logger.info("doReadRecords_WithViewSchema_ExecutesViewQueryAndReturnsRecords: {}", BlockUtils.rowToString(response.getRecords(), i));
         }
 
-        logger.info("readRecordsView - exit");
+        logger.info("doReadRecords_WithViewSchema_ExecutesViewQueryAndReturnsRecords - exit");
     }
 
     @Test
-    public void readRecordsTimeSeriesView()
+    public void doReadRecords_WithTimeSeriesViewSchema_ExecutesTimeSeriesQueryAndReturnsRecords()
             throws Exception
     {
-        logger.info("readRecordsTimeSeriesView - enter");
+        logger.info("doReadRecords_WithTimeSeriesViewSchema_ExecutesTimeSeriesQueryAndReturnsRecords - enter");
 
         Schema schemaForReadView = SchemaBuilder.newBuilder()
                 .addField("region", Types.MinorType.VARCHAR.getType())
@@ -398,51 +367,31 @@ public class TimestreamRecordHandlerTest
         when(mockClient.query(nullable(QueryRequest.class)))
                 .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals("actual: " + request.queryString(), expectedQuery, request.queryString().replace("\n", ""));
+                            assertEquals("TimeSeries view query should match expected", normalizeQuery(expectedQuery), normalizeQuery(request.queryString()));
                             return mockResult;
                         }
                 );
-
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
-
-        Split split = Split.newBuilder(splitLoc, null)
-                .build();
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("az", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
                 .add("us-east-1a")
                 .add("us-east-1b").build());
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                "default",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForReadView,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
-
+        ReadRecordsRequest request = createReadRecordsRequestWithConstraints(schemaForReadView, "default", TEST_TABLE, constraintsMap, true);
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("readRecordsTimeSeriesView: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecords_WithTimeSeriesViewSchema_ExecutesTimeSeriesQueryAndReturnsRecords: rows[{}]", response.getRecordCount());
 
         for (int i = 0; i < response.getRecordCount() && i < 10; i++) {
-            logger.info("readRecordsTimeSeriesView: {}", BlockUtils.rowToString(response.getRecords(), i));
+            logger.info("doReadRecords_WithTimeSeriesViewSchema_ExecutesTimeSeriesQueryAndReturnsRecords: {}", BlockUtils.rowToString(response.getRecords(), i));
         }
 
-        logger.info("readRecordsTimeSeriesView - exit");
+        logger.info("doReadRecords_WithTimeSeriesViewSchema_ExecutesTimeSeriesQueryAndReturnsRecords - exit");
     }
 
     @Test
-    public void doReadRecordsNoSpillValidateTimeStamp()
+    public void doReadRecords_WithAzConstraint_ParsesTimeColumnAsLocalDateTime()
             throws Exception
     {
 
@@ -453,7 +402,7 @@ public class TimestreamRecordHandlerTest
         when(mockClient.query(nullable(QueryRequest.class)))
                 .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals(expectedQuery, request.queryString().replace("\n", ""));
+                            assertEquals("Timestamp test query should match expected", normalizeQuery(expectedQuery), normalizeQuery(request.queryString()));
                             return mockResult;
                         }
                 );
@@ -462,43 +411,466 @@ public class TimestreamRecordHandlerTest
         constraintsMap.put("az", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
                 .add("us-east-1a").build());
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
-
-        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create());
-
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForRead,
-                splitBuilder.build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
-
+        ReadRecordsRequest request = createReadRecordsRequestWithConstraints(schemaForRead, constraintsMap, 100_000_000_000L, 100_000_000_000L);
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        assertThat("Response should be ReadRecordsResponse for timestamp test", rawResponse, instanceOf(ReadRecordsResponse.class));
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecords_WithAzConstraint_ParsesTimeColumnAsLocalDateTime: rows[{}]", response.getRecordCount());
 
-        assertTrue(response.getRecords().getRowCount() > 0);
+        assertTrue("Should return at least one record for timestamp test", response.getRecords().getRowCount() > 0);
 
         Block block = response.getRecords();
         FieldReader time = block.getFieldReader("time");
         for (int i = 0; i < response.getRecordCount() && i < numRows; i++) {
             time.setPosition(i);
-            assertTrue(time.readObject() instanceof LocalDateTime);
-            assertEquals(TestUtils.startDate.plusDays(i).truncatedTo(ChronoUnit.MILLIS), time.readObject());
+            assertThat("Time field should be LocalDateTime", time.readObject(), instanceOf(LocalDateTime.class));
+            assertEquals("Time value should match expected for row " + i, TestUtils.startDate.plusDays(i).truncatedTo(ChronoUnit.MILLIS), time.readObject());
         }
 
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("doReadRecords_WithAzConstraint_ParsesTimeColumnAsLocalDateTime: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void doReadRecords_WithQueryPassthrough_ReturnsRecordsFromPassthroughQuery()
+            throws Exception
+    {
+        Map<String, String> qptArgs = new HashMap<>();
+        qptArgs.put(QueryPassthroughSignature.SCHEMA_FUNCTION_NAME, SYSTEM_QUERY_FUNCTION);
+        qptArgs.put(TimestreamQueryPassthrough.QUERY, PASSTHROUGH_QUERY);
+
+        QueryResponse mockResult = makeMockQueryResult(schemaForRead, 100);
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
+                            assertEquals("Query string should match passthrough query", PASSTHROUGH_QUERY, request.queryString());
+                            return mockResult;
+                        }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaForRead, qptArgs);
+        ReadRecordsResponse response = executeReadRecords(request);
+        assertTrue("Query passthrough should return at least one record", response.getRecords().getRowCount() > 0);
+    }
+
+    @Test
+    public void doReadRecords_WithMultiplePages_FetchesAllPagesAndReturnsRecords()
+            throws Exception
+    {
+        final int[] callCount = {0};
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            callCount[0]++;
+                            QueryResponse.Builder responseBuilder = QueryResponse.builder();
+                            List<Row> rows = new ArrayList<>();
+                            for (int i = 0; i < 10; i++) {
+                                List<Datum> columnData = new ArrayList<>();
+                                // Create proper data types for each field
+                                columnData.add(Datum.builder().scalarValue(MEASURE_PREFIX + i).build()); // VARCHAR
+                                columnData.add(Datum.builder().scalarValue(String.valueOf(i * 1.5)).build()); // FLOAT8
+                                columnData.add(Datum.builder().scalarValue(US_EAST_1A).build()); // VARCHAR
+                                columnData.add(Datum.builder().scalarValue(TestUtils.startDate.plusDays(i).toString().replace('T', ' ')).build()); // DATEMILLI
+                                columnData.add(Datum.builder().scalarValue(HOST_PREFIX + i).build()); // VARCHAR
+                                columnData.add(Datum.builder().scalarValue(REGION_1).build()); // VARCHAR
+                                rows.add(Row.builder().data(columnData).build());
+                            }
+                            responseBuilder.rows(rows);
+
+                            if (callCount[0] < 3) {
+                                responseBuilder.nextToken(PAGINATION_TOKEN_PREFIX + callCount[0]);
+                            }
+                            else {
+                                responseBuilder.nextToken(null);
+                            }
+
+                            return responseBuilder.build();
+                        }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaForRead, null);
+        ReadRecordsResponse response = executeReadRecords(request);
+        assertTrue("Pagination should return at least one record", response.getRecords().getRowCount() > 0);
+        assertTrue("Should have made multiple paginated calls", callCount[0] >= 2);
+    }
+
+    @Test
+    public void doReadRecords_WithNullRows_ReturnsEmptyRecordCount()
+            throws Exception
+    {
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            return QueryResponse.builder()
+                                    .rows((List<Row>) null) // Null rows
+                                    .nextToken(null)
+                                    .build();
+                            }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaForRead, null);
+        ReadRecordsResponse response = executeReadRecords(request);
+        assertEquals("Null rows should yield empty record count", 0, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void doReadRecords_WithEmptyNextToken_ReturnsReadRecordsResponseWithoutFurtherCalls()
+            throws Exception
+    {
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            List<Row> rows = new ArrayList<>();
+                            List<Datum> columnData = new ArrayList<>();
+                            // Create proper data types for each field
+                            columnData.add(Datum.builder().scalarValue(MEASURE_1).build()); // VARCHAR
+                            columnData.add(Datum.builder().scalarValue(FLOAT_VALUE_1_5).build()); // FLOAT8
+                            columnData.add(Datum.builder().scalarValue(US_EAST_1A).build()); // VARCHAR
+                            columnData.add(Datum.builder().scalarValue(TestUtils.startDate.toString().replace('T', ' ')).build()); // DATEMILLI
+                            columnData.add(Datum.builder().scalarValue(HOST_1).build()); // VARCHAR
+                            columnData.add(Datum.builder().scalarValue(REGION_1).build()); // VARCHAR
+                            rows.add(Row.builder().data(columnData).build());
+
+                            return QueryResponse.builder()
+                                    .rows(rows)
+                                    .nextToken("") // Empty string should stop pagination
+                                    .build();
+                        }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaForRead, null);
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertThat("Response should be ReadRecordsResponse when nextToken is empty", rawResponse, instanceOf(ReadRecordsResponse.class));
+    }
+
+    @Test
+    public void doReadRecords_WithBitType_ReturnsOneRecord()
+            throws Exception
+    {
+        Schema schemaWithBit = SchemaBuilder.newBuilder()
+                .addField("flag", Types.MinorType.BIT.getType())
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            List<Row> rows = new ArrayList<>();
+                            List<Datum> columnData = new ArrayList<>();
+                            columnData.add(Datum.builder().scalarValue(TRUE_VALUE).build());
+                            rows.add(Row.builder().data(columnData).build());
+
+                            return QueryResponse.builder()
+                                    .rows(rows)
+                                    .nextToken(null)
+                                    .build();
+                        }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaWithBit, null);
+        ReadRecordsResponse response = executeReadRecords(request);
+        assertEquals("Bit type should return one record", 1, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void doReadRecords_WithBigIntType_ReturnsOneRecord()
+            throws Exception
+    {
+        Schema schemaWithBigInt = SchemaBuilder.newBuilder()
+                .addField("count", Types.MinorType.BIGINT.getType())
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            List<Row> rows = new ArrayList<>();
+                            List<Datum> columnData = new ArrayList<>();
+                            columnData.add(Datum.builder().scalarValue(BIGINT_VALUE).build());
+                            rows.add(Row.builder().data(columnData).build());
+
+                            return QueryResponse.builder()
+                                    .rows(rows)
+                                    .nextToken(null)
+                                    .build();
+                        }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaWithBigInt, null);
+        ReadRecordsResponse response = executeReadRecords(request);
+        assertEquals("BigInt type should return one record", 1, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void doReadRecords_WithNullValuesInAllColumns_ReturnsOneRecord()
+            throws Exception
+    {
+        Schema schemaWithNulls = SchemaBuilder.newBuilder()
+                .addField(COLUMN_NAME_1, Types.MinorType.VARCHAR.getType())
+                .addField(COLUMN_NAME_2, Types.MinorType.FLOAT8.getType())
+                .addField(COLUMN_NAME_3, Types.MinorType.BIGINT.getType())
+                .addField(COLUMN_NAME_4, Types.MinorType.DATEMILLI.getType())
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            List<Row> rows = new ArrayList<>();
+                            List<Datum> columnData = new ArrayList<>();
+                            columnData.add(Datum.builder().scalarValue(null).build()); // Null VARCHAR
+                            columnData.add(Datum.builder().scalarValue(null).build()); // Null FLOAT8
+                            columnData.add(Datum.builder().scalarValue(null).build()); // Null BIGINT
+                            columnData.add(Datum.builder().scalarValue(null).build()); // Null DATEMILLI
+                            rows.add(Row.builder().data(columnData).build());
+
+                            return QueryResponse.builder()
+                                    .rows(rows)
+                                    .nextToken(null)
+                                    .build();
+                        }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaWithNulls, null);
+        ReadRecordsResponse response = executeReadRecords(request);
+        assertEquals("Null values row should still count as one record", 1, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void doReadRecords_WithTimeSeriesIntValue_ReturnsOneRecord()
+            throws Exception
+    {
+        Schema schemaWithTimeSeriesInt = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("cpu_utilization", Types.MinorType.LIST.getType())
+                        .addField(FieldBuilder.newBuilder("cpu_utilization", Types.MinorType.STRUCT.getType())
+                                .addDateMilliField("time")
+                                .addIntField("measure_value::int")
+                                .build())
+                        .build())
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            List<Row> rows = new ArrayList<>();
+                            List<Datum> columnData = new ArrayList<>();
+
+                            List<TimeSeriesDataPoint> dataPoints = new ArrayList<>();
+                            for (int i = 0; i < 5; i++) {
+                                TimeSeriesDataPoint dataPoint = TimeSeriesDataPoint.builder()
+                                        .time(TIMESTAMP_2024_01_01)
+                                        .value(Datum.builder().scalarValue(String.valueOf(i * 10)).build())
+                                        .build();
+                                dataPoints.add(dataPoint);
+                            }
+
+                            columnData.add(Datum.builder().timeSeriesValue(dataPoints).build());
+                            rows.add(Row.builder().data(columnData).build());
+
+                            return QueryResponse.builder()
+                                    .rows(rows)
+                                    .nextToken(null)
+                                    .build();
+                        }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaWithTimeSeriesInt, null);
+        ReadRecordsResponse response = executeReadRecords(request);
+        assertEquals("TimeSeries Int value should return one record", 1, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void doReadRecords_WithTimeSeriesBitValue_ReturnsOneRecord()
+            throws Exception
+    {
+        Schema schemaWithTimeSeriesBit = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("status", Types.MinorType.LIST.getType())
+                        .addField(FieldBuilder.newBuilder("status", Types.MinorType.STRUCT.getType())
+                                .addDateMilliField("time")
+                                .addBitField("measure_value::bit")
+                                .build())
+                        .build())
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            List<Row> rows = new ArrayList<>();
+                            List<Datum> columnData = new ArrayList<>();
+
+                            List<TimeSeriesDataPoint> dataPoints = new ArrayList<>();
+                            TimeSeriesDataPoint dataPoint = TimeSeriesDataPoint.builder()
+                                    .time(TIMESTAMP_2024_01_01)
+                                    .value(Datum.builder().scalarValue(TRUE_VALUE).build())
+                                    .build();
+                            dataPoints.add(dataPoint);
+
+                            columnData.add(Datum.builder().timeSeriesValue(dataPoints).build());
+                            rows.add(Row.builder().data(columnData).build());
+
+                            return QueryResponse.builder()
+                                    .rows(rows)
+                                    .nextToken(null)
+                                    .build();
+                        }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaWithTimeSeriesBit, null);
+        ReadRecordsResponse response = executeReadRecords(request);
+        assertEquals("TimeSeries Bit value should return one record", 1, response.getRecords().getRowCount());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doReadRecords_WithUnsupportedFieldType_ThrowsRuntimeException()
+            throws Exception
+    {
+        Schema schemaWithUnsupportedType = SchemaBuilder.newBuilder()
+                .addField(COLUMN_NAME_1, Types.MinorType.INT.getType()) // INT is not directly supported
+                .build();
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaWithUnsupportedType, null);
+        handler.doReadRecords(allocator, request);
+    }
+
+    @Test
+    public void doReadRecords_WithEmptyRowsList_ReturnsZeroRecordCount()
+            throws Exception
+    {
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
+                            return QueryResponse.builder()
+                                    .rows(new ArrayList<>()) // Empty list (not null)
+                                    .nextToken(null)
+                                    .build();
+                        }
+                );
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaForRead, null);
+        ReadRecordsResponse response = executeReadRecords(request);
+        assertEquals("Empty rows list should yield zero record count", 0, response.getRecords().getRowCount());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doReadRecords_WhenQueryClientThrows_ThrowsRuntimeException()
+            throws Exception
+    {
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenThrow(new RuntimeException("Timestream query service error"));
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaForRead, null);
+        handler.doReadRecords(allocator, request);
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void doReadRecords_WithQueryPassthroughButInvalidQuery_ThrowsUnsupportedOperationException()
+            throws Exception
+    {
+        Map<String, String> qptArgs = new HashMap<>();
+        qptArgs.put(QueryPassthroughSignature.SCHEMA_FUNCTION_NAME, SYSTEM_QUERY_FUNCTION);
+        qptArgs.put(TimestreamQueryPassthrough.QUERY, "INSERT INTO t VALUES (1)");
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaForRead, qptArgs);
+        handler.doReadRecords(allocator, request);
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void doReadRecords_WithQueryPassthroughButEmptyQuery_ThrowsAthenaConnectorException()
+            throws Exception
+    {
+        Map<String, String> qptArgs = new HashMap<>();
+        qptArgs.put(QueryPassthroughSignature.SCHEMA_FUNCTION_NAME, SYSTEM_QUERY_FUNCTION);
+        qptArgs.put(TimestreamQueryPassthrough.QUERY, "");
+
+        ReadRecordsRequest request = createReadRecordsRequest(schemaForRead, qptArgs);
+        handler.doReadRecords(allocator, request);
+    }
+
+    /**
+     * Normalizes a query string by removing all whitespace characters for comparison.
+     */
+    private String normalizeQuery(String query)
+    {
+        return query.replaceAll("\\s+", " ").trim();
+    }
+
+    /**
+     * Creates a ReadRecordsRequest with common default values.
+     *
+     * @param schema  The schema to use for the request
+     * @param qptArgs Optional query passthrough arguments. If null, uses empty map.
+     * @return A configured ReadRecordsRequest
+     */
+    private ReadRecordsRequest createReadRecordsRequest(Schema schema, Map<String, String> qptArgs)
+    {
+        Split split = Split.newBuilder(TestUtils.newS3SpillLocation(), keyFactory.create()).build();
+
+        Map<String, String> constraintsMap = qptArgs != null ? qptArgs : Collections.emptyMap();
+
+        return new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
+                QUERY_ID_PREFIX + System.currentTimeMillis(),
+                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
+                schema,
+                split,
+                TestUtils.constraints(Collections.emptyMap(), constraintsMap),
+                100_000_000_000L,
+                100_000_000_000L
+        );
+    }
+
+    /**
+     * Creates a ReadRecordsRequest with custom constraints and spill limits.
+     *
+     * @param schema             The schema to use for the request
+     * @param constraintsMap     The ValueSet constraints map
+     * @param maxBlockSize       Maximum block size for spilling
+     * @param maxInlineBlockSize Maximum inline block size
+     * @return A configured ReadRecordsRequest
+     */
+    private ReadRecordsRequest createReadRecordsRequestWithConstraints(Schema schema, Map<String, ValueSet> constraintsMap, long maxBlockSize, long maxInlineBlockSize)
+    {
+        Split split = Split.newBuilder(TestUtils.newS3SpillLocation(), keyFactory.create()).build();
+
+        return new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
+                QUERY_ID_PREFIX + System.currentTimeMillis(),
+                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
+                schema,
+                split,
+                TestUtils.constraints(constraintsMap, Collections.emptyMap()),
+                maxBlockSize,
+                maxInlineBlockSize
+        );
+    }
+
+    /**
+     * Creates a ReadRecordsRequest with custom catalog, table name, and constraints.
+     *
+     * @param schema            The schema to use for the request
+     * @param catalog           The catalog name
+     * @param tableName         The table name
+     * @param constraintsMap    The ValueSet constraints map
+     * @param useNullKeyFactory Whether to use null for keyFactory (true) or keyFactory.create() (false)
+     * @return A configured ReadRecordsRequest
+     */
+    private ReadRecordsRequest createReadRecordsRequestWithConstraints(Schema schema, String catalog, String tableName, Map<String, ValueSet> constraintsMap, boolean useNullKeyFactory)
+    {
+        Split split = Split.newBuilder(TestUtils.newS3SpillLocation(), useNullKeyFactory ? null : keyFactory.create()).build();
+
+        return new ReadRecordsRequest(IDENTITY,
+                catalog,
+                QUERY_ID_PREFIX + System.currentTimeMillis(),
+                new TableName(DEFAULT_SCHEMA, tableName),
+                schema,
+                split,
+                TestUtils.constraints(constraintsMap, Collections.emptyMap()),
+                100_000_000_000L,
+                100_000_000_000L
+        );
+    }
+
+    /**
+     * Executes doReadRecords and returns the response, asserting it's a ReadRecordsResponse.
+     *
+     * @param request The ReadRecordsRequest to execute
+     * @return The ReadRecordsResponse
+     * @throws Exception If execution fails
+     */
+    private ReadRecordsResponse executeReadRecords(ReadRecordsRequest request)
+            throws Exception
+    {
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertThat("Expected ReadRecordsResponse", rawResponse, instanceOf(ReadRecordsResponse.class));
+        return (ReadRecordsResponse) rawResponse;
     }
 }
