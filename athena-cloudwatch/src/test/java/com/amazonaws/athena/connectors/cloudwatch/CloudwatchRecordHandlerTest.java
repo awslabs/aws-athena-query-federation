@@ -209,7 +209,7 @@ public class CloudwatchRecordHandlerTest
     public void doReadRecords_withoutSpill_returnsReadRecordsResponse()
             throws Exception
     {
-        logger.info("doReadRecordsNoSpill: enter");
+        logger.info("doReadRecords_withoutSpill_returnsReadRecordsResponse: enter");
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("time", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
@@ -223,19 +223,19 @@ public class CloudwatchRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecords_withoutSpill_returnsReadRecordsResponse: rows[{}]", response.getRecordCount());
 
         assertEquals(3, response.getRecords().getRowCount());
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("doReadRecords_withoutSpill_returnsReadRecordsResponse: {}", BlockUtils.rowToString(response.getRecords(), 0));
 
-        logger.info("doReadRecordsNoSpill: exit");
+        logger.info("doReadRecords_withoutSpill_returnsReadRecordsResponse: exit");
     }
 
     @Test
     public void doReadRecords_withSpill_spillsToMultipleRemoteBlocks()
             throws Exception
     {
-        logger.info("doReadRecordsSpill: enter");
+        logger.info("doReadRecords_withSpill_spillsToMultipleRemoteBlocks: enter");
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("time", SortedRangeSet.of(
@@ -249,7 +249,7 @@ public class CloudwatchRecordHandlerTest
         assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
 
         try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
-            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
+            logger.info("doReadRecords_withSpill_spillsToMultipleRemoteBlocks: remoteBlocks[{}]", response.getRemoteBlocks().size());
 
             assertTrue(response.getNumberBlocks() > 1);
 
@@ -258,16 +258,16 @@ public class CloudwatchRecordHandlerTest
                 S3SpillLocation spillLocation = (S3SpillLocation) next;
                 try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
 
-                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                    logger.info("doReadRecords_withSpill_spillsToMultipleRemoteBlocks: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
                     // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
 
-                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
+                    logger.info("doReadRecords_withSpill_spillsToMultipleRemoteBlocks: {}", BlockUtils.rowToString(block, 0));
                     assertNotNull(BlockUtils.rowToString(block, 0));
                 }
             }
         }
 
-        logger.info("doReadRecordsSpill: exit");
+        logger.info("doReadRecords_withSpill_spillsToMultipleRemoteBlocks: exit");
     }
 
     @Test
@@ -366,7 +366,7 @@ public class CloudwatchRecordHandlerTest
 
     @Test(expected = AthenaConnectorException.class)
     public void readWithConstraint_withPassthroughAndMissingArgs_throwsException() throws InterruptedException, TimeoutException {
-        logger.info("testReadWithConstraint_PassthroughMissingArgs: enter");
+        logger.info("readWithConstraint_withPassthroughAndMissingArgs_throwsException: enter");
         
         CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);
         BlockSpiller mockSpiller = Mockito.mock(BlockSpiller.class);
