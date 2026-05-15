@@ -135,6 +135,143 @@ public abstract class JdbcSplitQueryBuilder
         return prepareStatementWithSql(jdbcConnection, catalog, schema, table, tableSchema, constraints, split, columnNames);
     }
 
+    public PreparedStatement buildSqlForSnowflake(
+            final Connection jdbcConnection,
+            final String catalog,
+            final String schema,
+            final String table,
+            final Schema tableSchema,
+            final Constraints constraints,
+            final Split split)
+            throws SQLException
+    {
+        String columnNames = tableSchema.getFields().stream()
+                .map(Field::getName)
+                .filter(c -> !split.getProperties().containsKey(c))
+                .map(this::quote)
+                .collect(Collectors.joining(", "));
+        if (constraints.getQueryPlan() != null) {
+            SqlDialect sqlDialect;
+            String catalogCasingFilter = split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER);
+            if (catalogCasingFilter != null) {
+                LOGGER.debug("Found catalogCasingFilter for getSqlDialect: {}", catalogCasingFilter);
+                sqlDialect = getSqlDialect(catalogCasingFilter.equals(EnvironmentConstants.UPPERCASE_ONLY));
+            }
+            else {
+                sqlDialect = getSqlDialect();
+            }
+            try {
+                SqlSelect root;
+                List<SubstraitTypeAndValue> accumulator = new ArrayList<>();
+
+                String base64EncodedPlan = constraints.getQueryPlan().getSubstraitPlan();
+                LOGGER.debug("CalciteSql substrait plan: {}", base64EncodedPlan);
+
+                SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(base64EncodedPlan, sqlDialect, schema, table);
+                if (!(sqlNode instanceof SqlSelect)) {
+                    throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
+                }
+
+                root = (SqlSelect) sqlNode;
+
+                RelDataType relDataType = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect, schema, table);
+                SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, relDataType);
+                SqlNode parameterizedNode = visitor.visit(root);
+                
+                LOGGER.debug("CalciteSql parameterized sql with dialect {}: {}", sqlDialect.toString(), parameterizedNode.toSqlString(sqlDialect).getSql());
+                LOGGER.debug("CalciteSql parameters: {}", accumulator.toString());
+
+                String sql = parameterizedNode.toSqlString(sqlDialect).getSql();
+                List<String> splitClauses = getPartitionWhereClauses(split);
+                if (!splitClauses.isEmpty()) {
+                    String splitWhere = String.join(" AND ", splitClauses);
+                    sql = WHERE_PATTERN.matcher(sql).find() ? sql + " AND " + splitWhere : sql + " WHERE " + splitWhere;
+                }
+                PreparedStatement statement = jdbcConnection.prepareStatement(sql);
+                ParameterMetaData metaData = statement.getParameterMetaData();
+                if (metaData != null && metaData.getParameterCount() != accumulator.size()) {
+                    LOGGER.warn("Parameter count mismatch: SQL has {} parameters, accumulator has {}. Skipping parameter binding.",
+                            metaData.getParameterCount(), accumulator.size());
+                }
+                else {
+                    handleDataTypesForPreparedStatement(statement, accumulator);
+                }
+
+                LOGGER.debug("CalciteSql prepared statement: {}", statement);
+
+                return statement;
+            }
+            catch (Exception e) {
+                LOGGER.error("Failed to prepare statement with Calcite", e);
+                throw new RuntimeException("Failed to prepare statement with Calcite", e);
+            }
+        }
+        List<TypeAndValue> accumulator = new ArrayList<>();
+        PreparedStatement statement = jdbcConnection.prepareStatement(
+                this.buildSQLStringLiteral(catalog, schema, table, tableSchema, constraints, split, columnNames, accumulator));
+        // TODO all types, converts Arrow values to JDBC.
+        for (int i = 0; i < accumulator.size(); i++) {
+            TypeAndValue typeAndValue = accumulator.get(i);
+
+            Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(typeAndValue.getType());
+
+            switch (minorTypeForArrowType) {
+                case BIGINT:
+                    statement.setLong(i + 1, (long) typeAndValue.getValue());
+                    break;
+                case INT:
+                    statement.setInt(i + 1, ((Number) typeAndValue.getValue()).intValue());
+                    break;
+                case SMALLINT:
+                    statement.setShort(i + 1, ((Number) typeAndValue.getValue()).shortValue());
+                    break;
+                case TINYINT:
+                    statement.setByte(i + 1, ((Number) typeAndValue.getValue()).byteValue());
+                    break;
+                case FLOAT8:
+                    statement.setDouble(i + 1, (double) typeAndValue.getValue());
+                    break;
+                case FLOAT4:
+                    statement.setFloat(i + 1, (float) typeAndValue.getValue());
+                    break;
+                case BIT:
+                    statement.setBoolean(i + 1, (boolean) typeAndValue.getValue());
+                    break;
+                case DATEDAY:
+                    //we received value in "UTC" time with DAYS only, appended it to timeMilli in UTC
+                    long utcMillis = TimeUnit.DAYS.toMillis(((Number) typeAndValue.getValue()).longValue());
+                    //Get the default timezone offset and offset it.
+                    //This is because sql.Date will parse millis into localtime zone
+                    //ex system timezone in GMT-5, sql.Date will think the utcMillis is in GMT-5, we need to add offset(eg. -18000000) .
+                    //ex system timezone in GMT+9, sql.Date will think the utcMillis is in GMT+9, we need to remove offset(eg. 32400000).
+                    TimeZone aDefault = TimeZone.getDefault();
+                    int offset = aDefault.getOffset(utcMillis);
+                    utcMillis -= offset;
+
+                    statement.setDate(i + 1, new Date(utcMillis));
+                    break;
+                case DATEMILLI:
+                    LocalDateTime timestamp = ((LocalDateTime) typeAndValue.getValue());
+                    statement.setTimestamp(i + 1, new Timestamp(timestamp.toInstant(ZoneOffset.UTC).toEpochMilli()));
+                    break;
+                case VARCHAR:
+                    statement.setString(i + 1, String.valueOf(typeAndValue.getValue()));
+                    break;
+                case VARBINARY:
+                    statement.setBytes(i + 1, (byte[]) typeAndValue.getValue());
+                    break;
+                case DECIMAL:
+                    statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
+                    break;
+                default:
+                    throw new AthenaConnectorException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), minorTypeForArrowType),
+                            ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+            }
+        }
+
+        return statement;
+    }
+
     protected String buildSQLStringLiteral(
             final String catalog,
             final String schema,
