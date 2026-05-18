@@ -239,7 +239,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
                 preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
             }
             else {
-                preparedStatement = jdbcSplitQueryBuilder.buildSqlForSnowflake(jdbcConnection, null, tableNameInput.getSchemaName(), tableNameInput.getTableName(), schema, constraints, split);
+                preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableNameInput.getSchemaName(), tableNameInput.getTableName(), schema, constraints, split);
             }
 
             // Disable fetching all rows.

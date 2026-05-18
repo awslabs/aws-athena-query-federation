@@ -1357,34 +1357,4 @@ public class JdbcSplitQueryBuilderTest
         verify(mockConnection).prepareStatement(contains("`testdb`.`users`"));
         verify(mockConnection).prepareStatement(contains("`age` > ?"));
     }
-    
-    @ParameterizedTest
-    @MethodSource("provideSqlTestCases2")
-    public void testBuildSqlForSnowflake_RewritesTableName(final String base64EncodedPlan) throws Exception {
-        QueryPlan queryPlan = mock(QueryPlan.class);
-        Constraints constraintsWithQueryPlan = mock(Constraints.class);
-
-        when(queryPlan.getSubstraitPlan()).thenReturn(base64EncodedPlan);
-        when(constraintsWithQueryPlan.getQueryPlan()).thenReturn(queryPlan);
-
-        // Customer input schema/table should take priority over what's in the serialized plan
-        PreparedStatement result = builder.buildSqlForSnowflake(mockConnection, null, "investment_reporting_data_governance_valuations", "assetmix_hierarchy", schema, constraintsWithQueryPlan, split);
-        assertNotNull(result);
-
-        // Verify the generated SQL uses the customer's schema/table, not whatever was in the plan
-        verify(mockConnection).prepareStatement(contains("investment_reporting_data_governance_valuations"));
-        verify(mockConnection).prepareStatement(contains("assetmix_hierarchy"));
-    }
-    
-    private static Stream<Arguments> provideSqlTestCases2() {
-        return Stream.of(
-                // Plan contains: FROM "investment_reporting_data_governance_valuations"."assetmix_hierarchy"
-                // Customer input matches — no rewrite needed
-                Arguments.of("GpQEEpEECo4EGosECgIKABKABAr9AwoCCgASrwMKCXBvcnRmb2xpbwoTcG9ydGZvbGlvX2xvbmdfbmFtZQoKdG90YWxfZnVuZAoVdG90YWxfZnVuZF9zaG9ydF9jb2RlCgphbGxvY2F0aW9uChVhbGxvY2F0aW9uX3Nob3J0X2NvZGUKC2Fzc2V0X2NsYXNzChZhc3NldF9jbGFzc19zaG9ydF9jb2RlChVpbnZlc3RtZW50X2RlcGFydG1lbnQKIGludmVzdG1lbnRfZGVwYXJ0bWVudF9zaG9ydF9jb2RlCg5hc3NldF9zdWJjbGFzcwoZYXNzZXRfc3ViY2xhc3Nfc2hvcnRfY29kZQoIc3RyYXRlZ3kKE3N0cmF0ZWd5X3Nob3J0X2NvZGUKFHBvcnRmb2xpb19zdGFydF9kYXRlChJwb3J0Zm9saW9fZW5kX2RhdGUKCXBhcnRpdGlvbhJqCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgWCAQIQAQoFggECEAEKBGICEAEYAjpFCi9pbnZlc3RtZW50X3JlcG9ydGluZ19kYXRhX2dvdmVybmFuY2VfdmFsdWF0aW9ucwoSYXNzZXRtaXhfaGllcmFyY2h5GAAgCg=="),
-                
-                // Plan contains: FROM "tpa_hierarchy_data"."assetmix_hierarchy"
-                // Customer input differs — rewrite to "investment_reporting_data_governance_valuations"."assetmix_hierarchy"
-                Arguments.of("GvcDEvQDCvEDGu4DCgIKABLjAwrgAwoCCgASrwMKCXBvcnRmb2xpbwoTcG9ydGZvbGlvX2xvbmdfbmFtZQoKdG90YWxfZnVuZAoVdG90YWxfZnVuZF9zaG9ydF9jb2RlCgphbGxvY2F0aW9uChVhbGxvY2F0aW9uX3Nob3J0X2NvZGUKC2Fzc2V0X2NsYXNzChZhc3NldF9jbGFzc19zaG9ydF9jb2RlChVpbnZlc3RtZW50X2RlcGFydG1lbnQKIGludmVzdG1lbnRfZGVwYXJ0bWVudF9zaG9ydF9jb2RlCg5hc3NldF9zdWJjbGFzcwoZYXNzZXRfc3ViY2xhc3Nfc2hvcnRfY29kZQoIc3RyYXRlZ3kKE3N0cmF0ZWd5X3Nob3J0X2NvZGUKFHBvcnRmb2xpb19zdGFydF9kYXRlChJwb3J0Zm9saW9fZW5kX2RhdGUKCXBhcnRpdGlvbhJqCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgWCAQIQAQoFggECEAEKBGICEAEYAjooChJ0cGFfaGllcmFyY2h5X2RhdGEKEmFzc2V0bWl4X2hpZXJhcmNoeRgAIAo=")
-        );
-    }
 }

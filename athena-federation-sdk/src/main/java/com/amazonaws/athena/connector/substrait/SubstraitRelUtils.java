@@ -25,11 +25,9 @@ import io.substrait.proto.FilterRel;
 import io.substrait.proto.Plan;
 import io.substrait.proto.ProjectRel;
 import io.substrait.proto.ReadRel;
-import io.substrait.proto.Rel;
 import io.substrait.proto.SortRel;
 
 import java.util.Base64;
-import java.util.List;
 
 /**
  * Utility class for working with Substrait relational algebra expressions.
@@ -238,119 +236,5 @@ public final class SubstraitRelUtils
         catch (InvalidProtocolBufferException e) {
             throw new RuntimeException("Failed to parse Substrait plan", e);
         }
-    }
-
-    public static Plan deserializeSubstraitPlan(String planString, final String schema, final String table)
-    {
-        Plan plan = deserializeSubstraitPlan(planString);
-
-        if (plan.getRelationsCount() == 0 || !plan.getRelations(0).hasRoot()) {
-            return plan;
-        }
-
-        Rel inputRel = plan.getRelations(0).getRoot().getInput();
-        Rel updatedRel = rewriteReadRelTableName(inputRel, schema, table);
-
-        if (updatedRel == inputRel) {
-            return plan;
-        }
-
-        return plan.toBuilder()
-                .setRelations(0, plan.getRelations(0).toBuilder()
-                        .setRoot(plan.getRelations(0).getRoot().toBuilder()
-                                .setInput(updatedRel)
-                                .build())
-                        .build())
-                .build();
-    }
-
-    /**
-     * Recursively traverses the Rel tree and rewrites the NamedTable in the ReadRel
-     * only if the existing names differ from the target schema and table.
-     */
-    private static Rel rewriteReadRelTableName(Rel rel, String schema, String table)
-    {
-        if (rel == null) {
-            return null;
-        }
-
-        if (rel.hasRead()) {
-            ReadRel read = rel.getRead();
-            if (read.hasNamedTable()) {
-                List<String> currentNames = read.getNamedTable().getNamesList();
-
-                // Only replace when the named table has exactly 2 parts (schema.table)
-                if (currentNames.size() != 2) {
-                    return rel;
-                }
-
-                // Only replace when the names are actually different
-                if (currentNames.get(0).equals(schema) && currentNames.get(1).equals(table)) {
-                    return rel;
-                }
-
-                ReadRel.NamedTable updatedTable = read.getNamedTable().toBuilder()
-                        .clearNames()
-                        .addNames(schema)
-                        .addNames(table)
-                        .build();
-                ReadRel updatedRead = read.toBuilder()
-                        .setNamedTable(updatedTable)
-                        .build();
-                return rel.toBuilder()
-                        .setRead(updatedRead)
-                        .build();
-            }
-            return rel;
-        }
-
-        // Traverse into child relations and rebuild the tree
-        if (rel.hasFilter()) {
-            Rel updatedInput = rewriteReadRelTableName(rel.getFilter().getInput(), schema, table);
-            if (updatedInput == rel.getFilter().getInput()) {
-                return rel;
-            }
-            return rel.toBuilder()
-                    .setFilter(rel.getFilter().toBuilder().setInput(updatedInput).build())
-                    .build();
-        }
-        else if (rel.hasFetch()) {
-            Rel updatedInput = rewriteReadRelTableName(rel.getFetch().getInput(), schema, table);
-            if (updatedInput == rel.getFetch().getInput()) {
-                return rel;
-            }
-            return rel.toBuilder()
-                    .setFetch(rel.getFetch().toBuilder().setInput(updatedInput).build())
-                    .build();
-        }
-        else if (rel.hasSort()) {
-            Rel updatedInput = rewriteReadRelTableName(rel.getSort().getInput(), schema, table);
-            if (updatedInput == rel.getSort().getInput()) {
-                return rel;
-            }
-            return rel.toBuilder()
-                    .setSort(rel.getSort().toBuilder().setInput(updatedInput).build())
-                    .build();
-        }
-        else if (rel.hasAggregate()) {
-            Rel updatedInput = rewriteReadRelTableName(rel.getAggregate().getInput(), schema, table);
-            if (updatedInput == rel.getAggregate().getInput()) {
-                return rel;
-            }
-            return rel.toBuilder()
-                    .setAggregate(rel.getAggregate().toBuilder().setInput(updatedInput).build())
-                    .build();
-        }
-        else if (rel.hasProject()) {
-            Rel updatedInput = rewriteReadRelTableName(rel.getProject().getInput(), schema, table);
-            if (updatedInput == rel.getProject().getInput()) {
-                return rel;
-            }
-            return rel.toBuilder()
-                    .setProject(rel.getProject().toBuilder().setInput(updatedInput).build())
-                    .build();
-        }
-
-        return rel;
     }
 }

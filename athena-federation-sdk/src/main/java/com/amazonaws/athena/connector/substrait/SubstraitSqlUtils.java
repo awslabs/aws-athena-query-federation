@@ -64,18 +64,6 @@ public final class SubstraitSqlUtils
     {
     }
 
-    public static SqlNode getSqlNodeFromSubstraitPlan(final String planString, final SqlDialect sqlDialect, final String schema, final String table)
-    {
-        try {
-            final Plan protoPlan = SubstraitRelUtils.deserializeSubstraitPlan(planString, schema, table);
-            return getSqlNodeFromSubstraitPlan(protoPlan, sqlDialect);
-        }
-        catch (final Exception e) {
-            LOGGER.error("Failed to parse Substrait plan", e);
-            throw new RuntimeException("Failed to parse Substrait plan", e);
-        }
-    }
-
     public static SqlNode getSqlNodeFromSubstraitPlan(final String planString, final SqlDialect sqlDialect)
     {
         try {
@@ -93,18 +81,6 @@ public final class SubstraitSqlUtils
         final RelNode node = getRelNodeFromSubstraitPlan(protoPlan, sqlDialect);
         final RelToSqlConverter converter = new RelToSqlConverter(sqlDialect);
         return converter.visitRoot(node).asStatement();
-    }
-
-    public static RelDataType getTableSchemaFromSubstraitPlan(final String planString, final SqlDialect sqlDialect, final String schema, final String table)
-    {
-        try {
-            final Plan protoPlan = SubstraitRelUtils.deserializeSubstraitPlan(planString, schema, table);
-            return getTableSchemaFromSubstraitPlan(protoPlan, sqlDialect);
-        }
-        catch (final Exception e) {
-            LOGGER.error("Failed to extract table schema from Substrait plan", e);
-            throw new RuntimeException("Failed to extract table schema from Substrait plan", e);
-        }
     }
 
     public static RelDataType getTableSchemaFromSubstraitPlan(final String planString, final SqlDialect sqlDialect)
