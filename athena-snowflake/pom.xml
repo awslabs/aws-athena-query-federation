@@ -138,46 +138,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <filters>
-                                <!-- Apache Arrow - Keep only essential classes for Linux ARM64 -->
-                                <filter>
-                                    <artifact>org.apache.arrow:*</artifact>
-                                    <excludes>
-                                        <exclude>**/arrow_dataset_jni/**</exclude>
-                                    </excludes>
-                                </filter>
-                                <!-- Snowflake JDBC - Keep only essential classes for Linux ARM64 -->
-                                <filter>
-                                    <artifact>net.snowflake:snowflake-jdbc</artifact>
-                                    <excludes>
-                                        <!-- Snowflake JDBC - remove linux x86_64 executables -->
-                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-linux-x86_64.so</exclude>
-                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_linux_x86_64.so</exclude>
-                                        <!-- Snowflake JDBC - remove linux x86_64 executables -->
-                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-osx-x86_64.dylib</exclude>
-                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_osx_x86_64.jnilib</exclude>
-                                        <exclude>**/META-INF/native/libnet_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_osx_aarch_64.jnilib</exclude>
-                                        <!-- Snowflake JDBC - remove linux x86_64 executables -->
-                                        <exclude>**/META-INF/native/net_snowflake_client_jdbc_internal_grpc_netty_shaded_netty_tcnative_windows_x86_64.dll</exclude>
-                                        <exclude>**/META-INF/native/net_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-windows-x86_64.dll</exclude>
-                                        <exclude>**/META-INF/native/net_snowflake_client_jdbc_internal_conscrypt_openjdk_jni-windows-x86.dll</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
     <repositories>
