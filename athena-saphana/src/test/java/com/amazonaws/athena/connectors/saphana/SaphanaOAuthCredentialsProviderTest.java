@@ -83,7 +83,7 @@ public class SaphanaOAuthCredentialsProviderTest
     }
 
     @Test
-    public void testIsOAuthConfigured_WithValidConfig()
+    public void isOAuthConfigured_withValidConfig_returnsTrue()
     {
         Map<String, String> secretMap = new HashMap<>();
         secretMap.put(CLIENT_ID, TEST_CLIENT_ID);
@@ -94,7 +94,7 @@ public class SaphanaOAuthCredentialsProviderTest
     }
 
     @Test
-    public void testIsOAuthConfigured_WithMissingConfig()
+    public void isOAuthConfigured_withMissingConfig_returnsFalse()
     {
         Map<String, String> secretMap = new HashMap<>();
         secretMap.put(CLIENT_ID, TEST_CLIENT_ID);
@@ -104,7 +104,7 @@ public class SaphanaOAuthCredentialsProviderTest
     }
 
     @Test
-    public void testBuildTokenRequest()
+    public void buildTokenRequest_withSecretMap_returnsPostRequestWithTokenUrl()
     {
         Map<String, String> secretMap = new HashMap<>();
         secretMap.put(CLIENT_ID, TEST_CLIENT_ID);
@@ -119,7 +119,7 @@ public class SaphanaOAuthCredentialsProviderTest
     }
 
     @Test
-    public void testGetCredential_WithValidOAuthConfig() throws IOException, InterruptedException
+    public void getCredential_withValidOAuthConfig_returnsSaphanaOAuthCredentials() throws IOException, InterruptedException
     {
         // Setup mock HTTP response with token
         Map<String, String> tokenResponse = new HashMap<>();
@@ -147,7 +147,7 @@ public class SaphanaOAuthCredentialsProviderTest
     }
 
     @Test
-    public void testSaphanaOAuthCredentials_UsesPasswordProperty()
+    public void getProperties_withSaphanaOAuthCredentials_usesPasswordProperty()
     {
         // Create SAP HANA OAuth credentials directly
         SaphanaOAuthAccessTokenCredentials saphanaCredentials = new SaphanaOAuthAccessTokenCredentials(TEST_ACCESS_TOKEN);
@@ -170,5 +170,61 @@ public class SaphanaOAuthCredentialsProviderTest
             
         // Verify SAP HANA does NOT use the standard accessToken property
         assertFalse("SAP HANA should not contain accessToken property", saphanaProperties.containsKey(CredentialsConstants.ACCESS_TOKEN_PROPERTY));
+    }
+
+    @Test
+    public void isOAuthConfigured_withEmptyClientId_returnsFalse()
+    {
+        Map<String, String> secretMap = new HashMap<>();
+        secretMap.put(CLIENT_ID, "");
+        secretMap.put(CLIENT_SECRET, TEST_CLIENT_SECRET);
+        secretMap.put(TOKEN_URL, TEST_TOKEN_URL);
+
+        assertFalse("isOAuthConfigured should return false when client ID is empty", credentialsProvider.isOAuthConfigured(secretMap));
+    }
+
+    @Test
+    public void isOAuthConfigured_withEmptyTokenUrl_returnsFalse()
+    {
+        Map<String, String> secretMap = new HashMap<>();
+        secretMap.put(CLIENT_ID, TEST_CLIENT_ID);
+        secretMap.put(CLIENT_SECRET, TEST_CLIENT_SECRET);
+        secretMap.put(TOKEN_URL, "");
+
+        assertFalse("isOAuthConfigured should return false when token URL is empty", credentialsProvider.isOAuthConfigured(secretMap));
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void isOAuthConfigured_withNullMap_throwsNullPointerException()
+    {
+        credentialsProvider.isOAuthConfigured(null);
+    }
+
+    @Test(expected = Exception.class)
+    public void getCredential_whenHttpReturnsNon200_throwsException() throws IOException, InterruptedException
+    {
+        @SuppressWarnings("unchecked")
+        HttpResponse<Object> typedResponse = mock(HttpResponse.class);
+        when(typedResponse.statusCode()).thenReturn(401);
+        when(typedResponse.body()).thenReturn("{\"error\":\"unauthorized\"}");
+        when(httpClient.send(any(), any())).thenReturn(typedResponse);
+
+        credentialsProvider.getCredential();
+    }
+
+    @Test(expected = Exception.class)
+    public void getCredential_whenTokenResponseMissingAccessToken_throwsException() throws IOException, InterruptedException
+    {
+        Map<String, String> tokenResponse = new HashMap<>();
+        tokenResponse.put(EXPIRES_IN, "3600");
+        String responseBody = objectMapper.writeValueAsString(tokenResponse);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<Object> typedResponse = mock(HttpResponse.class);
+        when(typedResponse.statusCode()).thenReturn(200);
+        when(typedResponse.body()).thenReturn(responseBody);
+        when(httpClient.send(any(), any())).thenReturn(typedResponse);
+
+        credentialsProvider.getCredential();
     }
 }
