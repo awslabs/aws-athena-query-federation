@@ -28,8 +28,14 @@
         <jqwik.version>1.9.3</jqwik.version>
         <assertj.version>3.27.7</assertj.version>
         <testng.version>7.12.0</testng.version>
-         <!--- to meet engine version 2.12.6 -->
-        <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
+         <!-- Fix for GHSA-72hv-8253-57qq (jackson-core: Number Length Constraint Bypass in
+             Async Parser -> DoS): bump from 2.19.2 to 2.21.1 (the GHSA fix landed in
+             2.18.6, 2.21.1; no fix has yet been published in the 2.19.x line as of 2026-05).
+             https://github.com/FasterXML/jackson-core/security/advisories/GHSA-72hv-8253-57qq
+             Note: jackson-annotations changed versioning at 2.20 and only has "2.21" (no
+             patch level), so it is overridden via a separate property below. -->
+        <fasterxml.jackson.version>2.21.1</fasterxml.jackson.version>
+        <fasterxml.jackson-annotations.version>2.21</fasterxml.jackson-annotations.version>
         <surefire.failsafe.version>3.5.5</surefire.failsafe.version>
         <log4j2Version>2.26.0</log4j2Version>
         <apache.arrow.version>18.3.0</apache.arrow.version>
@@ -227,7 +233,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.jackson.version}</version>
+            <version>${fasterxml.jackson-annotations.version}</version>
         </dependency>
         <dependency>
             <groupId>net.jqwik</groupId>
@@ -543,7 +549,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>${surefire.failsafe.version}</version>
                         <configuration>
-                            <argLine>${argLine} --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED</argLine>
+                            <argLine>${argLine} --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED</argLine>
                             <excludes>
                                 <exclude>*IntegTest</exclude>
                             </excludes>
@@ -554,7 +560,7 @@
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <version>${surefire.failsafe.version}</version>
                         <configuration>
-                            <argLine>${argLine} --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED</argLine>
+                            <argLine>${argLine} --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED</argLine>
                             <forkCount>3C</forkCount>
                             <reuseForks>false</reuseForks>
                             <includes>
