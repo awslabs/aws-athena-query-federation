@@ -28,8 +28,8 @@
         <jqwik.version>1.9.3</jqwik.version>
         <assertj.version>3.27.7</assertj.version>
         <testng.version>7.12.0</testng.version>
-         <!--- to meet engine version 2.12.6 -->
-        <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
+        <fasterxml.jackson.version>2.21.1</fasterxml.jackson.version>
+        <fasterxml.jackson-annotations.version>2.21</fasterxml.jackson-annotations.version>
         <surefire.failsafe.version>3.5.5</surefire.failsafe.version>
         <log4j2Version>2.26.0</log4j2Version>
         <apache.arrow.version>18.3.0</apache.arrow.version>
@@ -227,7 +227,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.jackson.version}</version>
+            <version>${fasterxml.jackson-annotations.version}</version>
         </dependency>
         <dependency>
             <groupId>net.jqwik</groupId>
