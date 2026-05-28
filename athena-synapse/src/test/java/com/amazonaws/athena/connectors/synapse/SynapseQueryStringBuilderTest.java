@@ -59,19 +59,19 @@ public class SynapseQueryStringBuilderTest
         Mockito.when(split1.getProperty(SynapseMetadataHandler.PARTITION_COLUMN)).thenReturn("id");
         Mockito.when(split1.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_FROM)).thenReturn("");
         Mockito.when(split1.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_TO)).thenReturn("100000");
-        Assert.assertEquals(Collections.singletonList("id <= 100000"), builder.getPartitionWhereClauses(split1));
+        Assert.assertEquals(Collections.singletonList("\"id\" <= ?"), builder.getPartitionWhereClauses(split1));
 
         Split split2 = Mockito.mock(Split.class);
         Mockito.when(split2.getProperty(SynapseMetadataHandler.PARTITION_COLUMN)).thenReturn("id");
         Mockito.when(split2.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_FROM)).thenReturn("100000");
         Mockito.when(split2.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_TO)).thenReturn("300000");
-        Assert.assertEquals(Collections.singletonList("id > 100000 and id <= 300000"), builder.getPartitionWhereClauses(split2));
+        Assert.assertEquals(Collections.singletonList("\"id\" > ? AND \"id\" <= ?"), builder.getPartitionWhereClauses(split2));
 
         Split split3 = Mockito.mock(Split.class);
         Mockito.when(split3.getProperty(SynapseMetadataHandler.PARTITION_COLUMN)).thenReturn("id");
         Mockito.when(split3.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_FROM)).thenReturn("300000");
         Mockito.when(split3.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_TO)).thenReturn("");
-        Assert.assertEquals(Collections.singletonList("id > 300000"), builder.getPartitionWhereClauses(split3));
+        Assert.assertEquals(Collections.singletonList("\"id\" > ?"), builder.getPartitionWhereClauses(split3));
 
         Split split4 = Mockito.mock(Split.class);
         Mockito.when(split4.getProperty(SynapseMetadataHandler.PARTITION_COLUMN)).thenReturn("id");
