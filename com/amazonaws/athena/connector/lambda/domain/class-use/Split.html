@@ -711,17 +711,26 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">JdbcSplitQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcSplitQueryBuilder.html#addPartitionWhereClauses(com.amazonaws.athena.connector.lambda.domain.Split,java.util.List,java.util.List)">addPartitionWhereClauses</a></span>&#8203;(<a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split,
+                        <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;clauses,
+                        <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../../../connectors/jdbc/manager/TypeAndValue.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">TypeAndValue</a>&gt;&nbsp;accumulator)</code></th>
+<td class="colLast">
+<div class="block">Appends partition-related WHERE conjuncts for this split.</div>
+</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">JdbcSplitQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcSplitQueryBuilder.html#appendLimitOffset(com.amazonaws.athena.connector.lambda.domain.Split)">appendLimitOffset</a></span>&#8203;(<a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">JdbcSplitQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcSplitQueryBuilder.html#appendLimitOffset(com.amazonaws.athena.connector.lambda.domain.Split,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">appendLimitOffset</a></span>&#8203;(<a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split,
                  <a href="../predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>abstract <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">JdbcRecordHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcRecordHandler.html#buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSplitSql</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
@@ -733,7 +742,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Builds split SQL string and returns prepared statement.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">JdbcSplitQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcSplitQueryBuilder.html#buildSql(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSql</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
         <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
@@ -746,7 +755,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Common logic to build Split SQL including constraints translated in where clause.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">JdbcSplitQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcSplitQueryBuilder.html#buildSQLStringLiteral(java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split,java.lang.String,java.util.List)">buildSQLStringLiteral</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;schema,
@@ -758,7 +767,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../../../connectors/jdbc/manager/TypeAndValue.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">TypeAndValue</a>&gt;&nbsp;accumulator)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected abstract <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">JdbcSplitQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcSplitQueryBuilder.html#getFromClauseWithSplit(java.lang.String,java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.domain.Split)">getFromClauseWithSplit</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;schema,
@@ -766,12 +775,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                       <a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected abstract <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">JdbcSplitQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcSplitQueryBuilder.html#getPartitionWhereClauses(com.amazonaws.athena.connector.lambda.domain.Split)">getPartitionWhereClauses</a></span>&#8203;(<a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">JdbcSplitQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcSplitQueryBuilder.html#prepareStatementWithCalciteSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,org.apache.calcite.sql.SqlDialect,com.amazonaws.athena.connector.lambda.domain.Split)">prepareStatementWithCalciteSql</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
                               <a href="../predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
@@ -779,7 +788,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                               <a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">JdbcSplitQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcSplitQueryBuilder.html#prepareStatementWithSql(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split,java.lang.String)">prepareStatementWithSql</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
                        <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
@@ -1086,12 +1095,19 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">SynapseQueryStringBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/synapse/SynapseQueryStringBuilder.html#addPartitionWhereClauses(com.amazonaws.athena.connector.lambda.domain.Split,java.util.List,java.util.List)">addPartitionWhereClauses</a></span>&#8203;(<a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split,
+                        <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;clauses,
+                        <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../../../connectors/jdbc/manager/TypeAndValue.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">TypeAndValue</a>&gt;&nbsp;accumulator)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">SynapseQueryStringBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/synapse/SynapseQueryStringBuilder.html#appendLimitOffset(com.amazonaws.athena.connector.lambda.domain.Split,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">appendLimitOffset</a></span>&#8203;(<a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split,
                  <a href="../predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">SynapseRecordHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/synapse/SynapseRecordHandler.html#buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSplitSql</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
@@ -1101,7 +1117,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
              <a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">SynapseQueryStringBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/synapse/SynapseQueryStringBuilder.html#getFromClauseWithSplit(java.lang.String,java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.domain.Split)">getFromClauseWithSplit</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;schema,
@@ -1109,13 +1125,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                       <a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">SynapseQueryStringBuilder.</span><code><span class="memberNameLink"><a href="../../../../connectors/synapse/SynapseQueryStringBuilder.html#getPartitionWhereClauses(com.amazonaws.athena.connector.lambda.domain.Split)">getPartitionWhereClauses</a></span>&#8203;(<a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
-<td class="colLast">
-<div class="block">In case of partitioned table, custom query will be formed to get specific partition
- otherwise empty list will be returned</div>
-</td>
+<td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
 </table>
