@@ -155,7 +155,7 @@ public abstract class JdbcSplitQueryBuilder
         sql.append(getFromClauseWithSplit(catalog, schema, table, split));
 
         List<String> clauses = toConjuncts(tableSchema.getFields(), constraints, accumulator, split.getProperties());
-        clauses.addAll(getPartitionWhereClauses(split));
+        addPartitionWhereClauses(split, clauses, accumulator);
         if (!clauses.isEmpty()) {
             sql.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
@@ -282,6 +282,16 @@ public abstract class JdbcSplitQueryBuilder
     }
 
     protected abstract String getFromClauseWithSplit(final String catalog, final String schema, final String table, final Split split);
+
+    /**
+     * Appends partition-related WHERE conjuncts for this split. The default implementation delegates to
+     * {@link #getPartitionWhereClauses(Split)}. Overrides may append predicates that use {@code ?} placeholders
+     * and push corresponding values into {@code accumulator} for {@link PreparedStatement} binding.
+     */
+    protected void addPartitionWhereClauses(Split split, List<String> clauses, List<TypeAndValue> accumulator)
+    {
+        clauses.addAll(getPartitionWhereClauses(split));
+    }
 
     protected abstract List<String> getPartitionWhereClauses(final Split split);
 
