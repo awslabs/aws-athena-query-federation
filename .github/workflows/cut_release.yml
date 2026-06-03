@@ -23,6 +23,7 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: '11'
+          cache: 'maven'
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -71,18 +72,59 @@ jobs:
         run: |
           mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
 
-          # Copy over the sdk jars
+          # Copy and rename sdk jars with java11 suffix
           mkdir -p /tmp/java11_sdk_jars/
-          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}.jar /tmp/java11_sdk_jars/
-          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-withdep.jar /tmp/java11_sdk_jars/
+          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}.jar \
+             /tmp/java11_sdk_jars/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-java11.jar
+          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-withdep.jar \
+             /tmp/java11_sdk_jars/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-withdep-java11.jar
 
-          # Copy over the connector jars
+          # Copy and rename connector jars with java11 suffix
           mkdir -p /tmp/java11_connector_jars/
-          find athena-*/target -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | grep -v "athena-jdbc" | xargs -I{} cp {} /tmp/java11_connector_jars/
+          find athena-*/target -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | grep -v "athena-jdbc" | while read f; do
+            base=$(basename "$f" .jar)
+            cp "$f" "/tmp/java11_connector_jars/${base}-java11.jar"
+          done
 
-          # Copy over the connector zips
+          # Copy and rename connector zips with java11 suffix
           mkdir -p /tmp/java11_connector_zips/
-          find athena-*/target/ -name "*.zip" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | xargs -I{} cp {} /tmp/java11_connector_zips/
+          find athena-*/target/ -name "*.zip" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | while read f; do
+            base=$(basename "$f" .zip)
+            cp "$f" "/tmp/java11_connector_zips/${base}-java11.zip"
+          done
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'corretto'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Build Java 17 jars
+        run: |
+          mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress \
+            -Dmaven.compiler.release=17
+
+          # Copy and rename sdk jars with java17 suffix
+          mkdir -p /tmp/java17_sdk_jars/
+          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}.jar \
+             /tmp/java17_sdk_jars/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-java17.jar
+          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-withdep.jar \
+             /tmp/java17_sdk_jars/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-withdep-java17.jar
+
+          # Copy and rename connector jars with java17 suffix
+          mkdir -p /tmp/java17_connector_jars/
+          find athena-*/target -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | grep -v "athena-jdbc" | while read f; do
+            base=$(basename "$f" .jar)
+            cp "$f" "/tmp/java17_connector_jars/${base}-java17.jar"
+          done
+
+          # Copy and rename connector zips with java17 suffix
+          mkdir -p /tmp/java17_connector_zips/
+          find athena-*/target/ -name "*.zip" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | while read f; do
+            base=$(basename "$f" .zip)
+            cp "$f" "/tmp/java17_connector_zips/${base}-java17.zip"
+          done
 
       - name: Push the release branch
         run: |
@@ -102,27 +144,46 @@ jobs:
           This version includes improvements and bugfixes in some connectors. See [here](https://github.com/awslabs/aws-athena-query-federation/compare/v$PREVIOUS_RELEASE_VERSION..v$NEW_RELEASE_VERSION) for changes since the last release.
           
           Binary distribution of the SDK can be found here. For pre-built versions of the connector and UDF suite please:
-          
+
           1. Navigate to Serverless Application Repository and search for "athena-federation".  Also check the checkbox labeled "Show apps that create custom IAM roles or resource policies".
-          
+
           2. Look for entries published by the "Amazon Athena Federation" author.
-          
+
           You can assert the validity of the binary distribution by comparing against the below cksums.
-          
-          Athena Federation SDK jars
+
+          ### Java 11 Artifacts
+
+          Athena Federation SDK jars (Java 11)
           |CheckSum|File|
           |----------|----|
           $(cd /tmp/java11_sdk_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
 
-          Athena Federation Connector Lambda jars
+          Athena Federation Connector Lambda jars (Java 11)
           |CheckSum|File|
           |----------|----|
           $(cd /tmp/java11_connector_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
 
-          Athena Federation Connector Lambda zips
+          Athena Federation Connector Lambda zips (Java 11)
           |CheckSum|File|
           |----------|----|
           $(cd /tmp/java11_connector_zips && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+
+          ### Java 17 Artifacts
+
+          Athena Federation SDK jars (Java 17)
+          |CheckSum|File|
+          |----------|----|
+          $(cd /tmp/java17_sdk_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+
+          Athena Federation Connector Lambda jars (Java 17)
+          |CheckSum|File|
+          |----------|----|
+          $(cd /tmp/java17_connector_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+
+          Athena Federation Connector Lambda zips (Java 17)
+          |CheckSum|File|
+          |----------|----|
+          $(cd /tmp/java17_connector_zips && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
 
           ## What's Changed
           $(git log --format='- %s' v$PREVIOUS_RELEASE_VERSION..HEAD~1)
@@ -136,9 +197,12 @@ jobs:
             --target release_${NEW_RELEASE_VERSION} \
             -t "Release v$NEW_RELEASE_VERSION of Athena Query Federation" \
             --notes-file /tmp/RELEASE_NOTES
-          # Upload the jar attachments
+          # Upload the jar attachments (Java 11 and Java 17)
           gh release upload "v$NEW_RELEASE_VERSION" \
             $(find /tmp/java11_sdk_jars -type f) \
             $(find /tmp/java11_connector_jars -type f) \
             $(find /tmp/java11_connector_zips -type f) \
+            $(find /tmp/java17_sdk_jars -type f) \
+            $(find /tmp/java17_connector_jars -type f) \
+            $(find /tmp/java17_connector_zips -type f) \
             --clobber
