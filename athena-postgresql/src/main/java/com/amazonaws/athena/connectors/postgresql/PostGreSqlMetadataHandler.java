@@ -251,7 +251,7 @@ public class PostGreSqlMetadataHandler
                     //Every split must have a unique location if we wish to spill to avoid failures
                     SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 
-                    Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                    Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                             .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
                             .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(splitClause));
 
@@ -282,7 +282,7 @@ public class PostGreSqlMetadataHandler
                 SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 
                 LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), String.valueOf(partitionsFieldReader.readText()));
-                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
                         .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(partitionsFieldReader.readText()));
 
