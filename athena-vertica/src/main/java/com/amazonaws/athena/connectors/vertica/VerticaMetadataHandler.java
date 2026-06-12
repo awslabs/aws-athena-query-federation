@@ -104,6 +104,7 @@ public class VerticaMetadataHandler
     private static final String EMPTY_STRING = StringUtils.EMPTY;
     private static final String TABLE_SCHEMA = "TABLE_SCHEM";
     private static final String[] TABLE_TYPES = {"TABLE"};
+    private static final int VERTICA_STALE_CONNECTION_ERROR = 100023;
     private final QueryFactory queryFactory = new QueryFactory();
     private final VerticaSchemaUtils verticaSchemaUtils;
     private S3Client amazonS3;
@@ -153,12 +154,11 @@ public class VerticaMetadataHandler
             return new ListSchemasResponse(request.getCatalogName(), fetchSchemaNames());
         }
         catch (SQLException e) {
-            // VJDBC(100023) means a stale pooled connection was reused after a Lambda freeze/resume.
-            // Lambda freezes the JVM between requests; during that time Vertica may close its end of
-            // the idle pooled connection. When Lambda resumes, HikariCP hands back that dead connection
-            // and getTables() fails mid-protocol. Retry once to get a fresh connection.
-            if (e.getMessage() != null && e.getMessage().contains("100023")) {
-                logger.warn("doListSchemaNames: stale connection detected (VJDBC 100023), retrying with fresh connection");
+            // Error code 100023 indicates a stale pooled connection may have been
+            // reused after a Lambda freeze/resume cycle. Retry once to obtain a fresh connection.
+            if (e.getErrorCode() == VERTICA_STALE_CONNECTION_ERROR) {
+                logger.warn("doListSchemaNames: stale connection detected (errorCode={}), retrying with fresh connection",
+                        VERTICA_STALE_CONNECTION_ERROR);
                 return new ListSchemasResponse(request.getCatalogName(), fetchSchemaNames());
             }
             throw e;
