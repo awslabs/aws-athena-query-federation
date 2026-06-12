@@ -970,10 +970,11 @@ public class VerticaMetadataHandlerTest extends TestBase
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
 
-        // first connection is stale — throws VJDBC 100023 (Lambda freeze/resume scenario)
+        // first connection is stale — throws VJDBC error code 100023 (Lambda freeze/resume scenario)
+        // SQLException(reason, sqlState, vendorCode): vendorCode is what getErrorCode() returns
         Connection staleConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(staleConnection.getMetaData().getTables(null, null, null, TABLE_TYPES))
-                .thenThrow(new SQLException("[Vertica][VJDBC](100023) Unexpected message type: RowDescription"));
+                .thenThrow(new SQLException("Unexpected message type: RowDescription", "S1000", 100023));
 
         // second connection is fresh — succeeds
         Connection freshConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
@@ -996,8 +997,9 @@ public class VerticaMetadataHandlerTest extends TestBase
     @Test
     public void doListSchemaNames_NonStaleSQLException_NotRetried() throws Exception {
         Connection failingConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        // error code 0 (any non-100023 code) must not trigger retry
         Mockito.when(failingConnection.getMetaData().getTables(null, null, null, TABLE_TYPES))
-                .thenThrow(new SQLException("Some other DB error"));
+                .thenThrow(new SQLException("Some other DB error", "S1000", 0));
 
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
                 .thenReturn(failingConnection);
