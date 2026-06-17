@@ -417,7 +417,7 @@ public class DocDBMetadataHandler
 
         //Since our connector does not support parallel reads we return a fixed split.
         return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(request)))
                         .add(DOCDB_CONN_STR, getConnStr(request))
                         .build());
     }
