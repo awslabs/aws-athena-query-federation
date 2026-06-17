@@ -16,6 +16,7 @@ updates:
       - dependency-name: "com.google.api.grpc:grpc-google-cloud-bigquerystorage-v1"
       - dependency-name: "io.grpc:grpc-api"
       - dependency-name: "software.amazon.msk:aws-msk-iam-auth"
+      - dependency-name: "org.apache.tinkerpop:*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
