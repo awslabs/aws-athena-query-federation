@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -62,6 +63,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -84,11 +87,12 @@ import java.util.UUID;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -447,6 +451,63 @@ public class ElasticsearchRecordHandlerTest
         logger.info("doReadRecordsSpill: exit");
     }
 
+    @Test
+    public void doReadRecordsWithLimitAndQueryPlan()
+            throws Exception
+    {
+        logger.info("doReadRecordsWithLimitAndQueryPlan: enter");
+
+        // Create 1 search hit (LIMIT 1)
+        SearchHit searchHit[] = new SearchHit[1];
+        for (int i = 0; i < 1; ++i) {
+            searchHit[i] = new SearchHit(i + 1);
+        }
+        SearchHits searchHits = new SearchHits(searchHit, new TotalHits(1, TotalHits.Relation.EQUAL_TO), 1.0f);
+        when(mockResponse.getHits()).thenReturn(searchHits);
+        when(mockResponse.getScrollId()).thenReturn("scroll123");
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        // Substrait plan with LIMIT 50 (mismatch intentional to test constraints.getLimit() takes precedence)
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRqLBRKIBQqBBRr+BAoCCgAS8wQ68AQKBRIDCgEWEtoEEtcECgIKABKXBAqUBAoCCgAS5AMKCWlzX2FjdGl2ZQoLdGlueWludF9jb2wKDHNtYWxsaW50X2NvbAoIcHJpb3JpdHkKCmJpZ2ludF9jb2wKCWZsb2F0X2NvbAoKZG91YmxlX2NvbAoIcmVhbF9jb2wKC3ZhcmNoYXJfY29sCghjaGFyX2NvbAoNdmFyYmluYXJ5X2NvbAoIZGF0ZV9jb2wKCHRpbWVfY29sCg10aW1lc3RhbXBfY29sCgJpZAoMZGVjaW1hbF9jb2wyCgxkZWNpbWFsX2NvbDMKC3N1YmNhdGVnb3J5Cg1pbnRfYXJyYXlfY29sCgdtYXBfY29sChBtYXBfd2l0aF9kZWNpbWFsCgxuZXN0ZWRfYXJyYXkS1gEKBAoCEAIKBBICEAIKBBoCEAIKBCoCEAIKBDoCEAIKBFoCEAIKBFoCEAIKBFICEAIKBGICEAIKB6oBBAgBGAIKBGoCEAIKBYIBAhACCgWKAQIQAgoFigICGAIKCcIBBggEEBMgAgoJwgEGCAIQCiACCgnCAQYIChATIAIKC9oBCAoEYgIQAhgCCgvaAQgKBCoCEAIYAgoR4gEOCgRiAhACEgQqAhACIAIKFuIBEwoEYgIQAhIJwgEGCAIQCiACIAIKEtoBDwoL2gEICgQqAhACGAIYAhgCOicKCm15X2RhdGFzZXQKGXNlcnZpY2VfcmVxdWVzdHNfbm9fbm9pc2UaNxo1CAEaBAoCEAIiDBoKEggKBBICCA4iACIdGhsKGcIBFgoQECcAAAAAAAAAAAAAAAAAABATGAQaChIICgQSAggOIgAYACABEgJJRDILEEoqB2lzdGhtdXM=";
+        QueryPlan queryPlan = new QueryPlan("1.0", substraitPlanString);
+
+        ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
+                "elasticsearch",
+                "queryId-" + System.currentTimeMillis(),
+                new TableName("movies", "mishmash"),
+                mapping,
+                split,
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(),
+                               1L, // LIMIT 1
+                               Collections.emptyMap(), queryPlan),
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        // Verify LIMIT was pushed down to OpenSearch via batch size optimization
+        ArgumentCaptor<SearchRequest> searchCaptor = ArgumentCaptor.forClass(SearchRequest.class);
+        verify(mockClient).search(searchCaptor.capture(), any());
+        SearchRequest searchRequest = searchCaptor.getValue();
+        assertEquals("Batch size should be optimized to LIMIT value", 1, searchRequest.source().size());
+
+        // Verify response type and exact row count
+        assertTrue("Should return ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        assertEquals("Should return exactly 1 row (LIMIT 1)", 1, response.getRecordCount());
+
+        // Verify early termination - no scroll needed since LIMIT=1 satisfied
+        verify(mockClient, never()).scroll(any(), any());
+
+        // Verify resource cleanup
+        verify(mockClient).clearScroll(any(), any());
+
+        logger.info("doReadRecordsWithLimitAndQueryPlan: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsWithLimitAndQueryPlan: exit");
+    }
+
     private class ByteHolder
     {
         private byte[] bytes;
@@ -480,5 +541,59 @@ public class ElasticsearchRecordHandlerTest
                 .withSplitId(UUID.randomUUID().toString())
                 .withIsDirectory(true)
                 .build();
+    }
+
+    /**
+     * Test that getCredentials() fetches credentials from Secrets Manager
+     * when using Glue Connection, and passes them to clientFactory.
+     */
+    @Test
+    public void testReadWithConstraintUsesCredentialsFromGlueConnection() throws Exception
+    {
+        logger.info("testReadWithConstraintUsesCredentialsFromGlueConnection: enter");
+
+        String secretName = "my-es-secret";
+        String endpoint = "https://search-domain.us-east-1.es.amazonaws.com";
+        String expectedUsername = "elastic_user";
+        String expectedPassword = "elastic_pass";
+
+        when(awsSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+                .thenReturn(GetSecretValueResponse.builder()
+                        .secretString("{\"username\": \"" + expectedUsername + "\", \"password\": \"" + expectedPassword + "\"}")
+                        .build());
+
+        Map<String, String> configOptions = ImmutableMap.of(
+                DEFAULT_GLUE_CONNECTION, "my-connection",
+                "secret_name", secretName);
+
+        ElasticsearchRecordHandler handlerWithGlue = new ElasticsearchRecordHandler(
+                amazonS3, awsSecretsManager, athena, clientFactory, 720, 60, configOptions);
+
+        Split glueConnectionSplit = Split.newBuilder(makeSpillLocation(), null)
+                .add("default", endpoint)
+                .add(ElasticsearchMetadataHandler.SHARD_KEY, "_shards:5")
+                .add(ElasticsearchMetadataHandler.INDEX_KEY, "index1")
+                .build();
+
+        when(clientFactory.getOrCreateClient(endpoint, expectedUsername, expectedPassword))
+                .thenReturn(mockClient);
+
+        ReadRecordsRequest recordsRequest = new ReadRecordsRequest(fakeIdentity(),
+                "elasticsearch",
+                "queryId-" + System.currentTimeMillis(),
+                new TableName("default", "index1"),
+                mapping,
+                glueConnectionSplit,
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L,
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handlerWithGlue.doReadRecords(allocator, recordsRequest);
+        assertTrue("Should return ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
+
+        // Verify credentials were passed to clientFactory
+        verify(clientFactory).getOrCreateClient(endpoint, expectedUsername, expectedPassword);
+
+        logger.info("testReadWithConstraintUsesCredentialsFromGlueConnection: exit");
     }
 }
