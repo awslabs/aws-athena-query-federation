@@ -117,11 +117,11 @@ public class BigQuerySqlUtils
     }
 
     /**
-     * Escape a value for use inside a BigQuery single-quoted string literal (SQL standard: double each apostrophe).
+     * Escape a value for use inside a BigQuery single-quoted string literal (BigQuery: backslash escaping).
      */
     public static String escapeForSingleQuotedStringLiteral(String value)
     {
-        return value.replace(SQL_SINGLE_QUOTE, SQL_SINGLE_QUOTE + SQL_SINGLE_QUOTE);
+        return value.replace("\\", "\\\\").replace(SQL_SINGLE_QUOTE, "\\" + SQL_SINGLE_QUOTE);
     }
 
     /**
