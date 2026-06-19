@@ -536,11 +536,12 @@ public class BigQuerySqlUtilsTest
 
 
     @Test
-    public void singleQuotedStringLiteral_doublesApostrophe()
+    public void singleQuotedStringLiteral_escapesBackslashAndApostrophe()
     {
         assertEquals("'a'", BigQuerySqlUtils.singleQuotedStringLiteral("a"));
-        assertEquals("'O''Brien'", BigQuerySqlUtils.singleQuotedStringLiteral("O'Brien"));
-        assertEquals("''''", BigQuerySqlUtils.singleQuotedStringLiteral("'"));
+        assertEquals("'O\\'Brien'", BigQuerySqlUtils.singleQuotedStringLiteral("O'Brien"));
+        assertEquals("'\\''", BigQuerySqlUtils.singleQuotedStringLiteral("'"));
+        assertEquals("'foo\\\\'", BigQuerySqlUtils.singleQuotedStringLiteral("foo\\"));
     }
 
     @Test

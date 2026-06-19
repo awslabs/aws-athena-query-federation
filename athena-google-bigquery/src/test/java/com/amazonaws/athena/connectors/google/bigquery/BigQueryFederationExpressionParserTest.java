@@ -112,7 +112,7 @@ public class BigQueryFederationExpressionParserTest
         ConstantExpression irishName = new ConstantExpression(
                 BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, ArrowType.Utf8.INSTANCE,
                         ImmutableList.of("O'Brien")), ArrowType.Utf8.INSTANCE);
-        assertEquals("'O''Brien'", bigQueryExpressionParser.parseConstantExpression(irishName));
+        assertEquals("'O\\'Brien'", bigQueryExpressionParser.parseConstantExpression(irishName));
     }
 
     @Test
