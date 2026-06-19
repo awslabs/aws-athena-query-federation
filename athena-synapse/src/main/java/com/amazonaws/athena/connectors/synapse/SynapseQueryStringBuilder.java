@@ -23,11 +23,13 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
+import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
 import com.google.common.base.Strings;
+import org.apache.arrow.vector.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
 public class SynapseQueryStringBuilder extends JdbcSplitQueryBuilder
@@ -52,48 +54,52 @@ public class SynapseQueryStringBuilder extends JdbcSplitQueryBuilder
         return String.format(" FROM %s ", tableName);
     }
 
-    /**
-     * In case of partitioned table, custom query will be formed to get specific partition
-     * otherwise empty list will be returned
-     * @param split
-     * @return
-     */
+    @Override
+    protected void addPartitionWhereClauses(Split split, List<String> clauses, List<TypeAndValue> accumulator)
+    {
+        String column = split.getProperty(SynapseMetadataHandler.PARTITION_COLUMN);
+        if (column == null) {
+            LOGGER.debug("Fetching data without Partition");
+            return;
+        }
+
+        LOGGER.debug("Fetching data using Partition");
+        String from = Strings.nullToEmpty(split.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_FROM)).trim();
+        String to = Strings.nullToEmpty(split.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_TO)).trim();
+        LOGGER.debug("PARTITION_COLUMN: {}", column);
+        LOGGER.debug("PARTITION_BOUNDARY_FROM: {}", from);
+        LOGGER.debug("PARTITION_BOUNDARY_TO: {}", to);
+
+        String quotedColumn = quote(column);
+        /*
+            form where clause using partition boundaries to create specific partition as split
+            example query: select * from MyPartitionTable where id >= 1 and id<= 100
+         */
+        if (from.isEmpty() && to.isEmpty()) {
+            return;
+        }
+        if (!from.isEmpty() && !to.isEmpty()) {
+            clauses.add(quotedColumn + " > ? AND " + quotedColumn + " <= ?");
+            accumulator.add(new TypeAndValue(Types.MinorType.VARCHAR.getType(), from));
+            accumulator.add(new TypeAndValue(Types.MinorType.VARCHAR.getType(), to));
+        }
+        else if (from.isEmpty()) {
+            clauses.add(quotedColumn + " <= ?");
+            accumulator.add(new TypeAndValue(Types.MinorType.VARCHAR.getType(), to));
+        }
+        else {
+            clauses.add(quotedColumn + " > ?");
+            accumulator.add(new TypeAndValue(Types.MinorType.VARCHAR.getType(), from));
+        }
+    }
+
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        String column = split.getProperty(SynapseMetadataHandler.PARTITION_COLUMN);
-        if (column != null) {
-            LOGGER.debug("Fetching data using Partition");
-            String from = split.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_FROM);
-            String to = split.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_TO);
-            List<String> whereClause;
-
-            LOGGER.debug("PARTITION_COLUMN: {}", column);
-            LOGGER.debug("PARTITION_BOUNDARY_FROM: {}", from);
-            LOGGER.debug("PARTITION_BOUNDARY_TO: {}", to);
-
-            /*
-                form where clause using partition boundaries to create specific partition as split
-                example query: select * from MyPartitionTable where id >= 1 and id<= 100
-             */
-            if (!from.trim().isEmpty() && !to.trim().isEmpty()) {
-                whereClause = Collections.singletonList(column + " > " + from + " and " + column + " <= " + to);
-            }
-            else if (from.trim().isEmpty() && to.trim().isEmpty()) {
-                return Collections.emptyList();
-            }
-            else if (from.trim().isEmpty()) {
-                whereClause = Collections.singletonList(column + " <= " + to);
-            }
-            else {
-                whereClause = Collections.singletonList(column + " > " + from);
-            }
-            return whereClause;
-        }
-        else {
-            LOGGER.debug("Fetching data without Partition");
-        }
-        return Collections.emptyList();
+        List<String> clauses = new ArrayList<>();
+        List<TypeAndValue> ignoredAccumulator = new ArrayList<>();
+        addPartitionWhereClauses(split, clauses, ignoredAccumulator);
+        return clauses;
     }
 
     //Returning empty string as Synapse does not support LIMIT clause

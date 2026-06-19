@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.oracle;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -267,6 +268,42 @@ public class OracleMetadataHandlerTest
         assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         assertEquals(expectedSplits, actualSplits);
+    }
+
+    @Test
+    public void doGetSplits_withCatalogCasingFilter_propagatesFilterToSplit()
+            throws Exception
+    {
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(OracleMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
+
+        String[] columns = {OracleMetadataHandler.PARTITION_COLUMN_NAME};
+        int[] types = {Types.VARCHAR};
+        Object[][] values = {{"p0"}};
+        ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
+
+        FederatedIdentity identity = Mockito.mock(FederatedIdentity.class);
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY);
+        Mockito.when(identity.getConfigOptions()).thenReturn(configOptions);
+
+        Schema partitionSchema = this.oracleMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQUERY_ID", CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutResponse getTableLayoutResponse = this.oracleMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+
+        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(identity, "testQUERY_ID", CATALOG_NAME, tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.oracleMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        Split split = getSplitsResponse.getSplits().iterator().next();
+        assertEquals(EnvironmentConstants.UPPERCASE_ONLY, split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER));
     }
 
     @Test

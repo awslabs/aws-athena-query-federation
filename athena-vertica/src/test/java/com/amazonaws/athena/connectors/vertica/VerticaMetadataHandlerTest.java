@@ -385,8 +385,8 @@ public class VerticaMetadataHandlerTest extends TestBase
         String s3ExportBucket = "s3://testS3Bucket";
         String expectedExportSql = String.format(
                 "EXPORT TO PARQUET(directory = 's3://s3://testS3Bucket/%s', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
-                        "AS SELECT bit_col,tinyint_col,smallint_col,int_col,bigint_col,float_col,double_col,decimal_col," +
-                        "varchar_col,preparedStmt,queryId,awsRegionSql " +
+                        "AS SELECT \"bit_col\",\"tinyint_col\",\"smallint_col\",\"int_col\",\"bigint_col\",\"float_col\",\"double_col\",\"decimal_col\"," +
+                        "\"varchar_col\",\"preparedStmt\",\"queryId\",\"awsRegionSql\" " +
                         "FROM \"schema1\".\"table1\" " +
                         "WHERE (\"bit_col\" = 1 ) AND (\"tinyint_col\" = 127 ) AND (\"smallint_col\" = 32767 ) AND (\"int_col\" = 1000 ) " +
                         "AND (\"bigint_col\" = 1000000 ) AND (\"float_col\" = 3.14 ) AND (\"double_col\" = 3.14159 ) " +
@@ -693,7 +693,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 actualSql.indexOf("', Compression"));
         String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
                 actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
-                "AS SELECT id,name " +
+                "AS SELECT \"id\",\"name\" " +
                 "FROM \"testSchema\".\"testTable1\" " +
                 "WHERE (\"id\" IN (1,2,3))";
 
@@ -716,9 +716,9 @@ public class VerticaMetadataHandlerTest extends TestBase
                 actualSql.indexOf("', Compression"));
         String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
                 actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
-                "AS SELECT nullable_field " +
+                "AS SELECT \"nullable_field\" " +
                 "FROM \"testSchema\".\"testTable1\" " +
-                "WHERE ((nullable_field IS NULL) OR \"nullable_field\" = 'test' )";
+                "WHERE ((\"nullable_field\" IS NULL) OR \"nullable_field\" = 'test' )";
 
         Assert.assertEquals(expectedExportSql, actualSql);
     }
@@ -739,7 +739,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 actualSql.indexOf("', Compression"));
         String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
                 actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
-                "AS SELECT name " +
+                "AS SELECT \"name\" " +
                 "FROM \"testSchema\".\"testTable1\" " +
                 "WHERE ((\"name\" >= 'test'  AND \"name\" < 'tesu' ))";
 
@@ -783,7 +783,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         // Construct expected SQL with actual query ID
         String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
                 actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
-                "AS SELECT id,status,price,category " +
+                "AS SELECT \"id\",\"status\",\"price\",\"category\" " +
                 "FROM \"testSchema\".\"testTable1\" " +
                 "WHERE (\"id\" IN (1,2,3,4,5)) AND ((\"status\" > 'A'  AND \"status\" <= 'Z' )) AND ((\"price\" >= 100  AND \"price\" <= 1000 )) AND (\"category\" IN ('books','electronics'))";
 
@@ -818,9 +818,9 @@ public class VerticaMetadataHandlerTest extends TestBase
         // Construct expected SQL with actual query ID
         String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
                 actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
-                "AS SELECT id,nullable_name,nullable_score,required_field " +
+                "AS SELECT \"id\",\"nullable_name\",\"nullable_score\",\"required_field\" " +
                 "FROM \"testSchema\".\"testTable1\" " +
-                "WHERE ((\"id\" > 0 )) AND ((nullable_name IS NULL) OR \"nullable_name\" = 'test' ) AND ((\"nullable_score\" >= 0  AND \"nullable_score\" < 100 )) AND (required_field IS NOT NULL)";
+                "WHERE ((\"id\" > 0 )) AND ((\"nullable_name\" IS NULL) OR \"nullable_name\" = 'test' ) AND ((\"nullable_score\" >= 0  AND \"nullable_score\" < 100 )) AND (\"required_field\" IS NOT NULL)";
 
         Assert.assertEquals(expectedExportSql, actualSql);
 
@@ -859,7 +859,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         // Construct expected SQL with actual query ID
         String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
                 actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
-                "AS SELECT score,grade,age,department " +
+                "AS SELECT \"score\",\"grade\",\"age\",\"department\" " +
                 "FROM \"testSchema\".\"testTable1\" " +
                 "WHERE ((\"score\" > 85 )) AND ((\"grade\" <= 'B' )) AND ((\"age\" >= 18  AND \"age\" < 65 )) AND (\"department\" IN ('engineering','marketing','sales'))";
 
@@ -884,7 +884,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         // Construct expected SQL with actual query ID (no WHERE clause for empty constraints)
         String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
                 actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
-                "AS SELECT field1,field2 " +
+                "AS SELECT \"field1\",\"field2\" " +
                 "FROM \"testSchema\".\"testTable1\"";
 
         Assert.assertEquals(expectedExportSql, actualSql);
