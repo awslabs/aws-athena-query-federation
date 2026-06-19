@@ -111,6 +111,36 @@ public class HiveUtilsTest
         assertEquals("'''; SELECT 1;--'", HiveUtils.likePatternLiteral("'; SELECT 1;--"));
     }
 
+    @Test
+    public void likePatternLiteral_whenPatternContainsBackslash_escapesBackslashBeforeQuoting()
+    {
+        String literal = HiveUtils.likePatternLiteral("test\\'; DROP TABLE x;--");
+        assertEquals("'TEST\\\\''; DROP TABLE X;--'", literal);
+        String showExtendedSql = "show table extended in `DEMO` like " + literal;
+        assertFalse(showExtendedSql.contains("like 'TEST';"));
+    }
+
+    @Test
+    public void likePatternLiteral_whenPatternContainsJavaEscapedQuote_hasSameOutputAsPlainQuote()
+    {
+        assertEquals("'TEST''; DROP TABLE X;--'", HiveUtils.likePatternLiteral("test\'; DROP TABLE x;--"));
+    }
+
+    @Test
+    public void likePatternLiteral_whenPatternContainsBackslashOnly_doublesBackslashes()
+    {
+        assertEquals("'A\\\\B'", HiveUtils.likePatternLiteral("a\\b"));
+    }
+
+    @Test
+    public void likePatternLiteral_whenPatternContainsHiveCStyleEscapes_doublesBackslashes() {
+        assertEquals("'QUOTE\\\\''ESCAPE'", HiveUtils.likePatternLiteral("quote\\'escape"));
+        assertEquals("'SLASH\\\\\\\\ESCAPE'", HiveUtils.likePatternLiteral("slash\\\\escape"));
+        assertEquals("'NEWLINE\\\\NESCAPE'", HiveUtils.likePatternLiteral("newline\\nescape"));
+        assertEquals("'TAB\\\\TESCAPE'", HiveUtils.likePatternLiteral("tab\\tescape"));
+    }
+
+   
     @Test(expected = NullPointerException.class)
     public void likePatternLiteral_whenPatternIsNull_throwsNullPointerException()
     {

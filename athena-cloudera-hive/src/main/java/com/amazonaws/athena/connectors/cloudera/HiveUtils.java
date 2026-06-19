@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.HiveSqlDialect;
 
 import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_CHARACTER;
 
@@ -29,6 +31,8 @@ import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_
  */
 public class HiveUtils
 {
+    private static final SqlDialect HIVE_SQL_DIALECT = HiveSqlDialect.DEFAULT;
+
     private HiveUtils()
     {
     }
@@ -53,12 +57,14 @@ public class HiveUtils
     }
 
     /**
-     * Single-quoted pattern for {@code SHOW TABLE EXTENDED IN ... LIKE '...'}. Hive uses {@code *}
-     * (not {@code %}) as the wildcard in {@code SHOW} commands; valid table names do not include
-     * wildcards, so only single quotes are escaped and the name is upper-cased to match prior behavior.
+     * Single-quoted pattern for {@code SHOW TABLE EXTENDED IN ... LIKE '...'}. Hive string literals
+     * accept both quote-doubling and C-style backslash escapes. Backslashes are escaped first, then
+     * {@link HiveSqlDialect#quoteStringLiteral(String)} applies Hive dialect quoting rules. The name
+     * is upper-cased to match prior connector behavior.
      */
     public static String likePatternLiteral(String pattern)
     {
-        return "'" + pattern.replace("'", "''").toUpperCase() + "'";
+        String escaped = pattern.toUpperCase().replace("\\", "\\\\");
+        return HIVE_SQL_DIALECT.quoteStringLiteral(escaped);
     }
 }
