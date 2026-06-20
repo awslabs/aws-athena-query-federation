@@ -535,6 +535,7 @@ public class PostGreSqlMetadataHandlerTest
                 {Types.ARRAY, "double_array", 0, 0, "_float8"},
                 {Types.ARRAY, "date_array", 0, 0, "_date"},
                 {Types.ARRAY, "timestamp_array", 0, 0, "_timestamp"},
+                {Types.ARRAY, "timestamptz_array", 0, 0, "_timestamptz"},
                 {Types.ARRAY, "binary_array", 0, 0, "_bytea"},
                 {Types.ARRAY, "decimal_array", 38, 2, "_numeric"},
                 {Types.ARRAY, "string_array", 0, 0, "_text"},
@@ -553,6 +554,7 @@ public class PostGreSqlMetadataHandlerTest
                 .addListField("double_array", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))
                 .addListField("date_array", new ArrowType.Date(DateUnit.DAY))
                 .addListField("timestamp_array", new ArrowType.Date(DateUnit.MILLISECOND))
+                .addListField("timestamptz_array", new ArrowType.Date(DateUnit.MILLISECOND))
                 .addListField("binary_array", new ArrowType.Utf8())
                 .addListField("decimal_array", new ArrowType.Decimal(38, 2,128))
                 .addListField("string_array", new ArrowType.Utf8())
@@ -1046,6 +1048,9 @@ public class PostGreSqlMetadataHandlerTest
 
         ArrowType timestampType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_timestamp", 0, 0);
         assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Date", timestampType.getClass().getName());
+        
+        ArrowType timestamptzType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_timestamptz", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Date", timestamptzType.getClass().getName());
 
         // Test numeric type
         ArrowType numericType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_numeric", 10, 2);
