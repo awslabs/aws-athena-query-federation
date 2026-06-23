@@ -138,14 +138,12 @@ public class BigQueryMetadataHandler
     {
         logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
 
+        String nextToken = null;
         final List<String> schemas = new ArrayList<>();
         BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
-        Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
-        if (response == null) {
-            logger.info("Dataset does not contain any models");
-        }
-        else {
-            do {
+        if (listSchemasRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
+            Page<Dataset> response = bigQuery.listDatasets(projectName);
+            if (response != null) {
                 for (Dataset dataset : response.iterateAll()) {
                     if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
                         throw new BigQueryExceptions.TooManyTablesException();
@@ -153,12 +151,23 @@ public class BigQueryMetadataHandler
                     schemas.add(dataset.getDatasetId().getDataset());
                     logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
                 }
-            } while (response.hasNextPage());
+            }
+        }
+        else {
+            Page<Dataset> response = bigQuery.listDatasets(projectName,
+                    BigQuery.DatasetListOption.pageToken(listSchemasRequest.getNextToken()),
+                    BigQuery.DatasetListOption.pageSize(listSchemasRequest.getPageSize()));
+            if (response != null) {
+                for (Dataset dataset : response.getValues()) {
+                    schemas.add(dataset.getDatasetId().getDataset());
+                }
+                nextToken = response.getNextPageToken();
+            }
         }
 
         logger.info("Found {} schemas!", schemas.size());
 
-        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
+        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas, nextToken);
     }
 
     @Override

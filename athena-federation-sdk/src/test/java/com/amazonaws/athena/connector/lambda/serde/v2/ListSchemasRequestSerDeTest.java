@@ -43,10 +43,28 @@ public class ListSchemasRequestSerDeTest extends TypedSerDeTest<FederationReques
     public void beforeTest()
             throws IOException
     {
-        expected = new ListSchemasRequest(federatedIdentity, "test-query-id", "test-catalog");
+        expected = new ListSchemasRequest(federatedIdentity, "test-query-id", "test-catalog",
+                "schema4", 25);
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListSchemasRequest.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+    }
+
+    @Test
+    public void deserializeLegacy()
+            throws IOException
+    {
+        logger.info("deserializeLegacy: enter");
+        String legacySerDeFile = utils.getResourceOrFail("serde/v2", "ListSchemasRequest.legacy.json");
+        String legacySerDeText = utils.readAllAsString(legacySerDeFile).trim();
+        InputStream input = new ByteArrayInputStream(legacySerDeText.getBytes());
+
+        ListSchemasRequest actual = (ListSchemasRequest) mapper.readValue(input, FederationRequest.class);
+        ListSchemasRequest expectedLegacy = new ListSchemasRequest(federatedIdentity, "test-query-id", "test-catalog");
+
+        assertEquals(expectedLegacy, actual);
+
+        logger.info("deserializeLegacy: exit");
     }
 
     @Test

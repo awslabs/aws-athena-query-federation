@@ -26,11 +26,13 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static java.util.Objects.requireNonNull;
 
 public final class ListSchemasRequestSerDe
@@ -38,6 +40,8 @@ public final class ListSchemasRequestSerDe
     private static final String IDENTITY_FIELD = "identity";
     private static final String QUERY_ID_FIELD = "queryId";
     private static final String CATALOG_NAME_FIELD = "catalogName";
+    private static final String PAGE_SIZE_FIELD = "pageSize";
+    private static final String NEXT_TOKEN_FIELD = "nextToken";
 
     private ListSchemasRequestSerDe() {}
 
@@ -55,7 +59,10 @@ public final class ListSchemasRequestSerDe
         protected void doRequestSerialize(FederationRequest federationRequest, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
-            // no other fields
+            ListSchemasRequest listSchemasRequest = (ListSchemasRequest) federationRequest;
+
+            jgen.writeStringField(NEXT_TOKEN_FIELD, listSchemasRequest.getNextToken());
+            jgen.writeNumberField(PAGE_SIZE_FIELD, listSchemasRequest.getPageSize());
         }
     }
 
@@ -73,7 +80,22 @@ public final class ListSchemasRequestSerDe
         protected MetadataRequest doRequestDeserialize(JsonParser jparser, DeserializationContext ctxt, FederatedIdentity identity, String queryId, String catalogName)
                 throws IOException
         {
-            return new ListSchemasRequest(identity, queryId, catalogName);
+            /**
+             * TODO: This logic must be modified in V3 of the SDK to enforce the presence of nextToken and pageSize in
+             *       the JSON contract.
+             *       For backwards compatibility with V2 of the SDK, we will first verify that the JSON contract
+             *       contains the nextToken and pageSize arguments, and if not, set the default values for them.
+             */
+            String nextToken = null;
+            int pageSize = UNLIMITED_PAGE_SIZE_VALUE;
+            if (!JsonToken.END_OBJECT.equals(jparser.nextToken()) &&
+                    jparser.getCurrentName().equals(NEXT_TOKEN_FIELD)) {
+                jparser.nextToken();
+                nextToken = jparser.getValueAsString();
+                pageSize = getNextIntField(jparser, PAGE_SIZE_FIELD);
+            }
+
+            return new ListSchemasRequest(identity, queryId, catalogName, nextToken, pageSize);
         }
     }
 }

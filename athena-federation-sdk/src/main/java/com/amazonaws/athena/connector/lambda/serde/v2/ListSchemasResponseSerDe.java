@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
@@ -35,6 +36,7 @@ public final class ListSchemasResponseSerDe
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String SCHEMAS_FIELD = "schemas";
+    private static final String NEXT_TOKEN_FIELD = "nextToken";
 
     private ListSchemasResponseSerDe() {}
 
@@ -54,6 +56,8 @@ public final class ListSchemasResponseSerDe
             jgen.writeStringField(CATALOG_NAME_FIELD, listSchemasResponse.getCatalogName());
 
             writeStringArray(jgen, SCHEMAS_FIELD, listSchemasResponse.getSchemas());
+
+            jgen.writeStringField(NEXT_TOKEN_FIELD, listSchemasResponse.getNextToken());
         }
     }
 
@@ -71,7 +75,20 @@ public final class ListSchemasResponseSerDe
             String catalogName = getNextStringField(jparser, CATALOG_NAME_FIELD);
             Collection<String> schemas = getNextStringArray(jparser, SCHEMAS_FIELD);
 
-            return new ListSchemasResponse(catalogName, schemas);
+            /**
+             * TODO: This logic must be modified in V3 of the SDK to enforce the presence of nextToken in the JSON
+             *       contract.
+             *       For backwards compatibility with V2 of the SDK, we will first verify that the JSON contract
+             *       contains the nextToken argument, and if not, set the default value for it.
+             */
+            String nextToken = null;
+            if (!JsonToken.END_OBJECT.equals(jparser.nextToken()) &&
+                    jparser.getCurrentName().equals(NEXT_TOKEN_FIELD)) {
+                jparser.nextToken();
+                nextToken = jparser.getValueAsString();
+            }
+
+            return new ListSchemasResponse(catalogName, schemas, nextToken);
         }
     }
 }

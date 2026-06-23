@@ -44,10 +44,27 @@ public class ListSchemasResponseSerDeTest extends TypedSerDeTest<FederationRespo
     public void beforeTest()
             throws IOException
     {
-        expected = new ListSchemasResponse("test-catalog", ImmutableList.of("schema1", "schema2"));
+        expected = new ListSchemasResponse("test-catalog", ImmutableList.of("schema1", "schema2"), "schema3");
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListSchemasResponse.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+    }
+
+    @Test
+    public void deserializeLegacy()
+            throws IOException
+    {
+        logger.info("deserializeLegacy: enter");
+        String legacySerDeFile = utils.getResourceOrFail("serde/v2", "ListSchemasResponse.legacy.json");
+        String legacySerDeText = utils.readAllAsString(legacySerDeFile).trim();
+        InputStream input = new ByteArrayInputStream(legacySerDeText.getBytes());
+
+        ListSchemasResponse actual = (ListSchemasResponse) mapper.readValue(input, FederationResponse.class);
+        ListSchemasResponse expectedLegacy = new ListSchemasResponse("test-catalog", ImmutableList.of("schema1", "schema2"));
+
+        assertEquals(expectedLegacy, actual);
+
+        logger.info("deserializeLegacy: exit");
     }
 
     @Test
