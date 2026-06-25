@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":9,"i1":9,"i2":9,"i3":9};
+var data = {"i0":9,"i1":9,"i2":9,"i3":9,"i4":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -205,6 +205,14 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </td>
 </tr>
 <tr id="i3" class="rowColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang" class="externalLink">RuntimeException</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleDynamoDBException(java.lang.RuntimeException)">handleDynamoDBException</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang" class="externalLink">RuntimeException</a>&nbsp;ex)</code></th>
+<td class="colLast">
+<div class="block">Maps a RuntimeException from DynamoDB operations to an <a href="../../../connector/lambda/exceptions/AthenaConnectorException.html" title="class in com.amazonaws.athena.connector.lambda.exceptions"><code>AthenaConnectorException</code></a> with the appropriate
+ <code>FederationSourceErrorCode</code>.</div>
+</td>
+</tr>
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Schema</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">peekTableForSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
                   <a href="../../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
@@ -325,6 +333,24 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <dd><code>items</code> - a list of a map of DynamoDB elements</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>schema builder</dd>
+</dl>
+</li>
+</ul>
+<a id="handleDynamoDBException(java.lang.RuntimeException)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>handleDynamoDBException</h4>
+<pre class="methodSignature">public static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang" class="externalLink">RuntimeException</a>&nbsp;handleDynamoDBException&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang" class="externalLink">RuntimeException</a>&nbsp;ex)</pre>
+<div class="block">Maps a RuntimeException from DynamoDB operations to an <a href="../../../connector/lambda/exceptions/AthenaConnectorException.html" title="class in com.amazonaws.athena.connector.lambda.exceptions"><code>AthenaConnectorException</code></a> with the appropriate
+ <code>FederationSourceErrorCode</code>. If the exception cannot be mapped to a known error code, the original
+ exception is returned as-is.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>ex</code> - the RuntimeException thrown by DynamoDB SDK</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>an AthenaConnectorException with FederationSourceErrorCode</dd>
 </dl>
 </li>
 </ul>
