@@ -123,11 +123,19 @@ public class DynamoDBTableResolver
         catch (ResourceNotFoundException e) {
             Optional<String> caseInsensitiveMatch = tryCaseInsensitiveSearch(tableName, requestOverrideConfiguration);
             if (caseInsensitiveMatch.isPresent()) {
-                return DDBTableUtils.peekTableForSchema(caseInsensitiveMatch.get(), invoker, ddbClient, requestOverrideConfiguration);
+                try {
+                    return DDBTableUtils.peekTableForSchema(caseInsensitiveMatch.get(), invoker, ddbClient, requestOverrideConfiguration);
+                }
+                catch (RuntimeException exception) {
+                    throw DDBTableUtils.handleDynamoDBException(exception);
+                }
             }
             else {
                 throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
+        }
+        catch (RuntimeException e) {
+            throw DDBTableUtils.handleDynamoDBException(e);
         }
     }
 
