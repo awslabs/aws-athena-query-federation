@@ -101,6 +101,73 @@ public class ElasticsearchTypeUtilsTest
     }
 
     /**
+     * Test the VARCHAR extractor to extract a map as a JSON string.
+     * @throws Exception
+     */
+    @Test
+    public void makeVarCharExtractorJsonTest()
+            throws Exception
+    {
+        logger.info("makeVarCharExtractorJsonTest - enter");
+
+        mapping = SchemaBuilder.newBuilder()
+                .addField(new Field("myjsonobject",
+                        new FieldType(true, Types.MinorType.VARCHAR.getType(), null,
+                                ImmutableMap.of("json", "true")), null))
+                .build();
+
+        Map<String, Object> document = new ObjectMapper().readValue(
+                "{\n" +
+                "  \"myjsonobject\": {\n" +
+                "    \"nestedkey\": \"nestedvalue\",\n" +
+                "    \"nestednumber\": 123\n" +
+                "  }\n" +
+                "}\n", HashMap.class);
+
+        Map<String, Object> expectedResults = new HashMap<>();
+        expectedResults.put("myjsonobject", "{\"nestedkey\":\"nestedvalue\",\"nestednumber\":123}");
+
+        Map<String, Object> results = testField(mapping, document);
+
+        assertEquals("Extracted results are not as expected!", expectedResults, results);
+
+        logger.info("makeVarCharExtractorJsonTest - exit");
+    }
+
+    /**
+     * Test the VARCHAR extractor to extract a map without metadata using the default string representation.
+     * @throws Exception
+     */
+    @Test
+    public void makeVarCharExtractorMapWithoutMetadataTest()
+            throws Exception
+    {
+        logger.info("makeVarCharExtractorMapWithoutMetadataTest - enter");
+
+        Field field = new Field("myobject", new FieldType(true, Types.MinorType.VARCHAR.getType(), null, null), null);
+        mapping = SchemaBuilder.newBuilder()
+                .addField(field)
+                .build();
+
+        Map<String, Object> document = new ObjectMapper().readValue(
+                "{\n" +
+                "  \"myobject\": {\n" +
+                "    \"nestedkey\": \"nestedvalue\",\n" +
+                "    \"nestednumber\": 123\n" +
+                "  }\n" +
+                "}\n", HashMap.class);
+
+        Map<String, Object> expectedResults = new HashMap<>();
+        expectedResults.put("myobject", "{nestedkey=nestedvalue, nestednumber=123}");
+
+        Map<String, Object> results = testField(mapping, document);
+
+        assertEquals("Extracted results are not as expected!", expectedResults, results);
+
+        logger.info("makeVarCharExtractorMapWithoutMetadataTest - exit");
+    }
+
+    /**
      * Test the BIGINT extractor to extract long and scaled_float values.
      * @throws Exception
      */
