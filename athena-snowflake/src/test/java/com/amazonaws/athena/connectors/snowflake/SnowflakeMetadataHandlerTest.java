@@ -20,6 +20,7 @@ package com.amazonaws.athena.connectors.snowflake;
  */
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -1036,6 +1037,119 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(new TableName(schemaName.toUpperCase(), tableName.toLowerCase()), getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void testGetPartitionsWithUppercaseCasingFilter() throws Exception {
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("day")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        // Mock view check - return a view so we get a single partition (simplest path)
+        String[] viewSchema = {"TABLE_SCHEMA", "TABLE_NAME"};
+        Object[][] viewValues = {{"TESTSCHEMA", "TESTTABLE"}};
+        AtomicInteger viewRowNumber = new AtomicInteger(-1);
+        ResultSet viewResultSet = mockResultSet(viewSchema, viewValues, viewRowNumber);
+
+        PreparedStatement viewStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString())).thenReturn(viewStmt);
+        when(viewStmt.executeQuery()).thenReturn(viewResultSet);
+
+        // Set up federated identity with CATALOG_CASING_FILTER = UPPERCASE_ONLY
+        FederatedIdentity identityWithCasing = mock(FederatedIdentity.class);
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY);
+        when(identityWithCasing.getConfigOptions()).thenReturn(configOptions);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(identityWithCasing, "queryId", "default",
+                new TableName("testschema", "testtable"),  // lowercase names
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                tableSchema,
+                partitionCols);
+
+        GetTableLayoutResponse res = snowflakeMetadataHandler.doGetTableLayout(allocator, req);
+        Block partitions = res.getPartitions();
+
+        assertNotNull(partitions);
+        assertTrue(partitions.getRowCount() > 0);
+        // The partition should be "*" since it's a view
+        assertEquals("*", partitions.getFieldVector(BLOCK_PARTITION_COLUMN_NAME).getObject(0).toString());
+    }
+
+    @Test
+    public void testGetSplitsWithCatalogCasingFilter() throws Exception {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("partition")
+                .build();
+
+        Block partitions = allocator.createBlock(schema);
+        partitions.getFieldVector("partition").allocateNew();
+        BlockUtils.setValue(partitions.getFieldVector("partition"), 0, "partition-primary-\"id\"-limit-100-offset-0");
+        partitions.setRowCount(1);
+
+        // Set up federated identity with CATALOG_CASING_FILTER
+        FederatedIdentity identityWithCasing = mock(FederatedIdentity.class);
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY);
+        when(identityWithCasing.getConfigOptions()).thenReturn(configOptions);
+
+        GetSplitsRequest originalReq = new GetSplitsRequest(identityWithCasing, "queryId", "catalog_name",
+                new TableName("schema", "table_name"),
+                partitions,
+                Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                null);
+        GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
+
+        MetadataResponse rawResponse = snowflakeMetadataHandler.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+
+        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        assertEquals(1, response.getSplits().size());
+
+        // Verify the split contains the CATALOG_CASING_FILTER property
+        Split split = response.getSplits().iterator().next();
+        assertEquals(EnvironmentConstants.UPPERCASE_ONLY, split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER));
+    }
+
+    @Test
+    public void testGetSplitsWithoutCatalogCasingFilter() throws Exception {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("partition")
+                .build();
+
+        Block partitions = allocator.createBlock(schema);
+        partitions.getFieldVector("partition").allocateNew();
+        BlockUtils.setValue(partitions.getFieldVector("partition"), 0, "partition-primary-\"id\"-limit-100-offset-0");
+        partitions.setRowCount(1);
+
+        // Set up federated identity without CATALOG_CASING_FILTER
+        FederatedIdentity identityNoCasing = mock(FederatedIdentity.class);
+        Map<String, String> configOptions = new HashMap<>();
+        when(identityNoCasing.getConfigOptions()).thenReturn(configOptions);
+
+        GetSplitsRequest originalReq = new GetSplitsRequest(identityNoCasing, "queryId", "catalog_name",
+                new TableName("schema", "table_name"),
+                partitions,
+                Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                null);
+        GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
+
+        MetadataResponse rawResponse = snowflakeMetadataHandler.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+
+        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        assertEquals(1, response.getSplits().size());
+
+        // Verify the split does NOT contain the CATALOG_CASING_FILTER property
+        Split split = response.getSplits().iterator().next();
+        org.junit.Assert.assertNull(split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER));
     }
 
     @Test
