@@ -45,7 +45,7 @@ import java.util.regex.Pattern;
  * uses direct DriverManager connections instead of HikariCP connection pooling.
  */
 public class GenericJdbcConnectionFactory
-        implements JdbcConnectionFactory
+        implements JdbcConnectionFactory, AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericJdbcConnectionFactory.class);
     private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@!-]+})";
@@ -194,5 +194,13 @@ public class GenericJdbcConnectionFactory
             throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
         }
         throw e;
+    }
+
+    @Override
+    public void close() 
+    {
+        if (ds != null) {
+            ds.close();
+        }
     }
 }
