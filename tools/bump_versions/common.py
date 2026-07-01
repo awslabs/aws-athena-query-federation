@@ -41,7 +41,10 @@ def update_yaml(yaml_files, new_version):
 
 def update_dockerfile(dockerfiles, new_version):
     for file in dockerfiles:
+        # Replace literal athena-*-X.Y.Z.jar (e.g. athena-mysql-2022.47.1.jar)
         subprocess.run(["sed", "-i", f"s|\(athena-.*\)-[0-9]*\.[0-9]*\.[0-9]*\.jar|\\1-{new_version}.jar|g", file])
+        # Replace ARG JAR_VERSION=X.Y.Z (e.g. athena-postgresql Dockerfile uses this)
+        subprocess.run(["sed", "-i", f"s/\\(ARG JAR_VERSION=\\)[0-9]*\\.[0-9]*\\.[0-9]*/\\1{new_version}/", file])
 
 
 def update_project_version(soup, new_version):
