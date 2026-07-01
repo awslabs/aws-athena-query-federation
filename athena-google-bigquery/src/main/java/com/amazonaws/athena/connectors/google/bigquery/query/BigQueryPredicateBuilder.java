@@ -40,6 +40,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connectors.google.bigquery.BigQuerySqlUtils.backtickQuotedIdentifier;
+
 public class BigQueryPredicateBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryPredicateBuilder.class);
@@ -73,17 +75,17 @@ public class BigQueryPredicateBuilder
 
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", true));
+                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "isNull", true));
             }
 
             if (valueSet.isNullAllowed()) {
-                disjuncts.add(BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", true)));
+                disjuncts.add(BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "isNull", true)));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
 
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", false));
+                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "isNull", false));
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -96,11 +98,11 @@ public class BigQueryPredicateBuilder
                         switch (range.getLow().getBound()) {
                             case ABOVE:
                                 parameterValues.add(BigQueryStorageApiUtils.getValueForWhereClause(columnName, range.getLow().getValue(), type));
-                                rangeConjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", columnName, "operator", ">")));
+                                rangeConjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "operator", ">")));
                                 break;
                             case EXACTLY:
                                 parameterValues.add(BigQueryStorageApiUtils.getValueForWhereClause(columnName, range.getLow().getValue(), type));
-                                rangeConjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", columnName, "operator", ">=")));
+                                rangeConjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "operator", ">=")));
                                 break;
                             case BELOW:
                                 throw new IllegalArgumentException("Low marker should never use BELOW bound");
@@ -114,11 +116,11 @@ public class BigQueryPredicateBuilder
                                 throw new IllegalArgumentException("High marker should never use ABOVE bound");
                             case EXACTLY:
                                 parameterValues.add(BigQueryStorageApiUtils.getValueForWhereClause(columnName, range.getHigh().getValue(), type));
-                                rangeConjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", columnName, "operator", "<=")));
+                                rangeConjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "operator", "<=")));
                                 break;
                             case BELOW:
                                 parameterValues.add(BigQueryStorageApiUtils.getValueForWhereClause(columnName, range.getHigh().getValue(), type));
-                                rangeConjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", columnName, "operator", "<")));
+                                rangeConjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "operator", "<")));
                                 break;
                             default:
                                 throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
@@ -133,14 +135,14 @@ public class BigQueryPredicateBuilder
             // Add back all of the possible single values either as an equality or an IN predicate
             if (singleValues.size() == 1) {
                 parameterValues.add(BigQueryStorageApiUtils.getValueForWhereClause(columnName, Iterables.getOnlyElement(singleValues), type));
-                disjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", columnName, "operator", "=")));
+                disjuncts.add(BigQuerySqlUtils.renderTemplate("comparison_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "operator", "=")));
             }
             else if (singleValues.size() > 1) {
                 for (Object value : singleValues) {
                     parameterValues.add(BigQueryStorageApiUtils.getValueForWhereClause(columnName, value, type));
                 }
                 List<String> placeholders = Collections.nCopies(singleValues.size(), "?");
-                disjuncts.add(BigQuerySqlUtils.renderTemplate("in_predicate", Map.of("columnName", columnName, "counts", placeholders)));
+                disjuncts.add(BigQuerySqlUtils.renderTemplate("in_predicate", Map.of("columnName", backtickQuotedIdentifier(columnName), "counts", placeholders)));
             }
         }
 
