@@ -28,7 +28,7 @@ import static org.junit.Assert.assertEquals;
 public class TimestreamClientBuilderTest {
 
   @Test
-  public void testUserAgentField()
+  public void buildClientConfiguration_WhenCalledWithConnectorName_SetsUserAgentPrefixToAwsAthenaTimestreamConnector()
   {
     ClientOverrideConfiguration clientConfiguration = TimestreamClientBuilder.buildClientConfiguration("timestream");
     assertEquals("aws-athena-timestream-connector", clientConfiguration.advancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX).get());
