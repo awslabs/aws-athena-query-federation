@@ -1,11 +1,16 @@
 # Argument for Java version, defaulting to 11
 ARG JAVA_VERSION=11
-# Use the specified version of Java
+FROM public.ecr.aws/lambda/java:${JAVA_VERSION} AS builder
+
+ARG JAR_VERSION=2022.47.1
+COPY target/athena-sqlserver-${JAR_VERSION}.jar /app/
+WORKDIR /app
+RUN jar xf athena-sqlserver-${JAR_VERSION}.jar && rm -f athena-sqlserver-${JAR_VERSION}.jar
+
 FROM public.ecr.aws/lambda/java:${JAVA_VERSION}
 
 # Argument for Java tool options for ssl
 ARG JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/var/lang/lib/security/cacerts"
-# Set the JAVA_TOOL_OPTIONS environment variable for Java 17
 ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
 # Install necessary tools
 RUN yum update -y
@@ -36,11 +41,7 @@ RUN echo "Trust store content is: " && \
         echo " Certificate ${alias} expires in '$expiry'"; \
     done
 
-
-# Copy function code and runtime dependencies from Maven layout
-COPY target/athena-sqlserver-2022.47.1.jar ${LAMBDA_TASK_ROOT}
-# Unpack the jar
-RUN jar xf athena-sqlserver-2022.47.1.jar
+COPY --from=builder /app/ ${LAMBDA_TASK_ROOT}/
 
 # Command can be overwritten by providing a different command in the template directly.
 # No need to specify here (already defined in .yaml file because legacy and connections use different)
