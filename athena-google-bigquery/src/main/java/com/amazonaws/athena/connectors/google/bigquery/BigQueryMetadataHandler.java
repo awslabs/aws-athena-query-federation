@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.handlers.PaginatedSchemaLister;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -74,6 +75,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -86,6 +88,7 @@ import static com.google.cloud.bigquery.JobStatistics.QueryStatistics.StatementT
 
 public class BigQueryMetadataHandler
     extends MetadataHandler
+    implements PaginatedSchemaLister
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
     private final String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID) != null ?
@@ -134,38 +137,54 @@ public class BigQueryMetadataHandler
     }
 
     @Override
-    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest) throws IOException
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest) throws Exception
     {
         logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
+        return executeListSchemaNames(blockAllocator, listSchemasRequest);
+    }
 
-        String nextToken = null;
+    @Override
+    public Collection<String> listSchemas(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest) throws IOException
+    {
+        logger.info("listSchemas - NO pagination");
         final List<String> schemas = new ArrayList<>();
         BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
-        if (listSchemasRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
-            Page<Dataset> response = bigQuery.listDatasets(projectName);
-            if (response != null) {
-                for (Dataset dataset : response.iterateAll()) {
-                    if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
-                        throw new BigQueryExceptions.TooManyTablesException();
-                    }
-                    schemas.add(dataset.getDatasetId().getDataset());
-                    logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
+        Page<Dataset> response = bigQuery.listDatasets(projectName);
+        if (response != null) {
+            for (Dataset dataset : response.iterateAll()) {
+                if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
+                    throw new BigQueryExceptions.TooManyTablesException();
                 }
-            }
-        }
-        else {
-            Page<Dataset> response = bigQuery.listDatasets(projectName,
-                    BigQuery.DatasetListOption.pageToken(listSchemasRequest.getNextToken()),
-                    BigQuery.DatasetListOption.pageSize(listSchemasRequest.getPageSize()));
-            if (response != null) {
-                for (Dataset dataset : response.getValues()) {
-                    schemas.add(dataset.getDatasetId().getDataset());
-                }
-                nextToken = response.getNextPageToken();
+                schemas.add(dataset.getDatasetId().getDataset());
+                logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
             }
         }
 
         logger.info("Found {} schemas!", schemas.size());
+        return schemas;
+    }
+
+    @Override
+    public ListSchemasResponse listPaginatedSchemas(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest) throws IOException
+    {
+        String token = listSchemasRequest.getNextToken();
+        long pageSize = listSchemasRequest.getPageSize();
+        logger.info("listPaginatedSchemas - Starting pagination at {} with page size {}", token, pageSize);
+
+        String nextToken = null;
+        final List<String> schemas = new ArrayList<>();
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
+        Page<Dataset> response = bigQuery.listDatasets(projectName,
+                BigQuery.DatasetListOption.pageToken(token),
+                BigQuery.DatasetListOption.pageSize(pageSize));
+        if (response != null) {
+            for (Dataset dataset : response.getValues()) {
+                schemas.add(dataset.getDatasetId().getDataset());
+            }
+            nextToken = response.getNextPageToken();
+        }
+
+        logger.info("{} schemas returned. Next token is {}", schemas.size(), nextToken);
 
         return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas, nextToken);
     }

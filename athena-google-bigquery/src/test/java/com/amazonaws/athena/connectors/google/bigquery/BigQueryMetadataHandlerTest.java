@@ -162,7 +162,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames() throws IOException
+    public void testDoListSchemaNames() throws Exception
     {
         final int numDatasets = 5;
         mockUnlimitedListDatasets(numDatasets);
@@ -180,7 +180,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames_withUnlimitedPageSize_returnsAllSchemasWithNullNextToken() throws IOException
+    public void testDoListSchemaNames_withUnlimitedPageSize_returnsAllSchemasWithNullNextToken() throws Exception
     {
         final int numDatasets = 3;
         mockUnlimitedListDatasets(numDatasets);
@@ -194,7 +194,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames_withEmptyDatasets_returnsEmptyListWithNullNextToken() throws IOException
+    public void testDoListSchemaNames_withEmptyDatasets_returnsEmptyListWithNullNextToken() throws Exception
     {
         mockUnlimitedListDatasets(0);
 
@@ -204,7 +204,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames_withNullListDatasetsResponseUnlimited_returnsEmptyListWithNullNextToken() throws IOException
+    public void testDoListSchemaNames_withNullListDatasetsResponseUnlimited_returnsEmptyListWithNullNextToken() throws Exception
     {
         when(bigQuery.listDatasets(nullable(String.class))).thenReturn(null);
 
@@ -214,7 +214,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames_withNullListDatasetsResponsePaginated_returnsEmptyListWithNullNextToken() throws IOException
+    public void testDoListSchemaNames_withNullListDatasetsResponsePaginated_returnsEmptyListWithNullNextToken() throws Exception
     {
         when(bigQuery.listDatasets(nullable(String.class),
                 nullable(BigQuery.DatasetListOption.class), nullable(BigQuery.DatasetListOption.class)))
@@ -258,7 +258,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames_withFirstPaginatedPage_returnsSchemasAndNextToken() throws IOException
+    public void testDoListSchemaNames_withFirstPaginatedPage_returnsSchemasAndNextToken() throws Exception
     {
         final int pageSize = 2;
         final String nextPageToken = "next-page-token";
@@ -275,7 +275,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames_withNextToken_returnsSchemasAndNextToken() throws IOException
+    public void testDoListSchemaNames_withNextToken_returnsSchemasAndNextToken() throws Exception
     {
         final int pageSize = 2;
         final String requestToken = "incoming-page-token";
@@ -290,7 +290,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames_withLastPage_returnsSchemasWithNullNextToken() throws IOException
+    public void testDoListSchemaNames_withLastPage_returnsSchemasWithNullNextToken() throws Exception
     {
         final int pageSize = 3;
         mockPaginatedListDatasets(pageSize, null, false);
@@ -302,7 +302,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames_withEmptyPaginatedPage_returnsEmptyListWithNextToken() throws IOException
+    public void testDoListSchemaNames_withEmptyPaginatedPage_returnsEmptyListWithNextToken() throws Exception
     {
         final int pageSize = 5;
         final String nextPageToken = "next-page-token";
@@ -576,7 +576,7 @@ public class BigQueryMetadataHandlerTest
         return new ListSchemasRequest(federatedIdentity, QUERY_ID, LIST_SCHEMAS_CATALOG, nextToken, pageSize);
     }
 
-    private ListSchemasResponse invokeListSchemaNames(ListSchemasRequest request) throws IOException
+    private ListSchemasResponse invokeListSchemaNames(ListSchemasRequest request) throws Exception
     {
         return bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
     }

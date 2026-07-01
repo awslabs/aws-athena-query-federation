@@ -1,5 +1,6 @@
 {
   "@type" : "ListSchemasResponse",
   "catalogName" : "test-catalog",
-  "schemas" : [ "schema1", "schema2" ]
+  "schemas" : [ "schema1", "schema2" ],
+  "nextToken" : "schema3"
 }

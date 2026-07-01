@@ -2,14 +2,14 @@
  * #%L
  * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 - 2020 Amazon Web Services
+ * Copyright (C) 2019 - 2026 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde.v7;
 
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
@@ -31,12 +31,13 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.IOException;
 import java.util.Collection;
 
-public final class ListSchemasResponseSerDe
+public final class ListSchemasResponseSerDeV7
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String SCHEMAS_FIELD = "schemas";
+    private static final String NEXT_TOKEN_FIELD = "nextToken";
 
-    private ListSchemasResponseSerDe() {}
+    private ListSchemasResponseSerDeV7() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {
@@ -54,6 +55,8 @@ public final class ListSchemasResponseSerDe
             jgen.writeStringField(CATALOG_NAME_FIELD, listSchemasResponse.getCatalogName());
 
             writeStringArray(jgen, SCHEMAS_FIELD, listSchemasResponse.getSchemas());
+
+            jgen.writeStringField(NEXT_TOKEN_FIELD, listSchemasResponse.getNextToken());
         }
     }
 
@@ -70,8 +73,9 @@ public final class ListSchemasResponseSerDe
         {
             String catalogName = getNextStringField(jparser, CATALOG_NAME_FIELD);
             Collection<String> schemas = getNextStringArray(jparser, SCHEMAS_FIELD);
+            String nextToken = getNextStringField(jparser, NEXT_TOKEN_FIELD);
 
-            return new ListSchemasResponse(catalogName, schemas);
+            return new ListSchemasResponse(catalogName, schemas, nextToken);
         }
     }
 }

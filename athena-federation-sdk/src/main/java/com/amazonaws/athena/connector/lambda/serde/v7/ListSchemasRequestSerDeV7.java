@@ -2,14 +2,14 @@
  * #%L
  * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 - 2020 Amazon Web Services
+ * Copyright (C) 2019 - 2026 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,13 +17,15 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde.v7;
 
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.MetadataRequestDeserializer;
+import com.amazonaws.athena.connector.lambda.serde.v2.MetadataRequestSerializer;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -33,13 +35,12 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-public final class ListSchemasRequestSerDe
+public final class ListSchemasRequestSerDeV7
 {
-    private static final String IDENTITY_FIELD = "identity";
-    private static final String QUERY_ID_FIELD = "queryId";
-    private static final String CATALOG_NAME_FIELD = "catalogName";
+    private static final String NEXT_TOKEN_FIELD = "nextToken";
+    private static final String PAGE_SIZE_FIELD = "pageSize";
 
-    private ListSchemasRequestSerDe() {}
+    private ListSchemasRequestSerDeV7() {}
 
     public static final class Serializer extends MetadataRequestSerializer
     {
@@ -55,7 +56,10 @@ public final class ListSchemasRequestSerDe
         protected void doRequestSerialize(FederationRequest federationRequest, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
-            // no other fields
+            ListSchemasRequest listSchemasRequest = (ListSchemasRequest) federationRequest;
+
+            jgen.writeStringField(NEXT_TOKEN_FIELD, listSchemasRequest.getNextToken());
+            jgen.writeNumberField(PAGE_SIZE_FIELD, listSchemasRequest.getPageSize());
         }
     }
 
@@ -73,7 +77,10 @@ public final class ListSchemasRequestSerDe
         protected MetadataRequest doRequestDeserialize(JsonParser jparser, DeserializationContext ctxt, FederatedIdentity identity, String queryId, String catalogName)
                 throws IOException
         {
-            return new ListSchemasRequest(identity, queryId, catalogName);
+            String nextToken = getNextStringField(jparser, NEXT_TOKEN_FIELD);
+            int pageSize = getNextIntField(jparser, PAGE_SIZE_FIELD);
+
+            return new ListSchemasRequest(identity, queryId, catalogName, nextToken, pageSize);
         }
     }
 }

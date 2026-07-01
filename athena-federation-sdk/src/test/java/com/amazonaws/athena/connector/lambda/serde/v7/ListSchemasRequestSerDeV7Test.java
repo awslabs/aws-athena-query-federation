@@ -2,14 +2,14 @@
  * #%L
  * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 - 2020 Amazon Web Services
+ * Copyright (C) 2019 - 2026 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,13 +17,12 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde.v7;
 
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -36,17 +35,18 @@ import java.io.InputStream;
 
 import static org.junit.Assert.assertEquals;
 
-public class ListSchemasResponseSerDeTest extends TypedSerDeTest<FederationResponse>
+public class ListSchemasRequestSerDeV7Test extends TypedSerDeTest<FederationRequest>
 {
-    private static final Logger logger = LoggerFactory.getLogger(ListSchemasResponseSerDeTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ListSchemasRequestSerDeV7Test.class);
 
     @Before
     public void beforeTest()
             throws IOException
     {
-        expected = new ListSchemasResponse("test-catalog", ImmutableList.of("schema1", "schema2"));
+        expected = new ListSchemasRequest(federatedIdentity, "test-query-id", "test-catalog",
+                "schema4", 25);
 
-        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListSchemasResponse.json");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v7", "ListSchemasRequest.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
     }
 
@@ -57,7 +57,7 @@ public class ListSchemasResponseSerDeTest extends TypedSerDeTest<FederationRespo
         logger.info("serialize: enter");
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        mapper.writeValue(outputStream, expected);
+        mapperV7.writeValue(outputStream, expected);
 
         String actual = new String(outputStream.toByteArray(), JsonEncoding.UTF8.getJavaName());
         logger.info("serialize: serialized text[{}]", actual);
@@ -74,7 +74,7 @@ public class ListSchemasResponseSerDeTest extends TypedSerDeTest<FederationRespo
         logger.info("deserialize: enter");
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
 
-        ListSchemasResponse actual = (ListSchemasResponse) mapper.readValue(input, FederationResponse.class);
+        ListSchemasRequest actual = (ListSchemasRequest) mapperV7.readValue(input, FederationRequest.class);
 
         logger.info("deserialize: deserialized[{}]", actual);
 

@@ -10,7 +10,5 @@
     "configOptions" : { }
   },
   "queryId" : "test-query-id",
-  "catalogName" : "test-catalog",
-  "nextToken" : "schema4",
-  "pageSize" : 25
+  "catalogName" : "test-catalog"
 }
