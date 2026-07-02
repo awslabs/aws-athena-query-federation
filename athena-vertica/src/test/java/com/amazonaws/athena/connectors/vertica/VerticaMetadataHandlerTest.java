@@ -44,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -78,6 +79,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -890,6 +892,166 @@ public class VerticaMetadataHandlerTest extends TestBase
         Assert.assertEquals(expectedExportSql, actualSql);
 
         logger.info("Empty constraints test - Generated SQL: {}", actualSql);
+    }
+    
+    @Test
+    public void doGetTable_WithValidSchema_ConnectionClosed() throws Exception {
+        Schema tableSchema = SchemaBuilder.newBuilder().addIntField("id").build();
+        Mockito.when(verticaSchemaUtils.buildTableSchema(connection, tableName)).thenReturn(tableSchema);
+
+        GetTableRequest request = new GetTableRequest(federatedIdentity, QUERY_ID, TEST_CATALOG, tableName, Collections.emptyMap());
+        verticaMetadataHandler.doGetTable(allocator, request);
+
+        // try-with-resources must call connection.close() exactly once
+        Mockito.verify(connection, Mockito.times(1)).close();
+    }
+
+    @Test
+    public void getPartitions_WithValidColumns_ConnectionClosed() throws Exception {
+        String[] schema = {TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, TYPE_NAME};
+        Object[][] values = {{TEST_SCHEMA, TEST_TABLE, "id", "int"}};
+        int[] types = {Types.INTEGER};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getColumns(null, TEST_SCHEMA, TEST_TABLE, null)).thenReturn(resultSet);
+        Mockito.lenient().when(queryFactory.createVerticaExportQueryBuilder())
+                .thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(TEST_S3_BUCKET);
+
+        Schema tableSchema = SchemaBuilder.newBuilder().addIntField("id").build();
+        Set<String> partitionCols = new HashSet<>();
+
+        try (GetTableLayoutRequest req = new GetTableLayoutRequest(federatedIdentity, TEST_QUERY_ID, DEFAULT_CATALOG,
+                new TableName(TEST_SCHEMA, TEST_TABLE),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                tableSchema, partitionCols);
+             GetTableLayoutResponse res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req)) {
+            assertNotNull(res);
+        }
+
+        // connection.close() must be called (try-with-resources in getPartitions)
+        Mockito.verify(connection, Mockito.atLeastOnce()).close();
+    }
+
+    @Test
+    public void doGetSplits_WithValidPartitions_ConnectionClosed() throws Exception {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("preparedStmt")
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
+                .build();
+
+        Block partitions = allocator.createBlock(schema);
+        BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), 0, TEST_VALUE);
+        BlockUtils.setValue(partitions.getFieldVector(TEST_QUERY_ID), 0, "123");
+        BlockUtils.setValue(partitions.getFieldVector(AWS_REGION_SQL_FIELD), 0, "us-west-2");
+
+        List<S3Object> objectList = new ArrayList<>();
+        objectList.add(S3Object.builder().key("testKey").build());
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(TEST_S3_BUCKET);
+        Mockito.when(amazonS3.listObjects(nullable(ListObjectsRequest.class)))
+                .thenReturn(ListObjectsResponse.builder().contents(objectList).build());
+
+        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, TEST_QUERY_ID, "catalog_name",
+                new TableName("schema", "table_name"), partitions, Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
+
+        verticaMetadataHandlerMocked.doGetSplits(allocator, req);
+
+        // connection.close() must be called (try-with-resources in doGetSplits)
+        Mockito.verify(connection, Mockito.times(1)).close();
+    }
+    
+    @Test
+    public void doListSchemaNames_StaleConnection_RetriesAndReturnsSchemas() throws Exception {
+        String[] schema = {"TABLE_SCHEM"};
+        Object[][] values = {{"testDB1"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        // first connection is stale — throws VJDBC error code 100023 (Lambda freeze/resume scenario)
+        // SQLException(reason, sqlState, vendorCode): vendorCode is what getErrorCode() returns
+        Connection staleConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(staleConnection.getMetaData().getTables(null, null, null, TABLE_TYPES))
+                .thenThrow(new SQLException("Unexpected message type: RowDescription", "S1000", 100023));
+
+        // second connection is fresh — succeeds
+        Connection freshConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(freshConnection.getMetaData().getTables(null, null, null, TABLE_TYPES)).thenReturn(resultSet);
+        Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
+
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
+                .thenReturn(staleConnection)
+                .thenReturn(freshConnection);
+
+        ListSchemasResponse response = verticaMetadataHandler.doListSchemaNames(allocator,
+                new ListSchemasRequest(federatedIdentity, QUERY_ID, TEST_CATALOG));
+
+        Assert.assertArrayEquals(new String[]{"testDB1"}, response.getSchemas().toArray());
+        // getConnection() must be called exactly twice: once for stale, once for retry
+        Mockito.verify(jdbcConnectionFactory, Mockito.times(2))
+                .getConnection(nullable(CredentialsProvider.class));
+    }
+
+    @Test
+    public void doListSchemaNames_NonStaleSQLException_NotRetried() throws Exception {
+        Connection failingConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        // error code 0 (any non-100023 code) must not trigger retry
+        Mockito.when(failingConnection.getMetaData().getTables(null, null, null, TABLE_TYPES))
+                .thenThrow(new SQLException("Some other DB error", "S1000", 0));
+
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
+                .thenReturn(failingConnection);
+
+        try {
+            verticaMetadataHandler.doListSchemaNames(allocator,
+                    new ListSchemasRequest(federatedIdentity, QUERY_ID, TEST_CATALOG));
+            fail("Expected SQLException");
+        } catch (SQLException e) {
+            assertEquals("Some other DB error", e.getMessage());
+        }
+
+        // getConnection() must be called only once — non-100023 errors must not trigger retry
+        Mockito.verify(jdbcConnectionFactory, Mockito.times(1))
+                .getConnection(nullable(CredentialsProvider.class));
+    }
+    
+    @Test
+    public void doGetSplits_CheckedExceptionFromGetConnection_WrappedAsConnectionFailed() throws Exception {
+        // A checked Exception thrown by getConnection() must be wrapped with "connection failed"
+        // to preserve the original error message contract.
+        JdbcConnectionFactory failingFactory = Mockito.mock(JdbcConnectionFactory.class);
+        Mockito.when(failingFactory.getConnection(nullable(CredentialsProvider.class)))
+                .thenThrow(new Exception("DB host unreachable"));
+
+        VerticaMetadataHandler handlerWithFailingFactory = new VerticaMetadataHandler(
+                databaseConnectionConfig, failingFactory,
+                com.google.common.collect.ImmutableMap.of(), amazonS3, verticaSchemaUtils);
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("preparedStmt")
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
+                .build();
+
+        Block partitions = allocator.createBlock(schema);
+        BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), 0, TEST_VALUE);
+        BlockUtils.setValue(partitions.getFieldVector(TEST_QUERY_ID), 0, "123");
+        BlockUtils.setValue(partitions.getFieldVector(AWS_REGION_SQL_FIELD), 0, "us-west-2");
+
+        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, TEST_QUERY_ID, "catalog_name",
+                new TableName("schema", "table_name"), partitions, Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
+
+        try {
+            handlerWithFailingFactory.doGetSplits(allocator, req);
+            fail("Expected AthenaConnectorException");
+        } catch (AthenaConnectorException e) {
+            assertTrue("Checked exception must be wrapped as 'connection failed'",
+                    e.getMessage().contains("connection failed"));
+            assertEquals("Original cause must be preserved", "DB host unreachable", e.getCause().getMessage());
+        }
     }
 
     private Schema createTestSchema(String... columnSpecs)
