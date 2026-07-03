@@ -1,0 +1,119 @@
+Transform: 'AWS::Serverless-2016-10-31'
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaInfluxDbConnector
+    Description: 'This connector enables Amazon Athena to query InfluxDB 3 time-series data via Flight SQL.'
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels:
+      - athena-federation
+    HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+    SemanticVersion: 2022.47.1
+    SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+Parameters:
+  AthenaCatalogName:
+    Description: 'The name of the Lambda function and Athena catalog that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    Default: athena-influxdb
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  InfluxDbHost:
+    Description: 'The InfluxDB 3 host URL (e.g., https://us-east-1-1.aws.cloud2.influxdata.com).'
+    Type: String
+  InfluxDbSecretId:
+    Description: 'The name or ARN of the Secrets Manager secret containing the InfluxDB auth token.'
+    Type: String
+  InfluxDbTokenKey:
+    Description: 'If the secret is JSON, the key to extract the token from. Defaults to "token".'
+    Type: String
+    Default: token
+  InfluxDbDatabase:
+    Description: '(Optional) Default InfluxDB database to query. If left empty, all accessible databases are exposed.'
+    Type: String
+    Default: ''
+  LambdaTimeout:
+    Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: 'Lambda memory in MB (min 128 - 3008 max).'
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: 'false'
+    Type: String
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+  SecurityGroupIds:
+    Description: "(Optional) Comma-delimited list of security group IDs for VPC access. Required for Timestream for InfluxDB."
+    Type: CommaDelimitedList
+    Default: ''
+  SubnetIds:
+    Description: "(Optional) Comma-delimited list of subnet IDs for VPC access. Required for Timestream for InfluxDB."
+    Type: CommaDelimitedList
+    Default: ''
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  HasVpcConfig: !Not [ !Equals [ !Join [ "", !Ref SubnetIds ], "" ] ]
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          influxdb_host: !Ref InfluxDbHost
+          influxdb_token: !Join ['', ['${', !Ref InfluxDbSecretId, '}']]
+          influxdb_token_key: !Ref InfluxDbTokenKey
+          influxdb_database: !Ref InfluxDbDatabase
+      FunctionName: !Ref AthenaCatalogName
+      Handler: "com.amazonaws.athena.connectors.influxdb.InfluxDbCompositeHandler"
+      CodeUri: "./target/athena-influxdb-2022.47.1.jar"
+      Description: "Enables Amazon Athena to query InfluxDB 3 time-series data via Flight SQL."
+      Runtime: java25
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
+      VpcConfig: !If
+        - HasVpcConfig
+        - SecurityGroupIds: !Ref SecurityGroupIds
+          SubnetIds: !Ref SubnetIds
+        - !Ref "AWS::NoValue"
+      Policies:
+        - Statement:
+            - Action:
+                - athena:GetQueryExecution
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket
+        - Statement:
+            - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${InfluxDbSecretId}*'
+          Version: '2012-10-17'
+        # VPC access requires ENI management permissions
+        - Statement:
+            - Action:
+                - ec2:CreateNetworkInterface
+                - ec2:DeleteNetworkInterface
+                - ec2:DescribeNetworkInterfaces
+                - ec2:DetachNetworkInterface
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
