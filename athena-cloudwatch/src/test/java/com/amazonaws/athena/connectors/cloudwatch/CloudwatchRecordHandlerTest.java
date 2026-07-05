@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -47,11 +48,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -78,13 +81,41 @@ import java.util.UUID;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CloudwatchRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudwatchRecordHandlerTest.class);
+
+    // Managed-connector (Athena federation) Substrait plans, used by the tests below. These are real
+    // plans produced by the same Isthmus SqlToSubstrait + SchemaSerDe path the DNA test runner uses,
+    // over the Cloudwatch table schema [log_stream VARCHAR, time BIGINT, message VARCHAR]. They are
+    // embedded as constants because the connector does not depend on Isthmus/Calcite. Regenerate from
+    // the SQL noted on each constant if the schema or Substrait version changes.
+    // SELECT * FROM "cloudwatch-test-stream" WHERE "time" > 1700000000000
+    private static final String PLAN_TIME_GT =
+            "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEhoQCAEQARoKZ3Q6YW55X2FueRrZARLWAQq4ATq1AQoHEgUKAwMEBRKHARKEAQoCCgASVwpVCgIKABIxCgpsb2dfc3RyZWFtCgR0aW1lCgdtZXNzYWdlEhQKBGICEAEKBDoCEAEKBGICEAEYAjocCgJkYgoWY2xvdWR3YXRjaC10ZXN0LXN0cmVhbRolGiMIARoECgIQASIMGgoSCAoEEgIIASIAIgsaCQoHOIDQlf+8MRoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgASCmxvZ19zdHJlYW0SBHRpbWUSB21lc3NhZ2UyCxBKKgdpc3RobXVz";
+    // SELECT * FROM "cloudwatch-test-stream" WHERE "time" >= 1700000000000 AND "time" <= 1700000100000
+    private static final String PLAN_TIME_BETWEEN =
+            "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIQGg4IARABGghhbmQ6Ym9vbBITGhEIAhACGgtndGU6YW55X2FueRITGhEIAhADGgtsdGU6YW55X2FueRqQAhKNAgrvATrsAQoHEgUKAwMEBRK+ARK7AQoCCgASVwpVCgIKABIxCgpsb2dfc3RyZWFtCgR0aW1lCgdtZXNzYWdlEhQKBGICEAEKBDoCEAEKBGICEAEYAjocCgJkYgoWY2xvdWR3YXRjaC10ZXN0LXN0cmVhbRpcGloIARoECgIQASInGiUaIwgCGgQKAhABIgwaChIICgQSAggBIgAiCxoJCgc4gNCV/7wxIicaJRojCAMaBAoCEAEiDBoKEggKBBICCAEiACILGgkKBzig3Zv/vDEaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAEgpsb2dfc3RyZWFtEgR0aW1lEgdtZXNzYWdlMgsQSioHaXN0aG11cw==";
+    // SELECT * FROM "cloudwatch-test-stream" WHERE "time" = 1700000000000
+    private static final String PLAN_TIME_EQUAL =
+            "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRrZARLWAQq4ATq1AQoHEgUKAwMEBRKHARKEAQoCCgASVwpVCgIKABIxCgpsb2dfc3RyZWFtCgR0aW1lCgdtZXNzYWdlEhQKBGICEAEKBDoCEAEKBGICEAEYAjocCgJkYgoWY2xvdWR3YXRjaC10ZXN0LXN0cmVhbRolGiMIARoECgIQASIMGgoSCAoEEgIIASIAIgsaCQoHOIDQlf+8MRoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgASCmxvZ19zdHJlYW0SBHRpbWUSB21lc3NhZ2UyCxBKKgdpc3RobXVz";
+    // SELECT * FROM "cloudwatch-test-stream" WHERE "message" = 'err'  (non-time predicate; not pushable)
+    private static final String PLAN_MESSAGE_EQUAL =
+            "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRrXARLUAQq2ATqzAQoHEgUKAwMEBRKFARKCAQoCCgASVwpVCgIKABIxCgpsb2dfc3RyZWFtCgR0aW1lCgdtZXNzYWdlEhQKBGICEAEKBDoCEAEKBGICEAEYAjocCgJkYgoWY2xvdWR3YXRjaC10ZXN0LXN0cmVhbRojGiEIARoECgIQASIMGgoSCAoEEgIIAiIAIgkaBwoFYgNlcnIaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAEgpsb2dfc3RyZWFtEgR0aW1lEgdtZXNzYWdlMgsQSioHaXN0aG11cw==";
+    // Valid base64 that does not decode to a Substrait Plan protobuf.
+    private static final String PLAN_MALFORMED = "Zm9vYmFy";
+    private static final long TIME_LOWER = 1_700_000_000_000L;
+    private static final long TIME_UPPER = 1_700_000_100_000L;
 
     private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private List<ByteHolder> mockS3Storage;
@@ -279,6 +310,137 @@ public class CloudwatchRecordHandlerTest
         }
 
         logger.info("doReadRecordsSpill: exit");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Managed-connector (Athena federation) behaviour: customer FAS credential override + Substrait
+    // time-range pushdown. These tests re-stub getLogEvents with a single-page capturing answer
+    // (the @Before stub asserts non-null time bounds and returns a large multi-page response, which
+    // is incompatible with the no-pushdown assertions below).
+    // ---------------------------------------------------------------------------------------------
+
+    private void stubCapturingGetLogEvents()
+    {
+        // Use doAnswer(...).when(...) rather than when(...).thenAnswer(...): the latter would re-invoke the
+        // asserting answer installed in @Before (with a null request) while evaluating the matcher.
+        doAnswer((InvocationOnMock inv) ->
+                GetLogEventsResponse.builder()
+                        .events(OutputLogEvent.builder().timestamp(100L).message("message-0").build())
+                        .build())
+                .when(mockAwsLogs).getLogEvents(nullable(GetLogEventsRequest.class));
+    }
+
+    private ReadRecordsRequest managedConnectorRequest(Constraints constraints)
+    {
+        Split split = Split.newBuilder(S3SpillLocation.newBuilder()
+                        .withBucket(UUID.randomUUID().toString())
+                        .withSplitId(UUID.randomUUID().toString())
+                        .withQueryId(UUID.randomUUID().toString())
+                        .withIsDirectory(true)
+                        .build(), keyFactory.create())
+                .add(CloudwatchMetadataHandler.LOG_GROUP_FIELD, "/glue-connectors/cloudwatch-test")
+                .add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "cloudwatch-test-stream")
+                .build();
+
+        return new ReadRecordsRequest(identity,
+                "catalog",
+                "queryId-" + System.currentTimeMillis(),
+                new TableName("/glue-connectors/cloudwatch-test", "cloudwatch-test-stream"),
+                schemaForRead,
+                split,
+                constraints,
+                100_000_000_000L,  // large so the single row never spills
+                100_000_000_000L);
+    }
+
+    private Constraints substraitConstraints(String planBase64)
+    {
+        return new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                DEFAULT_NO_LIMIT, Collections.emptyMap(), new QueryPlan("", planBase64));
+    }
+
+    private GetLogEventsRequest runAndCaptureLogEventsRequest(CloudwatchRecordHandler target, Constraints constraints)
+            throws Exception
+    {
+        RecordResponse response = target.doReadRecords(allocator, managedConnectorRequest(constraints));
+        assertTrue(response instanceof ReadRecordsResponse);
+        ArgumentCaptor<GetLogEventsRequest> captor = ArgumentCaptor.forClass(GetLogEventsRequest.class);
+        verify(mockAwsLogs, atLeastOnce()).getLogEvents(captor.capture());
+        return captor.getValue();
+    }
+
+    @Test
+    public void substraitTimeGreaterThanIsPushedToStartTime()
+            throws Exception
+    {
+        stubCapturingGetLogEvents();
+        GetLogEventsRequest request = runAndCaptureLogEventsRequest(handler, substraitConstraints(PLAN_TIME_GT));
+        assertEquals(Long.valueOf(TIME_LOWER), request.startTime());
+        assertNull(request.endTime());
+    }
+
+    @Test
+    public void substraitTimeRangeIsPushedToStartAndEndTime()
+            throws Exception
+    {
+        stubCapturingGetLogEvents();
+        GetLogEventsRequest request = runAndCaptureLogEventsRequest(handler, substraitConstraints(PLAN_TIME_BETWEEN));
+        assertEquals(Long.valueOf(TIME_LOWER), request.startTime());
+        assertEquals(Long.valueOf(TIME_UPPER), request.endTime());
+    }
+
+    @Test
+    public void substraitTimeEqualIsPushedToBothBounds()
+            throws Exception
+    {
+        stubCapturingGetLogEvents();
+        GetLogEventsRequest request = runAndCaptureLogEventsRequest(handler, substraitConstraints(PLAN_TIME_EQUAL));
+        assertEquals(Long.valueOf(TIME_LOWER), request.startTime());
+        assertEquals(Long.valueOf(TIME_LOWER), request.endTime());
+    }
+
+    @Test
+    public void substraitNonTimePredicateIsNotPushedDown()
+            throws Exception
+    {
+        // A predicate on message has no GetLogEvents equivalent; nothing is pushed and no exception occurs.
+        stubCapturingGetLogEvents();
+        GetLogEventsRequest request = runAndCaptureLogEventsRequest(handler, substraitConstraints(PLAN_MESSAGE_EQUAL));
+        assertNull(request.startTime());
+        assertNull(request.endTime());
+    }
+
+    @Test
+    public void malformedSubstraitPlanDoesNotThrowAndSkipsPushdown()
+            throws Exception
+    {
+        // Best-effort guard: an unparseable plan must never fail the query; it just skips time pushdown.
+        stubCapturingGetLogEvents();
+        GetLogEventsRequest request = runAndCaptureLogEventsRequest(handler, substraitConstraints(PLAN_MALFORMED));
+        assertNull(request.startTime());
+        assertNull(request.endTime());
+    }
+
+    @Test
+    public void appliesCustomerFasOverrideToCloudwatchCalls()
+            throws Exception
+    {
+        // On the managed-connector path getRequestOverrideConfig(configOptions) yields the customer FAS
+        // credentials. Verify that override is threaded onto the Cloudwatch GetLogEvents call.
+        stubCapturingGetLogEvents();
+        CloudwatchRecordHandler spyHandler = spy(handler);
+        AwsRequestOverrideConfiguration fasOverride = AwsRequestOverrideConfiguration.builder().build();
+        doReturn(fasOverride).when(spyHandler).getRequestOverrideConfig(anyMap());
+
+        // Legacy (non-Substrait) constraints: null queryPlan and empty summary => no time pushdown, but
+        // the override must still be applied.
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(),
+                Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+
+        GetLogEventsRequest request = runAndCaptureLogEventsRequest(spyHandler, constraints);
+        assertTrue("expected customer FAS override on the Cloudwatch request",
+                request.overrideConfiguration().isPresent());
+        assertSame(fasOverride, request.overrideConfiguration().get());
     }
 
     private class ByteHolder
