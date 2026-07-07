@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
+import com.amazonaws.athena.connector.credentials.RdsIamAuthConfiguration;
 import org.apache.commons.lang3.Validate;
 
 import java.util.Objects;
@@ -32,6 +33,7 @@ public class DatabaseConnectionConfig
     private final String engine;
     private final String jdbcConnectionString;
     private String secret;
+    private final RdsIamAuthConfiguration iamAuthConfiguration;
 
     /**
      * Creates configuration for credentials managed by AWS Secrets Manager.
@@ -42,10 +44,7 @@ public class DatabaseConnectionConfig
      */
     public DatabaseConnectionConfig(final String catalog, final String engine, final String jdbcConnectionString, final String secret)
     {
-        this.catalog = Validate.notBlank(catalog, "catalog must not be blank");
-        this.engine = Validate.notBlank(engine, "engine must not be blank");
-        this.jdbcConnectionString = Validate.notBlank(jdbcConnectionString, "jdbcConnectionString must not be blank");
-        this.secret = Validate.notBlank(secret, "secret must not be blank");
+        this(catalog, engine, jdbcConnectionString, secret, null);
     }
 
     /**
@@ -56,9 +55,35 @@ public class DatabaseConnectionConfig
      */
     public DatabaseConnectionConfig(final String catalog, final String engine, final String jdbcConnectionString)
     {
+        this(catalog, engine, jdbcConnectionString, null, null);
+    }
+
+    /**
+     * Creates configuration for RDS IAM database authentication.
+     */
+    public DatabaseConnectionConfig(
+            final String catalog,
+            final String engine,
+            final String jdbcConnectionString,
+            final RdsIamAuthConfiguration iamAuthConfiguration)
+    {
+        this(catalog, engine, jdbcConnectionString, null, Validate.notNull(iamAuthConfiguration, "iamAuthConfiguration must not be null"));
+    }
+
+    private DatabaseConnectionConfig(
+            final String catalog,
+            final String engine,
+            final String jdbcConnectionString,
+            final String secret,
+            final RdsIamAuthConfiguration iamAuthConfiguration)
+    {
         this.catalog = Validate.notBlank(catalog, "catalog must not be blank");
         this.engine = Validate.notBlank(engine, "engine must not be blank");
         this.jdbcConnectionString = Validate.notBlank(jdbcConnectionString, "jdbcConnectionString must not be blank");
+        if (secret != null) {
+            this.secret = Validate.notBlank(secret, "secret must not be blank");
+        }
+        this.iamAuthConfiguration = iamAuthConfiguration;
     }
 
     public String getEngine()
@@ -81,6 +106,16 @@ public class DatabaseConnectionConfig
         return secret;
     }
 
+    public boolean isIamAuthEnabled()
+    {
+        return iamAuthConfiguration != null;
+    }
+
+    public RdsIamAuthConfiguration getIamAuthConfiguration()
+    {
+        return iamAuthConfiguration;
+    }
+
     @Override
     public boolean equals(Object o)
     {
@@ -94,13 +129,14 @@ public class DatabaseConnectionConfig
         return Objects.equals(getCatalog(), that.getCatalog()) &&
                 getEngine().equals(that.getEngine()) &&
                 Objects.equals(getJdbcConnectionString(), that.getJdbcConnectionString()) &&
-                Objects.equals(getSecret(), that.getSecret());
+                Objects.equals(getSecret(), that.getSecret()) &&
+                Objects.equals(getIamAuthConfiguration(), that.getIamAuthConfiguration());
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(getCatalog(), getEngine(), getJdbcConnectionString(), getSecret());
+        return Objects.hash(getCatalog(), getEngine(), getJdbcConnectionString(), getSecret(), getIamAuthConfiguration());
     }
 
     @Override
@@ -111,6 +147,7 @@ public class DatabaseConnectionConfig
                 ", engine=" + engine +
                 ", jdbcConnectionString='" + jdbcConnectionString + '\'' +
                 ", secret='" + secret + '\'' +
+                ", iamAuthConfiguration=" + iamAuthConfiguration +
                 '}';
     }
 }

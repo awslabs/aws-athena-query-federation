@@ -59,6 +59,51 @@ public class DatabaseConnectionConfigBuilderTest
         Assert.assertEquals(Arrays.asList(defaultConnection, expectedDatabase1, expectedDatabase2), databaseConnectionConfigs);
     }
 
+    @Test
+    public void build_WhenIamAuthConnectionString_ReturnsIamEnabledConfig()
+    {
+        final String iamConnectionString =
+                "postgres://jdbc:postgresql://mydb.cluster-abc.us-east-1.rds.amazonaws.com:5432/dev?iamAuth=true&user=athena_iam";
+        final DatabaseConnectionConfig expected = new DatabaseConnectionConfig(
+                "default",
+                "postgres",
+                "jdbc:postgresql://mydb.cluster-abc.us-east-1.rds.amazonaws.com:5432/dev",
+                new com.amazonaws.athena.connector.credentials.RdsIamAuthConfiguration(
+                        "mydb.cluster-abc.us-east-1.rds.amazonaws.com",
+                        5432,
+                        "athena_iam",
+                        software.amazon.awssdk.regions.Region.US_EAST_1));
+
+        final List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder()
+                .engine("postgres")
+                .properties(Collections.singletonMap("default", iamConnectionString))
+                .build();
+
+        Assert.assertEquals(Collections.singletonList(expected), databaseConnectionConfigs);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void build_WhenPostgresIamAuthWithoutPort_ThrowsException()
+    {
+        new DatabaseConnectionConfigBuilder()
+                .engine("postgres")
+                .properties(Collections.singletonMap(
+                        "default",
+                        "postgres://jdbc:postgresql://mydb.cluster-abc.us-east-1.rds.amazonaws.com/dev?iamAuth=true&user=athena_iam"))
+                .build();
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void build_WhenIamAuthCombinedWithSecret_ThrowsException()
+    {
+        new DatabaseConnectionConfigBuilder()
+                .engine("postgres")
+                .properties(Collections.singletonMap(
+                        "default",
+                        "postgres://jdbc:postgresql://hostname:5432/dev?iamAuth=true&user=athena_iam&${testSecret}"))
+                .build();
+    }
+
     @Test(expected = RuntimeException.class)
     public void buildMultipleDatabasesFails()
     {
