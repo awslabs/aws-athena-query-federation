@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -42,6 +43,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
+import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialsProviderResolver;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
@@ -173,6 +175,12 @@ public abstract class JdbcMetadataHandler
             return databaseConnectionConfig.getSecret();
         }
         return null;
+    }
+
+    @Override
+    public CredentialsProvider getCredentialProvider(final AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return JdbcCredentialsProviderResolver.resolve(getDatabaseConnectionConfig(), this, requestOverrideConfiguration);
     }
 
     @Override

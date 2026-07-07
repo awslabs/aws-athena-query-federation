@@ -84,9 +84,15 @@ public class GenericJdbcConnectionFactory
             this.jdbcProperties.putAll(properties);
         }
 
-        this.useDirectConnection = configOptions != null && configOptions.containsKey(EnvironmentConstants.FAS_TOKEN);
+        this.useDirectConnection = databaseConnectionConfig.isIamAuthEnabled()
+                || (configOptions != null && configOptions.containsKey(EnvironmentConstants.FAS_TOKEN));
         if (this.useDirectConnection) {
-            LOGGER.info("Glue managed connection detected, using direct JDBC connections");
+            if (databaseConnectionConfig.isIamAuthEnabled()) {
+                LOGGER.info("RDS IAM authentication detected, using direct JDBC connections");
+            }
+            else {
+                LOGGER.info("Glue managed connection detected, using direct JDBC connections");
+            }
             try {
                 Class.forName(databaseConnectionInfo.getDriverClassName());
             }
