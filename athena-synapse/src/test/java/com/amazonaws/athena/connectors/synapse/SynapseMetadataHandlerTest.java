@@ -63,7 +63,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -139,6 +138,15 @@ public class SynapseMetadataHandlerTest
         this.federatedIdentity = mock(FederatedIdentity.class);
     }
 
+    private void mockGetPartitionsPreparedStatements(ResultSet partitionResultSet, ResultSet rowCountResultSet) throws SQLException
+    {
+        PreparedStatement psPartitions = mock(PreparedStatement.class);
+        PreparedStatement psRowCount = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(any(String.class))).thenReturn(psPartitions, psRowCount);
+        when(psPartitions.executeQuery()).thenReturn(partitionResultSet);
+        when(psRowCount.executeQuery()).thenReturn(rowCountResultSet);
+    }
+
     @Test
     public void getPartitionSchema()
     {
@@ -159,14 +167,12 @@ public class SynapseMetadataHandlerTest
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
-        String[] columns = {"ROW_COUNT", PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
-        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
-        Object[][] values = {{2, null, null, null}, {0, "1", "id", "100000"}, {0, "2", "id", "300000"}};
-        ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        String[] partitionColumns = {PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
+        int[] partitionTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] partitionValues = {{"1", "id", "100000"}, {"2", "id", "300000"}};
+        ResultSet partitionRs = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{2}}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         GetTableLayoutResponse getTableLayoutResponse = this.synapseMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
@@ -194,16 +200,13 @@ public class SynapseMetadataHandlerTest
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
-        Object[][] values = {{}};
-        ResultSet resultSet = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{0}}, new AtomicInteger(-1));
+        ResultSet partitionRs = mockResultSet(new String[]{PARTITION_NUMBER}, new int[]{Types.VARCHAR}, new Object[][]{}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         GetTableLayoutResponse getTableLayoutResponse = this.synapseMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
-        assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
+        assertEquals(1, getTableLayoutResponse.getPartitions().getRowCount());
 
         List<String> actualValues = new ArrayList<>();
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
@@ -246,15 +249,12 @@ public class SynapseMetadataHandlerTest
         Constraints constraints = mock(Constraints.class);
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
-        String[] columns = {"ROW_COUNT", PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
-        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
-        Object[][] values = {{2, null, null, null}, {0, 1, "id", "0"}, {0, 2, "id", "105"}, {0, 3, "id", "327"}, {0, 4, "id", null}};
-
-        ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        String[] partitionColumns = {PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
+        int[] partitionTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] partitionValues = {{"1", "id", "0"}, {"2", "id", "105"}, {"3", "id", "327"}, {"4", "id", null}};
+        ResultSet partitionRs = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{2}}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         Schema partitionSchema = this.synapseMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
@@ -304,12 +304,9 @@ public class SynapseMetadataHandlerTest
         Constraints constraints = mock(Constraints.class);
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
-        Object[][] values = {{}};
-        ResultSet resultSet = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{0}}, new AtomicInteger(-1));
+        ResultSet partitionRs = mockResultSet(new String[]{PARTITION_NUMBER}, new int[]{Types.VARCHAR}, new Object[][]{}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         Schema partitionSchema = this.synapseMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
@@ -339,15 +336,12 @@ public class SynapseMetadataHandlerTest
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
-        String[] columns = {"ROW_COUNT", PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
-        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
-        Object[][] values = {{2, null, null, null}, {0, 1, "id", "0"}, {0, 2, "id", "105"}, {0, 3, "id", "327"}, {0, 4, "id", null}};
-
-        ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        String[] partitionColumns = {PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
+        int[] partitionTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] partitionValues = {{"1", "id", "0"}, {"2", "id", "105"}, {"3", "id", "327"}, {"4", "id", null}};
+        ResultSet partitionRs = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{2}}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         GetTableLayoutResponse getTableLayoutResponse = this.synapseMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 

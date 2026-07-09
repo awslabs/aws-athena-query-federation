@@ -79,6 +79,9 @@ public abstract class JdbcSplitQueryBuilder
 
     private static final Pattern WHERE_PATTERN = Pattern.compile("\\bWHERE\\b", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern TRAILING_CLAUSES_PATTERN = Pattern.compile(
+            "\\s+(FETCH\\s|ORDER\\s+BY\\s|LIMIT\\s|OFFSET\\s)", Pattern.CASE_INSENSITIVE);
+
     private static final int MILLIS_SHIFT = 12;
 
     private final String quoteCharacters;
@@ -155,7 +158,7 @@ public abstract class JdbcSplitQueryBuilder
         sql.append(getFromClauseWithSplit(catalog, schema, table, split));
 
         List<String> clauses = toConjuncts(tableSchema.getFields(), constraints, accumulator, split.getProperties());
-        clauses.addAll(getPartitionWhereClauses(split));
+        addPartitionWhereClauses(split, clauses, accumulator);
         if (!clauses.isEmpty()) {
             sql.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
@@ -282,6 +285,16 @@ public abstract class JdbcSplitQueryBuilder
     }
 
     protected abstract String getFromClauseWithSplit(final String catalog, final String schema, final String table, final Split split);
+
+    /**
+     * Appends partition-related WHERE conjuncts for this split. The default implementation delegates to
+     * {@link #getPartitionWhereClauses(Split)}. Overrides may append predicates that use {@code ?} placeholders
+     * and push corresponding values into {@code accumulator} for {@link PreparedStatement} binding.
+     */
+    protected void addPartitionWhereClauses(Split split, List<String> clauses, List<TypeAndValue> accumulator)
+    {
+        clauses.addAll(getPartitionWhereClauses(split));
+    }
 
     protected abstract List<String> getPartitionWhereClauses(final Split split);
 
@@ -457,7 +470,7 @@ public abstract class JdbcSplitQueryBuilder
             RelDataType tableSchema = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect);
             SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, tableSchema);
             SqlNode parameterizedNode = visitor.visit(root);
-            
+
             LOGGER.debug("CalciteSql parameterized sql with dialect {}: {}", sqlDialect.toString(), parameterizedNode.toSqlString(sqlDialect).getSql());
             LOGGER.debug("CalciteSql parameters: {}", accumulator.toString());
 
@@ -465,7 +478,15 @@ public abstract class JdbcSplitQueryBuilder
             List<String> splitClauses = getPartitionWhereClauses(split);
             if (!splitClauses.isEmpty()) {
                 String splitWhere = String.join(" AND ", splitClauses);
-                sql = WHERE_PATTERN.matcher(sql).find() ? sql + " AND " + splitWhere : sql + " WHERE " + splitWhere;
+                String conjunction = WHERE_PATTERN.matcher(sql).find() ? " AND " : " WHERE ";
+                java.util.regex.Matcher trailingMatcher = TRAILING_CLAUSES_PATTERN.matcher(sql);
+                if (trailingMatcher.find()) {
+                    int insertPos = trailingMatcher.start();
+                    sql = sql.substring(0, insertPos) + conjunction + splitWhere + sql.substring(insertPos);
+                }
+                else {
+                    sql = sql + conjunction + splitWhere;
+                }
             }
             PreparedStatement statement = jdbcConnection.prepareStatement(sql);
             ParameterMetaData metaData = statement.getParameterMetaData();
