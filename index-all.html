@@ -2738,6 +2738,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html#DEFAULT_NO_LIMIT">DEFAULT_NO_LIMIT</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html#DEFAULT_NUM_SPLITS">DEFAULT_NUM_SPLITS</a></span> - Static variable in class com.amazonaws.athena.connectors.postgresql.<a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.postgresql">PostGreSqlMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseConstants.html#DEFAULT_PORT">DEFAULT_PORT</a></span> - Static variable in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseConstants.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html#DEFAULT_PORT">DEFAULT_PORT</a></span> - Static variable in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2Constants</a></dt>
@@ -6872,9 +6874,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Returns he split being read.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName)">getSplitClauses(TableName)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">getSplitClauses(TableName, GetSplitsRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">getSplitClauses(TableName, GetSplitsRequest)</a></span> - Method in class com.amazonaws.athena.connectors.postgresql.<a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.postgresql">PostGreSqlMetadataHandler</a></dt>
+<dd>
+<div class="block">This method automatically detects and skips UUID columns to prevent flooding PostgreSQL logs
+ with "function min(uuid) does not exist" errors.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redshift/RedshiftMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">getSplitClauses(TableName, GetSplitsRequest)</a></span> - Method in class com.amazonaws.athena.connectors.redshift.<a href="com/amazonaws/athena/connectors/redshift/RedshiftMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redshift">RedshiftMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html#getSplitRange()">getSplitRange()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.splits.<a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.splits">SplitInfo</a></dt>
 <dd>&nbsp;</dd>
@@ -11640,6 +11645,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Split iterator for type T.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html#splitterFactory">splitterFactory</a></span> - Variable in class com.amazonaws.athena.connectors.postgresql.<a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.postgresql">PostGreSqlMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitterFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.splits"><span class="typeNameLink">SplitterFactory</span></a> - Class in <a href="com/amazonaws/athena/connectors/jdbc/splits/package-summary.html">com.amazonaws.athena.connectors.jdbc.splits</a></dt>
 <dd>
 <div class="block">Creates splitter depending on split column data type.</div>
@@ -11649,6 +11656,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html#SQL_POOL">SQL_POOL</a></span> - Static variable in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2Constants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/synapse/SynapseConstants.html#SQL_POOL">SQL_POOL</a></span> - Static variable in class com.amazonaws.athena.connectors.synapse.<a href="com/amazonaws/athena/connectors/synapse/SynapseConstants.html" title="class in com.amazonaws.athena.connectors.synapse">SynapseConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html#SQL_SPLITS_STRING">SQL_SPLITS_STRING</a></span> - Static variable in class com.amazonaws.athena.connectors.postgresql.<a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.postgresql">PostGreSqlMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/sqlserver/SqlServerConstants.html#SQLSERVER_QUOTE_CHARACTER">SQLSERVER_QUOTE_CHARACTER</a></span> - Static variable in class com.amazonaws.athena.connectors.sqlserver.<a href="com/amazonaws/athena/connectors/sqlserver/SqlServerConstants.html" title="class in com.amazonaws.athena.connectors.sqlserver">SqlServerConstants</a></dt>
 <dd>&nbsp;</dd>

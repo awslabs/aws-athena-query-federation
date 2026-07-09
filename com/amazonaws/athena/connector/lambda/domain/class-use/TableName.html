@@ -1393,17 +1393,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Gets the schema for a table with optional request override configuration.</div>
 </td>
 </tr>
-<tr class="rowColor">
-<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">JdbcMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName)">getSplitClauses</a></span>&#8203;(<a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">JdbcMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/jdbc/manager/JdbcMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">getSplitClauses</a></span>&#8203;(<a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-               <a href="../../metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;getSplitsRequest)</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
 </tbody>
 </table>
 </section>
@@ -1614,6 +1603,15 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
              <a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PostGreSqlMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/postgresql/PostGreSqlMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">getSplitClauses</a></span>&#8203;(<a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+               <a href="../../metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;getSplitsRequest)</code></th>
+<td class="colLast">
+<div class="block">This method automatically detects and skips UUID columns to prevent flooding PostgreSQL logs
+ with "function min(uuid) does not exist" errors.</div>
+</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -1637,6 +1635,22 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName,
                    int&nbsp;token,
                    int&nbsp;limit)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary">
+<caption><span>Methods in <a href="../../../../connectors/redshift/package-summary.html">com.amazonaws.athena.connectors.redshift</a> with parameters of type <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Method</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">RedshiftMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/redshift/RedshiftMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">getSplitClauses</a></span>&#8203;(<a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+               <a href="../../metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;getSplitsRequest)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
