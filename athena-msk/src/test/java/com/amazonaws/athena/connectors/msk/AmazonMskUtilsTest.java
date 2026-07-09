@@ -19,12 +19,11 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
+import com.amazonaws.athena.connectors.msk.dto.Message;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -52,36 +51,34 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.ByteArrayInputStream;
-import java.io.FileWriter;
 import java.util.*;
 
 import static com.amazonaws.athena.connectors.msk.AmazonMskUtils.*;
-import static org.junit.Assert.*;
-import static java.util.Arrays.asList;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AmazonMskUtilsTest {
-    @Mock
-    FileWriter fileWriter;
-
-    @Mock
-    ObjectMapper objectMapper;
-
+    private static final String SASL_SSL = "SASL_SSL";
+    private static final String SECURITY_PROTOCOL = "security.protocol";
+    private static final String SASL_MECHANISM = "sasl.mechanism";
+    private static final String SASL_JAAS_CONFIG = "sasl.jaas.config";
+    private static final String AUTH_TYPE = "auth_type";
+    private static final String NAME = "name";
+    private static final String DATA_FORMAT = "dataFormat";
+    private static final String ADMIN = "admin";
+    private static final String TEST = "test";
+    private static final String KEY_PASS = "keypass";
+    private static final String TRUST_PASS = "trustpass";
+    private static final String SSL_PASS = "sslpass";
+    private static final String SSL_TRUSTSTORE_PASSWORD = "ssl.truststore.password";
     @Mock
     SecretsManagerClient awsSecretsManager;
 
     @Mock
-    GetSecretValueRequest secretValueRequest;
-
-    @Mock
     GetSecretValueResponse secretValueResponse;
-
-    @Mock
-    DefaultAWSCredentialsProviderChain chain;
-
-    @Mock
-    AWSStaticCredentialsProvider credentialsProvider;
 
     @Mock
     BasicAWSCredentials credentials;
@@ -100,31 +97,29 @@ public class AmazonMskUtilsTest {
     private MockedStatic<SecretsManagerClient> mockedSecretsManagerClient;
 
     @Before
-    public void init() throws Exception {
+    public void init() {
         System.setProperty("aws.region", "us-west-2");
         System.setProperty("aws.accessKeyId", "xxyyyioyuu");
         System.setProperty("aws.secretKey", "vamsajdsjkl");
         mockedSecretsManagerClient = Mockito.mockStatic(SecretsManagerClient.class);
-        mockedSecretsManagerClient.when(()-> SecretsManagerClient.create()).thenReturn(awsSecretsManager);
+        mockedSecretsManagerClient.when(SecretsManagerClient::create).thenReturn(awsSecretsManager);
         mockedS3ClientBuilder = Mockito.mockStatic(S3Client.class);
-        mockedS3ClientBuilder.when(()-> S3Client.create()).thenReturn(amazonS3Client);
+        mockedS3ClientBuilder.when(S3Client::create).thenReturn(amazonS3Client);
 
 
-        String creds = "{\"username\":\"admin\",\"password\":\"test\",\"keystore_password\":\"keypass\",\"truststore_password\":\"trustpass\",\"ssl_key_password\":\"sslpass\"}";
+        String creds = "{\"username\":\"" + ADMIN + "\",\"password\":\"" + TEST + "\",\"keystore_password\":\"" + KEY_PASS + "\",\"truststore_password\":\"" + TRUST_PASS + "\",\"ssl_key_password\":\"" + SSL_PASS + "\"}";
 
         Map<String, Object> map = new HashMap<>();
-        map.put("username", "admin");
-        map.put("password", "test");
-        map.put("keystore_password", "keypass");
-        map.put("truststore_password", "trustpass");
-        map.put("ssl_key_password", "sslpass");
+        map.put("username", ADMIN);
+        map.put("password", TEST);
+        map.put("keystore_password", KEY_PASS);
+        map.put("truststore_password", TRUST_PASS);
+        map.put("ssl_key_password", SSL_PASS);
 
         Mockito.when(secretValueResponse.secretString()).thenReturn(creds);
         Mockito.when(awsSecretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(secretValueResponse);
         mockedDefaultCredentials = Mockito.mockConstruction(DefaultAWSCredentialsProviderChain.class,
-                (mock, context) -> {
-                    Mockito.when(mock.getCredentials()).thenReturn(credentials);
-                });
+                (mock, context) -> Mockito.when(mock.getCredentials()).thenReturn(credentials));
         S3Object s3 = S3Object.builder().key("test/key").build();
         Mockito.when(amazonS3Client.listObjects(any(ListObjectsRequest.class))).thenReturn(ListObjectsResponse.builder()
                 .contents(s3)
@@ -141,40 +136,40 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testGetScramAuthKafkaProperties() throws Exception {
+    public void getKafkaProperties_whenSaslScramSha512_returnsScramAuthProperties() throws Exception {
         java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
-        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.SASL_SSL_SCRAM_SHA512.toString());
-        String sasljaasconfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"admin\" password=\"test\";";
+        testConfigOptions.put(AUTH_TYPE, AmazonMskUtils.AuthType.SASL_SSL_SCRAM_SHA512.toString());
+        String sasljaasconfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + ADMIN + "\" password=\"" + TEST + "\";";
         Properties properties = getKafkaProperties(testConfigOptions);
-        assertEquals("SASL_SSL", properties.get("security.protocol"));
-        assertEquals("SCRAM-SHA-512", properties.get("sasl.mechanism"));
-        assertEquals(sasljaasconfig, properties.get("sasl.jaas.config"));
+        assertEquals(SASL_SSL, properties.get(SECURITY_PROTOCOL));
+        assertEquals("SCRAM-SHA-512", properties.get(SASL_MECHANISM));
+        assertEquals(sasljaasconfig, properties.get(SASL_JAAS_CONFIG));
     }
 
     @Test
-    public void testGetIAMAuthKafkaProperties() throws Exception {
+    public void getKafkaProperties_whenIamAuth_returnsIamAuthProperties() throws Exception {
         java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
-        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.SASL_SSL_AWS_MSK_IAM.toString());
+        testConfigOptions.put(AUTH_TYPE, AmazonMskUtils.AuthType.SASL_SSL_AWS_MSK_IAM.toString());
         Properties properties = getKafkaProperties(testConfigOptions);
-        assertEquals("SASL_SSL", properties.get("security.protocol"));
-        assertEquals("AWS_MSK_IAM", properties.get("sasl.mechanism"));
-        assertEquals("software.amazon.msk.auth.iam.IAMLoginModule required;", properties.get("sasl.jaas.config"));
+        assertEquals(SASL_SSL, properties.get(SECURITY_PROTOCOL));
+        assertEquals("AWS_MSK_IAM", properties.get(SASL_MECHANISM));
+        assertEquals("software.amazon.msk.auth.iam.IAMLoginModule required;", properties.get(SASL_JAAS_CONFIG));
         assertEquals("software.amazon.msk.auth.iam.IAMClientCallbackHandler", properties.get("sasl.client.callback.handler.class"));
     }
 
     @Test
-    public void testGetSSLAuthKafkaProperties() throws Exception {
+    public void getKafkaProperties_whenSslAuth_returnsSslProperties() throws Exception {
         java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
-        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.SSL.toString());
+        testConfigOptions.put(AUTH_TYPE, AmazonMskUtils.AuthType.SSL.toString());
         Properties properties = getKafkaProperties(testConfigOptions);
-        assertEquals("SSL", properties.get("security.protocol"));
-        assertEquals("keypass", properties.get("ssl.keystore.password"));
-        assertEquals("sslpass", properties.get("ssl.key.password"));
-        assertEquals("trustpass", properties.get("ssl.truststore.password"));
+        assertEquals("SSL", properties.get(SECURITY_PROTOCOL));
+        assertEquals(KEY_PASS, properties.get("ssl.keystore.password"));
+        assertEquals(SSL_PASS, properties.get("ssl.key.password"));
+        assertEquals(TRUST_PASS, properties.get(SSL_TRUSTSTORE_PASSWORD));
     }
 
     @Test
-    public void testToArrowType(){
+    public void toArrowType_whenGivenTypes_returnsCorrectArrowTypes(){
         assertEquals(new ArrowType.Bool(), toArrowType("BOOLEAN"));
         assertEquals(Types.MinorType.TINYINT.getType(), toArrowType("TINYINT"));
         assertEquals(Types.MinorType.SMALLINT.getType(), toArrowType("SMALLINT"));
@@ -190,27 +185,27 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testGetKafkaConsumerWithSchema() throws Exception {
+    public void getKafkaConsumer_whenSchemaProvided_returnsConsumer() throws Exception {
         java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
-        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
-        Field field = new Field("name", FieldType.nullable(new ArrowType.Utf8()), null);
+        testConfigOptions.put(AUTH_TYPE, AmazonMskUtils.AuthType.NO_AUTH.toString());
+        Field field = new Field(NAME, FieldType.nullable(new ArrowType.Utf8()), null);
         Map<String, String> metadataSchema = new HashMap<>();
-        metadataSchema.put("dataFormat", "json");
-        Schema schema= new Schema(asList(field), metadataSchema);
+        metadataSchema.put(DATA_FORMAT, "json");
+        Schema schema= new Schema(List.of(field), metadataSchema);
         Consumer<String, TopicResultSet> consumer = AmazonMskUtils.getKafkaConsumer(schema, testConfigOptions);
         assertNotNull(consumer);
     }
 
     @Test
-    public void testGetKafkaConsumer() throws Exception {
+    public void getKafkaConsumer_whenNoSchema_returnsConsumer() throws Exception {
         java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
-        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
+        testConfigOptions.put(AUTH_TYPE, AmazonMskUtils.AuthType.NO_AUTH.toString());
         Consumer<String, String> consumer = AmazonMskUtils.getKafkaConsumer(testConfigOptions);
         assertNotNull(consumer);
     }
 
     @Test
-    public void testCreateSplitParam() {
+    public void createSplitParam_whenValidParams_returnsSplitParameters() {
         Map<String, String> params = com.google.common.collect.ImmutableMap.of(
                 SplitParameters.TOPIC, "testTopic",
                 SplitParameters.PARTITION, "0",
@@ -223,14 +218,116 @@ public class AmazonMskUtilsTest {
     }
 
     @Test(expected = RuntimeException.class)
-    public void testGetKafkaPropertiesForRuntimeException() throws Exception {
+    public void getKafkaProperties_whenUnknownAuthType_throwsRuntimeException() throws Exception {
         java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
-        testConfigOptions.put("auth_type", "UNKNOWN");
+        testConfigOptions.put(AUTH_TYPE, "UNKNOWN");
         getKafkaProperties(testConfigOptions);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testGetKafkaPropertiesForIllegalArgumentException() throws Exception {
+    public void getKafkaProperties_whenEmptyConfig_throwsIllegalArgumentException() throws Exception {
         getKafkaProperties(com.google.common.collect.ImmutableMap.of());
+    }
+
+    @Test
+    public void getKafkaConsumer_whenCsvDataFormat_returnsConsumer() throws Exception {
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put(AUTH_TYPE, AmazonMskUtils.AuthType.NO_AUTH.toString());
+
+        Field field = new Field(NAME, FieldType.nullable(new ArrowType.Utf8()), null);
+        Map<String, String> metadataSchema = new HashMap<>();
+        metadataSchema.put(DATA_FORMAT, Message.DATA_FORMAT_CSV);
+        Schema schema = new Schema(List.of(field), metadataSchema);
+
+        Consumer<String, TopicResultSet> consumer = AmazonMskUtils.getKafkaConsumer(schema, testConfigOptions);
+        assertNotNull(consumer);
+    }
+
+    @Test(expected = Exception.class)
+    public void getKafkaConsumer_whenUnsupportedDataFormat_throwsException() throws Exception {
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put(AUTH_TYPE, AmazonMskUtils.AuthType.NO_AUTH.toString());
+
+        Field field = new Field(NAME, FieldType.nullable(new ArrowType.Utf8()), null);
+        Map<String, String> metadataSchema = new HashMap<>();
+        metadataSchema.put(DATA_FORMAT, "xml");
+        Schema schema = new Schema(List.of(field), metadataSchema);
+
+        AmazonMskUtils.getKafkaConsumer(schema, testConfigOptions);
+    }
+
+    @Test
+    public void getKafkaProperties_whenSaslPlain_setsSaslProperties() throws Exception {
+        Map<String, String> testConfigOptions = createTestConfigOptions(AmazonMskUtils.AuthType.SASL_PLAINTEXT_PLAIN.toString());
+        Properties properties = getKafkaProperties(testConfigOptions);
+
+        verifyCommonSaslProperties(properties, "SASL_PLAINTEXT", formatJaasConfig());
+        verifyNoSslProperties(properties);
+    }
+
+    @Test
+    public void getKafkaProperties_whenSaslSsl_setsSaslSslProperties() throws Exception {
+        Map<String, String> testConfigOptions = createTestConfigOptions(AmazonMskUtils.AuthType.SASL_SSL_PLAIN.toString());
+        Properties properties = getKafkaProperties(testConfigOptions);
+
+        verifyCommonSaslProperties(properties, SASL_SSL, formatJaasConfig());
+
+        assertNotNull(properties.get("ssl.truststore.location"));
+        assertNotNull(properties.get(SSL_TRUSTSTORE_PASSWORD));
+        assertEquals(TRUST_PASS, properties.get(SSL_TRUSTSTORE_PASSWORD));
+    }
+
+    @Test
+    public void getKafkaProperties_whenSaslSslWithoutCertificates_setsSaslSslProperties() throws Exception {
+        Map<String, String> testConfigOptions = createTestConfigOptions(AmazonMskUtils.AuthType.SASL_SSL_PLAIN.toString());
+        testConfigOptions.remove(AmazonMskConstants.CERTIFICATES_S3_REFERENCE); // Remove S3 reference
+
+        Properties properties = getKafkaProperties(testConfigOptions);
+
+        verifyCommonSaslProperties(properties, SASL_SSL, formatJaasConfig());
+        verifyNoSslProperties(properties);
+    }
+
+    @Test
+    public void getKafkaProperties_whenSaslSslEmptyCertificates_setsSaslSslProperties() throws Exception {
+        Map<String, String> testConfigOptions = createTestConfigOptions(AmazonMskUtils.AuthType.SASL_SSL_PLAIN.toString());
+        testConfigOptions.put(AmazonMskConstants.CERTIFICATES_S3_REFERENCE, ""); // Empty S3 reference
+
+        Properties properties = getKafkaProperties(testConfigOptions);
+
+        verifyCommonSaslProperties(properties, SASL_SSL, formatJaasConfig());
+        verifyNoSslProperties(properties);
+    }
+
+    @Test
+    public void getKafkaProperties_whenSaslSslNullCertificates_setsSaslSslProperties() throws Exception {
+        Map<String, String> testConfigOptions = createTestConfigOptions(AmazonMskUtils.AuthType.SASL_SSL_PLAIN.toString());
+        testConfigOptions.put(AmazonMskConstants.CERTIFICATES_S3_REFERENCE, null); // Null S3 reference
+
+        Properties properties = getKafkaProperties(testConfigOptions);
+
+        verifyCommonSaslProperties(properties, SASL_SSL, formatJaasConfig());
+        verifyNoSslProperties(properties);
+    }
+
+    private String formatJaasConfig() {
+        return String.format("org.apache.kafka.common.security.plain.PlainLoginModule required username=\"%s\" password=\"%s\";", ADMIN, TEST);
+    }
+
+    private Map<String, String> createTestConfigOptions(String authType) {
+        Map<String, String> testConfigOptions = new HashMap<>(configOptions);
+        testConfigOptions.put(AmazonMskConstants.AUTH_TYPE, authType);
+        return testConfigOptions;
+    }
+
+    private void verifyCommonSaslProperties(Properties properties, String expectedProtocol, String expectedJaasConfig) {
+        assertEquals(expectedProtocol, properties.get(SECURITY_PROTOCOL));
+        assertEquals("PLAIN", properties.get(SASL_MECHANISM));
+        assertEquals(expectedJaasConfig, properties.get(SASL_JAAS_CONFIG));
+    }
+
+    private void verifyNoSslProperties(Properties properties) {
+        assertNull(properties.get("ssl.truststore.location"));
+        assertNull(properties.get(SSL_TRUSTSTORE_PASSWORD));
     }
 }
