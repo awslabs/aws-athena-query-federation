@@ -43,7 +43,7 @@ pyOpenSSL==25.0.0
 python-dateutil==2.9.0.post0
 pytz==2025.2
 PyYAML==6.0.2
-redshift-connector==2.1.8
+redshift-connector==2.1.14
 requests==2.33.0
 rsa==4.9.1
 s3transfer==0.12.0
