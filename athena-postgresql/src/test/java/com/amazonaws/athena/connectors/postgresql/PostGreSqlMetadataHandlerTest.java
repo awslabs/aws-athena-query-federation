@@ -1074,7 +1074,7 @@ public class PostGreSqlMetadataHandlerTest
         TableName tableName = getTableName();
         mockPrimaryKeys(null, false);
 
-        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertTrue("Expected empty list when no primary key exists", result.isEmpty());
@@ -1091,7 +1091,7 @@ public class PostGreSqlMetadataHandlerTest
         mockPrimaryKeys("id", true);
         mockDataTypeCheck("uuid");
 
-        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertTrue("Expected empty list when primary key is UUID", result.isEmpty());
@@ -1109,7 +1109,7 @@ public class PostGreSqlMetadataHandlerTest
         mockDataTypeCheck("integer");
         mockMinMaxQuery("order_id", 100);
 
-        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertFalse("Expected non-empty list when splits can be generated", result.isEmpty());
@@ -1126,7 +1126,7 @@ public class PostGreSqlMetadataHandlerTest
         when(connection.getMetaData().getPrimaryKeys(null, "testSchema", "errorTable"))
                 .thenThrow(new SQLException("Database connection error"));
 
-        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertTrue("Expected empty list when exception occurs", result.isEmpty());
@@ -1144,7 +1144,7 @@ public class PostGreSqlMetadataHandlerTest
         mockDataTypeCheck(null);
         mockMinMaxQuery("product_id", 50);
 
-        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertFalse("Expected splits to be generated when UUID check returns false", result.isEmpty());
@@ -1165,7 +1165,7 @@ public class PostGreSqlMetadataHandlerTest
 
         mockMinMaxQuery("id", 100);
 
-        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName);
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertFalse("Expected splits to be generated when UUID check throws exception", result.isEmpty());
@@ -1342,8 +1342,10 @@ public class PostGreSqlMetadataHandlerTest
         when(minMaxResultSet.getMetaData()).thenReturn(minMaxMetadata);
         when(minMaxMetadata.getColumnType(1)).thenReturn(Types.INTEGER);
 
-        when(minMaxResultSet.getInt(1)).thenReturn(1);
-        when(minMaxResultSet.getInt(2)).thenReturn(maxValue);
+        /*when(minMaxResultSet.getInt(1)).thenReturn(1);
+        when(minMaxResultSet.getInt(2)).thenReturn(maxValue);*/
+        when(minMaxResultSet.getLong(1)).thenReturn(1L);
+        when(minMaxResultSet.getLong(2)).thenReturn((long) maxValue);
     }
 
     private TableName getTableName()

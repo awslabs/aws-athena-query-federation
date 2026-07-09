@@ -535,7 +535,7 @@ public class RedshiftMetadataHandlerTest
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         mockPrimaryKeysForSplits(null, false);
 
-        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName);
+        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertTrue("Expected empty list when no primary key exists", result.isEmpty());
@@ -548,7 +548,7 @@ public class RedshiftMetadataHandlerTest
         mockPrimaryKeysForSplits("order_id", true);
         mockMinMaxQueryForSplits("order_id");
 
-        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName);
+        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertFalse("Expected non-empty list when splits can be generated", result.isEmpty());
@@ -561,7 +561,7 @@ public class RedshiftMetadataHandlerTest
         Mockito.when(connection.getMetaData().getPrimaryKeys(null, TEST_SCHEMA, "errorTable"))
                 .thenThrow(new SQLException("Database connection error"));
 
-        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName);
+        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertTrue("Expected empty list when exception occurs", result.isEmpty());
@@ -580,7 +580,7 @@ public class RedshiftMetadataHandlerTest
         
         mockMinMaxQueryForSplits("id");
 
-        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName);
+        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName, null);
 
         Assert.assertNotNull(result);
         Assert.assertFalse("Expected splits to be generated using first primary key column", result.isEmpty());
@@ -620,7 +620,9 @@ public class RedshiftMetadataHandlerTest
         Mockito.when(minMaxResultSet.getMetaData()).thenReturn(minMaxMetadata);
         Mockito.when(minMaxMetadata.getColumnType(1)).thenReturn(Types.INTEGER);
 
-        Mockito.when(minMaxResultSet.getInt(1)).thenReturn(1);
-        Mockito.when(minMaxResultSet.getInt(2)).thenReturn(100);
+        /*Mockito.when(minMaxResultSet.getInt(1)).thenReturn(1);
+        Mockito.when(minMaxResultSet.getInt(2)).thenReturn(100);*/
+        Mockito.when(minMaxResultSet.getLong(1)).thenReturn(1L);
+        Mockito.when(minMaxResultSet.getLong(2)).thenReturn(100L);
     }
 }

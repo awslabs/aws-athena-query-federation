@@ -449,16 +449,13 @@ public class PostGreSqlMetadataHandler
      * @return List of split clauses, empty if splits cannot be generated or if disabled
      */
 
-    protected List<String> getSplitClauses(final TableName tableName)
+    protected List<String> getSplitClauses(final TableName tableName, final GetSplitsRequest getSplitsRequest)
     {
         List<String> splitClauses = new ArrayList<>();
-        // getSplitClauses is only used by PostgreSQL and Redshift connectors as of now,
-        // and it does not require AwsRequestOverrideConfiguration for FAS_TOKEN query federation.
-        // So keep it as is.
-        // Check for UUID primary keys before attempting MIN/MAX query
-        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-             ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null,
-                     tableName.getSchemaName(), tableName.getTableName())) {
+
+        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(
+                getCredentialProvider(getSplitsRequest != null ? getRequestOverrideConfig(getSplitsRequest) : null));
+             ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
             String primaryKeyColumn = null;
             if (resultSet.next()) {
                 primaryKeyColumn = resultSet.getString("COLUMN_NAME");
@@ -477,13 +474,20 @@ public class PostGreSqlMetadataHandler
                          ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumn, primaryKeyColumn,
                                  wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
                         minMaxResultSet.next(); // expecting one result row
+                        long min = minMaxResultSet.getLong(1);
+                        long max = minMaxResultSet.getLong(2);
                         Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumn, minMaxResultSet, DEFAULT_NUM_SPLITS);
 
                         if (optionalSplitter.isPresent()) {
+                            if (max - min < DEFAULT_NUM_SPLITS) {
+                                LOGGER.info("Range too small for splitting (min={}, max={}), skipping", min, max);
+                                return splitClauses;
+                            }
+
                             Splitter splitter = optionalSplitter.get();
                             while (splitter.hasNext()) {
                                 String splitClause = splitter.nextRangeClause();
-                                LOGGER.info("Split generated {}", splitClause);
+                                LOGGER.debug("Split generated {}", splitClause);
                                 splitClauses.add(splitClause);
                             }
                         }
