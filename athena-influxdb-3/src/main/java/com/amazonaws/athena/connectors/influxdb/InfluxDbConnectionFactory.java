@@ -25,7 +25,10 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
+import com.influxdb.v3.client.InfluxDBApiHttpException;
 import com.influxdb.v3.client.InfluxDBClient;
+import org.apache.arrow.flight.FlightRuntimeException;
+import org.apache.arrow.flight.FlightStatusCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +42,15 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.DEFAULT_TOKEN_KEY;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.DEFAULT_TOKEN_REFRESH_MAX_RETRIES;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.ENV_INFLUXDB_HOST;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.ENV_INFLUXDB_TOKEN;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.ENV_INFLUXDB_TOKEN_KEY;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.TOKEN_REFRESH_MAX_RETRIES;
 
 /**
  * Creates InfluxDB client connections, resolving the auth token from Secrets Manager.
@@ -60,13 +66,35 @@ public class InfluxDbConnectionFactory
     private static final Gson GSON = new Gson();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
 
+    private volatile String resolvedToken;
+    private final Map<String, InfluxDBClient> influxDbClients;
     private final Map<String, String> configOptions;
+    private final int maxTokenRefreshRetries;
     private FederationRequestHandler handler;
 
     public InfluxDbConnectionFactory(final Map<String, String> configOptions, final FederationRequestHandler handler)
     {
         this.configOptions = configOptions;
         this.handler = handler;
+        this.influxDbClients = new ConcurrentHashMap<>();
+        this.resolvedToken = null;
+        this.maxTokenRefreshRetries = parseMaxTokenRefreshRetries(configOptions);
+    }
+
+    private static int parseMaxTokenRefreshRetries(final Map<String, String> configOptions)
+    {
+        final String configured = configOptions.get(TOKEN_REFRESH_MAX_RETRIES);
+        if (configured == null || configured.isBlank()) {
+            return DEFAULT_TOKEN_REFRESH_MAX_RETRIES;
+        }
+        try {
+            return Math.max(0, Integer.parseInt(configured.trim()));
+        }
+        catch (final NumberFormatException e) {
+            logger.warn("Invalid {} value '{}'; using default {}",
+                    TOKEN_REFRESH_MAX_RETRIES, configured, DEFAULT_TOKEN_REFRESH_MAX_RETRIES);
+            return DEFAULT_TOKEN_REFRESH_MAX_RETRIES;
+        }
     }
 
     /**
@@ -97,7 +125,90 @@ public class InfluxDbConnectionFactory
             db = configOptions.getOrDefault("influxdb_database", "");
         }
 
-        return InfluxDBClient.getInstance(host, token.toCharArray(), db);
+        return influxDbClients.computeIfAbsent(db, key -> InfluxDBClient.getInstance(host, token.toCharArray(), key));
+    }
+
+    /**
+     * A query against an {@link InfluxDBClient} that may fail with an auth error. The operation MUST fully materialize
+     * or consume its results before returning, because InfluxDB's Flight streams are lazy — auth errors surface during
+     * stream consumption, not when {@code query()} is called.
+     */
+    @FunctionalInterface
+    public interface InfluxDbQuery<T>
+    {
+        T run(InfluxDBClient client) throws Exception;
+    }
+
+    /**
+     * Runs {@code query} against a client for {@code database}. If it fails with an auth error (e.g., the cached token
+     * was rotated out from under us), invalidates the cached token + clients, rebuilds with a freshly resolved token,
+     * and retries — up to {@link #maxTokenRefreshRetries} times. Non-auth errors, and auth errors past the retry cap
+     * (e.g., a genuinely invalid token), propagate.
+     *
+     * Auth errors occur at Flight stream initiation, before any rows are emitted, so retrying a query that streams into
+     * a spiller does not risk duplicate output.
+     */
+    public <T> T executeWithTokenRetry(final String database, final InfluxDbQuery<T> query) throws Exception
+    {
+        int refreshes = 0;
+        while (true) {
+            final InfluxDBClient client = getClient(database);
+            try {
+                return query.run(client);
+            }
+            catch (final Exception e) {
+                if (isAuthError(e) && refreshes < maxTokenRefreshRetries) {
+                    refreshes++;
+                    logger.warn("Auth error from InfluxDB; invalidating token and retrying (attempt {} of {})",
+                            refreshes, maxTokenRefreshRetries);
+                    invalidateToken();
+                    continue;
+                }
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Clears the cached token and closes+evicts all cached clients so the next {@link #getClient} rebuilds with a
+     * freshly resolved token. Called on an auth failure that may indicate a rotated secret.
+     */
+    synchronized void invalidateToken()
+    {
+        resolvedToken = null;
+        for (final InfluxDBClient client : influxDbClients.values()) {
+            try {
+                client.close();
+            }
+            catch (final Exception e) {
+                logger.warn("Failed to close cached InfluxDBClient during token invalidation", e);
+            }
+        }
+        influxDbClients.clear();
+    }
+
+    /**
+     * True if the throwable (or anything in its cause chain) is an InfluxDB auth failure: a Flight
+     * {@code UNAUTHENTICATED}/{@code UNAUTHORIZED} (raised by {@code query}/{@code queryBatches}) or an HTTP 401/403.
+     */
+    static boolean isAuthError(final Throwable throwable)
+    {
+        Throwable cause = throwable;
+        for (int depth = 0; cause != null && depth < 32; cause = cause.getCause(), depth++) {
+            if (cause instanceof FlightRuntimeException) {
+                final FlightStatusCode code = ((FlightRuntimeException) cause).status().code();
+                if (code == FlightStatusCode.UNAUTHENTICATED || code == FlightStatusCode.UNAUTHORIZED) {
+                    return true;
+                }
+            }
+            if (cause instanceof InfluxDBApiHttpException) {
+                final int statusCode = ((InfluxDBApiHttpException) cause).statusCode();
+                if (statusCode == 401 || statusCode == 403) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -121,15 +232,15 @@ public class InfluxDbConnectionFactory
      */
     public String resolveTableName(final String resolvedDb, final TableName tableName) throws Exception
     {
-        try (InfluxDBClient client = getClient(resolvedDb)) {
-            final Map<String, Object> parameters = Map.of("table_name", tableName.getTableName().toLowerCase(Locale.ROOT));
-            final String sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'iox' AND lower(table_name) = $table_name";
+        final Map<String, Object> parameters = Map.of("table_name", tableName.getTableName().toLowerCase(Locale.ROOT));
+        final String sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'iox' AND lower(table_name) = $table_name";
+        return executeWithTokenRetry(resolvedDb, client -> {
             try (Stream<Object[]> stream = client.query(sql, parameters)) {
                 return stream.map(row -> String.valueOf(row[0]))
                         .findFirst()
                         .orElse(tableName.getTableName());
             }
-        }
+        });
     }
 
     List<DatabaseInfo> listDatabases() throws IOException, InterruptedException
@@ -138,22 +249,35 @@ public class InfluxDbConnectionFactory
         if (host == null || host.isEmpty()) {
             throw new IllegalArgumentException("Missing required env var: " + ENV_INFLUXDB_HOST);
         }
-        final String token = resolveToken();
-        final HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(host + "/api/v3/configure/database?format=json"))
-                .timeout(Duration.ofMinutes(2))
-                .header("Authorization", "Bearer " + token)
-                .header("Accept", "application/json")
-                .GET()
-                .build();
-        final HttpResponse<String> httpResponse = HTTP.send(httpRequest, BodyHandlers.ofString());
-        if (httpResponse.statusCode() != 200) {
+        int refreshes = 0;
+        while (true) {
+            final String token = resolveToken();
+            final HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(host + "/api/v3/configure/database?format=json"))
+                    .timeout(Duration.ofMinutes(2))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build();
+            final HttpResponse<String> httpResponse = HTTP.send(httpRequest, BodyHandlers.ofString());
+            final int statusCode = httpResponse.statusCode();
+            if (statusCode == 200) {
+                final List<DatabaseInfo> parsedJson = GSON.fromJson(httpResponse.body(),
+                        new TypeToken<List<DatabaseInfo>>() {
+                        }.getType());
+                return parsedJson != null ? parsedJson : List.of();
+            }
+            // On an auth failure, invalidate the (possibly rotated) token and retry, up to the cap.
+            if ((statusCode == 401 || statusCode == 403) && refreshes < maxTokenRefreshRetries) {
+                refreshes++;
+                logger.warn("Auth error ({}) listing databases; invalidating token and retrying (attempt {} of {})",
+                        statusCode, refreshes, maxTokenRefreshRetries);
+                invalidateToken();
+                continue;
+            }
             throw new RuntimeException(
-                    "Failed to list databases in host " + host + ": status code: " + httpResponse.statusCode());
+                    "Failed to list databases in host " + host + ": status code: " + statusCode);
         }
-        final List<DatabaseInfo> parsedJson = GSON.fromJson(httpResponse.body(), new TypeToken<List<DatabaseInfo>>() {
-        }.getType());
-        return parsedJson != null ? parsedJson : List.of();
     }
 
     /**
@@ -162,6 +286,9 @@ public class InfluxDbConnectionFactory
      */
     String resolveToken()
     {
+        if (resolvedToken != null) {
+            return resolvedToken;
+        }
         final String rawToken = configOptions.get(ENV_INFLUXDB_TOKEN);
         if (rawToken == null || rawToken.isEmpty()) {
             throw new IllegalArgumentException("Missing required env var: " + ENV_INFLUXDB_TOKEN);
@@ -172,21 +299,23 @@ public class InfluxDbConnectionFactory
 
         // If the resolved value looks like JSON, extract the token key
         final String trimmed = resolved.trim();
-        if (trimmed.startsWith("{")) {
+        resolvedToken = trimmed;
+        if (resolvedToken.startsWith("{")) {
             try {
                 final JsonObject json = GSON.fromJson(trimmed, JsonObject.class);
                 final String tokenKey = configOptions.getOrDefault(ENV_INFLUXDB_TOKEN_KEY, DEFAULT_TOKEN_KEY);
                 if (json.has(tokenKey)) {
-                    return json.get(tokenKey).getAsString();
+                    resolvedToken = json.get(tokenKey).getAsString();
                 }
-                logger.warn("JSON secret does not contain key '{}', using raw value", tokenKey);
+                else {
+                    logger.warn("JSON secret does not contain key '{}', using raw value", tokenKey);
+                }
             }
             catch (final Exception e) {
                 logger.warn("Failed to parse secret as JSON, using raw value");
             }
         }
-
-        return resolved;
+        return resolvedToken;
     }
 
     public static final class DatabaseInfo

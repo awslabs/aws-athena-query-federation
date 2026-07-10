@@ -30,4 +30,11 @@ public final class InfluxDbConstants
     public static final String ENV_INFLUXDB_TOKEN = "INFLUXDB3_AUTH_TOKEN";
     public static final String ENV_INFLUXDB_TOKEN_KEY = "INFLUXDB3_AUTH_TOKEN_KEY";
     public static final String DEFAULT_TOKEN_KEY = "token";
+    public static final String ENABLE_QUERY_PARALLELISM = "enable_query_parallelism";
+    public static final String QUERY_PARALLELISM_COUNT = "query_parallelism_count";
+    public static final String TOKEN_REFRESH_MAX_RETRIES = "token_refresh_max_retries";
+    public static final int DEFAULT_TOKEN_REFRESH_MAX_RETRIES = 3;
+    public static final String PART_TIME_UPPER = "time_upper";
+    public static final String PART_TIME_LOWER = "time_lower";
+    public static final String DEFAULT_TIME_COLUMN = "time";
 }

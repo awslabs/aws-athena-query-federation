@@ -154,10 +154,10 @@ public class InfluxDbLocalIntegrationTest
                         return;
                     }
                 }
-                Thread.sleep(250);
             }
-            throw new RuntimeException("Seeded cpu/mem tables did not become queryable in time");
+            Thread.sleep(250);
         }
+        throw new RuntimeException("Seeded cpu/mem tables did not become queryable in time");
     }
 
     @Before
