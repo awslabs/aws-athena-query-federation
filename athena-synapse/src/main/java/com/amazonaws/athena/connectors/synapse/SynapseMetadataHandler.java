@@ -210,7 +210,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         String tableName = getTableLayoutRequest.getTableName().getTableName();
         String schemaName = getTableLayoutRequest.getTableName().getSchemaName();
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)));
              PreparedStatement psPartitions = connection.prepareStatement(GET_PARTITIONS_SQL);
              PreparedStatement psRowCount = connection.prepareStatement(ROW_COUNT_SQL)) {
             psPartitions.setString(1, tableName);
@@ -311,14 +311,14 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             // Included partition information to split if the table is partitioned
             if (partInfo.contains(":::")) {
                 String[] partInfoAr = partInfo.split(":::");
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfoAr[0])
                         .add(PARTITION_BOUNDARY_FROM, partInfoAr[1])
                         .add(PARTITION_BOUNDARY_TO, partInfoAr[2])
                         .add(PARTITION_COLUMN, partInfoAr[3]);
             }
             else {
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfo);
             }
             splits.add(splitBuilder.build());
