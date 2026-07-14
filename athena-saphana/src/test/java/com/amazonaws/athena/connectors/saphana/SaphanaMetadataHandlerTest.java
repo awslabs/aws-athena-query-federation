@@ -666,7 +666,7 @@ public class SaphanaMetadataHandlerTest
     }
 
     @Test
-    public void testCreateCredentialsProvider()
+    public void createCredentialsProvider_withSecretNameAndOverrideConfig_returnsCredentialsProviderFromFactory()
     {
         String secretName = "testSecret";
         software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration requestOverrideConfig =

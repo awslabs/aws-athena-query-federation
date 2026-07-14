@@ -115,7 +115,7 @@ public class SaphanaQueryStringBuilderTest
     }
 
     @Test
-    public void testGetSqlDialect()
+    public void getSqlDialect_returnsSAPHanaSqlDialectDefault()
     {
         SaphanaQueryStringBuilder builder = new SaphanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER, new SaphanaFederationExpressionParser(SAPHANA_QUOTE_CHARACTER));
         assertEquals(SAPHanaSqlDialect.DEFAULT, builder.getSqlDialect());
