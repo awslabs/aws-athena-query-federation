@@ -88,6 +88,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -1357,4 +1358,49 @@ public class JdbcSplitQueryBuilderTest
         verify(mockConnection).prepareStatement(contains("`testdb`.`users`"));
         verify(mockConnection).prepareStatement(contains("`age` > ?"));
     }
+
+    @Test
+    public void testPrepareStatementWithCalciteSql_PartitionClausesBeforeFetchNext_NoExistingWhere()
+            throws Exception
+    {
+        // SELECT * FROM "warehouse"."call_center" ORDER BY "cc_rec_start_date" LIMIT 100
+        String base64Plan = "GucFEuQFCuEFGt4FCgIKABLTBSrQBQoCCgASuQUKtgUKAgoAEpUFChFjY19jYWxsX2NlbnRlcl9zawoRY2NfY2FsbF9jZW50ZXJfaWQKEWNjX3JlY19zdGFydF9kYXRlCg9jY19yZWNfZW5kX2RhdGUKEWNjX2Nsb3NlZF9kYXRlX3NrCg9jY19vcGVuX2RhdGVfc2sKB2NjX25hbWUKCGNjX2NsYXNzCgxjY19lbXBsb3llZXMKCGNjX3NxX2Z0CghjY19ob3VycwoKY2NfbWFuYWdlcgoJY2NfbWt0X2lkCgxjY19ta3RfY2xhc3MKC2NjX21rdF9kZXNjChFjY19tYXJrZXRfbWFuYWdlcgoLY2NfZGl2aXNpb24KEGNjX2RpdmlzaW9uX25hbWUKCmNjX2NvbXBhbnkKD2NjX2NvbXBhbnlfbmFtZQoQY2Nfc3RyZWV0X251bWJlcgoOY2Nfc3RyZWV0X25hbWUKDmNjX3N0cmVldF90eXBlCg9jY19zdWl0ZV9udW1iZXIKB2NjX2NpdHkKCWNjX2NvdW50eQoIY2Nfc3RhdGUKBmNjX3ppcAoKY2NfY291bnRyeQoNY2NfZ210X29mZnNldAoRY2NfdGF4X3BlcmNlbnRhZ2UKB3BhcnRfaWQSzgEKBCoCEAEKBGICEAEKBYIBAhABCgWCAQIQAQoEKgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEKgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoJwgEGCAIQBSABCgnCAQYIAhAFIAEKBGICEAEYAjoYCgl3YXJlaG91c2UKC2NhbGxfY2VudGVyGg4KChIICgQSAggCIgAQAhgAIGQ=";
+
+        QueryPlan queryPlan = mock(QueryPlan.class);
+        Constraints constraintsWithQueryPlan = mock(Constraints.class);
+        when(queryPlan.getSubstraitPlan()).thenReturn(base64Plan);
+        when(constraintsWithQueryPlan.getQueryPlan()).thenReturn(queryPlan);
+
+        builder.prepareStatementWithCalciteSql(mockConnection, constraintsWithQueryPlan, AnsiSqlDialect.DEFAULT, split);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockConnection).prepareStatement(sqlCaptor.capture());
+        String sql = sqlCaptor.getValue();
+        assertEquals("SELECT *\n"
+                + "FROM `warehouse`.`call_center` WHERE \"partition_col\" = '2024'\n"
+                + "ORDER BY `cc_rec_start_date`\n"
+                + "FETCH NEXT 100 ROWS ONLY", sql);
+    }
+
+    @Test
+    public void testPrepareStatementWithCalciteSql_PartitionClausesBeforeFetchNext_WithExistingWhere()
+            throws Exception
+    {
+        // SELECT * FROM "tpch"."lineitem" WHERE "l_returnflag" = 'R' LIMIT 50
+        String base64Plan = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIYW5kOmJvb2wSFRoTCAIQARoNZXF1YWw6YW55X2FueRrUAxLRAwrOAxrLAwoCCgASwAMSvQMKAgoAEvkCCvYCCgIKABLdAgoKbF9vcmRlcmtleQoJbF9wYXJ0a2V5CglsX3N1cHBrZXkKDGxfbGluZW51bWJlcgoKbF9xdWFudGl0eQoPbF9leHRlbmRlZHByaWNlCgpsX2Rpc2NvdW50CgVsX3RheAoMbF9yZXR1cm5mbGFnCgxsX2xpbmVzdGF0dXMKCmxfc2hpcGRhdGUKDGxfY29tbWl0ZGF0ZQoNbF9yZWNlaXB0ZGF0ZQoObF9zaGlwaW5zdHJ1Y3QKCmxfc2hpcG1vZGUKCWxfY29tbWVudAoOcGFydGl0aW9uX25hbWUSfwoEKgIQAQoEKgIQAQoEKgIQAQoEKgIQAQoJwgEGCAIQDyABCgnCAQYIAhAPIAEKCcIBBggCEA8gAQoJwgEGCAIQDyABCgRiAhABCgRiAhABCgWCAQIQAQoFggECEAEKBYIBAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABGAI6EAoEdHBjaAoIbGluZWl0ZW0aOxo5GgQKAhABIiYaJBoiCAEaBAoCEAEiDBoKEggKBBICCAgiACIKGggKBmIBUpADASIJGgcKBQgBkAMBGAAgMg==";
+
+        QueryPlan queryPlan = mock(QueryPlan.class);
+        Constraints constraintsWithQueryPlan = mock(Constraints.class);
+        when(queryPlan.getSubstraitPlan()).thenReturn(base64Plan);
+        when(constraintsWithQueryPlan.getQueryPlan()).thenReturn(queryPlan);
+
+        builder.prepareStatementWithCalciteSql(mockConnection, constraintsWithQueryPlan, AnsiSqlDialect.DEFAULT, split);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockConnection).prepareStatement(sqlCaptor.capture());
+        String sql = sqlCaptor.getValue();
+        assertEquals("SELECT *\n"
+                + "FROM `tpch`.`lineitem`\n"
+                + "WHERE `l_returnflag` = ? AND \"partition_col\" = '2024'\n"
+                + "FETCH NEXT 50 ROWS ONLY", sql);    }
 }
