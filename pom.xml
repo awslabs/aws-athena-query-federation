@@ -392,6 +392,17 @@
                                         <!-- 12. Fix for CVE-2025-48734: Exclude commons-digester metadata that declares vulnerable commons-beanutils -->
                                         <exclude>META-INF/maven/commons-digester/commons-digester/pom.xml</exclude>
                                         <exclude>META-INF/maven/commons-digester/commons-digester/pom.properties</exclude>
+                                        <!-- 13. Fix for CVE-2026-45674/47691/50010/44249/45416/45673: Exclude lettuce-core metadata that declares vulnerable netty 4.2.5 (actual deployed: 4.2.15) -->
+                                        <exclude>META-INF/maven/io.lettuce/lettuce-core/pom.xml</exclude>
+                                        <exclude>META-INF/maven/io.lettuce/lettuce-core/pom.properties</exclude>
+                                        <!-- 14. Fix for CVE-2023-44981/CVE-2024-23944: Exclude zookeeper metadata that declares vulnerable 3.7.0 (actual deployed: 3.9.5) -->
+                                        <exclude>META-INF/maven/org.apache.zookeeper/zookeeper/pom.xml</exclude>
+                                        <exclude>META-INF/maven/org.apache.zookeeper/zookeeper/pom.properties</exclude>
+                                        <exclude>META-INF/maven/org.apache.zookeeper/zookeeper-jute/pom.xml</exclude>
+                                        <exclude>META-INF/maven/org.apache.zookeeper/zookeeper-jute/pom.properties</exclude>
+                                        <!-- 15. Fix for CVE-2026-54512/54513/54514/54515: Exclude Neptune metadata that declares vulnerable jackson-databind 2.18.2 (actual deployed: 2.22.0) -->
+                                        <exclude>META-INF/maven/com.amazonaws/amazon-neptune-gremlin-java-sigv4/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.amazonaws/amazon-neptune-gremlin-java-sigv4/pom.properties</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
