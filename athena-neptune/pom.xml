@@ -113,7 +113,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>
-            <artifactId>gremlin-groovy</artifactId>
+            <artifactId>gremlin-language</artifactId>
             <version>${gremlinDriverVersion}</version>
             <exclusions>
                 <exclusion>
