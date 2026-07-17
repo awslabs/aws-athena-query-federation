@@ -72,6 +72,7 @@ public class ElasticsearchSchemaUtilsTest
                                 ImmutableMap.of("scaling_factor", "10.0")), null))
                 .addField("myfloat", Types.MinorType.FLOAT8.getType())
                 .addField("myhalf", Types.MinorType.FLOAT8.getType())
+                .addField("myvector", Types.MinorType.FLOAT8.getType())
                 .addField("mydatemilli", Types.MinorType.DATEMILLI.getType())
                 .addField("mydatenano", Types.MinorType.DATEMILLI.getType())
                 .addField("myboolean", Types.MinorType.BIT.getType())
@@ -116,6 +117,10 @@ public class ElasticsearchSchemaUtilsTest
                         "  },\n" +
                         "  \"myhalf\" : {\n" +                            // myhalf:
                         "    \"type\" : \"half_float\"\n" +               // type: half_float (FLOAT8)
+                        "  },\n" +
+                        "  \"myvector\" : {\n" +                           // myvector:
+                        "    \"type\" : \"knn_vector\",\n" +                // type: knn_vector (FLOAT8)
+                        "    \"dimension\" : 1024\n" +
                         "  },\n" +
                         "  \"myinteger\" : {\n" +                         // myinteger:
                         "    \"type\" : \"integer\"\n" +                  // type: integer (INT)

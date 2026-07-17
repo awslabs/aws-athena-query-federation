@@ -168,6 +168,7 @@ class ElasticsearchSchemaUtils
             case "float":
             case "half_float":
             case "double":
+            case "knn_vector":
                 minorType = Types.MinorType.FLOAT8;
                 break;
             case "scaled_float":
