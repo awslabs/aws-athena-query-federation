@@ -253,6 +253,66 @@ public class SynapseRecordHandlerTest
     }
 
     @Test
+    public void readWithConstraint_AzureServerless_SkipsAutoCommitAndCommit() throws Exception {
+        // Serverless (on-demand) host: autoCommit must stay at default and commit() must be skipped,
+        // otherwise the connection close triggers a rollback that emits @@TRANCOUNT (unsupported on serverless).
+        runReadWithConstraintForUrl("jdbc:sqlserver://test-ondemand.sql.azuresynapse.net:1433;databaseName=testdb;");
+
+        verify(connection, Mockito.never()).setAutoCommit(Mockito.anyBoolean());
+        verify(connection, Mockito.never()).commit();
+    }
+
+    @Test
+    public void readWithConstraint_DedicatedPool_SetsAutoCommitAndCommits() throws Exception {
+        // Dedicated pool host (no "ondemand"): transactions are supported, so autoCommit(false) + commit() are used.
+        runReadWithConstraintForUrl("jdbc:sqlserver://test.sql.azuresynapse.net:1433;databaseName=testdb;");
+
+        verify(connection, Mockito.times(1)).setAutoCommit(false);
+        verify(connection, Mockito.times(1)).commit();
+    }
+
+    private void runReadWithConstraintForUrl(String jdbcUrl) throws Exception {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder(TEST_ID_COL, Types.MinorType.INT.getType()).build())
+                .addField(FieldBuilder.newBuilder(TEST_NAME_COL, Types.MinorType.VARCHAR.getType()).build())
+                .build();
+
+        Split split = Mockito.mock(Split.class);
+        when(split.getProperties()).thenReturn(Collections.emptyMap());
+
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.getInt(TEST_ID_COL)).thenReturn(TEST_ID_1);
+        when(resultSet.getString(TEST_NAME_COL)).thenReturn(TEST_NAME_1);
+
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        when(connection.prepareStatement(Mockito.anyString())).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        DatabaseMetaData metaData = Mockito.mock(DatabaseMetaData.class);
+        when(connection.getMetaData()).thenReturn(metaData);
+        when(metaData.getURL()).thenReturn(jdbcUrl);
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                federatedIdentity,
+                TEST_CATALOG,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1000, Collections.emptyMap(), null),
+                0,
+                0
+        );
+
+        BlockSpiller spiller = Mockito.mock(BlockSpiller.class);
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        synapseRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
+    }
+
+    @Test
     public void buildSplitSql_WithOrderBy_ReturnsCorrectSql() throws SQLException {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createSchemaWithCommonFields();
