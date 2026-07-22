@@ -14,21 +14,21 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.44.4</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.46.17</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
         <aws-sdk.version>1.12.797</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.4</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.129.0</jsii.version>
+        <jsii.version>1.138.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
-        <slf4j-log4j.version>2.0.17</slf4j-log4j.version>
+        <slf4j-log4j.version>2.0.18</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.9.3</jqwik.version>
+        <jqwik.version>1.10.1</jqwik.version>
         <assertj.version>3.27.7</assertj.version>
         <testng.version>7.12.0</testng.version>
-        <fasterxml.jackson.version>2.21.4</fasterxml.jackson.version>
+        <fasterxml.jackson.version>2.22.1</fasterxml.jackson.version>
         <!-- jackson-annotations does not publish patch versions -->
         <fasterxml.jackson.annotations.version>2.21</fasterxml.jackson.annotations.version>
         <surefire.failsafe.version>3.5.5</surefire.failsafe.version>
@@ -51,7 +51,7 @@
         <mvn.jar.plugin.version>3.5.0</mvn.jar.plugin.version>
         <io.substrait.version>0.65.0</io.substrait.version>
         <org.apache.calcite.version>1.40.0</org.apache.calcite.version>
-        <com.google.protobuf.version>4.34.1</com.google.protobuf.version>
+        <com.google.protobuf.version>4.35.1</com.google.protobuf.version>
         <doclint>none</doclint>
     </properties>
     <dependencyManagement>
@@ -99,7 +99,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.2.15.Final</version>
+                <version>4.2.16.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -392,6 +392,17 @@
                                         <!-- 12. Fix for CVE-2025-48734: Exclude commons-digester metadata that declares vulnerable commons-beanutils -->
                                         <exclude>META-INF/maven/commons-digester/commons-digester/pom.xml</exclude>
                                         <exclude>META-INF/maven/commons-digester/commons-digester/pom.properties</exclude>
+                                        <!-- 13. Fix for CVE-2026-45674/47691/50010/44249/45416/45673: Exclude lettuce-core metadata that declares vulnerable netty 4.2.5 (actual deployed: 4.2.15) -->
+                                        <exclude>META-INF/maven/io.lettuce/lettuce-core/pom.xml</exclude>
+                                        <exclude>META-INF/maven/io.lettuce/lettuce-core/pom.properties</exclude>
+                                        <!-- 14. Fix for CVE-2023-44981/CVE-2024-23944: Exclude zookeeper metadata that declares vulnerable 3.7.0 (actual deployed: 3.9.5) -->
+                                        <exclude>META-INF/maven/org.apache.zookeeper/zookeeper/pom.xml</exclude>
+                                        <exclude>META-INF/maven/org.apache.zookeeper/zookeeper/pom.properties</exclude>
+                                        <exclude>META-INF/maven/org.apache.zookeeper/zookeeper-jute/pom.xml</exclude>
+                                        <exclude>META-INF/maven/org.apache.zookeeper/zookeeper-jute/pom.properties</exclude>
+                                        <!-- 15. Fix for CVE-2026-54512/54513/54514/54515: Exclude Neptune metadata that declares vulnerable jackson-databind 2.18.2 (actual deployed: 2.22.0) -->
+                                        <exclude>META-INF/maven/com.amazonaws/amazon-neptune-gremlin-java-sigv4/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.amazonaws/amazon-neptune-gremlin-java-sigv4/pom.properties</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
