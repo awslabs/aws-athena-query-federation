@@ -387,7 +387,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder;
         HashMap<String, List<String>> columnNameAndDataTypeMap = new HashMap<>();
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype information.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
