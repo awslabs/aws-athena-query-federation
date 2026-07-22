@@ -53,6 +53,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -89,8 +90,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SynapseMetadataHandlerTest
@@ -404,6 +410,47 @@ public class SynapseMetadataHandlerTest
         assertEquals(expected, getTableResponse.getSchema());
         assertEquals(inputTableName, getTableResponse.getTableName());
         assertEquals(TEST_CATALOG, getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void doGetTable_getSchema_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        // Regression guard for the managed-connector FAS fix: getSchema must obtain its JDBC connection with the
+        // request-override credentials, i.e. getCredentialProvider(requestOverrideConfiguration). Previously getSchema
+        // called the no-arg getCredentialProvider(), which falls back to the connector's execution role and fails a
+        // cross-account secretsmanager:GetSecretValue in managed-connector mode. Mirrors athena-sqlserver (PR #3531).
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        String[] schema = {"DATA_TYPE", "COLUMN_NAME", "PRECISION", "SCALE"};
+        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] values = {{Types.INTEGER, "testCol1", 0, 0}, {Types.VARCHAR, "testCol2", 0, 0}};
+        ResultSet resultSet = mockResultSet(schema, types, values, new AtomicInteger(-1));
+
+        String[] columns = {"DATA_TYPE", "COLUMN_SIZE", "DECIMAL_DIGITS", "COLUMN_NAME"};
+        int[] types2 = {Types.INTEGER, Types.INTEGER, Types.INTEGER, Types.VARCHAR};
+        Object[][] values2 = {{Types.INTEGER, 12, 0, "testCol1"}, {Types.VARCHAR, 25, 0, "testCol2"}};
+        ResultSet resultSet2 = mockResultSet(columns, types2, values2, new AtomicInteger(-1));
+
+        PreparedStatement stmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(nullable(String.class))).thenReturn(stmt);
+        when(stmt.executeQuery()).thenReturn(resultSet);
+        when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://hostname;databaseName=fakedatabase");
+        TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        when(connection.getCatalog()).thenReturn(TEST_CATALOG);
+        when(connection.getMetaData().getColumns(TEST_CATALOG, inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet2);
+
+        // Spy the handler and force a distinct (sentinel) override so we can assert getSchema forwards it through.
+        SynapseMetadataHandler spyHandler = spy(this.synapseMetadataHandler);
+        AwsRequestOverrideConfiguration sentinelOverride = AwsRequestOverrideConfiguration.builder().build();
+        doReturn(sentinelOverride).when(spyHandler).getRequestOverrideConfig(any(GetTableRequest.class));
+
+        spyHandler.doGetTable(blockAllocator,
+                new GetTableRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG, inputTableName, Collections.emptyMap()));
+
+        // getSchema (and doGetTable) must request credentials WITH the override...
+        verify(spyHandler, atLeastOnce()).getCredentialProvider(sentinelOverride);
+        // ...and must NEVER use the no-arg (execution-role) credential provider anywhere on the doGetTable path.
+        verify(spyHandler, never()).getCredentialProvider();
     }
 
     @Test
