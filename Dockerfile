@@ -82,3 +82,6 @@ COPY \
 RUN for file in ${LAMBDA_TASK_ROOT}/*.jar ${LAMBDA_TASK_ROOT}/*.zip; do \
       jar xf "$file" && rm -f "$file"; \
 done
+
+# Remove stale dependency metadata that causes false-positive Inspector findings
+RUN rm -f ${LAMBDA_TASK_ROOT}/META-INF/DEPENDENCIES
