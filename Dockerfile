@@ -9,7 +9,7 @@ ARG JAVA_TOOL_OPTIONS=""
 ENV JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/var/lang/lib/security/cacerts ${JAVA_TOOL_OPTIONS}"
 
 # Install necessary tools
-RUN dnf update -y
+RUN dnf update --releasever=latest -y
 RUN dnf install -y perl openssl
 
 ENV truststore=/var/lang/lib/security/cacerts
