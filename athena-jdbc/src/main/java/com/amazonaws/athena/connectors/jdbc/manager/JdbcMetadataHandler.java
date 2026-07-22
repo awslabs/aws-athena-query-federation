@@ -86,6 +86,7 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
  */
 public abstract class JdbcMetadataHandler
         extends MetadataHandler
+        implements AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
     private static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s;";
@@ -557,5 +558,19 @@ public abstract class JdbcMetadataHandler
     protected String wrapNameWithEscapedCharacter(String input)
     {
         return input;
+    }
+
+    /**
+     * Closes the underlying {@link JdbcConnectionFactory}, releasing any pooled connections
+     * and their associated background threads. Callers that create handler instances per-request
+     * (e.g., multi-tenant wrappers) should call this method when the handler is no longer needed
+     * to prevent thread and memory leaks from unreleased connection pools.
+     */
+    @Override
+    public void close() throws Exception
+    {
+        if (jdbcConnectionFactory != null) {
+            jdbcConnectionFactory.close();
+        }
     }
 }

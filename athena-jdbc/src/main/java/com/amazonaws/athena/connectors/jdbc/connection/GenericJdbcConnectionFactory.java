@@ -45,7 +45,7 @@ import java.util.regex.Pattern;
  * uses direct DriverManager connections instead of HikariCP connection pooling.
  */
 public class GenericJdbcConnectionFactory
-        implements JdbcConnectionFactory, AutoCloseable
+        implements JdbcConnectionFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericJdbcConnectionFactory.class);
     private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@!-]+})";
