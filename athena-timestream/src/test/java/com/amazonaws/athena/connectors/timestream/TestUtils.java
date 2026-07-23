@@ -112,6 +112,9 @@ public class TestUtils
             case DATEMILLI:
                 datum.scalarValue(startDate.plusDays(num).toString().replace('T', ' '));
                 break;
+            case DATEDAY:
+                datum.scalarValue(startDate.plusDays(num).toLocalDate().toString());
+                break;
             case LIST:
                 buildTimeSeries(field, datum, num);
                 break;
@@ -151,6 +154,11 @@ public class TestUtils
                 case BIGINT:
                     dataPointValue.scalarValue(String.valueOf(RAND.nextLong()));
                     break;
+                case VARCHAR:
+                    dataPointValue.scalarValue("ts-" + RAND.nextInt(10_000));
+                    break;
+                default:
+                    throw new RuntimeException("Unsupported time series measure type[" + baseSeriesType.getType() + "]");
             }
 
             dataPoint.value(dataPointValue.build());
