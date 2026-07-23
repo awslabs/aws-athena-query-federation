@@ -1,5 +1,5 @@
-# Argument for Java version, defaulting to 11
-ARG JAVA_VERSION=11
+# Argument for Java version, defaulting to 11.al2023-x86_64
+ARG JAVA_VERSION=11.al2023-x86_64
 # Use the specified version of Java
 FROM public.ecr.aws/lambda/java:${JAVA_VERSION}
 
@@ -9,8 +9,8 @@ ARG JAVA_TOOL_OPTIONS=""
 ENV JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/var/lang/lib/security/cacerts ${JAVA_TOOL_OPTIONS}"
 
 # Install necessary tools
-RUN yum update -y
-RUN yum install -y curl perl openssl11
+RUN dnf update -y
+RUN dnf install -y perl openssl
 
 # Copy function code and runtime dependencies from Maven layout
 COPY target/athena-docdb-2022.47.1.jar ${LAMBDA_TASK_ROOT}
@@ -31,7 +31,7 @@ RUN curl -sS "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem"
 
 # Import certificates into the truststore
 RUN for CERT in rds-ca-*; do \
-        alias=$(openssl11 x509 -noout -text -in $CERT | perl -ne 'next unless /Subject:/; s/.*(CN=|CN = )//; print') && \
+        alias=$(openssl x509 -noout -text -in $CERT | perl -ne 'next unless /Subject:/; s/.*(CN=|CN = )//; print') && \
         echo "Importing $alias" && \
         keytool -import -file ${CERT} -alias "${alias}" -storepass ${storepassword} -keystore ${truststore} -noprompt && \
         rm $CERT; \

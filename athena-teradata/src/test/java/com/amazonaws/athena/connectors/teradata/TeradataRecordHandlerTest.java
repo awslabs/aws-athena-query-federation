@@ -32,6 +32,8 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -48,8 +50,13 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.amazonaws.athena.connectors.teradata.TeradataConstants.TERADATA_QUOTE_CHARACTER;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class TeradataRecordHandlerTest
@@ -72,7 +79,7 @@ public class TeradataRecordHandlerTest
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new TeradataQueryStringBuilder(TERADATA_QUOTE_CHARACTER, new TeradataFederationExpressionParser(TERADATA_QUOTE_CHARACTER));
+        jdbcSplitQueryBuilder = Mockito.spy(new TeradataQueryStringBuilder(TERADATA_QUOTE_CHARACTER, new TeradataFederationExpressionParser(TERADATA_QUOTE_CHARACTER)));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", TeradataConstants.TERADATA_NAME,
                 "teradata://jdbc:teradata://115.113.87.100/TMODE=ANSI,CHARSET=UTF8,DATABASE=TEST,USER=DBC,PASSWORD=DBC");
 
@@ -101,7 +108,7 @@ public class TeradataRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql()
+    public void buildSplitSql_withSummaryAndLimit_setsParameterBindings()
             throws SQLException
     {
         TableName tableName = new TableName("testSchema", "testTable");
@@ -172,7 +179,47 @@ public class TeradataRecordHandlerTest
     }
 
     @Test
-    public void testLimitClause()
+    public void buildSplitSql_withQueryPassThrough_usesQueryPassthroughSqlAndSetsFetchSize()
+            throws SQLException
+    {
+        String testQuery = "SELECT * FROM test_table";
+        Map<String, String> queryArgs = new HashMap<>();
+        queryArgs.put(JdbcQueryPassthrough.QUERY, testQuery);
+        queryArgs.put(QueryPassthroughSignature.SCHEMA_FUNCTION_NAME, "SYSTEM.QUERY");
+
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT,
+                queryArgs,
+                null);
+
+        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(testQuery)).thenReturn(expectedPreparedStatement);
+
+        TableName tableName = new TableName("testSchema", "testTable");
+        Schema schema = SchemaBuilder.newBuilder().build();
+        Split split = Mockito.mock(Split.class);
+
+        PreparedStatement preparedStatement = this.teradataRecordHandler.buildSplitSql(
+                this.connection, "testCatalogName", tableName, schema, constraints, split);
+
+        Assert.assertSame(expectedPreparedStatement, preparedStatement);
+        Mockito.verify(this.connection).prepareStatement(testQuery);
+        Mockito.verify(expectedPreparedStatement).setFetchSize(1000);
+        Mockito.verify(this.jdbcSplitQueryBuilder, Mockito.never()).buildSql(
+                any(Connection.class),
+                isNull(),
+                anyString(),
+                anyString(),
+                any(Schema.class),
+                any(Constraints.class),
+                any(Split.class));
+    }
+
+    @Test
+    public void appendLimitOffset_withLimit_returnsEmptyString()
     {
         Split split = Mockito.mock(Split.class);
         TeradataQueryStringBuilder builder = new TeradataQueryStringBuilder(TERADATA_QUOTE_CHARACTER, new TeradataFederationExpressionParser(TERADATA_QUOTE_CHARACTER));

@@ -211,6 +211,32 @@ public class BigQueryUtilsTest
         assertInstanceOf(ArrowType.Struct.class, nestedField.getType());
         assertEquals(2, nestedField.getChildren().size());
     }
+    @Test
+    public void testGetChildFieldListWithRepeatedStructSubField() {
+        // Simulate a REPEATED STRUCT sub-field (e.g. GA4 item_params nested inside a parent struct)
+        Field keyField = Field.of("key", LegacySQLTypeName.STRING);
+        Field valueField = Field.of("value", LegacySQLTypeName.STRING);
+        Field repeatedStructField = Field.newBuilder("item_params", LegacySQLTypeName.RECORD, keyField, valueField)
+                .setMode(Field.Mode.REPEATED).build();
+        Field parentStruct = Field.of("event", LegacySQLTypeName.RECORD,
+                Field.of("event_name", LegacySQLTypeName.STRING), repeatedStructField);
+
+        List<org.apache.arrow.vector.types.pojo.Field> result = BigQueryUtils.getChildFieldList(parentStruct);
+        assertNotNull(result);
+        assertEquals(2, result.size());
+
+        // The REPEATED STRUCT sub-field should be a List with 1 Struct child
+        org.apache.arrow.vector.types.pojo.Field itemParamsField = result.get(1);
+        assertEquals("item_params", itemParamsField.getName());
+        assertInstanceOf(org.apache.arrow.vector.types.pojo.ArrowType.List.class, itemParamsField.getType());
+        // Should have exactly 1 child (Struct wrapper), NOT 2 direct children
+        assertEquals(1, itemParamsField.getChildren().size());
+        org.apache.arrow.vector.types.pojo.Field structChild = itemParamsField.getChildren().get(0);
+        assertInstanceOf(ArrowType.Struct.class, structChild.getType());
+        assertEquals(2, structChild.getChildren().size());
+        assertEquals("key", structChild.getChildren().get(0).getName());
+        assertEquals("value", structChild.getChildren().get(1).getName());
+    }
 
     @Test
     public void testCoerceWithTimeVector() {

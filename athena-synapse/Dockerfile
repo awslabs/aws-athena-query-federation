@@ -1,5 +1,5 @@
-# Argument for Java version, defaulting to 11
-ARG JAVA_VERSION=11
+# Argument for Java version, defaulting to 11.al2023-x86_64
+ARG JAVA_VERSION=11.al2023-x86_64
 # Use the specified version of Java
 FROM public.ecr.aws/lambda/java:${JAVA_VERSION}
 
