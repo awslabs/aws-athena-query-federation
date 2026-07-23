@@ -44,7 +44,7 @@
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
-            <version>5.18.1</version>
+            <version>5.19.1</version>
         </dependency>
         <dependency>
             <groupId>net.java.dev.jna</groupId>
@@ -61,7 +61,7 @@
         <dependency>
             <groupId>net.snowflake</groupId>
             <artifactId>snowflake-jdbc</artifactId>
-            <version>3.28.0</version>
+            <version>4.3.1</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>

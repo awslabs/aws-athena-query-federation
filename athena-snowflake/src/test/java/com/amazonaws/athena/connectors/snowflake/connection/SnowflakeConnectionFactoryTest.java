@@ -74,7 +74,7 @@ public class SnowflakeConnectionFactoryTest
         properties.put("test.property", "test.value");
 
         when(mockDatabaseConnectionConfig.getJdbcConnectionString()).thenReturn("jdbc:snowflake://test.snowflakecomputing.com");
-        when(mockDatabaseConnectionInfo.getDriverClassName()).thenReturn("com.snowflake.client.jdbc.SnowflakeDriver");
+        when(mockDatabaseConnectionInfo.getDriverClassName()).thenReturn("net.snowflake.client.api.driver.SnowflakeDriver");
 
         connectionFactory = new SnowflakeConnectionFactory(mockDatabaseConnectionConfig, properties, mockDatabaseConnectionInfo);
     }
