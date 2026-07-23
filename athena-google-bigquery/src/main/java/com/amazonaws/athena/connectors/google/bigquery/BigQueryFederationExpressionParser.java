@@ -49,8 +49,6 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.
  */
 public class BigQueryFederationExpressionParser extends FederationExpressionParser
 {
-    private static final String quoteCharacter = "'";
-
     public String writeArrayConstructorClause(List<String> arguments)
     {
         return BigQuerySqlUtils.renderTemplate("comma_separated_list_with_parentheses", Map.of("items", arguments));
@@ -96,6 +94,12 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
         return mapFunctionToDataSourceSyntax(functionName, functionCallExpression.getType(), arguments);
     }
 
+    @Override
+    public String parseVariableExpression(VariableExpression variableExpression)
+    {
+        return BigQuerySqlUtils.backtickQuotedIdentifier(variableExpression.getColumnName());
+    }
+
     public String parseConstantExpression(ConstantExpression constantExpression)
     {
         Block values = constantExpression.getValues();
@@ -112,7 +116,7 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
                 || constantExpression.getType().equals(ArrowType.LargeUtf8.INSTANCE)
                 || fieldReader.getMinorType().equals(Types.MinorType.DATEDAY)) {
             constants = constants.stream()
-                    .map(val -> quoteCharacter + val + quoteCharacter)
+                    .map(BigQuerySqlUtils::singleQuotedStringLiteral)
                     .collect(Collectors.toList());
         }
 

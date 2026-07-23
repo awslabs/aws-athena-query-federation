@@ -9,7 +9,7 @@ test_template() ::= <%
  *@return A SQL query that can be executed by BigQuery.
  */
 select_query(builder) ::= <%
-    SELECT <if(builder.projection)><builder.projection:{col|`<col>`}; separator=","><else>null<endif> from `<builder.schemaName>`.`<builder.tableName>`<if(builder.conjuncts)> WHERE <builder.conjuncts:{conjunct|<conjunct>}; separator=" AND "><endif><if(builder.orderByClause)> <builder.orderByClause><endif><if(builder.limitClause)> <builder.limitClause><endif>
+    SELECT <if(builder.projection)><builder.escapedProjection; separator=","><else>null<endif> from <builder.escapedSchemaRef>.<builder.escapedTableRef><if(builder.conjuncts)> WHERE <builder.conjuncts:{conjunct|<conjunct>}; separator=" AND "><endif><if(builder.orderByClause)> <builder.orderByClause><endif><if(builder.limitClause)> <builder.limitClause><endif>
 %>
 
 /**
@@ -20,7 +20,7 @@ select_query(builder) ::= <%
  *@return A comparison predicate like `column` > ?
  */
 comparison_predicate(columnName, operator) ::= <%
-    `<columnName>` <operator> ?
+    <columnName> <operator> ?
 %>
 
 /**
@@ -31,7 +31,7 @@ comparison_predicate(columnName, operator) ::= <%
  *@return An IN predicate like column IN (?,?)
  */
 in_predicate(columnName, counts) ::= <%
-    `<columnName>` IN (<counts:{c|?}; separator=",">)
+    <columnName> IN (<counts:{c|?}; separator=",">)
 %>
 
 /**
