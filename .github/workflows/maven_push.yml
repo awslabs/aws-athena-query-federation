@@ -27,7 +27,7 @@ jobs:
       matrix:
         java-version: ['11', '17']
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Set up JDK ${{ matrix.java-version }}
@@ -49,12 +49,12 @@ jobs:
       # Fork PRs: upload WITHOUT token
       - name: Upload coverage reports to Codecov (fork PRs, no token)
         if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && matrix.java-version == '11' }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
 
       # Pushes & same-repo PRs: upload WITH token
       - name: Upload coverage reports to Codecov (internal only)
         if: ${{ (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork)) && matrix.java-version == '11' }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           slug: awslabs/aws-athena-query-federation
           token: ${{ secrets.CODECOV_TOKEN }}
