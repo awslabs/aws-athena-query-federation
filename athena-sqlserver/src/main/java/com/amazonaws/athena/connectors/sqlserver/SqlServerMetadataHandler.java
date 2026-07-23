@@ -271,7 +271,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 else {
                     LOGGER.debug("Getting data with diff Partitions: ");
                     // get partition details from sql server meta data tables
-                    List<String> partitionDetails = getPartitionDetails(params);
+                    List<String> partitionDetails = getPartitionDetails(params, getRequestOverrideConfig(getTableLayoutRequest));
                     String partitionInfo = (!partitionDetails.isEmpty() && partitionDetails.size() == 2) ?
                             ":::" + partitionDetails.get(0) + ":::" + partitionDetails.get(1) : "";
 
@@ -352,13 +352,13 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             // Included partition information to split if the table is partitioned
             if (partInfo.contains(":::")) {
                 String[] partInfoAr = partInfo.split(":::");
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfoAr[0])
                         .add(PARTITION_FUNCTION, partInfoAr[1])
                         .add(PARTITIONING_COLUMN, partInfoAr[2]);
             }
             else {
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfo);
             }
 
@@ -396,10 +396,10 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @param parameters
      * @throws SQLException
      */
-    private List<String> getPartitionDetails(List<String> parameters) throws Exception
+    private List<String> getPartitionDetails(List<String> parameters, AwsRequestOverrideConfiguration requestOverrideConfig) throws Exception
     {
         List<String> partitionDetails = new ArrayList<>();
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfig));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITION_DETAILS_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
@@ -449,7 +449,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());

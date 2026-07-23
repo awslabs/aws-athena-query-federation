@@ -35,7 +35,7 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Result;
-import org.apache.tinkerpop.gremlin.groovy.jsr223.GremlinGroovyScriptEngine;
+import org.apache.tinkerpop.gremlin.jsr223.GremlinLangScriptEngine;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
@@ -197,9 +197,12 @@ public class PropertyGraphHandler
         }
     }
 
+    /**
+     * Parses a Gremlin query-passthrough string using the Gremlin language grammar (GremlinLangScriptEngine).
+     */
     public Object getResponseFromGremlinQuery(GraphTraversalSource graphTraversalSource, String gremlinQuery) throws ScriptException
     {
-        ScriptEngine engine = new GremlinGroovyScriptEngine();
+        ScriptEngine engine = new GremlinLangScriptEngine();
         Bindings bindings = engine.createBindings();
         bindings.put("g", graphTraversalSource);
         return engine.eval(gremlinQuery, bindings);
