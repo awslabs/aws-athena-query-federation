@@ -526,7 +526,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         return CredentialsProviderFactory.createCredentialProvider(
                 getDatabaseConnectionConfig().getSecret(),
                 getCachableSecretsManager(),
-                new SqlServerOAuthCredentialsProvider()
+                new SqlServerOAuthCredentialsProvider(),
+                requestOverrideConfiguration
         );
     }
 }
