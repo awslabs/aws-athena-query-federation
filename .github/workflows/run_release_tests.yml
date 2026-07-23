@@ -26,7 +26,7 @@ jobs:
           distribution: 'corretto'
           java-version: '11'
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup Repo Root Directory
@@ -41,7 +41,7 @@ jobs:
           echo PATH=$PATH >> $GITHUB_ENV
 
       - name: Setup AWS Cred
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: us-west-2
           role-duration-seconds: 18000

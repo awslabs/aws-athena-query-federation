@@ -42,4 +42,6 @@ public class ImpalaConstants
     public static final int IMPALA_DEFAULT_PORT = 21050;
     public static final String METADATA_COLUMN_NAME = "name";
     public static final String METADATA_COLUMN_TYPE = "type";
+    public static final String USER = "UID";
+    public static final String PASSWORD = "PWD";
 }

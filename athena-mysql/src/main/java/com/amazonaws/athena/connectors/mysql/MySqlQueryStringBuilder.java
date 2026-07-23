@@ -26,7 +26,6 @@ import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.apache.calcite.sql.SqlDialect;
-import org.apache.calcite.sql.dialect.MysqlSqlDialect;
 
 import java.util.Collections;
 import java.util.List;
@@ -108,5 +107,11 @@ public class MySqlQueryStringBuilder
     protected SqlDialect getSqlDialect()
     {
         return MysqlSqlDialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new MysqlSqlDialect(catalogCasingFilterUpperCase);
     }
 }

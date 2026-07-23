@@ -35,7 +35,7 @@
         <dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>msal4j</artifactId>
-            <version>1.24.0</version>
+            <version>1.25.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -95,11 +95,6 @@
             <artifactId>mockito-inline</artifactId>
             <version>${mockito.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.antlr</groupId>
-            <artifactId>ST4</artifactId>
-            <version>${antlr.st4.version}</version>
         </dependency>
     </dependencies>
     <build>

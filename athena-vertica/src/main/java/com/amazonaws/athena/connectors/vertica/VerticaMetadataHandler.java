@@ -45,6 +45,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
+import com.amazonaws.athena.connectors.vertica.query.PredicateBuilder;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
 import com.google.common.collect.ImmutableMap;
@@ -55,7 +56,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.stringtemplate.v4.ST;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -465,12 +465,10 @@ public class VerticaMetadataHandler
     }
 
     private void testAccess(Connection conn, TableName table) {
-        ST simpleTestSqlST = new ST("SELECT * FROM <schemaName>.<tableName> Limit 1;");
-        simpleTestSqlST.add("schemaName", table.getSchemaName());
-        simpleTestSqlST.add("tableName", table.getTableName());
+        String sql = "SELECT * FROM " + PredicateBuilder.getFromClauseWithSplit(table.getSchemaName(), table.getTableName()) + " LIMIT 1";
         logger.info("Checking if the user has access to {}.{}", table.getSchemaName(), table.getTableName());
         try {
-            PreparedStatement testAccessSql = conn.prepareStatement(simpleTestSqlST.render());
+            PreparedStatement testAccessSql = conn.prepareStatement(sql);
             ResultSet resultSet = testAccessSql.executeQuery();
         } catch (Exception e) {
             if (e.getMessage().contains("Permission denied")) {

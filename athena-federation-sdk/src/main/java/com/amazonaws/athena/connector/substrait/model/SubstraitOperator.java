@@ -37,7 +37,10 @@ public enum SubstraitOperator
     IS_NOT_NULL("IS NOT NULL"),
     AND("AND"),
     OR("OR"),
-    NOT("NOT");
+    NOT("NOT"),
+    NOT_IN("NOT IN"),
+    NOR("NOR"),
+    NAND("NAND");
 
     private final String symbol;
 

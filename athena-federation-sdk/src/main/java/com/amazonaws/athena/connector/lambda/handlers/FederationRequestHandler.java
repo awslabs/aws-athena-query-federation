@@ -200,6 +200,11 @@ public interface FederationRequestHandler extends RequestStreamHandler
         Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
         return (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null);
     }
+    
+    default CredentialsProvider getCredentialProvider()
+    {
+        return getCredentialProvider(null);
+    }
 
     /**
      * Gets a credentials provider for database connections with optional request override configuration.

@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -35,6 +36,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
+import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.redshift.resolver.RedshiftJDBCCaseResolver;
 import com.google.common.collect.ImmutableMap;
@@ -46,9 +48,13 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DRIVER_CLASS;
@@ -123,5 +129,48 @@ public class RedshiftMetadataHandler
         preparedStatement.setInt(4, token);
         LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
+    }
+
+    @Override
+    protected List<String> getSplitClauses(final TableName tableName, final GetSplitsRequest getSplitsRequest)
+    {
+        List<String> splitClauses = new ArrayList<>();
+        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(
+                getCredentialProvider(getSplitsRequest != null ? getRequestOverrideConfig(getSplitsRequest) : null));
+             ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
+            List<String> primaryKeyColumns = new ArrayList<>();
+            while (resultSet.next()) {
+                primaryKeyColumns.add(resultSet.getString("COLUMN_NAME"));
+            }
+            if (!primaryKeyColumns.isEmpty()) {
+                try (Statement statement = jdbcConnection.createStatement();
+                     ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
+                             wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
+                    minMaxResultSet.next(); // expecting one result row
+                    long min = minMaxResultSet.getLong(1);
+                    long max = minMaxResultSet.getLong(2);
+                    Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
+
+                    if (optionalSplitter.isPresent()) {
+                        if (max - min < DEFAULT_NUM_SPLITS) {
+                            LOGGER.info("Range too small for splitting (min={}, max={}), skipping", min, max);
+                            return splitClauses;
+                        }
+
+                        Splitter splitter = optionalSplitter.get();
+                        while (splitter.hasNext()) {
+                            String splitClause = splitter.nextRangeClause();
+                            LOGGER.debug("Split generated {}", splitClause);
+                            splitClauses.add(splitClause);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex) {
+            LOGGER.warn("Unable to split data.", ex);
+        }
+
+        return splitClauses;
     }
 }
