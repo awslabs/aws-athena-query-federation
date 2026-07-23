@@ -54,6 +54,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
+import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
+import org.mockito.MockedStatic;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -419,7 +421,7 @@ public class SynapseMetadataHandlerTest
         // Regression guard for the managed-connector FAS fix: getSchema must obtain its JDBC connection with the
         // request-override credentials, i.e. getCredentialProvider(requestOverrideConfiguration). Previously getSchema
         // called the no-arg getCredentialProvider(), which falls back to the connector's execution role and fails a
-        // cross-account secretsmanager:GetSecretValue in managed-connector mode. Mirrors athena-sqlserver (PR #3531).
+        // cross-account secretsmanager:GetSecretValue in managed-connector mode.
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         String[] schema = {"DATA_TYPE", "COLUMN_NAME", "PRECISION", "SCALE"};
         int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
@@ -451,6 +453,25 @@ public class SynapseMetadataHandlerTest
         verify(spyHandler, atLeastOnce()).getCredentialProvider(sentinelOverride);
         // ...and must NEVER use the no-arg (execution-role) credential provider anywhere on the doGetTable path.
         verify(spyHandler, never()).getCredentialProvider();
+    }
+
+    @Test
+    public void createCredentialsProvider_forwardsRequestOverrideConfiguration()
+    {
+        // Regression guard: createCredentialsProvider must forward requestOverrideConfiguration to the 4-arg
+        // CredentialsProviderFactory overload. The 3-arg overload passes null, discarding the FAS/vended
+        // credentials, so the SecretsManager read falls back to the connector execution role and fails a
+        // cross-account secretsmanager:GetSecretValue in managed-connector mode.
+        AwsRequestOverrideConfiguration sentinelOverride = AwsRequestOverrideConfiguration.builder().build();
+        try (MockedStatic<CredentialsProviderFactory> factory = mockStatic(CredentialsProviderFactory.class)) {
+            this.synapseMetadataHandler.createCredentialsProvider("test-secret", sentinelOverride);
+
+            // must call the 4-arg overload WITH the override...
+            factory.verify(() -> CredentialsProviderFactory.createCredentialProvider(
+                    any(), any(), any(), eq(sentinelOverride)));
+            // ...and must NEVER call the 3-arg overload that drops the override (passes null).
+            factory.verify(() -> CredentialsProviderFactory.createCredentialProvider(any(), any(), any()), never());
+        }
     }
 
     @Test
