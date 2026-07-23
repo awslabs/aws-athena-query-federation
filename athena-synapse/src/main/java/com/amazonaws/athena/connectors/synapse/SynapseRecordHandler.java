@@ -105,8 +105,18 @@ public class SynapseRecordHandler extends JdbcRecordHandler
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(readRecordsRequest)))) {
+            /*
+            Azure Synapse serverless (on-demand) SQL pool does not support transactions. The SqlServer JDBC driver
+            references @@TRANCOUNT during both commit() and the implicit rollback performed when a pooled connection is
+            closed with autoCommit=false, which fails with "'@@TRANCOUNT' is not supported." on serverless. So for the
+            serverless environment we leave autoCommit at its default (true) and skip commit(); adaptive buffering still
+            streams results with the configured fetch size. Dedicated SQL pools support transactions and are unaffected.
+             */
+            boolean isAzureServerless = SynapseConstants.SQL_POOL.equalsIgnoreCase(SynapseUtil.checkEnvironment(connection.getMetaData().getURL()));
+            if (!isAzureServerless) {
+                connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            }
             try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                     readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
                  ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -133,12 +143,7 @@ public class SynapseRecordHandler extends JdbcRecordHandler
                 }
                 LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
 
-                /*
-                SqlServer jdbc driver is using @@TRANCOUNT while performing commit(), it results below RuntimeException.
-                com.microsoft.sqlserver.jdbc.SQLServerException:  '@@TRANCOUNT' is not supported.
-                So we are evading this connection.commit(), in case of Azure serverless environment.
-                 */
-                if (!SynapseConstants.SQL_POOL.equalsIgnoreCase(SynapseUtil.checkEnvironment(connection.getMetaData().getURL()))) {
+                if (!isAzureServerless) {
                     connection.commit();
                 }
             }
@@ -151,7 +156,8 @@ public class SynapseRecordHandler extends JdbcRecordHandler
         return CredentialsProviderFactory.createCredentialProvider(
             getDatabaseConnectionConfig().getSecret(),
             getCachableSecretsManager(),
-            new SynapseOAuthCredentialsProvider()
+            new SynapseOAuthCredentialsProvider(),
+            requestOverrideConfiguration
         );
     }
 }

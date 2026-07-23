@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.synapse;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -210,7 +211,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         String tableName = getTableLayoutRequest.getTableName().getTableName();
         String schemaName = getTableLayoutRequest.getTableName().getSchemaName();
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)));
              PreparedStatement psPartitions = connection.prepareStatement(GET_PARTITIONS_SQL);
              PreparedStatement psRowCount = connection.prepareStatement(ROW_COUNT_SQL)) {
             psPartitions.setString(1, tableName);
@@ -311,16 +312,22 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             // Included partition information to split if the table is partitioned
             if (partInfo.contains(":::")) {
                 String[] partInfoAr = partInfo.split(":::");
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfoAr[0])
                         .add(PARTITION_BOUNDARY_FROM, partInfoAr[1])
                         .add(PARTITION_BOUNDARY_TO, partInfoAr[2])
                         .add(PARTITION_COLUMN, partInfoAr[3]);
             }
             else {
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfo);
             }
+
+            if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+            }
+
             splits.add(splitBuilder.build());
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
@@ -380,7 +387,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder;
         HashMap<String, List<String>> columnNameAndDataTypeMap = new HashMap<>();
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype information.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
@@ -521,7 +528,8 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         return CredentialsProviderFactory.createCredentialProvider(
                 getDatabaseConnectionConfig().getSecret(),
                 getCachableSecretsManager(),
-                new SynapseOAuthCredentialsProvider()
+                new SynapseOAuthCredentialsProvider(),
+                requestOverrideConfiguration
         );
     }
 }
