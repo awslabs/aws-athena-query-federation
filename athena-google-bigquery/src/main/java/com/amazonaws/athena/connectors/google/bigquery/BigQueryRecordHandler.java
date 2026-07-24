@@ -26,8 +26,10 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigquery.BigQuery;
@@ -43,6 +45,7 @@ import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
+import com.google.cloud.bigquery.storage.v1.BigQueryReadSettings;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
@@ -52,7 +55,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.grpc.LoadBalancerRegistry;
 import io.grpc.internal.PickFirstLoadBalancerProvider;
+import io.substrait.proto.Plan;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -66,10 +71,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
+import static com.amazonaws.athena.connector.substrait.SubstraitRelUtils.deserializeSubstraitPlan;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
@@ -90,6 +95,14 @@ public class BigQueryRecordHandler
     BufferAllocator allocator;
 
     private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
+
+    public BigQueryRecordHandler(java.util.Map<String, String> configOptions)
+    {
+        this(S3Client.create(),
+                SecretsManagerClient.create(),
+                AthenaClient.create(), configOptions,
+                new RootAllocator());
+    }
 
     BigQueryRecordHandler(java.util.Map<String, String> configOptions, BufferAllocator allocator)
     {
@@ -112,7 +125,7 @@ public class BigQueryRecordHandler
     {
         List<QueryParameterValue> parameterValues = new ArrayList<>();
         invoker.setBlockSpiller(spiller);
-        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions)));
+        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
 
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             handleQueryPassthrough(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient);
@@ -131,11 +144,18 @@ public class BigQueryRecordHandler
         String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase();
         String datasetName = fixCaseForDatasetName(projectName, recordsRequest.getTableName().getSchemaName(), bigQueryClient);
         String tableName = fixCaseForTableName(projectName, datasetName, recordsRequest.getTableName().getTableName(), bigQueryClient);
-
         TableId tableId = TableId.of(projectName, datasetName, tableName);
         TableDefinition.Type type = bigQueryClient.getTable(tableId).getDefinition().getType();
 
-        if (type.equals(TableDefinition.Type.TABLE)) {
+        boolean queryPlanWithLimitOrSort = false;
+        final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
+        if (queryPlan != null && queryPlan.getSubstraitPlan() != null && !queryPlan.getSubstraitPlan().isEmpty()) {
+            Plan plan = deserializeSubstraitPlan(recordsRequest.getConstraints().getQueryPlan().getSubstraitPlan());
+            SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(plan.getRelations(0).getRoot().getInput());
+            queryPlanWithLimitOrSort = substraitRelModel.getFetchRel() != null || substraitRelModel.getSortRel() != null;
+        }
+
+        if (type.equals(TableDefinition.Type.TABLE) && !queryPlanWithLimitOrSort) {
             getTableData(spiller, recordsRequest, parameterValues, projectName, datasetName, tableName);
         }
         else {
@@ -162,8 +182,9 @@ public class BigQueryRecordHandler
                          BigQuery bigQueryClient,
                          String datasetName, String tableName) throws TimeoutException
     {
+        boolean catalogCasingFilterUpperCase = isCasingFilterUpperCase();
         String query = BigQuerySqlUtils.buildSql(new TableName(datasetName, tableName),
-                recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues);
+                recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues, catalogCasingFilterUpperCase);
         getData(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient, query);
     }
 
@@ -222,7 +243,15 @@ public class BigQueryRecordHandler
 
     private void getTableData(BlockSpiller spiller, ReadRecordsRequest recordsRequest, List<QueryParameterValue> parameterValues, String projectName, String datasetName, String tableName) throws IOException
     {
-        try (BigQueryReadClient client = BigQueryReadClient.create()) {
+        String secret = getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions));
+        boolean catalogCasingFilterUpperCase = isCasingFilterUpperCase();
+
+        // Create BigQueryReadClient with credentials from Secrets Manager
+        BigQueryReadSettings settings = BigQueryReadSettings.newBuilder()
+                .setCredentialsProvider(() -> BigQueryUtils.getCredentialsFromSecret(secret))
+                .build();
+
+        try (BigQueryReadClient client = BigQueryReadClient.create(settings)) {
             String parent = String.format("projects/%s", projectName);
 
             String srcTable =
@@ -239,7 +268,7 @@ public class BigQueryRecordHandler
             ReadSession.TableReadOptions.Builder optionsBuilder =
                     ReadSession.TableReadOptions.newBuilder()
                             .addAllSelectedFields(fields);
-            ReadSession.TableReadOptions options = BigQueryStorageApiUtils.setConstraints(optionsBuilder, recordsRequest.getSchema(), recordsRequest.getConstraints()).build();
+            ReadSession.TableReadOptions options = BigQueryStorageApiUtils.setConstraints(optionsBuilder, recordsRequest.getSchema(), recordsRequest.getConstraints(), catalogCasingFilterUpperCase).build();
 
             // Start specifying the read session we want created.
             ReadSession.Builder sessionBuilder =
@@ -306,13 +335,23 @@ public class BigQueryRecordHandler
                 for (FieldVector vector : result.getFieldVectors()) {
                     boolean isMatched = true;
                     Object value = vector.getObject(rowIndex);
+                    String matchedFieldName = recordsRequest.getSchema().getFields().stream()
+                            .map(Field::getName)
+                            .filter(name -> name.equalsIgnoreCase(vector.getField().getName()))
+                            .findFirst()
+                            .orElseThrow(() -> {
+                        List<String> schemaFieldNames = recordsRequest.getSchema().getFields().stream()
+                                .map(Field::getName).collect(java.util.stream.Collectors.toList());
+                        return new IllegalStateException("Field '" + vector.getField().getName()
+                                + "' from BigQuery response not found in schema. Schema fields: " + schemaFieldNames);
+                            });
                     switch (vector.getMinorType()) {
                         case LIST:
                         case STRUCT:
-                            isMatched &= block.offerComplexValue(vector.getField().getName(), rowNum, FieldResolver.DEFAULT, value);
+                            isMatched &= block.offerComplexValue(matchedFieldName, rowNum, FieldResolver.DEFAULT, value);
                             break;
                         default:
-                            isMatched &= block.offerValue(vector.getField().getName(), rowNum, BigQueryUtils.coerce(vector, value));
+                            isMatched &= block.offerValue(matchedFieldName, rowNum, BigQueryUtils.coerce(vector, value));
                             break;
                     }
                     if (!isMatched) {
@@ -333,9 +372,6 @@ public class BigQueryRecordHandler
      */
     private void outputResultsView(BlockSpiller spiller, ReadRecordsRequest recordsRequest, TableResult result)
     {
-        logger.info("Inside outputResults: ");
-        String timeStampColsList = Objects.toString(recordsRequest.getSchema().getCustomMetadata().get("timeStampCols"), "");
-        logger.info("timeStampColsList: " + timeStampColsList);
         if (result != null) {
             for (FieldValueList row : result.iterateAll()) {
                 spiller.writeRows((Block block, int rowNum) -> {
@@ -346,12 +382,12 @@ public class BigQueryRecordHandler
                         switch (getMinorTypeForArrowType(field.getFieldType().getType())) {
                             case LIST:
                             case STRUCT:
-                                val = BigQueryUtils.getComplexObjectFromFieldValue(field, fieldValue, timeStampColsList.contains(field.getName()));
+                                val = BigQueryUtils.getComplexObjectFromFieldValue(field, fieldValue);
                                 isMatched &= block.offerComplexValue(field.getName(), rowNum, FieldResolver.DEFAULT, val);
                                 break;
                             default:
                                 val = getObjectFromFieldValue(field.getName(), fieldValue,
-                                        field, timeStampColsList.contains(field.getName()));
+                                        field);
                                 isMatched &= block.offerValue(field.getName(), rowNum, val);
                                 break;
                         }
@@ -363,5 +399,15 @@ public class BigQueryRecordHandler
                 });
             }
         }
+    }
+
+    /**
+     * Checks CATALOG_CASING_FILTER config: returns true for UPPERCASE_ONLY, false otherwise (default LOWERCASE_ONLY).
+     */
+    private boolean isCasingFilterUpperCase()
+    {
+        return BigQueryConstants.CASING_UPPERCASE_ONLY.equalsIgnoreCase(
+                configOptions.getOrDefault(BigQueryConstants.CATALOG_CASING_FILTER,
+                        BigQueryConstants.CASING_LOWERCASE_ONLY));
     }
 }

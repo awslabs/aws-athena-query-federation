@@ -365,7 +365,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             locationReader.setPosition(curPartition);
             SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
             LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), locationReader.readText());
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                     .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
             splits.add(splitBuilder.build());
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
@@ -442,7 +442,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             LOGGER.debug("{} s3ObjectSummaries returned after executing on SnowFlake for queryId {}",
                     (long) s3ObjectSummaries.size(), queryId);
             for (S3Object objectSummary : s3ObjectSummaries) {
-                Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+                Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey(getRequestOverrideConfig(request)))
                         .add(SNOWFLAKE_SPLIT_QUERY_ID, queryId)
                         .add(SNOWFLAKE_SPLIT_EXPORT_BUCKET, s3Uri.get().bucket().orElseThrow())
                         .add(SNOWFLAKE_SPLIT_OBJECT_KEY, objectSummary.key())
@@ -454,7 +454,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         else {
             // Case when there is no data for copy into.
             LOGGER.debug("s3ObjectSummaries returned empty on SnowFlake for queryId {}", queryId);
-            Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+            Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey(getRequestOverrideConfig(request)))
                     .add(SNOWFLAKE_SPLIT_QUERY_ID, queryId)
                     .add(SNOWFLAKE_SPLIT_EXPORT_BUCKET, s3Uri.get().bucket().orElseThrow())
                     .add(SNOWFLAKE_SPLIT_OBJECT_KEY, EMPTY_STRING)
@@ -682,11 +682,10 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         return Optional.ofNullable(configOptions.get(STORAGE_INTEGRATION_CONFIG_KEY));
     }
-
+    
     @Override
-    protected CredentialsProvider getCredentialProvider()
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
-        final String secretName = getDatabaseConnectionConfig().getSecret();
         if (StringUtils.isNotBlank(secretName)) {
             return new SnowflakeCredentialsProvider(secretName);
         }

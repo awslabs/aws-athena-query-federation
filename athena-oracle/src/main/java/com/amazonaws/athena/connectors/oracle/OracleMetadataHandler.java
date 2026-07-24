@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.oracle;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -114,7 +115,7 @@ public class OracleMetadataHandler
      */
     public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT), configOptions), configOptions);
     }
 
     public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
@@ -155,7 +156,7 @@ public class OracleMetadataHandler
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             TableName casedTableName = getTableLayoutRequest.getTableName();
             LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), casedTableName.getSchemaName(),
                 casedTableName.getTableName());
@@ -213,15 +214,27 @@ public class OracleMetadataHandler
 
         // TODO consider splitting further depending on #rows or data size. Could use Hash key for splitting if no partitions.
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
-            FieldReader locationReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
-            locationReader.setPosition(curPartition);
-
+            String partitionValue;
+            if (partitions.getFields().stream().anyMatch(field -> field.getName().equals(BLOCK_PARTITION_COLUMN_NAME))) {
+                FieldReader locationReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
+                locationReader.setPosition(curPartition);
+                partitionValue = String.valueOf(locationReader.readText());
+            }
+            else {
+                LOGGER.warn("Partition Name doesn't exist");
+                partitionValue = ALL_PARTITIONS;
+            }
             SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 
-            LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), locationReader.readText());
+            LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), partitionValue);
 
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
+            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
+                    .add(BLOCK_PARTITION_COLUMN_NAME, partitionValue);
+
+            if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+            }
 
             splits.add(splitBuilder.build());
 
@@ -331,13 +344,9 @@ public class OracleMetadataHandler
 
                 String columnName = resultSet.getString(COLUMN_NAME);
                 int jdbcColumnType = resultSet.getInt("DATA_TYPE");
-                int precision = resultSet.getInt("COLUMN_SIZE");
-                int scale = resultSet.getInt("DECIMAL_DIGITS");
-
+                
                 LOGGER.debug("columnName: {}", columnName);
                 LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
-                LOGGER.debug("precision: {}", precision);
-                LOGGER.debug("scale: {}", scale);
                 LOGGER.debug("arrowColumnType: {}", arrowColumnType);
 
                 /**
@@ -354,16 +363,16 @@ public class OracleMetadataHandler
                 }
 
                 /**
-                 * Converting an Oracle date data type into DATEDAY MinorType
+                 * Converting an Oracle Date, TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType.
+                 * <p>
+                 * Oracle DATE columns store both date and time (to second precision), but the Oracle JDBC driver
+                 * reports them using timestamp-style JDBC type codes (OracleTypes.TIMESTAMP), not a calendar-day-only
+                 * type. If we mapped that to Arrow DATEDAY, the JDBC record path would read values with
+                 * ResultSet.getDate(), which truncates to the calendar day and loses time-of-day in Athena.
                  */
-                if (jdbcColumnType == java.sql.Types.TIMESTAMP && precision == 7) {
-                    arrowColumnType = Optional.of(Types.MinorType.DATEDAY.getType());
-                }
-
-                /**
-                 * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
-                 */
-                if (jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
+                if (jdbcColumnType == OracleTypes.TIMESTAMP
+                        || jdbcColumnType == OracleTypes.TIMESTAMPLTZ
+                        || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
                     arrowColumnType = Optional.of(Types.MinorType.DATEMILLI.getType());
                 }
 

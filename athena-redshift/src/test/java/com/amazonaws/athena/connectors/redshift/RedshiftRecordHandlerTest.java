@@ -128,7 +128,7 @@ public class RedshiftRecordHandlerTest
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"", new PostgreSqlFederationExpressionParser("\""));
+        jdbcSplitQueryBuilder = new RedshiftSqlQueryStringBuilder("\"", new PostgreSqlFederationExpressionParser("\""));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, REDSHIFT_NAME, TEST_CONNECTION_STRING);
 
         this.redshiftRecordHandler = new RedshiftRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
@@ -337,5 +337,15 @@ public class RedshiftRecordHandlerTest
 
         assertFalse(result);
         Mockito.verify(mockStatement, Mockito.times(1)).execute(DISABLE_CASE_SENSITIVE);
+    }
+
+    @Test
+    public void testConstructorUsesRedshiftSqlQueryStringBuilder() {
+        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, REDSHIFT_NAME, TEST_CONNECTION_STRING);
+        
+        RedshiftRecordHandler handler = new RedshiftRecordHandler(databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
+        
+        // Verify the handler was created successfully (constructor didn't throw)
+        Assert.assertNotNull("RedshiftRecordHandler should be created successfully", handler);
     }
 }

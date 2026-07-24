@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -34,17 +35,26 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.substrait.proto.Plan;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.junit.Assert.assertEquals;
@@ -52,13 +62,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Tests DynamoDB utility methods relating to predicate handling.
@@ -68,10 +71,14 @@ public class DDBPredicateUtilsTest
 {
     private static final Logger logger = LoggerFactory.getLogger(DDBPredicateUtilsTest.class);
 
+    private static final String VALUE_1 = "value1";
+    private static final String VALUE_2 = "value2";
+    private static final String VALUE_3 = "value3";
+
     @Test
-    public void testAliasColumn()
+    public void aliasColumn_withValidColumnNames_returnsAliasedColumnNames()
     {
-        logger.info("testAliasColumn - enter");
+        logger.info("aliasColumn_withValidColumnNames_returnsAliasedColumnNames - enter");
 
         assertEquals("Unexpected alias column value!", "#column_1",
                 DDBPredicateUtils.aliasColumn("column_1"));
@@ -82,11 +89,11 @@ public class DDBPredicateUtilsTest
         assertEquals("Unexpected alias column value!", "#column_1_f3F",
                 DDBPredicateUtils.aliasColumn("column-$1`~!@#$%^&*()-=+[]{}\\|;:'\",.<>/?f3F"));
 
-        logger.info("testAliasColumn - exit");
+        logger.info("aliasColumn_withValidColumnNames_returnsAliasedColumnNames - exit");
     }
 
     @Test
-    public void testGetBestIndexForPredicatesWithGSIProjectionTypeInclude()
+    public void getBestIndexForPredicates_withGSIProjectionTypeInclude_selectsBestIndex()
     {
         // global secondary index with INCLUDE projection type
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
@@ -106,7 +113,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesWithGSIProjectionTypeKeysOnly()
+    public void getBestIndexForPredicates_withGSIProjectionTypeKeysOnly_selectsBestIndex()
     {
         // global secondary index with KEYS_ONLY projection type
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
@@ -124,7 +131,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesWithNonEqualityPredicate()
+    public void getBestIndexForPredicates_withNonEqualityPredicate_selectsTableIndex()
     {
         // non-equality conditions for the hash key
         ValueSet rangeValueSet = SortedRangeSet.of(Range.range(new BlockAllocatorImpl(), VARCHAR.getType(), "aaa", true, "bbb", false));
@@ -142,7 +149,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesWithGSIProjectionTypeAll()
+    public void getBestIndexForPredicates_withGSIProjectionTypeAll_selectsBestIndex()
     {
         // global secondary index with ALL projection type
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
@@ -167,7 +174,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesWithLSI()
+    public void getBestIndexForPredicates_withLSI_selectsBestIndex()
     {
         // local secondary index
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
@@ -187,7 +194,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesWithMultipleIndices()
+    public void getBestIndexForPredicates_withMultipleIndices_selectsBestIndex()
     {
         // multiple indices
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
@@ -212,7 +219,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testAliasColumnEdgeCases()
+    public void aliasColumn_withEdgeCases_replacesSpecialCharactersWithUnderscores()
     {
         // Test empty string
         assertEquals("#", DDBPredicateUtils.aliasColumn(""));
@@ -243,9 +250,9 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testIndexContainsAllRequiredColumnsEdgeCases()
+    public void indexContainsAllRequiredColumns_withEdgeCases_handlesNullInputsAndProjectionTypes()
     {
-        logger.info("testIndexContainsAllRequiredColumnsEdgeCases - enter");
+        logger.info("indexContainsAllRequiredColumns_withEdgeCases_handlesNullInputsAndProjectionTypes - enter");
         
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -284,7 +291,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesEdgeCases()
+    public void getBestIndexForPredicates_withEdgeCases_selectsTableIndexForNoRangeKeyOrNoIndexes()
     {
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
         
@@ -327,7 +334,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testBuildFilterPredicatesFromPlanEdgeCases()
+    public void buildFilterPredicatesFromPlan_withEdgeCases_returnsEmptyMap()
     {
         // Test with null plan
         assertEquals(new HashMap<>(), DDBPredicateUtils.buildFilterPredicatesFromPlan(null));
@@ -338,7 +345,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateFilterExpressionEdgeCases()
+    public void generateFilterExpression_withEdgeCases_returnsNullForEmptyPredicatesOrAllIgnoredColumns()
     {
         // Test with empty predicates
         assertEquals(null, DDBPredicateUtils.generateFilterExpression(
@@ -373,7 +380,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateFilterExpressionForPlanEdgeCases()
+    public void generateFilterExpressionForPlan_withEdgeCases_returnsNull()
     {
         assertEquals(null, DDBPredicateUtils.generateFilterExpressionForPlan(
                 new HashSet<>(), 
@@ -395,7 +402,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testValidateColumnRangeEdgeCases()
+    public void generateSingleColumnFilter_withValidRanges_generatesFilter()
     {
         Range validRange1 = Range.range(new BlockAllocatorImpl(), VARCHAR.getType(), "a", true, "z", true);
         Range validRange2 = Range.range(new BlockAllocatorImpl(), VARCHAR.getType(), "a", false, "z", false);
@@ -455,7 +462,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesForPlanWithNullPredicates()
+    public void getBestIndexForPredicatesForPlan_withNullPredicates_selectsTableIndex()
     {
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -470,7 +477,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesForPlanWithEmptyPredicates()
+    public void getBestIndexForPredicatesForPlan_withEmptyPredicates_selectsTableIndex()
     {
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -485,7 +492,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesForPlanWithEqualityPredicates()
+    public void getBestIndexForPredicatesForPlan_withEqualityPredicates_selectsGSI()
     {
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -506,7 +513,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesForPlanWithNonEqualityPredicates()
+    public void getBestIndexForPredicatesForPlan_withNonEqualityPredicates_selectsTableIndex()
     {
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -526,7 +533,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesForPlanWithHashAndRangeKeyPredicates()
+    public void getBestIndexForPredicatesForPlan_withHashAndRangeKeyPredicates_selectsGSI()
     {
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -549,7 +556,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesForPlanWithProjectionConstraints()
+    public void getBestIndexForPredicatesForPlan_withProjectionConstraints_selectsTableIndexWhenColumnsNotProjected()
     {
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -574,7 +581,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesForPlanWithMultipleIndices()
+    public void getBestIndexForPredicatesForPlan_withMultipleIndices_selectsFirstMatchingIndex()
     {
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -598,7 +605,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesForPlanWithTableHashKeyPredicate()
+    public void getBestIndexForPredicatesForPlan_withTableHashKeyPredicate_selectsTableIndex()
     {
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -619,7 +626,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGetBestIndexForPredicatesForPlanWithLSI()
+    public void getBestIndexForPredicatesForPlan_withLSI_selectsLSI()
     {
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
                 ImmutableList.of(
@@ -642,7 +649,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithEmptyPredicates()
+    public void generateSingleColumnFilter_withEmptyPredicates_returnsNull()
     {
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
@@ -656,7 +663,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithEqualPredicate()
+    public void generateSingleColumnFilter_withEqualPredicate_generatesEqualityFilter()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -672,7 +679,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithMultipleEqualPredicates()
+    public void generateSingleColumnFilter_withMultipleEqualPredicates_generatesInClause()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -691,7 +698,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithNotEqualPredicate()
+    public void generateSingleColumnFilter_withNotEqualPredicate_generatesNotEqualFilter()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -707,7 +714,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithMultipleNotEqualPredicates()
+    public void generateSingleColumnFilter_withMultipleNotEqualPredicates_generatesNotInClause()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -726,7 +733,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithGreaterThanPredicate()
+    public void generateSingleColumnFilter_withGreaterThanPredicate_generatesGreaterThanFilter()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -742,7 +749,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithLessThanPredicate()
+    public void generateSingleColumnFilter_withLessThanPredicate_generatesLessThanFilter()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -758,7 +765,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithBetweenPredicate()
+    public void generateSingleColumnFilter_withBetweenPredicate_generatesBetweenFilter()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -777,7 +784,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithSortKeyConstraint()
+    public void generateSingleColumnFilter_withSortKeyConstraint_includesOnlyUpperBound()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -797,7 +804,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithIsNullPredicate()
+    public void generateSingleColumnFilter_withIsNullPredicate_generatesIsNullFilter()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -813,7 +820,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithIsNotNullPredicate()
+    public void generateSingleColumnFilter_withIsNotNullPredicate_generatesIsNotNullFilter()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -829,7 +836,7 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
-    public void testGenerateSingleColumnFilterWithSpecialCharactersInColumnName()
+    public void generateSingleColumnFilter_withSpecialCharactersInColumnName_sanitizesColumnNameInFilter()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
@@ -842,5 +849,68 @@ public class DDBPredicateUtilsTest
         );
         assertEquals("#column_with_special_chars = :v0", result);
         assertEquals(1, accumulator.size());
+    }
+
+    @Test
+    public void generateSingleColumnFilter_withMultipleValues_generatesInClauseForWhitelist()
+    {
+        final String expectedInClause = "#test_column IN (:v0,:v1,:v2)";
+
+        List<AttributeValue> accumulator = new ArrayList<>();
+        IncrementingValueNameProducer valueNameProducer = new IncrementingValueNameProducer();
+        
+        // Create a schema with a VARCHAR field
+        List<Field> fields = new ArrayList<>();
+        fields.add(new Field("test_column", FieldType.nullable(VARCHAR.getType()), null));
+        Schema schema = new Schema(fields);
+        DDBRecordMetadata recordMetadata = new DDBRecordMetadata(schema);
+        
+        ValueSet valueSet = EquatableValueSet.newBuilder(new BlockAllocatorImpl(), VARCHAR.getType(), true, false)
+                .add(VALUE_1).add(VALUE_2).add(VALUE_3).build();
+
+        String filterExpression = DDBPredicateUtils.generateSingleColumnFilter(
+                "test_column", valueSet, accumulator, valueNameProducer, recordMetadata, false);
+
+        // Verify the filter expression contains IN clause
+        assertEquals("Should return IN clause for whitelist value set", expectedInClause, filterExpression);
+        
+        // Verify the bound values
+        verifyAccumulatorValues(accumulator);
+    }
+
+    @Test
+    public void generateSingleColumnFilter_withMultipleValues_generatesNotInClauseForBlacklist()
+    {
+        final String expectedInClause = "#test_column IN (:v0,:v1,:v2)";
+        final String expectedNotInClause = "NOT " + expectedInClause;
+
+        List<AttributeValue> accumulator = new ArrayList<>();
+        IncrementingValueNameProducer valueNameProducer = new IncrementingValueNameProducer();
+        
+        // Create a schema with a VARCHAR field
+        List<Field> fields = new ArrayList<>();
+        fields.add(new Field("test_column", FieldType.nullable(VARCHAR.getType()), null));
+        Schema schema = new Schema(fields);
+        DDBRecordMetadata recordMetadata = new DDBRecordMetadata(schema);
+        
+        ValueSet valueSet = EquatableValueSet.newBuilder(new BlockAllocatorImpl(), VARCHAR.getType(), false, false)
+                .add(VALUE_1).add(VALUE_2).add(VALUE_3).build();
+
+        String filterExpression = DDBPredicateUtils.generateSingleColumnFilter(
+                "test_column", valueSet, accumulator, valueNameProducer, recordMetadata, false);
+
+        // Verify the filter expression contains NOT IN clause
+        assertEquals("Should return NOT IN clause for blacklist value set", expectedNotInClause, filterExpression);
+        
+        // Verify the bound values
+        verifyAccumulatorValues(accumulator);
+    }
+
+    private void verifyAccumulatorValues(List<AttributeValue> accumulator)
+    {
+        assertEquals("Should have three values in accumulator", 3, accumulator.size());
+        assertEquals("First value should match VALUE_1", DDBPredicateUtilsTest.VALUE_1, accumulator.get(0).s());
+        assertEquals("Second value should match VALUE_2", DDBPredicateUtilsTest.VALUE_2, accumulator.get(1).s());
+        assertEquals("Third value should match VALUE_3", DDBPredicateUtilsTest.VALUE_3, accumulator.get(2).s());
     }
 }

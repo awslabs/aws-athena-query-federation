@@ -14,13 +14,6 @@
             <artifactId>aws-athena-federation-sdk</artifactId>
             <version>2022.47.1</version>
             <classifier>withdep</classifier>
-            <exclusions>
-                <!-- replaced with jcl-over-slf4j -->
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -34,6 +27,13 @@
             <artifactId>docdb</artifactId>
             <version>${aws-sdk-v2.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <!-- replaced with jcl-over-slf4j -->
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/docdb -->
         <dependency>
