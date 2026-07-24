@@ -21,16 +21,21 @@
 
 <Configuration packages="com.amazonaws.services.lambda.runtime.log4j2">
     <Appenders>
-        <Lambda name="Lambda">
-            <PatternLayout>
-                <pattern>%d{yyyy-MM-dd HH:mm:ss} %X{AWSRequestId} %-5p %c{1}:%L - %m%n</pattern>
-            </PatternLayout>
+        <Lambda name="Lambda" format="${env:AWS_LAMBDA_LOG_FORMAT:-TEXT}">
+            <LambdaTextFormat>
+                <PatternLayout>
+                    <pattern>%d{yyyy-MM-dd HH:mm:ss} %X{AWSRequestId} %-5p %c{1} - %m%n</pattern>
+                </PatternLayout>
+            </LambdaTextFormat>
+            <LambdaJSONFormat>
+                <JsonTemplateLayout eventTemplateUri="classpath:LambdaLayout.json" />
+            </LambdaJSONFormat>
         </Lambda>
     </Appenders>
     <Loggers>
         <Logger name="com.amazonaws.athena.connector.lambda" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-warn}" />
         <Logger name="com.amazonaws.athena.connectors.google.bigquery" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-warn}" />
-        <Root level="info">
+        <Root level="${env:AWS_LAMBDA_LOG_LEVEL:-INFO}">
             <AppenderRef ref="Lambda" />
         </Root>
     </Loggers>
