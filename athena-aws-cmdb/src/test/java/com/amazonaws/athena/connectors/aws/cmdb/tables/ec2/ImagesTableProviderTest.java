@@ -178,7 +178,7 @@ public class ImagesTableProviderTest
 
             ReadRecordsRequest request = buildReadRequest(provider, allocator, constraintsMap);
             BlockSpiller mockSpiller = mock(BlockSpiller.class);
-            com.amazonaws.athena.connector.lambda.QueryStatusChecker mockChecker = mock(com.amazonaws.athena.connector.lambda.QueryStatusChecker.class);
+            QueryStatusChecker mockChecker = mock(QueryStatusChecker.class);
             lenient().when(mockChecker.isQueryRunning()).thenReturn(true);
 
             provider.readWithConstraint(mockSpiller, request, mockChecker);
