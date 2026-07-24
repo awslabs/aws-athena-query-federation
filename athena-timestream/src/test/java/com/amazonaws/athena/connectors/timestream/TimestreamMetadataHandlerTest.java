@@ -20,12 +20,13 @@
 package com.amazonaws.athena.connectors.timestream;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -38,7 +39,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
@@ -80,14 +81,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
-import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -98,10 +96,39 @@ public class TimestreamMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TimestreamMetadataHandlerTest.class);
 
+    private static final String DEFAULT_CATALOG = "default";
+    private static final String QUERY_ID = "queryId";
+    private static final String QUERY_ID_WITH_DASH = "query-id";
+    private static final String TABLE_NAME_1 = "table1";
+    private static final String TABLE_NAME_2 = "table2";
+    private static final String TABLE_NAME_CASE_MISMATCH = "Table1";
+    private static final String DATABASE_NAME_CASE_MISMATCH = "Default";
+    private static final String DATABASE_NAME_1 = "database1";
+    private static final String TABLE_NOT_FOUND_IN_GLUE = "Table not found in Glue";
+    private static final String DATABASE_NOT_FOUND = "Database not found";
+    private static final String TABLE_NOT_FOUND = "Table not found";
+    private static final String SELECT_COL1_COL2_FROM_TABLE1 = "SELECT col1, col2 FROM table1";
+    private static final String SELECT_STAR_FROM_TABLE1 = "SELECT * FROM table1";
+    private static final String EXCEEDED_MAXIMUM_RESULT_SIZE = "Exceeded maximum result size";
+    private static final String NO_QUERY_PASSED_THROUGH = "No Query passed through";
+    private static final String UNEXPECTED_DATUM_SIZE = "Unexpected datum size";
+    private static final String SYSTEM_SCHEMA = "system";
+    private static final String QUERY_TABLE = "query";
+    private static final String SYSTEM_QUERY_FUNCTION = "SYSTEM.QUERY";
+    private static final String COLUMN_NAME_1 = "col1";
+    private static final String COLUMN_NAME_2 = "col2";
+    private static final String DATA_TYPE_VARCHAR = "varchar";
+    private static final String DATA_TYPE_DOUBLE = "double";
+    private static final String DATA_TYPE_DIMENSION = "dimension";
+    private static final String DATA_TYPE_MEASURE_VALUE = "measure_value";
+    private static final String PARTITION_ID_COLUMN = "partition_id";
+    private static final String PAGINATION_TOKEN_1 = "token1";
+    private static final String PAGINATION_TOKEN_PREFIX = "token";
+
     private final String defaultSchema = "default";
     private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private TimestreamMetadataHandler handler;
-    private BlockAllocator allocator;
+    private BlockAllocatorImpl allocator;
 
     @Mock
     protected SecretsManagerClient mockSecretsManager;
@@ -115,7 +142,9 @@ public class TimestreamMetadataHandlerTest
     protected GlueClient mockGlue;
 
     @Before
-    public void setUp() {
+    public void setUp()
+            throws Exception
+    {
         handler = new TimestreamMetadataHandler(mockTsQuery,
                 mockTsMeta,
                 mockGlue,
@@ -130,15 +159,19 @@ public class TimestreamMetadataHandlerTest
     }
 
     @After
-    public void tearDown() {
-        allocator.close();
+    public void tearDown()
+            throws Exception
+    {
+        if (allocator != null) {
+            allocator.close();
+        }
     }
 
     @Test
-    public void doListSchemaNames()
+    public void doListSchemaNames_WhenDatabasesExist_ReturnsAllDatabaseNamesAsSchemas()
             throws Exception
     {
-        logger.info("doListSchemaNames - enter");
+        logger.info("doListSchemaNames_WhenDatabasesExist_ReturnsAllDatabaseNamesAsSchemas - enter");
 
         when(mockTsMeta.listDatabases(nullable(ListDatabasesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             ListDatabasesRequest request = invocation.getArgument(0, ListDatabasesRequest.class);
@@ -182,10 +215,10 @@ public class TimestreamMetadataHandlerTest
     }
 
     @Test
-    public void doListTables()
+    public void doListTables_WhenTablesExist_ReturnsAllTableNamesInSchema()
             throws Exception
     {
-        logger.info("doListTables - enter");
+        logger.info("doListTables_WhenTablesExist_ReturnsAllTableNamesInSchema - enter");
 
         when(mockTsMeta.listTables(nullable(software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
@@ -236,10 +269,10 @@ public class TimestreamMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_WhenTableExistsInTimestream_ReturnsSchemaFromDescribeQuery()
             throws Exception
     {
-        logger.info("doGetTable - enter");
+        logger.info("doGetTable_WhenTableExistsInTimestream_ReturnsSchemaFromDescribeQuery - enter");
 
         when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class)))
                 .thenReturn(software.amazon.awssdk.services.glue.model.GetTableResponse.builder().build());
@@ -267,9 +300,9 @@ public class TimestreamMetadataHandlerTest
         });
 
         GetTableRequest req = new GetTableRequest(identity,
-                "query-id",
-                "default",
-                new TableName(defaultSchema, "table1"), Collections.emptyMap());
+                QUERY_ID_WITH_DASH,
+                DEFAULT_CATALOG,
+                new TableName(defaultSchema, TABLE_NAME_1), Collections.emptyMap());
 
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
@@ -292,10 +325,10 @@ public class TimestreamMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableGlue()
+    public void doGetTable_WhenTableExistsInGlue_ReturnsGlueSchemaWithViewMetadata()
             throws Exception
     {
-        logger.info("doGetTable - enter");
+        logger.info("doGetTable_WhenTableExistsInGlue_ReturnsGlueSchemaWithViewMetadata - enter");
 
         when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             software.amazon.awssdk.services.glue.model.GetTableRequest request = invocation.getArgument(0,
@@ -319,9 +352,9 @@ public class TimestreamMetadataHandlerTest
         });
 
         GetTableRequest req = new GetTableRequest(identity,
-                "query-id",
-                "default",
-                new TableName(defaultSchema, "table1"), Collections.emptyMap());
+                QUERY_ID_WITH_DASH,
+                DEFAULT_CATALOG,
+                new TableName(defaultSchema, TABLE_NAME_1), Collections.emptyMap());
 
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
@@ -340,10 +373,10 @@ public class TimestreamMetadataHandlerTest
     }
 
     @Test
-    public void doGetTimeSeriesTableGlue()
+    public void doGetTable_WhenTimeSeriesTableExistsInGlue_ReturnsTimeSeriesSchemaWithListViewMetadata()
             throws Exception
     {
-        logger.info("doGetTimeSeriesTableGlue - enter");
+        logger.info("doGetTable_WhenTimeSeriesTableExistsInGlue_ReturnsTimeSeriesSchemaWithListViewMetadata - enter");
 
         when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             software.amazon.awssdk.services.glue.model.GetTableRequest request = invocation.getArgument(0,
@@ -367,9 +400,9 @@ public class TimestreamMetadataHandlerTest
         });
 
         GetTableRequest req = new GetTableRequest(identity,
-                "query-id",
-                "default",
-                new TableName(defaultSchema, "table1"), Collections.emptyMap());
+                QUERY_ID_WITH_DASH,
+                DEFAULT_CATALOG,
+                new TableName(defaultSchema, TABLE_NAME_1), Collections.emptyMap());
 
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
@@ -404,19 +437,19 @@ public class TimestreamMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_WhenRequested_ReturnsSinglePartitionBlock()
             throws Exception
     {
-        logger.info("doGetTableLayout - enter");
+        logger.info("doGetTableLayout_WhenRequested_ReturnsSinglePartitionBlock - enter");
 
         Schema schema = SchemaBuilder.newBuilder().build();
         GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
                 "query-id",
                 defaultSchema,
                 new TableName("database1", "table1"),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                TestUtils.constraints(Collections.emptyMap(), Collections.emptyMap()),
                 schema,
-                Collections.EMPTY_SET);
+                Collections.<String>emptySet());
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
@@ -431,10 +464,10 @@ public class TimestreamMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_WhenRequested_ReturnsOneSplitWithNullContinuationToken()
             throws Exception
     {
-        logger.info("doGetSplits - enter");
+        logger.info("doGetSplits_WhenRequested_ReturnsOneSplitWithNullContinuationToken - enter");
 
         List<String> partitionCols = new ArrayList<>();
 
@@ -447,7 +480,7 @@ public class TimestreamMetadataHandlerTest
                 new TableName("database1", "table1"),
                 partitions,
                 partitionCols,
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                TestUtils.constraints(Collections.emptyMap(), Collections.emptyMap()),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
@@ -470,75 +503,281 @@ public class TimestreamMetadataHandlerTest
     }
 
     @Test
-    public void doGetQueryPassthroughSchema_scalarColumns_returnsSchema()
-            throws Exception
+    public void doGetDataSourceCapabilities_WhenCalled_ReturnsCatalogNameAndCapabilities()
     {
-        Map<String, String> queryPassthroughArgs = new HashMap<>();
-        queryPassthroughArgs.put(SCHEMA_FUNCTION_NAME, TimestreamQueryPassthrough.SCHEMA_NAME + "." + TimestreamQueryPassthrough.NAME);
-        queryPassthroughArgs.put(TimestreamQueryPassthrough.QUERY,
-                "SELECT id, measure_value, time FROM \"db\".\"table\"");
+        GetDataSourceCapabilitiesRequest req = new GetDataSourceCapabilitiesRequest(identity, QUERY_ID, DEFAULT_CATALOG);
+        GetDataSourceCapabilitiesResponse res = handler.doGetDataSourceCapabilities(allocator, req);
 
-        GetTableRequest request = new GetTableRequest(identity, "query-id", "default",
-                new TableName("system", "query"), queryPassthroughArgs);
-
-        List<ColumnInfo> columnInfos = new ArrayList<>();
-        columnInfos.add(ColumnInfo.builder().name("id")
-                .type(Type.builder().scalarType(ScalarType.VARCHAR).build()).build());
-        columnInfos.add(ColumnInfo.builder().name("measure_value")
-                .type(Type.builder().scalarType(ScalarType.DOUBLE).build()).build());
-        columnInfos.add(ColumnInfo.builder().name("time")
-                .type(Type.builder().scalarType(ScalarType.TIMESTAMP).build()).build());
-
-        QueryResponse queryResponse = QueryResponse.builder()
-                .columnInfo(columnInfos)
-                .rows(Collections.emptyList())
-                .build();
-        when(mockTsQuery.query(nullable(QueryRequest.class))).thenReturn(queryResponse);
-
-        GetTableResponse res = handler.doGetQueryPassthroughSchema(allocator, request);
-
-        assertEquals(3, res.getSchema().getFields().size());
-        assertEquals(Types.MinorType.VARCHAR,
-                Types.getMinorTypeForArrowType(res.getSchema().findField("id").getType()));
-        assertEquals(Types.MinorType.FLOAT8,
-                Types.getMinorTypeForArrowType(res.getSchema().findField("measure_value").getType()));
-        assertEquals(Types.MinorType.DATEMILLI,
-                Types.getMinorTypeForArrowType(res.getSchema().findField("time").getType()));
+        assertNotNull("GetDataSourceCapabilities response should not be null", res);
+        assertEquals("Catalog name should match request", DEFAULT_CATALOG, res.getCatalogName());
+        assertNotNull("Capabilities should not be null", res.getCapabilities());
     }
 
     @Test
-    public void doGetQueryPassthroughSchema_timeseriesColumn_throwsException()
+    public void doListTables_WithResourceNotFoundExceptionForExactName_ReturnsTablesFromCaseInsensitiveMatch()
             throws Exception
     {
-        Map<String, String> queryPassthroughArgs = new HashMap<>();
-        queryPassthroughArgs.put(SCHEMA_FUNCTION_NAME, TimestreamQueryPassthrough.SCHEMA_NAME + "." + TimestreamQueryPassthrough.NAME);
-        
-        queryPassthroughArgs.put(TimestreamQueryPassthrough.QUERY,
-                "SELECT id, my_time_series FROM \"db\".\"table\"");
+        when(mockTsMeta.listDatabases(nullable(ListDatabasesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            List<Database> databases = new ArrayList<>();
+            databases.add(Database.builder().databaseName(DATABASE_NAME_CASE_MISMATCH).build()); // Case mismatch
+            return ListDatabasesResponse.builder().databases(databases).nextToken(null).build();
+        });
 
-        GetTableRequest request = new GetTableRequest(identity, "query-id", "default",
-                new TableName("system", "query"), queryPassthroughArgs);
+        when(mockTsMeta.listTables(nullable(software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class)))
+                .thenAnswer((InvocationOnMock invocation) -> {
+                    software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest request =
+                            invocation.getArgument(0, software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class);
 
-        // Simulate Timestream returning a timeseries/non-scalar column: Type with no scalar (scalarTypeAsString() null).
-        Type timeseriesType = Type.builder().build();
-        ColumnInfo timeseriesColumn = ColumnInfo.builder().name("my_time_series").type(timeseriesType).build();
-        QueryResponse queryResponse = QueryResponse.builder()
-                .columnInfo(Collections.singletonList(timeseriesColumn))
-                .rows(Collections.emptyList())
-                .build();
+                    // First call throws ResourceNotFoundException, second call succeeds
+                    if (request.databaseName().equals(DEFAULT_CATALOG)) {
+                        throw software.amazon.awssdk.services.timestreamwrite.model.ResourceNotFoundException.builder()
+                                .message(DATABASE_NOT_FOUND)
+                                .build();
+                    }
 
-        when(mockTsQuery.query(nullable(QueryRequest.class))).thenReturn(queryResponse);
+                    List<Table> tables = new ArrayList<>();
+                    tables.add(Table.builder().databaseName(request.databaseName()).tableName(TABLE_NAME_1).build());
+                    return software.amazon.awssdk.services.timestreamwrite.model.ListTablesResponse.builder()
+                            .tables(tables).nextToken(null).build();
+                });
 
-        try {
-            handler.doGetQueryPassthroughSchema(allocator, request);
-            fail("Expected AthenaConnectorException for timeseries column");
-        }
-        catch (AthenaConnectorException e) {
-            assertNotNull(e.getMessage());
-            assertTrue("Message should mention supported scalar types",
-                    e.getMessage().contains("varchar") && e.getMessage().contains("double") && e.getMessage().contains("timestamp"));
-            assertTrue("Message should mention the column name", e.getMessage().contains("my_time_series"));
-            assertTrue("Message should mention docs link", e.getMessage().contains("connectors-timestream.html"));
-        }
+        ListTablesRequest req = new ListTablesRequest(identity, QUERY_ID, DEFAULT_CATALOG, DEFAULT_CATALOG,
+                null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesResponse res = handler.doListTables(allocator, req);
+
+        assertEquals("Should return one table after case-insensitive fallback", 1, res.getTables().size());
+        TableName firstTable = res.getTables().iterator().next();
+        assertEquals("Schema name should match case-insensitive database", DATABASE_NAME_CASE_MISMATCH, firstTable.getSchemaName());
+        assertEquals("Table name should match", TABLE_NAME_1, firstTable.getTableName());
+    }
+
+    @Test
+    public void doListTables_WithLimitedPageSize_ReturnsOneTableAndNextToken()
+            throws Exception
+    {
+        when(mockTsMeta.listTables(nullable(software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class)))
+                .thenAnswer((InvocationOnMock invocation) -> {
+                    software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest request =
+                            invocation.getArgument(0, software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class);
+
+                    List<Table> tables = new ArrayList<>();
+
+                    tables.add(Table.builder().databaseName(request.databaseName()).tableName(TABLE_NAME_1).build());
+                    return software.amazon.awssdk.services.timestreamwrite.model.ListTablesResponse.builder()
+                            .tables(tables).nextToken(PAGINATION_TOKEN_1).build();
+
+                });
+
+        ListTablesRequest req = new ListTablesRequest(identity, QUERY_ID, DEFAULT_CATALOG, defaultSchema,
+                null, 10); // Limited page size
+        ListTablesResponse res = handler.doListTables(allocator, req);
+
+        assertEquals("Should return one table when page size is limited", 1, res.getTables().size());
+        assertNotNull("Next token should be present when more pages exist", res.getNextToken());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doListTables_ExceedsMaxResults_ThrowsRuntimeException()
+            throws Exception
+    {
+        final int[] callCount = {0};
+        when(mockTsMeta.listTables(nullable(software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class)))
+                .thenAnswer((InvocationOnMock invocation) -> {
+                    software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest request =
+                            invocation.getArgument(0, software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class);
+
+                    List<Table> tables = new ArrayList<>();
+                    // Return 50,001 tables per page to exceed MAX_RESULTS (100,000) on the third page
+                    // First page: 0-50000, Second page: 50001-100000, Third page: 100001+ (exceeds limit)
+                    int startIndex = callCount[0] * 50001;
+                    int endIndex = Math.min(startIndex + 50001, 100002); // Ensure we exceed 100,000
+                    for (int i = startIndex; i < endIndex; i++) {
+                        tables.add(Table.builder().databaseName(request.databaseName()).tableName("table_" + i).build());
+                    }
+                    callCount[0]++;
+                    // Keep returning tokens until we exceed MAX_RESULTS
+                    String nextToken = (callCount[0] < 3) ? PAGINATION_TOKEN_PREFIX + callCount[0] : null;
+                    return software.amazon.awssdk.services.timestreamwrite.model.ListTablesResponse.builder()
+                            .tables(tables).nextToken(nextToken).build();
+                });
+
+        ListTablesRequest req = new ListTablesRequest(identity, QUERY_ID, DEFAULT_CATALOG, defaultSchema,
+                null, UNLIMITED_PAGE_SIZE_VALUE);
+
+        handler.doListTables(allocator, req);
+    }
+
+    @Test
+    public void doGetTable_WithExactNameNotFoundInGlue_FindsTableCaseInsensitivelyAndReturnsSchemaWithOneField()
+            throws Exception
+    {
+        when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class)))
+                .thenThrow(new RuntimeException(TABLE_NOT_FOUND_IN_GLUE));
+
+        // First call throws ValidationException, then we find the table with case-insensitive lookup
+        when(mockTsMeta.listDatabases(nullable(ListDatabasesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            List<Database> databases = new ArrayList<>();
+            databases.add(Database.builder().databaseName(DATABASE_NAME_CASE_MISMATCH).build()); // Case mismatch
+            return ListDatabasesResponse.builder().databases(databases).nextToken(null).build();
+        });
+
+        when(mockTsMeta.listTables(nullable(software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class)))
+                .thenAnswer((InvocationOnMock invocation) -> {
+                    software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest request =
+                            invocation.getArgument(0, software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class);
+                    List<Table> tables = new ArrayList<>();
+                    tables.add(Table.builder().databaseName(request.databaseName()).tableName(TABLE_NAME_CASE_MISMATCH).build()); // Case mismatch - different from TABLE_NAME_1
+                    return software.amazon.awssdk.services.timestreamwrite.model.ListTablesResponse.builder()
+                            .tables(tables).nextToken(null).build();
+                });
+
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            QueryRequest request = invocation.getArgument(0, QueryRequest.class);
+            // First call throws ValidationException
+            if (request.queryString().contains("\"default\"")) {
+                throw software.amazon.awssdk.services.timestreamquery.model.ValidationException.builder()
+                        .message(TABLE_NOT_FOUND)
+                        .build();
+            }
+            // Second call succeeds
+            List<Row> rows = new ArrayList<>();
+            rows.add(Row.builder().data(Datum.builder().scalarValue(COLUMN_NAME_1).build(),
+                    Datum.builder().scalarValue(DATA_TYPE_VARCHAR).build(),
+                    Datum.builder().scalarValue(DATA_TYPE_DIMENSION).build()).build());
+            return QueryResponse.builder().rows(rows).build();
+        });
+
+        GetTableRequest req = new GetTableRequest(identity,
+                QUERY_ID_WITH_DASH,
+                DEFAULT_CATALOG,
+                new TableName(DEFAULT_CATALOG, TABLE_NAME_1), Collections.emptyMap());
+
+        GetTableResponse res = handler.doGetTable(allocator, req);
+        assertNotNull("GetTable response should not be null after case-insensitive fallback", res);
+        assertEquals("Schema should have one field", 1, res.getSchema().getFields().size());
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema_WithValidQuery_ReturnsSchemaWithTwoColumns()
+            throws Exception
+    {
+        Map<String, String> qptArgs = new HashMap<>();
+        qptArgs.put(QueryPassthroughSignature.SCHEMA_FUNCTION_NAME, SYSTEM_QUERY_FUNCTION);
+        qptArgs.put(TimestreamQueryPassthrough.QUERY, SELECT_COL1_COL2_FROM_TABLE1);
+
+        GetTableRequest req = new GetTableRequest(identity,
+                QUERY_ID_WITH_DASH,
+                DEFAULT_CATALOG,
+                new TableName(SYSTEM_SCHEMA, QUERY_TABLE),
+                qptArgs);
+
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            QueryRequest request = invocation.getArgument(0, QueryRequest.class);
+            assertEquals("Query string should match passthrough query", SELECT_COL1_COL2_FROM_TABLE1, request.queryString());
+            assertEquals("maxRows should be 1 for schema probe", 1, request.maxRows().intValue());
+
+            List<ColumnInfo> columnInfos = new ArrayList<>();
+            columnInfos.add(ColumnInfo.builder()
+                    .name(COLUMN_NAME_1)
+                    .type(Type.builder().scalarType(ScalarType.VARCHAR).build())
+                    .build());
+            columnInfos.add(ColumnInfo.builder()
+                    .name(COLUMN_NAME_2)
+                    .type(Type.builder().scalarType(ScalarType.DOUBLE).build())
+                    .build());
+
+            return QueryResponse.builder()
+                    .columnInfo(columnInfos)
+                    .rows(Collections.emptyList())
+                    .build();
+        });
+
+        GetTableResponse res = handler.doGetQueryPassthroughSchema(allocator, req);
+        assertNotNull("GetTable response for query passthrough schema should not be null", res);
+        assertEquals("Schema should have two columns", 2, res.getSchema().getFields().size());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void doGetQueryPassthroughSchema_WithoutQueryPassthrough_ThrowsIllegalArgumentException()
+            throws Exception
+    {
+        GetTableRequest req = new GetTableRequest(identity,
+                QUERY_ID_WITH_DASH,
+                DEFAULT_CATALOG,
+                new TableName(SYSTEM_SCHEMA, QUERY_TABLE),
+                Collections.emptyMap()); // Empty map means not query passthrough
+
+        handler.doGetQueryPassthroughSchema(allocator, req);
+    }
+
+    @Test
+    public void getPartitions_WhenCalled_DoesNotThrow()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder().build();
+        GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
+                QUERY_ID_WITH_DASH,
+                defaultSchema,
+                new TableName(DATABASE_NAME_1, TABLE_NAME_1),
+                TestUtils.constraints(Collections.emptyMap(), Collections.emptyMap()),
+                schema,
+                Collections.<String>emptySet());
+
+        // This is a NoOp method, so we just verify it doesn't throw
+        handler.getPartitions(null, req, null);
+    }
+
+    @Test
+    public void doGetSplits_WithQueryPassthroughArgs_ReturnsOneSplitWithQueryInProperties()
+            throws Exception
+    {
+        List<String> partitionCols = new ArrayList<>();
+        Block partitions = BlockUtils.newBlock(allocator, PARTITION_ID_COLUMN, Types.MinorType.INT.getType(), 0);
+
+        Map<String, String> qptArgs = new HashMap<>();
+        qptArgs.put(TimestreamQueryPassthrough.QUERY, SELECT_STAR_FROM_TABLE1);
+
+        GetSplitsRequest req = new GetSplitsRequest(identity,
+                QUERY_ID_WITH_DASH,
+                defaultSchema,
+                new TableName(DATABASE_NAME_1, TABLE_NAME_1),
+                partitions,
+                partitionCols,
+                TestUtils.constraints(Collections.emptyMap(), qptArgs),
+                null);
+
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
+        assertNotNull("GetSplits response should not be null", response);
+        assertEquals("Should return exactly one split for query passthrough", 1, response.getSplits().size());
+        Split firstSplit = response.getSplits().iterator().next();
+        assertNotNull("Split properties should not be null", firstSplit.getProperties());
+        assertTrue("Split properties should contain QUERY key for passthrough", firstSplit.getProperties().containsKey(TimestreamQueryPassthrough.QUERY));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetTable_WithUnexpectedDatumSize_ThrowsRuntimeException()
+            throws Exception
+    {
+        when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class)))
+                .thenThrow(new RuntimeException(TABLE_NOT_FOUND_IN_GLUE));
+
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            // Return a row with unexpected datum size (not 3)
+            List<Datum> datum = new ArrayList<>();
+            datum.add(Datum.builder().scalarValue(COLUMN_NAME_1).build());
+            datum.add(Datum.builder().scalarValue(DATA_TYPE_VARCHAR).build());
+            // Missing third element
+
+            List<Row> rows = new ArrayList<>();
+            rows.add(Row.builder().data(datum).build());
+            return QueryResponse.builder().rows(rows).build();
+        });
+
+        GetTableRequest req = new GetTableRequest(identity,
+                QUERY_ID_WITH_DASH,
+                DEFAULT_CATALOG,
+                new TableName(defaultSchema, TABLE_NAME_1), Collections.emptyMap());
+
+        handler.doGetTable(allocator, req);
     }
 }
