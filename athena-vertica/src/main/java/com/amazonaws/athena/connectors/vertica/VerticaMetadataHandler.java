@@ -57,6 +57,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -395,12 +398,12 @@ public class VerticaMetadataHandler
             }
             String prefix = remainingPath + queryId;
 
-            List<S3Object> s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
+            List<S3Object> s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix, request);
             if (s3ObjectsList.isEmpty()) {
                 // Execute queries on Vertica if S3 export bucket does not contain objects for given queryId
-                executeQueriesOnVertica(connection, sqlStatement, awsRegionSql);
+                executeQueriesOnVertica(connection, sqlStatement, awsRegionSql, request);
                 // Retrieve the S3 objects list for given queryId
-                s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
+                s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix, request);
             }
 
             Split split;
@@ -441,12 +444,48 @@ public class VerticaMetadataHandler
      * Generates the necessary Prepared Statements to set the AWS Auth and export S3 bucket Region on Vertica
      * and executes the queries
      */
-    private void executeQueriesOnVertica(Connection connection, String sqlStatement, String awsRegionSql)
+    private void executeQueriesOnVertica(Connection connection, String sqlStatement, String awsRegionSql, GetSplitsRequest request)
     {
+        // Resolve the connection's LakeFormation-vended (FAS-forwarded) session credentials and set
+        // them on the Vertica session so its EXPORT writes to S3 as the connector's federated identity
+        // rather than the Vertica host identity. When the request is not federated (no FAS token),
+        // getRequestOverrideConfig returns null; in that case skip the AWSAuth/AWSSessionToken
+        // injection and leave the region-only pre-injection behavior in place.
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(request);
+        AwsCredentials sessionCredentials =
+                (overrideConfig != null && overrideConfig.credentialsProvider().isPresent())
+                        ? overrideConfig.credentialsProvider().get().resolveCredentials()
+                        : null;
+
         try (PreparedStatement setAwsRegion = connection.prepareStatement(awsRegionSql);
              PreparedStatement exportSQL = connection.prepareStatement(sqlStatement)) {
             //execute the query to set region
             setAwsRegion.execute();
+
+            // Set creds for Vertica EXPORT, after region and before export. Failure is rethrown with only
+            // the SQLState/errorCode to hide the statement text or secret.
+            if (sessionCredentials != null) {
+                VerticaExportQueryBuilder queryBuilder = queryFactory.createVerticaExportQueryBuilder();
+                // do not log
+                String awsAuthSql = queryBuilder.buildSetAwsAuthSql(sessionCredentials.accessKeyId(), sessionCredentials.secretAccessKey());
+                try (PreparedStatement setAwsAuth = connection.prepareStatement(awsAuthSql)) {
+                    setAwsAuth.execute();
+
+                    if (sessionCredentials instanceof AwsSessionCredentials) {
+                        String awsSessionTokenSql = queryBuilder.buildSetAwsSessionTokenSql(
+                                ((AwsSessionCredentials) sessionCredentials).sessionToken());
+                        try (PreparedStatement setAwsSessionToken = connection.prepareStatement(awsSessionTokenSql)) {
+                            setAwsSessionToken.execute();
+                        }
+                    }
+                } catch (SQLException e) {
+                    throw new RuntimeException("Failed to set S3 credentials on the Vertica session (SQLState="
+                            + e.getSQLState() + ", errorCode=" + e.getErrorCode() + ")");
+                }
+            } else {
+                logger.warn("No LakeFormation-vended (FAS) credentials present for this request; "
+                        + "running Vertica EXPORT region-only without AWS credential injection");
+            }
 
             //execute the query to export the data to S3
             exportSQL.execute();
@@ -458,11 +497,14 @@ public class VerticaMetadataHandler
     /*
      * Get the list of all the exported S3 objects
      */
-    private List<S3Object> getlistExportedObjects(String s3ExportBucket, String prefix){
+    private List<S3Object> getlistExportedObjects(String s3ExportBucket, String prefix, GetSplitsRequest request){
         ListObjectsResponse listObjectsResponse;
         try
         {
-            listObjectsResponse = amazonS3.listObjects(ListObjectsRequest.builder()
+            // Re-source the read-back onto the connection's LF-vended (FAS-forwarded) session so the listing
+            // runs as the connector's federated identity. getS3Client falls back to the base client (amazonS3,
+            // default chain) when the request carries no FAS credentials, preserving prior behavior.
+            listObjectsResponse = getS3Client(getRequestOverrideConfig(request), amazonS3).listObjects(ListObjectsRequest.builder()
                     .bucket(s3ExportBucket)
                     .prefix(prefix)
                     .build());

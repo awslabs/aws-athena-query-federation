@@ -79,6 +79,14 @@ public class VerticaExportQueryBuilder {
     private static final String SUBSTRAIT_TEMPLATE_NAME = "templateVerticaExportSubstraitQuery";
     private static final String TEMPLATE_FIELD = "builder";
     private static final String QUOTE_CHARS = "\"";
+    // Prefix for the Vertica ALTER SESSION statement that sets the S3 access-key/secret-key auth.
+    private static final String SET_AWS_AUTH_SQL_PREFIX = "ALTER SESSION SET AWSAuth='";
+    // Prefix for the Vertica ALTER SESSION statement that sets the S3 session token (temporary creds).
+    private static final String SET_AWS_SESSION_TOKEN_SQL_PREFIX = "ALTER SESSION SET AWSSessionToken='";
+    // Separator between the access key and secret key inside the AWSAuth literal.
+    private static final String AWS_AUTH_KEY_SECRET_SEPARATOR = ":";
+    // Closing single quote shared by the AWSAuth/AWSSessionToken single-quoted literals.
+    private static final String ALTER_SESSION_LITERAL_SUFFIX = "'";
     private static final DateTimeFormatter VERTICA_TIMESTAMP_LITERAL_FORMATTER = new DateTimeFormatterBuilder()
             .appendPattern("yyyy-MM-dd HH:mm:ss")
             .appendFraction(ChronoField.NANO_OF_SECOND, 0, 6, true)
@@ -280,6 +288,40 @@ public class VerticaExportQueryBuilder {
             awsRegion = "us-east-1"; 
         }
         return "ALTER SESSION SET AWSRegion='" + escapeSqlStringLiteral(awsRegion) + "'";
+    }
+
+    /**
+     * Builds the Vertica SQL to set the S3 access-key/secret-key auth used by {@code EXPORT}.
+     * Both values are rendered as a single single-quoted {@code '<accessKey>:<secretKey>'} literal
+     * with embedded single quotes doubled via {@link #escapeSqlStringLiteral(String)} so a value
+     * containing a quote cannot break (or inject into) the statement.
+     * 
+     * @return the {@code ALTER SESSION SET AWSAuth='<accessKey>:<secretKey>'} statement.
+     * Do not log this value.
+     */
+    public String buildSetAwsAuthSql(String accessKey, String secretKey)
+    {
+        return SET_AWS_AUTH_SQL_PREFIX
+                + escapeSqlStringLiteral(accessKey)
+                + AWS_AUTH_KEY_SECRET_SEPARATOR
+                + escapeSqlStringLiteral(secretKey)
+                + ALTER_SESSION_LITERAL_SUFFIX;
+    }
+
+    /**
+     * Builds the Vertica SQL to set the S3 session token that temporary (STS) credentials
+     * require alongside {@code AWSAuth}. The token is rendered as a single-quoted literal with
+     * embedded single quotes doubled via {@link #escapeSqlStringLiteral(String)}.
+     *
+     *
+     * @return the {@code ALTER SESSION SET AWSSessionToken='<sessionToken>'} statement
+     * Do not log this value.
+     */
+    public String buildSetAwsSessionTokenSql(String sessionToken)
+    {
+        return SET_AWS_SESSION_TOKEN_SQL_PREFIX
+                + escapeSqlStringLiteral(sessionToken)
+                + ALTER_SESSION_LITERAL_SUFFIX;
     }
 
     public String getS3ExportBucket(){return s3ExportBucket;}

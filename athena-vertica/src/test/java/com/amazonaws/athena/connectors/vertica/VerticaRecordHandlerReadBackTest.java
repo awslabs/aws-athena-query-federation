@@ -47,11 +47,22 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
+import java.io.ByteArrayInputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -64,6 +75,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -110,6 +122,10 @@ public class VerticaRecordHandlerReadBackTest
 
     // The production target-type label embedded in the parse-failure message for a BIT/boolean cell.
     private static final String BIT_TARGET_TYPE = "BIT/boolean";
+
+    // Option A read #2: export object coordinates for the vended-download path.
+    private static final String EXPORT_BUCKET = "test-export-bucket";
+    private static final String EXPORT_KEY = "query-id/part1.parquet";
 
     private VerticaRecordHandler handler;
 
@@ -329,6 +345,59 @@ public class VerticaRecordHandlerReadBackTest
         holder.isSet = 1; // pre-set to prove the extractor actively clears it for a null cell
         extractor.extract(newRowContext(SALARY, null), holder);
         assertEquals(0, holder.isSet);
+    }
+
+    // ==================== downloadExportObject (Option A read #2 vended download) ====================
+
+    /**
+     * Option A read #2: the parquet read path must fetch the export object via the SDK getObject on the
+     * client built from the connection's LF-vended (FAS-forwarded) override, streaming it straight to the
+     * local temp file (never buffering it wholesale). Asserts the vended client is used for the right
+     * bucket/key and that the bytes land on disk.
+     */
+    @Test
+    public void downloadExportObject_streamsExportViaVendedClientToLocalFile() throws Exception
+    {
+        S3Client overrideClient = Mockito.mock(S3Client.class);
+        // getS3Client is what turns the override into the vended client; stub it so we can assert the download
+        // is issued against that client rather than the base one.
+        Mockito.doReturn(overrideClient).when(handler).getS3Client(any(), any());
+
+        byte[] payload = "PAR1-vertica-export-bytes".getBytes(StandardCharsets.UTF_8);
+        Mockito.when(overrideClient.getObject(any(GetObjectRequest.class)))
+                .thenReturn(new ResponseInputStream<>(GetObjectResponse.builder().build(),
+                        new ByteArrayInputStream(payload)));
+
+        AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create("vendedAccessKey", "vendedSecretKey")))
+                .build();
+
+        Path destination = Files.createTempFile("vertica-export-test-", ".parquet");
+        try {
+            invokeDownloadExportObject(overrideConfig, EXPORT_BUCKET, EXPORT_KEY, destination);
+
+            // getObject issued on the override-built (vended) client for the split's bucket/key.
+            ArgumentCaptor<GetObjectRequest> captor = ArgumentCaptor.forClass(GetObjectRequest.class);
+            verify(overrideClient).getObject(captor.capture());
+            assertEquals(EXPORT_BUCKET, captor.getValue().bucket());
+            assertEquals(EXPORT_KEY, captor.getValue().key());
+            // Bytes streamed straight to the local file.
+            assertArrayEquals(payload, Files.readAllBytes(destination));
+        }
+        finally {
+            Files.deleteIfExists(destination);
+        }
+    }
+
+    // Reflectively invokes the private downloadExportObject(...) real body on the mock handler; getS3Client
+    // (a public default method) is stubbed above, so the vended client is returned inside the real body.
+    private void invokeDownloadExportObject(AwsRequestOverrideConfiguration overrideConfig, String bucket, String key, Path destination) throws Exception
+    {
+        Method method = VerticaRecordHandler.class.getDeclaredMethod(
+                "downloadExportObject", AwsRequestOverrideConfiguration.class, String.class, String.class, Path.class);
+        method.setAccessible(true);
+        method.invoke(handler, overrideConfig, bucket, key, destination);
     }
 
     // ==================== reflection / construction helpers ====================
