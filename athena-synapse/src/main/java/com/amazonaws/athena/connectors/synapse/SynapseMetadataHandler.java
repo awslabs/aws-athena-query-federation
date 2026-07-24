@@ -521,7 +521,8 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         return CredentialsProviderFactory.createCredentialProvider(
                 getDatabaseConnectionConfig().getSecret(),
                 getCachableSecretsManager(),
-                new SynapseOAuthCredentialsProvider()
+                new SynapseOAuthCredentialsProvider(),
+                requestOverrideConfiguration
         );
     }
 }
