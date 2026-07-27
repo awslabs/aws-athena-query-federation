@@ -380,7 +380,8 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         return CredentialsProviderFactory.createCredentialProvider(
                 getDatabaseConnectionConfig().getSecret(),
                 getCachableSecretsManager(),
-                new DataLakeGen2OAuthCredentialsProvider()
+                new DataLakeGen2OAuthCredentialsProvider(),
+                requestOverrideConfiguration
         );
     }
 }

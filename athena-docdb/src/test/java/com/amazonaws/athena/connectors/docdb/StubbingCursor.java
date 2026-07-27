@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.docdb;
 
-import com.mongodb.Block;
 import com.mongodb.Function;
 import com.mongodb.ServerAddress;
 import com.mongodb.ServerCursor;
@@ -71,6 +70,12 @@ public class StubbingCursor<T>
     }
 
     @Override
+    public int available()
+    {
+        return 0;
+    }
+
+    @Override
     public T tryNext()
     {
         throw new UnsupportedOperationException();
@@ -112,12 +117,6 @@ public class StubbingCursor<T>
 
             @Override
             public <U> MongoIterable<U> map(Function<X, U> function)
-            {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public void forEach(Block<? super X> block)
             {
                 throw new UnsupportedOperationException();
             }
