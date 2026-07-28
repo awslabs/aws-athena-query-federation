@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.docdb;
 
+import com.mongodb.client.ListCollectionNamesIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.MongoIterable;
@@ -60,7 +61,7 @@ public class DocDBCaseInsensitiveResolverTest
     private MongoIterable<String> mockDatabaseNames;
 
     @Mock
-    private MongoIterable<String> mockCollectionNames;
+    private ListCollectionNamesIterable mockCollectionNames;
 
     private Map<String, String> configOptions;
 

@@ -44,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.google.common.collect.ImmutableList;
 import com.mongodb.client.FindIterable;
+import com.mongodb.client.ListCollectionNamesIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -390,7 +391,7 @@ public class DocDBMetadataHandlerTest
 
         when(mockListDatabaseNamesIterable.spliterator()).thenReturn(ImmutableList.of(DEFAULT_SCHEMA).spliterator());
 
-        MongoIterable mockListCollectionsNamesIterable = mock(MongoIterable.class);
+        ListCollectionNamesIterable mockListCollectionsNamesIterable = mock(ListCollectionNamesIterable.class);
         when(mockDatabase.listCollectionNames()).thenReturn(mockListCollectionsNamesIterable);
         when(mockListCollectionsNamesIterable.spliterator()).thenReturn(ImmutableList.of(TEST_TABLE).spliterator());
 
