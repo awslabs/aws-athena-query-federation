@@ -25,8 +25,11 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -36,10 +39,15 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
@@ -56,6 +64,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +74,6 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static java.util.Objects.requireNonNull;
 
@@ -82,15 +90,12 @@ public class GcsMetadataHandler
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.locationUri() != null && database.locationUri().contains(GCS_FLAG));
     // used to filter out Glue tables which lack indications of being used for GCS.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.storageDescriptor().location().startsWith(GCS_LOCATION_PREFIX);
-    private final StorageMetadata datasource;
     private final GlueClient glueClient;
     private final BufferAllocator allocator;
 
     public GcsMetadataHandler(BufferAllocator allocator, java.util.Map<String, String> configOptions) throws IOException
     {
         super(SOURCE_TYPE, configOptions);
-        String gcsCredentialsJsonString = this.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
-        this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
         this.allocator = allocator;
@@ -107,8 +112,6 @@ public class GcsMetadataHandler
         java.util.Map<String, String> configOptions) throws IOException
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
-        String gcsCredentialsJsonString = this.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
-        this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
         this.allocator = allocator;
@@ -161,13 +164,14 @@ public class GcsMetadataHandler
         //return if schema present else fetch from files(dataset api)
         if (response != null && response.getSchema() != null && checkGlueSchema(response)) {
             return response;
-        }
+        } 
         else {
             LOGGER.warn("Fetching schema from google cloud storage files");
             //fetch schema from GCS in case user doesn't define it in glue table
             //this will get table(location uri and partition details) without schema metadata
             Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
             //fetch schema from dataset api
+            StorageMetadata datasource = GcsUtil.initDatasource(configOptions, getCachableSecretsManager());
             Schema schema = datasource.buildTableSchema(table, allocator);
             Map<String, String> columnNameMapping = getColumnNameMapping(table);
             List<Column> partitionKeys = table.partitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.partitionKeys();
@@ -192,10 +196,11 @@ public class GcsMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException, IOException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
+        StorageMetadata datasource = GcsUtil.initDatasource(configOptions, getCachableSecretsManager());
         List<Map<String, String>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         for (Map<String, String> folder : partitionFolders) {
@@ -228,7 +233,7 @@ public class GcsMetadataHandler
     {
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         int partitionContd = decodeContinuationToken(request);
-
+        
         Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
         String catalogName = request.getCatalogName();
         Set<Split> splits = new HashSet<>();
@@ -238,7 +243,8 @@ public class GcsMetadataHandler
             //getting the partition folder name with bucket and file type
             URI locationUri = PartitionUtil.getPartitionsFolderLocationUri(table, partitions.getFieldVectors(), curPartition);
             LOGGER.info("Partition location {} ", locationUri);
-
+            
+            StorageMetadata datasource = GcsUtil.initDatasource(configOptions, getCachableSecretsManager());
             //getting storage file list
             List<String> fileList = datasource.getStorageSplits(locationUri);
             SpillLocation spillLocation = makeSpillLocation(request);
@@ -279,5 +285,28 @@ public class GcsMetadataHandler
         }
         //No continuation token present
         return 0;
+    }
+
+    /*
+     * Currently only supports Filter and Limit pushdown.
+     * Does not support TOP-N pushdown as sorting huge number of rows in-memory can be costly.
+     */
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+
+        capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
+                LimitPushdownSubType.INTEGER_CONSTANT
+        ));
+
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 }

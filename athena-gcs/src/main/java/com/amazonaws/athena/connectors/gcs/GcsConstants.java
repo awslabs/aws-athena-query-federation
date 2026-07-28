@@ -34,10 +34,10 @@ public class GcsConstants
     static final int MAX_SPLITS_PER_REQUEST = 1000;
 
     /**
-     * An environment variable in the deployed Lambda which is name of the secret in AWS Secrets Manager.
+     * A configOptions entry which is the ARN of the secret in AWS Secrets Manager.
      * contains credential keys/values in the form of JSON to access the GCS buckets/objects
      */
-    public static final String GCS_SECRET_KEY_ENV_VAR = "secret_manager_gcp_creds_name";
+    public static final String GCS_CREDS_SECRET_ARN = "secret_arn";
 
     /**
      * A ssl file location constant to store the SSL certificate

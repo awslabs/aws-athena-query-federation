@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.gcs.GcsUtil;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
-import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
@@ -45,7 +44,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.GlueClient;
-import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.Table;
 
 import java.io.ByteArrayInputStream;
@@ -111,8 +109,9 @@ public class StorageMetadata
     public List<String> getStorageSplits(URI locationUri)
     {
         String bucketName = locationUri.getAuthority();
-        // Trim leading /
+        // Trim leading / and ensure trailing / for precise prefix matching
         String path = locationUri.getPath().replaceFirst("^/", "");
+        path = path.endsWith("/") ? path : path + "/";
         Page<Blob> blobs = storage.list(bucketName, prefix(path));
         return StreamSupport.stream(blobs.iterateAll().spliterator(), false)
             .filter(blob -> isBlobFile(blob))
@@ -121,9 +120,9 @@ public class StorageMetadata
     }
 
     /**
-     * Retrieves a list of partition folders from the GCS bucket based on partition.pattern Table parameter and partition keys set forth in Glue table. If the summary from the
-     * constraints is empty (no where clauses or unsupported clauses), it will essentially return all the partition folders from the GCS bucket. If there is any constraints to
-     * apply, it will apply constraints to filter selected partition folder, to narrow down the data load
+     * Retrieves a list of partition folders from the GCS bucket based on partition.pattern Table parameter and partition keys set forth in Glue table.
+     * Currently NOT filtering partitions (returning all partitions found in GCS path) because testing was not possbile as Athena doesnt work with 
+     * partition cols in the WHERE clause. Need to implement partition filtering/pruning utilising substrait plan in the future.
      *
      * @param schema An instance of {@link Schema} that describes underlying Table's schema
      * @param tableInfo Name of the table
@@ -137,31 +136,27 @@ public class StorageMetadata
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
-        // Build expression only based on partition keys
-        List<Column> partitionColumns = table.partitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.partitionKeys();
-        // getConstraintsForPartitionedColumns gives us a case insensitive mapping of column names to their value set
-        Map<String, Optional<Set<String>>> columnValueConstraintMap = FilterExpressionBuilder.getConstraintsForPartitionedColumns(partitionColumns, constraints);
-        LOGGER.info("columnValueConstraintMap for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), columnValueConstraintMap);
         URI storageLocation = new URI(table.storageDescriptor().location());
-        LOGGER.info("Listing object in location {} under the bucket {}", storageLocation.getAuthority(), storageLocation.getPath());
-        // Trim leading /
+        LOGGER.info("Table storage location: {}", storageLocation);
+        // Trim leading / (blob names in GCS don't have a leading slash) and ensure trailing /
         String path = storageLocation.getPath().replaceFirst("^/", "");
-        Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(path));
+        final String prefixPath = path.endsWith("/") ? path : path + "/";
+        Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(prefixPath));
 
-        Map<Boolean, List<Map<String, String>>> results = StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
+        List<Map<String, String>> results = StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
                 .filter(blob -> isBlobFile(blob))
-                .map(blob -> blob.getName().replaceFirst("^" + path, ""))
-                // get partition folder path from complete file location
+                .map(blob -> blob.getName().replaceFirst("^" + prefixPath, ""))
+                .peek(name -> LOGGER.info("Name after prefix removal: {}", name))
                 .map(name -> name.substring(0, name.lastIndexOf("/") + 1).trim())
                 .distinct()
-                // remove the front-slash, because, the expression generated without it
-                .map(folderPath -> folderPath.replaceFirst("^/", ""))
+                .peek(folderPath -> LOGGER.info("Distinct folderPath: {}", folderPath))
                 .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
-                .collect(Collectors.partitioningBy(partitionsMap -> partitionConstraintsSatisfied(partitionsMap, columnValueConstraintMap)));
+                .peek(partition -> LOGGER.info("Extracted partition map: {}", partition))
+                .filter(partition -> !partition.isEmpty())
+                .collect(Collectors.<Map<String, String>>toList());
 
         LOGGER.info("getPartitionFolders results: {}", results);
-
-        return results.get(true);
+        return results;
     }
 
     /**
