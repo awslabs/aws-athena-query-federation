@@ -4,7 +4,7 @@ ARG JAVA_VERSION=11.al2023-x86_64
 FROM public.ecr.aws/lambda/java:${JAVA_VERSION} AS builder
 
 # Argument for JAR version
-ARG JAR_VERSION=2022.47.1
+ARG JAR_VERSION=2026.30.1
 # Copy function code and runtime dependencies from Maven layout
 COPY target/athena-postgresql-${JAR_VERSION}.jar /app/
 
