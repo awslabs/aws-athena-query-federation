@@ -26,8 +26,13 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
+import com.amazonaws.athena.connector.substrait.SubstraitRowFilter;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -59,6 +64,9 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsThrottlingExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.installCaCertificate;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.installGoogleCredentialsJsonFile;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.setupNativeEnvironmentVariables;
 
 public class GcsRecordHandler
         extends RecordHandler
@@ -92,6 +100,15 @@ public class GcsRecordHandler
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+
+        setupNativeEnvironmentVariables();
+        try {
+            installCaCertificate();
+            installGoogleCredentialsJsonFile(configOptions, getCachableSecretsManager());
+        } 
+        catch (Exception e) {
+            LOGGER.error("GcsRecordHandler, install failed with exception: ", e);
+        }
     }
 
     /**
@@ -120,12 +137,26 @@ public class GcsRecordHandler
         String classification = split.getProperty(FILE_FORMAT);
         FileFormat format = FileFormat.valueOf(classification.toUpperCase());
         List<Field> partitionColumns = schema.getFields().stream().filter(field -> split.getProperties().containsKey(field.getName().toLowerCase())).collect(Collectors.toList());
+
+        Constraints constraints = recordsRequest.getConstraints();
+        LOGGER.info("readWithConstraint: queryPlan present: {}, substraitPlan present: {}",
+            constraints.getQueryPlan() != null,
+            constraints.getQueryPlan() != null && constraints.getQueryPlan().getSubstraitPlan() != null);
+
+        SubstraitRowFilter rowFilter = SubstraitRowFilter.fromQueryPlan(constraints);
+        long limit = extractLimit(constraints);
+        boolean limitReached = false;
+        long numRowsWritten = 0;
+
         for (String file : fileList) {
+            if (limitReached) {
+                break;
+            }
             String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
             Optional<String[]> selectedColumns =
                 getSchemaFromSource(uri, classification).map(schemaFromSource -> getSelectedColumnNames(schemaFromSource, recordsRequest.getSchema()));
-            ScanOptions options = new ScanOptions(BATCH_SIZE, selectedColumns);
+            ScanOptions options = new ScanOptions(BATCH_SIZE, selectedColumns);   
             try (
                     // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
                     // Thus, we can peek the schema for data sources and decide on a unified schema.
@@ -149,17 +180,56 @@ public class GcsRecordHandler
                     try (
                             // Returns the vector schema root.
                             // This will be loaded with new values on every call to loadNextBatch on the reader.
-                            VectorSchemaRoot root = reader.getVectorSchemaRoot()
+                        VectorSchemaRoot root = reader.getVectorSchemaRoot()
                     ) {
-                        // We will loop on batch records and consider each records to write in spiller.
+                        // We will loop on batch records and consider each records to write in spiller.                 
                         for (int rowIndex = 0; rowIndex < root.getRowCount(); rowIndex++) {
+                            if (rowFilter.hasFilter() && !rowFilter.evaluate(root, rowIndex)) {
+                                continue;
+                            }
                             // we are passing record to spiller to be written.
                             execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex, partitionColumns, split);
+                            numRowsWritten++;
+                            if (limit > 0 && numRowsWritten >= limit) {
+                                LOGGER.info("Reached Substrait LIMIT of {}, stopping read", limit);
+                                limitReached = true;
+                                break;
+                            }
                         }
+                    }
+                    if (limitReached) {
+                        break;
                     }
                 }
             }
         }
+        LOGGER.info("readWithConstraint: totalRowsWritten[{}]", numRowsWritten);
+    }
+
+    /**
+     * Extracts LIMIT from the Substrait plan if present and no ORDER BY exists.
+     * Returns -1 if LIMIT pushdown is not applicable.
+     */
+    private long extractLimit(Constraints constraints)
+    {
+        QueryPlan queryPlan = constraints.getQueryPlan();
+        if (queryPlan == null) {
+            return -1;
+        }
+        try {
+            io.substrait.proto.Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+            SubstraitRelModel model = SubstraitRelModel.buildSubstraitRelModel(
+                plan.getRelations(0).getRoot().getInput());
+            if (model.getSortRel() == null && model.getFetchRel() != null) {
+                long limit = model.getFetchRel().getCount();
+                LOGGER.info("Substrait LIMIT pushdown enabled: {}", limit);
+                return limit;
+            }
+        }
+        catch (Exception e) {
+            LOGGER.warn("Failed to extract LIMIT from Substrait plan", e);
+        }
+        return -1;
     }
 
     /**
