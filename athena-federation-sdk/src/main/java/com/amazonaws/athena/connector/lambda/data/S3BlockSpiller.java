@@ -82,6 +82,22 @@ public class S3BlockSpiller
     private static final String SPILL_QUEUE_CAPACITY = "SPILL_QUEUE_CAPACITY";
 
     private static final String SPILL_PUT_REQUEST_HEADERS_ENV = "spill_put_request_headers";
+
+    //S3 user-metadata key for the number of Arrow rows in the spilled block.
+    //Returned by HeadObject as the HTTP header `x-amz-meta-x-arrow-row-count`, allowing
+    //readers (e.g. SupportsReportStatistics) to obtain row counts without GetObject + decrypt.
+    static final String SPILL_METADATA_ROW_COUNT = "x-arrow-row-count";
+
+    //S3 user-metadata key for the in-memory Arrow buffer size (sum of FieldVector.getBufferSize()
+    //across all columns). This is the uncompressed/unencrypted size and is what stats consumers
+    //should treat as `sizeInBytes` -- distinct from the S3 object's contentLength which reflects
+    //the post-encryption byte count.
+    static final String SPILL_METADATA_BYTE_SIZE = "x-arrow-byte-size";
+
+    //S3 user-metadata key for the number of top-level columns in the spilled Block's schema.
+    //Lets readers cheaply detect schema-width drift without parsing the schema. Same value for
+    //every spill produced by a given spiller instance.
+    static final String SPILL_METADATA_NUM_COLUMNS = "x-arrow-num-columns";
     //Used to write to S3
     private final S3Client amazonS3;
     //Used to optionally encrypt Blocks.
@@ -382,7 +398,14 @@ public class S3BlockSpiller
             PutObjectRequest.Builder requestBuilder = PutObjectRequest.builder()
                     .bucket(spillLocation.getBucket())
                     .key(spillLocation.getKey())
-                    .contentLength((long) bytes.length);
+                    .contentLength((long) bytes.length)
+                    // S3 user-defined metadata: row count, uncompressed Arrow size, and column
+                    // count are exposed as `x-amz-meta-x-arrow-*` HTTP headers on HeadObject so
+                    // readers can size splits without GetObject + decrypt.
+                    .metadata(Map.of(
+                            SPILL_METADATA_ROW_COUNT, Integer.toString(block.getRowCount()),
+                            SPILL_METADATA_BYTE_SIZE, Long.toString(block.getSize()),
+                            SPILL_METADATA_NUM_COLUMNS, Integer.toString(schema.getFields().size())));
 
             // Set request headers via overrideConfiguration instead of metadata
             createRequestOverrideConfig().ifPresent(requestBuilder::overrideConfiguration);
