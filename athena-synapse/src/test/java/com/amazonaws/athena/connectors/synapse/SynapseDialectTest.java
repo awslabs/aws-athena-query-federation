@@ -48,4 +48,31 @@ public class SynapseDialectTest
         dialect.quoteIdentifier(buf, "employees");
         assertEquals("[employees]", buf.toString());
     }
+
+    @Test
+    void testQuoteIdentifierWithFilterUpperCasesMixedCaseInput()
+    {
+        SynapseDialect dialect = new SynapseDialect(true);
+        StringBuilder buf = new StringBuilder();
+        dialect.quoteIdentifier(buf, "Employees");
+        assertEquals("[EMPLOYEES]", buf.toString());
+    }
+
+    @Test
+    void testQuoteIdentifierWithoutFilterPreservesUpperCaseInput()
+    {
+        SynapseDialect dialect = new SynapseDialect(false);
+        StringBuilder buf = new StringBuilder();
+        dialect.quoteIdentifier(buf, "EMPLOYEES");
+        assertEquals("[EMPLOYEES]", buf.toString());
+    }
+
+    @Test
+    void testQuoteIdentifierWithFilterEscapesClosingBracket()
+    {
+        SynapseDialect dialect = new SynapseDialect(true);
+        StringBuilder buf = new StringBuilder();
+        dialect.quoteIdentifier(buf, "emp]loyees");
+        assertEquals("[EMP]]LOYEES]", buf.toString());
+    }
 }

@@ -323,9 +323,11 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                         .add(PARTITION_NUMBER, partInfo);
             }
 
-            if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
-                LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
-                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+            Map<String, String> identityConfigOptions = getSplitsRequest.getIdentity().getConfigOptions();
+            if (identityConfigOptions != null && identityConfigOptions.containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                String catalogCasingFilter = identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER);
+                LOGGER.info("Catalog Casing Filter found: {}", catalogCasingFilter);
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, catalogCasingFilter);
             }
 
             splits.add(splitBuilder.build());
