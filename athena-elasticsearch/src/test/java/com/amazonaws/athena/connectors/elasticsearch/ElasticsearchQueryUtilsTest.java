@@ -575,7 +575,7 @@ public class ElasticsearchQueryUtilsTest
 
         QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
         String actualPredicate = builder.queryName();
-        assertTrue("Predicate for single date value should wrap value in quotes", actualPredicate.contains("mydate:\""));
+        assertTrue("Predicate for single date value should wrap value in quotes", actualPredicate.contains("mydate:(\""));
         assertTrue("Predicate should contain quoted value", actualPredicate.contains("\")")); 
     }
 
