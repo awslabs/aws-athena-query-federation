@@ -44,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.google.common.collect.ImmutableList;
 import com.mongodb.client.FindIterable;
+import com.mongodb.client.ListCollectionNamesIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -304,7 +305,6 @@ public class DocDBMetadataHandlerTest
         when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
@@ -391,7 +391,7 @@ public class DocDBMetadataHandlerTest
 
         when(mockListDatabaseNamesIterable.spliterator()).thenReturn(ImmutableList.of(DEFAULT_SCHEMA).spliterator());
 
-        MongoIterable mockListCollectionsNamesIterable = mock(MongoIterable.class);
+        ListCollectionNamesIterable mockListCollectionsNamesIterable = mock(ListCollectionNamesIterable.class);
         when(mockDatabase.listCollectionNames()).thenReturn(mockListCollectionsNamesIterable);
         when(mockListCollectionsNamesIterable.spliterator()).thenReturn(ImmutableList.of(TEST_TABLE).spliterator());
 
@@ -399,7 +399,6 @@ public class DocDBMetadataHandlerTest
         when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
