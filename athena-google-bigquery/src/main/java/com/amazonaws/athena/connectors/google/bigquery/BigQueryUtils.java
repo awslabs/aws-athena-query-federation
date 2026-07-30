@@ -32,6 +32,7 @@ import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.FieldValue;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.sun.jna.platform.unix.LibC;
 import org.apache.arrow.vector.FieldVector;
@@ -210,7 +211,13 @@ public class BigQueryUtils
         if (null != field.getSubFields()) {
             for (com.google.cloud.bigquery.Field subField : field.getSubFields()) {
                 if (null != subField.getMode() && subField.getMode().name().equals("REPEATED")) {
-                    fieldList.add(new Field(subField.getName(), FieldType.nullable(Types.MinorType.LIST.getType()), getChildFieldList(subField)));
+                    if (subField.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
+                        fieldList.add(new Field(subField.getName(), FieldType.nullable(Types.MinorType.LIST.getType()),
+                                ImmutableList.of(new Field(subField.getName(), FieldType.nullable(Types.MinorType.STRUCT.getType()), getChildFieldList(subField)))));
+                    }
+                    else {
+                        fieldList.add(new Field(subField.getName(), FieldType.nullable(Types.MinorType.LIST.getType()), getChildFieldList(subField)));
+                    }
                 }
                 else if (subField.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
                     fieldList.add(new Field(subField.getName(), FieldType.nullable(Types.MinorType.STRUCT.getType()), getChildFieldList(subField)));

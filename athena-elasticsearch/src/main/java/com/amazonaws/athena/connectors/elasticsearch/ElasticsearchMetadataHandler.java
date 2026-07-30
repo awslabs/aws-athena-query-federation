@@ -371,7 +371,7 @@ public class ElasticsearchMetadataHandler
         Set<Split> splits = Arrays.stream(indexResponse.getIndices())
                 .flatMap(index -> getShardsIDsFromES(client, index) // get all shards for an index.
                         .stream()
-                        .map(shardId -> new Split(makeSpillLocation(request), makeEncryptionKey(), ImmutableMap.of(SECRET_USERNAME, username, SECRET_PASSWORD, password, domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString(), INDEX_KEY, index))) // make split for each (index + shardId) combination
+                        .map(shardId -> new Split(makeSpillLocation(request), makeEncryptionKey(getRequestOverrideConfig(request)), ImmutableMap.of(SECRET_USERNAME, username, SECRET_PASSWORD, password, domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString(), INDEX_KEY, index))) // make split for each (index + shardId) combination
                 )
                 .collect(Collectors.toSet());
 

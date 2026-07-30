@@ -286,6 +286,9 @@ public class S3BlockSpiller
             }
 
             lock.lock();
+            if (asyncException.get() != null) {
+                throw asyncException.get();
+            }
             return spillLocations;
         }
         finally {

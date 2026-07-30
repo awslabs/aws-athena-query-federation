@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -42,6 +43,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -54,6 +56,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.CATALOG_CASING_FILTER;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.UPPERCASE_ONLY;
 import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.ENABLE_QUERY_PASSTHROUGH;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
@@ -641,5 +645,71 @@ public class SqlServerRecordHandlerTest
                 .thenReturn(preparedStatement);
         Mockito.when(preparedStatement.getConnection()).thenReturn(this.connection);
         return preparedStatement;
+    }
+
+    // Substrait plan: SELECT col1, col2, col3 FROM test_schema.test_table LIMIT 10
+    private static final String SUBSTRAIT_PLAN_FETCH =
+            "GlsSWQpXGlUKAgoAEksKSQoCCgASKAoEY29sMQoEY29sMgoEY29sMxIUCgRiAhABCgQqAhABCgRiAhABGAI6GQoLdGVzdF9zY2hlbWEKCnRlc3RfdGFibGUYACAK";
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithLowercaseCasingFilter_GeneratesValidTopN() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql("LOWERCASE_ONLY", "SELECT TOP (10) *\nFROM [test_schema].[test_table]");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithUppercaseCasingFilter_GeneratesValidTopN() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql(UPPERCASE_ONLY, "SELECT TOP (10) *\nFROM [TEST_SCHEMA].[TEST_TABLE]");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithoutCasingFilter_GeneratesValidTopN() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql(null, "SELECT TOP (10) *\nFROM [test_schema].[test_table]");
+    }
+
+    private void assertSubstraitPlanGeneratesExpectedSql(String casingFilter, String expectedSql) throws SQLException
+    {
+        TableName tableName = new TableName("test_schema", "test_table");
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("col1", Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("col2", Types.MinorType.INT.getType()).build())
+                .addField(FieldBuilder.newBuilder("col3", Types.MinorType.VARCHAR.getType()).build())
+                .build();
+
+        Split split = Mockito.mock(Split.class);
+        Map<String, String> splitProperties = new HashMap<>();
+        splitProperties.put(PARTITION_NUMBER, "0");
+        if (casingFilter != null) {
+            splitProperties.put(CATALOG_CASING_FILTER, casingFilter);
+        }
+        Mockito.when(split.getProperties()).thenReturn(splitProperties);
+        Mockito.when(split.getProperty(PARTITION_NUMBER)).thenReturn("0");
+        Mockito.when(split.getProperty(CATALOG_CASING_FILTER)).thenReturn(casingFilter);
+        Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn(null);
+        Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn(null);
+
+        QueryPlan queryPlan = new QueryPlan("", SUBSTRAIT_PLAN_FETCH);
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                -1L,
+                Collections.emptyMap(),
+                queryPlan
+        );
+
+        PreparedStatement mockStmt = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Mockito.anyString())).thenReturn(mockStmt);
+        Mockito.when(mockStmt.getParameterMetaData()).thenReturn(null);
+
+        this.sqlServerRecordHandler.buildSplitSql(
+                this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(this.connection).prepareStatement(sqlCaptor.capture());
+
+        Assert.assertEquals(expectedSql, sqlCaptor.getValue());
     }
 }

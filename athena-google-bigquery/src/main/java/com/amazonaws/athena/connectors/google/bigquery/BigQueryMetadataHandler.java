@@ -252,7 +252,7 @@ public class BigQueryMetadataHandler
         SpillLocation spillLocation = makeSpillLocation(request);
 
         return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
-                makeEncryptionKey()).build());
+                makeEncryptionKey(getRequestOverrideConfig(request))).build());
     }
 
     /**
