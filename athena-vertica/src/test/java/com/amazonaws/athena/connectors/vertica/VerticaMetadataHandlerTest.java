@@ -964,63 +964,8 @@ public class VerticaMetadataHandlerTest extends TestBase
     }
     
     @Test
-    public void doListSchemaNames_StaleConnection_RetriesAndReturnsSchemas() throws Exception {
-        String[] schema = {"TABLE_SCHEM"};
-        Object[][] values = {{"testDB1"}};
-        AtomicInteger rowNumber = new AtomicInteger(-1);
-        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
-
-        // first connection is stale — throws VJDBC error code 100023 (Lambda freeze/resume scenario)
-        // SQLException(reason, sqlState, vendorCode): vendorCode is what getErrorCode() returns
-        Connection staleConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(staleConnection.getMetaData().getTables(null, null, null, TABLE_TYPES))
-                .thenThrow(new SQLException("Unexpected message type: RowDescription", "S1000", 100023));
-
-        // second connection is fresh — succeeds
-        Connection freshConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(freshConnection.getMetaData().getTables(null, null, null, TABLE_TYPES)).thenReturn(resultSet);
-        Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
-
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
-                .thenReturn(staleConnection)
-                .thenReturn(freshConnection);
-
-        ListSchemasResponse response = verticaMetadataHandler.doListSchemaNames(allocator,
-                new ListSchemasRequest(federatedIdentity, QUERY_ID, TEST_CATALOG));
-
-        Assert.assertArrayEquals(new String[]{"testDB1"}, response.getSchemas().toArray());
-        // getConnection() must be called exactly twice: once for stale, once for retry
-        Mockito.verify(jdbcConnectionFactory, Mockito.times(2))
-                .getConnection(nullable(CredentialsProvider.class));
-    }
-
-    @Test
-    public void doListSchemaNames_NonStaleSQLException_NotRetried() throws Exception {
-        Connection failingConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        // error code 0 (any non-100023 code) must not trigger retry
-        Mockito.when(failingConnection.getMetaData().getTables(null, null, null, TABLE_TYPES))
-                .thenThrow(new SQLException("Some other DB error", "S1000", 0));
-
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
-                .thenReturn(failingConnection);
-
-        try {
-            verticaMetadataHandler.doListSchemaNames(allocator,
-                    new ListSchemasRequest(federatedIdentity, QUERY_ID, TEST_CATALOG));
-            fail("Expected SQLException");
-        } catch (SQLException e) {
-            assertEquals("Some other DB error", e.getMessage());
-        }
-
-        // getConnection() must be called only once — non-100023 errors must not trigger retry
-        Mockito.verify(jdbcConnectionFactory, Mockito.times(1))
-                .getConnection(nullable(CredentialsProvider.class));
-    }
-    
-    @Test
-    public void doGetSplits_CheckedExceptionFromGetConnection_WrappedAsConnectionFailed() throws Exception {
-        // A checked Exception thrown by getConnection() must be wrapped with "connection failed"
-        // to preserve the original error message contract.
+    public void doGetSplits_CheckedExceptionFromGetConnection_WrappedAsFailedToGetSplits() throws Exception {
+        // A checked Exception thrown by getConnection() must be wrapped as AthenaConnectorException
         JdbcConnectionFactory failingFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(failingFactory.getConnection(nullable(CredentialsProvider.class)))
                 .thenThrow(new Exception("DB host unreachable"));
@@ -1048,10 +993,75 @@ public class VerticaMetadataHandlerTest extends TestBase
             handlerWithFailingFactory.doGetSplits(allocator, req);
             fail("Expected AthenaConnectorException");
         } catch (AthenaConnectorException e) {
-            assertTrue("Checked exception must be wrapped as 'connection failed'",
-                    e.getMessage().contains("connection failed"));
+            assertTrue("Checked exception must be wrapped as 'Failed to get splits'",
+                    e.getMessage().contains("Failed to get splits"));
             assertEquals("Original cause must be preserved", "DB host unreachable", e.getCause().getMessage());
         }
+    }
+
+    @Test
+    public void doListSchemaNames_StaleConnection_RetriesAndReturnsSchemas() throws Exception {
+        String[] schema = {"TABLE_SCHEM"};
+        Object[][] values = {{"testDB1"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Connection staleConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(staleConnection.getMetaData().getTables(null, null, null, TABLE_TYPES))
+                .thenThrow(new SQLException("Unexpected message type: RowDescription", "S1000", 100023));
+
+        Connection freshConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(freshConnection.getMetaData().getTables(null, null, null, TABLE_TYPES)).thenReturn(resultSet);
+        Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
+
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
+                .thenReturn(staleConnection)
+                .thenReturn(freshConnection);
+
+        ListSchemasResponse response = verticaMetadataHandler.doListSchemaNames(allocator,
+                new ListSchemasRequest(federatedIdentity, QUERY_ID, TEST_CATALOG));
+
+        Assert.assertArrayEquals(new String[]{"testDB1"}, response.getSchemas().toArray());
+        Mockito.verify(jdbcConnectionFactory, Mockito.times(2))
+                .getConnection(nullable(CredentialsProvider.class));
+    }
+
+    @Test
+    public void doListSchemaNames_NonStaleSQLException_NotRetriedAndExceptionPropagates() throws Exception {
+        Connection failingConnection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(failingConnection.getMetaData().getTables(null, null, null, TABLE_TYPES))
+                .thenThrow(new SQLException("Some other DB error", "S1000", 0));
+
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
+                .thenReturn(failingConnection);
+
+        try {
+            verticaMetadataHandler.doListSchemaNames(allocator,
+                    new ListSchemasRequest(federatedIdentity, QUERY_ID, TEST_CATALOG));
+            fail("Expected SQLException");
+        } catch (SQLException e) {
+            assertEquals("Some other DB error", e.getMessage());
+        }
+
+        Mockito.verify(jdbcConnectionFactory, Mockito.times(1))
+                .getConnection(nullable(CredentialsProvider.class));
+    }
+
+    @Test
+    public void doGetTable_StaleConnection_RetriesAndReturnsTable() throws Exception {
+        Schema tableSchema = SchemaBuilder.newBuilder().addIntField("id").build();
+
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
+                .thenThrow(new SQLException("Unexpected message type: RowDescription", "S1000", 100023))
+                .thenReturn(connection);
+        Mockito.when(verticaSchemaUtils.buildTableSchema(connection, tableName)).thenReturn(tableSchema);
+
+        GetTableResponse response = verticaMetadataHandler.doGetTable(allocator,
+                new GetTableRequest(federatedIdentity, QUERY_ID, TEST_CATALOG, tableName, Collections.emptyMap()));
+
+        assertEquals(tableSchema, response.getSchema());
+        Mockito.verify(jdbcConnectionFactory, Mockito.times(2))
+                .getConnection(nullable(CredentialsProvider.class));
     }
 
     private Schema createTestSchema(String... columnSpecs)
