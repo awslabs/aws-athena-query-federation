@@ -21,7 +21,7 @@ package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.DefaultCredentials;
-import com.amazonaws.athena.connector.credentials.RdsIamAuthConfiguration;
+import com.amazonaws.athena.connectors.jdbc.credentials.RdsIamAuthConfiguration;
 import org.junit.Assert;
 import org.junit.Test;
 import software.amazon.awssdk.regions.Region;

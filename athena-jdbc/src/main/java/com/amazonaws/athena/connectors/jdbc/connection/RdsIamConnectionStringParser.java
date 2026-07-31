@@ -19,8 +19,8 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
-import com.amazonaws.athena.connector.credentials.RdsIamAuthConfiguration;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connectors.jdbc.credentials.RdsIamAuthConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import software.amazon.awssdk.regions.Region;

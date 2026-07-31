@@ -68,7 +68,7 @@ public class DatabaseConnectionConfigBuilderTest
                 "default",
                 "postgres",
                 "jdbc:postgresql://mydb.cluster-abc.us-east-1.rds.amazonaws.com:5432/dev",
-                new com.amazonaws.athena.connector.credentials.RdsIamAuthConfiguration(
+                new com.amazonaws.athena.connectors.jdbc.credentials.RdsIamAuthConfiguration(
                         "mydb.cluster-abc.us-east-1.rds.amazonaws.com",
                         5432,
                         "athena_iam",
