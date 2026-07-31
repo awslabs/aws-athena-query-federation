@@ -20,9 +20,9 @@
 package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.RdsIamAuthConfiguration;
-import com.amazonaws.athena.connector.credentials.RdsIamCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler;
+import com.amazonaws.athena.connectors.jdbc.credentials.RdsIamAuthConfiguration;
+import com.amazonaws.athena.connectors.jdbc.credentials.RdsIamCredentialsProvider;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;

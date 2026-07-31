@@ -20,9 +20,9 @@
 package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.RdsIamAuthConfiguration;
-import com.amazonaws.athena.connector.credentials.RdsIamCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler;
+import com.amazonaws.athena.connectors.jdbc.credentials.RdsIamAuthConfiguration;
+import com.amazonaws.athena.connectors.jdbc.credentials.RdsIamCredentialsProvider;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;

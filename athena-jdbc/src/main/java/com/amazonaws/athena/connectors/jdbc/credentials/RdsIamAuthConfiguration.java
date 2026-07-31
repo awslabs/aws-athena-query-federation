@@ -1,6 +1,6 @@
 /*-
  * #%L
- * Amazon Athena Query Federation SDK
+ * athena-jdbc
  * %%
  * Copyright (C) 2019 - 2026 Amazon Web Services
  * %%
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.credentials;
+package com.amazonaws.athena.connectors.jdbc.credentials;
 
 import org.apache.commons.lang3.Validate;
 import software.amazon.awssdk.regions.Region;
