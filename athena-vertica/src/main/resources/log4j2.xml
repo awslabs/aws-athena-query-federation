@@ -21,7 +21,23 @@
 
 <Configuration packages="com.amazonaws.services.lambda.runtime.log4j2">
     <Appenders>
+        <Lambda name="LambdaDebug" format="${env:AWS_LAMBDA_LOG_FORMAT:-TEXT}">
+            <Filters>
+                <LevelRangeFilter minLevel="DEBUG" maxLevel="TRACE" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <LambdaTextFormat>
+                <PatternLayout>
+                    <pattern>%d{yyyy-MM-dd HH:mm:ss} %X{AWSRequestId} %-5p %c{1}:%L - %m%n</pattern>
+                </PatternLayout>
+            </LambdaTextFormat>
+            <LambdaJSONFormat>
+                <JsonTemplateLayout eventTemplateUri="classpath:LambdaLayout.json" />
+            </LambdaJSONFormat>
+        </Lambda>
         <Lambda name="Lambda" format="${env:AWS_LAMBDA_LOG_FORMAT:-TEXT}">
+            <Filters>
+                <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
             <LambdaTextFormat>
                 <PatternLayout>
                     <pattern>%d{yyyy-MM-dd HH:mm:ss} %X{AWSRequestId} %-5p %c{1} - %m%n</pattern>
@@ -36,6 +52,7 @@
         <Logger name="com.amazonaws.athena.connector.lambda" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-warn}" />
         <Logger name="com.amazonaws.athena.connectors.vertica" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-warn}" />
         <Root level="${env:AWS_LAMBDA_LOG_LEVEL:-INFO}">
+            <AppenderRef ref="LambdaDebug" />
             <AppenderRef ref="Lambda" />
         </Root>
     </Loggers>
