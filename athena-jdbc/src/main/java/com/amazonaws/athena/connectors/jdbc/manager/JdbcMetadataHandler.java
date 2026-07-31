@@ -495,7 +495,7 @@ public abstract class JdbcMetadataHandler
         //Since this is QPT query we return a fixed split.
         Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
         return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(request)))
                         .applyProperties(qptArguments)
                         .build());
     }
