@@ -20,7 +20,7 @@
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.4</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.138.0</jsii.version>
+        <jsii.version>1.139.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.18</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
@@ -30,9 +30,9 @@
         <testng.version>7.12.0</testng.version>
         <fasterxml.jackson.version>2.22.1</fasterxml.jackson.version>
         <!-- jackson-annotations does not publish patch versions -->
-        <fasterxml.jackson.annotations.version>2.21</fasterxml.jackson.annotations.version>
+        <fasterxml.jackson.annotations.version>2.22</fasterxml.jackson.annotations.version>
         <surefire.failsafe.version>3.5.6</surefire.failsafe.version>
-        <log4j2Version>2.26.0</log4j2Version>
+        <log4j2Version>2.26.1</log4j2Version>
         <apache.arrow.version>18.3.0</apache.arrow.version>
         <guava.version>33.6.0-jre</guava.version>
         <protobuf3.version>3.25.5</protobuf3.version>
@@ -48,7 +48,7 @@
         <mvn.shade.plugin.version>3.6.2</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.4.0</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.12.0</mvn.javadoc.plugin.version>
-        <mvn.jar.plugin.version>3.5.0</mvn.jar.plugin.version>
+        <mvn.jar.plugin.version>3.5.1</mvn.jar.plugin.version>
         <io.substrait.version>0.65.0</io.substrait.version>
         <org.apache.calcite.version>1.40.0</org.apache.calcite.version>
         <com.google.protobuf.version>4.35.1</com.google.protobuf.version>
@@ -314,7 +314,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>3.10.0</version>
+                    <version>3.11.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -645,7 +645,7 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.10.0</version>
+                        <version>0.11.0</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
