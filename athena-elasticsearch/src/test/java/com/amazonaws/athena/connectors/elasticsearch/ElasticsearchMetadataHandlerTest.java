@@ -879,7 +879,7 @@ public class ElasticsearchMetadataHandlerTest
         lenient().when(awsSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
                 .thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"user\", \"password\": \"pass\"}").build());
         
-        Map<String, String> result = testHandler.resolveDomainMap(config);
+        Map<String, String> result = testHandler.resolveDomainMap(config, null);
         assertNotNull("Domain map should not be null", result);
         assertTrue("Should contain mydomain or document current behavior", result.containsKey("mydomain") || result.isEmpty());
     }
@@ -899,7 +899,7 @@ public class ElasticsearchMetadataHandlerTest
         lenient().when(awsSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
                 .thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"user\", \"password\": \"pass\"}").build());
         
-        Map<String, String> result = testHandler.resolveDomainMap(config);
+        Map<String, String> result = testHandler.resolveDomainMap(config, null);
         assertNotNull("Domain map should not be null", result);
         assertTrue("Should contain default domain or document current behavior", result.containsKey("default") || result.isEmpty());
     }
@@ -956,7 +956,7 @@ public class ElasticsearchMetadataHandlerTest
 
         ElasticsearchMetadataHandler testHandler = createElasticsearchMetadataHandler(config);
 
-        Map<String, String> result = testHandler.resolveDomainMap(config);
+        Map<String, String> result = testHandler.resolveDomainMap(config, null);
         assertNotNull("Domain map should not be null", result);
         assertTrue("Should contain movies domain", result.containsKey("movies"));
         assertEquals("Domain endpoint should match", "https://search-movies.us-east-1.es.amazonaws.com", result.get("movies"));
@@ -1016,7 +1016,7 @@ public class ElasticsearchMetadataHandlerTest
         lenient().when(awsSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
                 .thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"user\", \"password\": \"pass\"}").build());
         
-        Map<String, String> result = testHandler.resolveDomainMap(config);
+        Map<String, String> result = testHandler.resolveDomainMap(config, null);
         assertNotNull("Domain map should not be null", result);
         assertTrue("Should contain default domain or document current behavior", result.containsKey("default") || result.isEmpty());
     }
@@ -1035,7 +1035,7 @@ public class ElasticsearchMetadataHandlerTest
         lenient().when(awsSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
                 .thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"user\", \"password\": \"pass\"}").build());
         
-        Map<String, String> result = testHandler.resolveDomainMap(config);
+        Map<String, String> result = testHandler.resolveDomainMap(config, null);
         assertNotNull("Domain map should not be null", result);
         assertTrue("Should contain movies domain or document current behavior", result.containsKey("movies") || result.isEmpty());
     }
