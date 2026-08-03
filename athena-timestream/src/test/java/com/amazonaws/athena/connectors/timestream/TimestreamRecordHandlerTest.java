@@ -66,12 +66,14 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient;
+import software.amazon.awssdk.services.timestreamquery.model.Datum;
 import software.amazon.awssdk.services.timestreamquery.model.QueryRequest;
 import software.amazon.awssdk.services.timestreamquery.model.QueryResponse;
+import software.amazon.awssdk.services.timestreamquery.model.Row;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -139,9 +141,7 @@ public class TimestreamRecordHandlerTest
     }
 
     @Before
-    public void setUp()
-            throws IOException
-    {
+    public void setUp() {
         logger.info("{}: enter", testName.getMethodName());
 
         allocator = new BlockAllocatorImpl();
@@ -500,5 +500,393 @@ public class TimestreamRecordHandlerTest
         }
 
         logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void doReadRecords_withIntAndDateDayScalars_returnsParsedValues()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addIntField("cnt_int")
+                .addField("reading_date", Types.MinorType.DATEDAY.getType())
+                .build();
+
+        List<Datum> rowData = List.of(
+                Datum.builder().scalarValue("42").build(),
+                Datum.builder().scalarValue("2024-06-15").build());
+        QueryResponse mockResult = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(rowData).build()))
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        Block block = response.getRecords();
+        FieldReader cnt = block.getFieldReader("cnt_int");
+        cnt.setPosition(0);
+        assertEquals(42, cnt.readInteger().intValue());
+
+        FieldReader readingDate = block.getFieldReader("reading_date");
+        readingDate.setPosition(0);
+        assertTrue(readingDate.isSet());
+    }
+
+    @Test
+    public void doReadRecords_withBitTrueFalseAndBigIntScalars_returnsParsedValues()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addBitField("active")
+                .addBitField("inactive")
+                .addBigIntField("total")
+                .build();
+
+        QueryResponse mockResult = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(List.of(
+                        Datum.builder().scalarValue("true").build(),
+                        Datum.builder().scalarValue("false").build(),
+                        Datum.builder().scalarValue("1000").build())).build()))
+                .build();
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        Block block = ((ReadRecordsResponse) handler.doReadRecords(allocator, newReadRecordsRequest(schema))).getRecords();
+        block.getFieldReader("active").setPosition(0);
+        assertTrue(block.getFieldReader("active").readBoolean());
+        block.getFieldReader("inactive").setPosition(0);
+        assertTrue(!block.getFieldReader("inactive").readBoolean());
+        block.getFieldReader("total").setPosition(0);
+        assertEquals(1000L, block.getFieldReader("total").readLong().longValue());
+    }
+
+    @Test
+    public void doReadRecords_withListStructWrongTimeFieldName_returnsListValue()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("readings", Types.MinorType.LIST.getType())
+                        .addField(FieldBuilder.newBuilder("item", Types.MinorType.STRUCT.getType())
+                                .addStringField("timestamp")
+                                .addFloat8Field("value")
+                                .build())
+                        .build())
+                .build();
+
+        Datum listDatum = Datum.builder()
+                .arrayValue(List.of(Datum.builder().rowValue(Row.builder().data(List.of(
+                        Datum.builder().scalarValue("2024-06-15").build(),
+                        Datum.builder().scalarValue("1.5").build())).build()).build()))
+                .build();
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(QueryResponse.builder()
+                .rows(List.of(Row.builder().data(List.of(listDatum)).build()))
+                .build());
+
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, newReadRecordsRequest(schema));
+        assertEquals(1, response.getRecordCount());
+
+        List<Map<String, Object>> readings = (List<Map<String, Object>>) response.getRecords()
+                .getFieldReader("readings")
+                .readObject();
+        assertEquals(1, readings.size());
+        Map<String, Object> element = readings.get(0);
+        assertEquals("2024-06-15", element.get("timestamp").toString());
+        assertEquals(1.5, ((Number) element.get("value")).doubleValue(), 0.001);
+    }
+
+    @Test
+    public void doReadRecords_withNullScalars_returnsNullValues()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("name")
+                .addFloat8Field("reading")
+                .addBitField("active")
+                .addBigIntField("total")
+                .addIntField("count")
+                .addField("event_time", Types.MinorType.DATEMILLI.getType())
+                .addField("event_date", Types.MinorType.DATEDAY.getType())
+                .build();
+
+        List<Datum> rowData = List.of(
+                Datum.builder().build(),
+                Datum.builder().build(),
+                Datum.builder().build(),
+                Datum.builder().build(),
+                Datum.builder().build(),
+                Datum.builder().build(),
+                Datum.builder().build());
+        QueryResponse mockResult = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(rowData).build()))
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        assertEquals(1, response.getRecordCount());
+        assertNullValue(response.getRecords(), "name");
+        assertNullValue(response.getRecords(), "reading");
+        assertNullValue(response.getRecords(), "active");
+        assertNullValue(response.getRecords(), "total");
+        assertNullValue(response.getRecords(), "count");
+        assertNullValue(response.getRecords(), "event_time");
+        assertNullValue(response.getRecords(), "event_date");
+    }
+    
+    @Test
+    public void doReadRecords_withArrayColumn_returnsListValue()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("arr", Types.MinorType.LIST.getType())
+                        .addIntField("item")
+                        .build())
+                .build();
+
+        Datum arrDatum = Datum.builder()
+                .arrayValue(List.of(
+                        Datum.builder().scalarValue("100").build(),
+                        Datum.builder().scalarValue("200").build()))
+                .build();
+        QueryResponse mockResult = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(List.of(arrDatum)).build()))
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        assertEquals(1, response.getRecordCount());
+        assertNotNull(response.getRecords().getFieldReader("arr").readObject());
+    }
+
+    @Test
+    public void doReadRecords_withStructColumn_returnsRowValue()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("readings", Types.MinorType.STRUCT.getType())
+                        .addFloat8Field("temp")
+                        .addBitField("flag")
+                        .build())
+                .build();
+
+        Datum readings = Datum.builder()
+                .rowValue(Row.builder().data(List.of(
+                        Datum.builder().scalarValue("21.5").build(),
+                        Datum.builder().scalarValue("true").build())).build())
+                .build();
+        QueryResponse mockResult = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(List.of(readings)).build()))
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        assertEquals(1, response.getRecordCount());
+        assertNotNull(response.getRecords().getFieldReader("readings").readObject());
+    }
+
+    @Test
+    public void doReadRecords_withNestedDateFields_returnsComplexValue()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("readings", Types.MinorType.STRUCT.getType())
+                        .addField("event_time", Types.MinorType.DATEMILLI.getType(), null)
+                        .addField("event_date", Types.MinorType.DATEDAY.getType(), null)
+                        .build())
+                .build();
+
+        Datum readings = Datum.builder()
+                .rowValue(Row.builder().data(List.of(
+                        Datum.builder().scalarValue("2024-06-15 10:11:12.123").build(),
+                        Datum.builder().scalarValue("2024-06-15").build())).build())
+                .build();
+        QueryResponse mockResult = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(List.of(readings)).build()))
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        assertEquals(1, response.getRecordCount());
+        Map<String, Object> rowValue = (Map<String, Object>) response.getRecords()
+                .getFieldReader("readings")
+                .readObject();
+        assertEquals(LocalDateTime.of(2024, 6, 15, 10, 11, 12, 123_000_000), rowValue.get("event_time"));
+        assertEquals((int) LocalDate.of(2024, 6, 15).toEpochDay(), ((Integer) rowValue.get("event_date")).intValue());
+    }
+
+    @Test
+    public void doReadRecords_withTimeSeriesVarcharMeasure_returnsComplexValue()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("note_series", Types.MinorType.LIST.getType())
+                        .addField(FieldBuilder.newBuilder("item", Types.MinorType.STRUCT.getType())
+                                .addDateMilliField("time")
+                                .addStringField("measure_value")
+                                .build())
+                        .build())
+                .build();
+
+        QueryResponse mockResult = makeMockQueryResult(schema, 1, 1, false);
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        assertEquals(1, response.getRecordCount());
+        assertNotNull(response.getRecords().getFieldReader("note_series").readObject());
+    }
+
+    @Test
+    public void doReadRecords_withNullComplexDatums_skipsRowWrite()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("arr", Types.MinorType.LIST.getType())
+                        .addIntField("item").build())
+                .addField(FieldBuilder.newBuilder("st", Types.MinorType.STRUCT.getType())
+                        .addFloat8Field("value").build())
+                .addField(FieldBuilder.newBuilder("ts", Types.MinorType.LIST.getType())
+                        .addField(FieldBuilder.newBuilder("item", Types.MinorType.STRUCT.getType())
+                                .addDateMilliField("time")
+                                .addFloat8Field("measure_value").build()).build())
+                .build();
+
+        Datum nullDatum = Datum.builder().nullValue(true).build();
+        QueryResponse mockResult = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(List.of(nullDatum, nullDatum, nullDatum)).build()))
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        assertEquals(1, response.getRecordCount());
+    }
+
+    @Test
+    public void doReadRecords_withTimeSeriesIntBigintBitMeasures_writesAllThreeTimeSeriesColumns()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("ts_int", Types.MinorType.LIST.getType())
+                        .addField(FieldBuilder.newBuilder("item", Types.MinorType.STRUCT.getType())
+                                .addDateMilliField("time")
+                                .addIntField("measure_value").build()).build())
+                .addField(FieldBuilder.newBuilder("ts_bigint", Types.MinorType.LIST.getType())
+                        .addField(FieldBuilder.newBuilder("item", Types.MinorType.STRUCT.getType())
+                                .addDateMilliField("time")
+                                .addBigIntField("measure_value").build()).build())
+                .addField(FieldBuilder.newBuilder("ts_bit", Types.MinorType.LIST.getType())
+                        .addField(FieldBuilder.newBuilder("item", Types.MinorType.STRUCT.getType())
+                                .addDateMilliField("time")
+                                .addBitField("measure_value").build()).build())
+                .build();
+
+        QueryResponse mockResult = makeMockQueryResult(schema, 1, 1, false);
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        assertEquals(1, response.getRecordCount());
+        assertNotNull(response.getRecords().getFieldReader("ts_int").readObject());
+        assertNotNull(response.getRecords().getFieldReader("ts_bigint").readObject());
+        assertNotNull(response.getRecords().getFieldReader("ts_bit").readObject());
+    }
+
+    @Test
+    public void doReadRecords_withPagination_returnsTwoRecordsFromPaginatedQuery()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder().addStringField("col").build();
+
+        QueryResponse page1 = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(List.of(Datum.builder().scalarValue("row1").build())).build()))
+                .nextToken("page2")
+                .build();
+        QueryResponse page2 = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(List.of(Datum.builder().scalarValue("row2").build())).build()))
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenReturn(page1)
+                .thenReturn(page2);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        assertEquals(2, response.getRecordCount());
+    }
+
+    @Test
+    public void doReadRecords_withStructContainingVarcharBigintInt_writesInfoStructField()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("info", Types.MinorType.STRUCT.getType())
+                        .addStringField("name")
+                        .addBigIntField("count")
+                        .addIntField("cnt_int")
+                        .build())
+                .build();
+
+        Datum structDatum = Datum.builder()
+                .rowValue(Row.builder().data(List.of(
+                        Datum.builder().scalarValue("alice").build(),
+                        Datum.builder().scalarValue("9876543210").build(),
+                        Datum.builder().scalarValue("42").build())).build())
+                .build();
+        QueryResponse mockResult = QueryResponse.builder()
+                .rows(List.of(Row.builder().data(List.of(structDatum)).build()))
+                .build();
+
+        when(mockClient.query(nullable(QueryRequest.class))).thenReturn(mockResult);
+
+        ReadRecordsRequest request = newReadRecordsRequest(schema);
+        ReadRecordsResponse response = (ReadRecordsResponse) handler.doReadRecords(allocator, request);
+
+        assertEquals(1, response.getRecordCount());
+        assertNotNull(response.getRecords().getFieldReader("info").readObject());
+    }
+
+    private ReadRecordsRequest newReadRecordsRequest(Schema schema)
+    {
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        return new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
+                "queryId-" + System.currentTimeMillis(),
+                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
+                schema,
+                Split.newBuilder(splitLoc, keyFactory.create()).build(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                        DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                10000000000L,
+                10000000000L);
+    }
+
+    private void assertNullValue(Block block, String fieldName)
+    {
+        FieldReader reader = block.getFieldReader(fieldName);
+        reader.setPosition(0);
+        assertTrue("Expected " + fieldName + " to be null", !reader.isSet());
     }
 }

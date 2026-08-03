@@ -42,6 +42,14 @@ Parameters:
     Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
     Default: 'false'
     Type: String
+  KMSKeyId:
+    Description: "(Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys."
+    Type: String
+    Default: ""
+  LambdaRole:
+    Description: "(Optional) A custom role to be used by the Connector lambda"
+    Type: String
+    Default: ""
   SecurityGroupIds:
     Description: '(Optional) One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
     Type: CommaDelimitedList
@@ -58,6 +66,9 @@ Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
+  HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
+  NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
+  CreateKMSPolicy: !And [!Condition HasKMSKeyId, !Condition NotHasLambdaRole]
   IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
   IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
 Resources:
@@ -70,6 +81,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
+          kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub
@@ -80,40 +92,99 @@ Resources:
       Description: "Enables Amazon Athena to communicate with SAP HANA using JDBC"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
-      Policies:
-        - Statement:
-            - Action:
-                - secretsmanager:GetSecretValue
-                - secretsmanager:PutSecretValue
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
-          Version: '2012-10-17'
-        - Statement:
-            - Action:
-                - logs:CreateLogGroup
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
-          Version: '2012-10-17'
-        - Statement:
-            - Action:
-                - logs:CreateLogStream
-                - logs:PutLogEvents
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
-          Version: '2012-10-17'
-        - Statement:
-            - Action:
-                - athena:GetQueryExecution
-              Effect: Allow
-              Resource: '*'
-          Version: '2012-10-17'
-        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
-        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
-        - S3CrudPolicy:
-            BucketName: !Ref SpillBucket
-        #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
-        - VPCAccessPolicy: {}
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]
       VpcConfig:
         SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
         SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue" ]
+
+  FunctionRole:
+    Condition: NotHasLambdaRole
+    Type: AWS::IAM::Role
+    Properties:
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+
+  FunctionExecutionPolicy:
+    Condition: NotHasLambdaRole
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: FunctionExecutionPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:PutSecretValue
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+          - Action:
+              - logs:CreateLogGroup
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
+          - Action:
+              - athena:GetQueryExecution
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DetachNetworkInterface
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetLifecycleConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:DeleteObject
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                  - arn:${AWS::Partition}:s3:::${bucketName}
+                  - bucketName:
+                      Ref: SpillBucket
+              - Fn::Sub:
+                  - arn:${AWS::Partition}:s3:::${bucketName}/*
+                  - bucketName:
+                      Ref: SpillBucket
+      Roles:
+        - !Ref FunctionRole
+
+  FunctionKMSPolicy:
+    Condition: CreateKMSPolicy
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: FunctionKMSPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - kms:GenerateRandom
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - kms:GenerateDataKey
+            Effect: Allow
+            Resource: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
+      Roles:
+        - !Ref FunctionRole
