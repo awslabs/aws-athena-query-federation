@@ -394,29 +394,6 @@ public class HbaseMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable_withGlueException_fallsBackToHBaseSchema()
-            throws Exception
-    {
-        setupMockScanner();
-
-        // The exception handling is tested implicitly - when Glue throws an exception,
-        // the code catches it and falls back to HBase schema inference.
-        // Since we can't easily mock super.doGetTable, we test the null Glue case instead
-        // which exercises the same code path (origSchema == null)
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME, Collections.emptyMap());
-        GetTableResponse res = handler.doGetTable(allocator, req);
-
-        assertNotNull("Response should not be null", res);
-        assertNotNull("Schema should be inferred from HBase", res.getSchema());
-        assertEquals("Table name should match request", TEST_TABLE, req.getTableName().getTableName());
-        assertEquals("Schema name should match request", DEFAULT_SCHEMA, req.getTableName().getSchemaName());
-        assertTrue("Schema should contain ROW column", res.getSchema().getFields().stream()
-                .anyMatch(f -> f.getName().equals(HbaseSchemaUtils.ROW_COLUMN_NAME)));
-        assertTrue("Schema should contain family1:col1", res.getSchema().getFields().stream()
-                .anyMatch(f -> f.getName().equals("family1:col1")));
-    }
-
-    @Test
     public void doGetTable_withNullGlue_fallsBackToHBaseSchema()
             throws Exception
     {
@@ -574,7 +551,7 @@ public class HbaseMetadataHandlerTest
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
         Block partitions = res.getPartitions();
-        assertTrue("Partition layout should have at least one row", partitions.getRowCount() > 0);
+        assertEquals("Partition layout should contain exactly one row", 1, partitions.getRowCount());
     }
 
     @Test
