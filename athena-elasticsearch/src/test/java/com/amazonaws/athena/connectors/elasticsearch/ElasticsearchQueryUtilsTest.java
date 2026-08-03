@@ -500,6 +500,23 @@ public class ElasticsearchQueryUtilsTest
         assertTrue("Empty plan should return match_all query", builder.toString().contains("match_all"));
     }
 
+    @Test
+    public void testPlanWithNoRootInputReturnsMatchAll()
+    {
+        // Plan with a PlanRel that has a RelRoot with no input
+        io.substrait.proto.RelRoot emptyRoot = io.substrait.proto.RelRoot.newBuilder().build();
+        io.substrait.proto.PlanRel planRel = io.substrait.proto.PlanRel.newBuilder().setRoot(emptyRoot).build();
+        Plan plan = Plan.newBuilder().addRelations(planRel).build();
+
+        QueryBuilder builder = ElasticsearchQueryUtils.getQueryFromPlan(plan);
+        assertNotNull("QueryBuilder should not be null", builder);
+        assertTrue("Plan with no root input should return match_all query", builder.toString().contains("match_all"));
+
+        Map<String, List<com.amazonaws.athena.connector.substrait.model.ColumnPredicate>> predicates =
+                ElasticsearchQueryUtils.buildFilterPredicatesFromPlan(plan);
+        assertTrue("Plan with no root input should return empty predicates", predicates.isEmpty());
+    }
+
 
     @Test
     public void testEmptyFilRel()
@@ -660,6 +677,75 @@ public class ElasticsearchQueryUtilsTest
         assertTrue("Range set predicate should contain field name myfield", actualPredicate.contains("myfield"));
         assertTrue("Range set predicate should contain lower bound 10", actualPredicate.contains("10"));
         assertTrue("Range set predicate should contain upper bound 20", actualPredicate.contains("20"));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testGetQueryFromPlan_withMalformedFilter_throwsRuntimeException()
+    {
+        // Create a plan with a filter that has a scalar function referencing a non-existent extension
+        // This will cause parsing to fail when trying to resolve the function reference
+        io.substrait.proto.Expression scalarFunc = io.substrait.proto.Expression.newBuilder()
+                .setScalarFunction(io.substrait.proto.Expression.ScalarFunction.newBuilder()
+                        .setFunctionReference(999) // non-existent function reference
+                        .addArguments(io.substrait.proto.FunctionArgument.newBuilder()
+                                .setValue(io.substrait.proto.Expression.newBuilder()
+                                        .setSelection(io.substrait.proto.Expression.FieldReference.newBuilder()
+                                                .setDirectReference(io.substrait.proto.Expression.ReferenceSegment.newBuilder()
+                                                        .setStructField(io.substrait.proto.Expression.ReferenceSegment.StructField.newBuilder()
+                                                                .setField(0)
+                                                                .build())
+                                                        .build())
+                                                .build())
+                                        .build())
+                                .build())
+                        .addArguments(io.substrait.proto.FunctionArgument.newBuilder()
+                                .setValue(io.substrait.proto.Expression.newBuilder()
+                                        .setLiteral(io.substrait.proto.Expression.Literal.newBuilder()
+                                                .setString("test")
+                                                .build())
+                                        .build())
+                                .build())
+                        .build())
+                .build();
+
+        io.substrait.proto.FilterRel filterRel = io.substrait.proto.FilterRel.newBuilder()
+                .setCondition(scalarFunc)
+                .setInput(io.substrait.proto.Rel.newBuilder()
+                        .setRead(io.substrait.proto.ReadRel.newBuilder()
+                                .setBaseSchema(io.substrait.proto.NamedStruct.newBuilder()
+                                        .addNames("col1")
+                                        .build())
+                                .build())
+                        .build())
+                .build();
+
+        io.substrait.proto.Rel rel = io.substrait.proto.Rel.newBuilder()
+                .setFilter(filterRel)
+                .build();
+
+        io.substrait.proto.RelRoot root = io.substrait.proto.RelRoot.newBuilder()
+                .setInput(rel)
+                .build();
+
+        io.substrait.proto.PlanRel planRel = io.substrait.proto.PlanRel.newBuilder()
+                .setRoot(root)
+                .build();
+
+        // Add a bogus extension so the function reference lookup fails with unexpected behavior
+        io.substrait.proto.SimpleExtensionDeclaration ext = io.substrait.proto.SimpleExtensionDeclaration.newBuilder()
+                .setExtensionFunction(io.substrait.proto.SimpleExtensionDeclaration.ExtensionFunction.newBuilder()
+                        .setFunctionAnchor(999)
+                        .setName("unsupported_function:any_any")
+                        .build())
+                .build();
+
+        Plan plan = Plan.newBuilder()
+                .addRelations(planRel)
+                .addExtensions(ext)
+                .build();
+
+        // This should throw RuntimeException since the function is unsupported
+        ElasticsearchQueryUtils.getQueryFromPlan(plan);
     }
 
     private Constraints createConstraints(Map<String, ValueSet> summary)

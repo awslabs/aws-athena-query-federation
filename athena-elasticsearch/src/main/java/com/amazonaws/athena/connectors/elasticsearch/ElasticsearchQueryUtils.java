@@ -144,9 +144,13 @@ class ElasticsearchQueryUtils
             return new HashMap<>();
         }
 
+        if (plan.getRelations(0).getRoot() == null || plan.getRelations(0).getRoot().getInput() == null) {
+            return new HashMap<>();
+        }
+
         SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
                 plan.getRelations(0).getRoot().getInput());
-        if (substraitRelModel.getFilterRel() == null) {
+        if (substraitRelModel == null || substraitRelModel.getFilterRel() == null) {
             return new HashMap<>();
         }
 
@@ -171,10 +175,14 @@ class ElasticsearchQueryUtils
             return QueryBuilders.matchAllQuery();
         }
 
+        if (plan.getRelations(0).getRoot() == null || plan.getRelations(0).getRoot().getInput() == null) {
+            return QueryBuilders.matchAllQuery();
+        }
+
         // Extract Substrait relation model from the plan to access filter conditions
         SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
                 plan.getRelations(0).getRoot().getInput());
-        if (substraitRelModel.getFilterRel() == null) {
+        if (substraitRelModel == null || substraitRelModel.getFilterRel() == null) {
             return QueryBuilders.matchAllQuery();
         }
 
@@ -187,18 +195,20 @@ class ElasticsearchQueryUtils
                     substraitRelModel.getFilterRel().getCondition(),
                     tableColumns);
 
-            if (logicalExpr != null) {
-                // Successfully parsed expression tree - convert to Elasticsearch query
-                QueryBuilder queryBuilder = convertLogicalExpressionToQuery(logicalExpr);
-                if (queryBuilder != null) {
-                    return queryBuilder;
-                }
+            if (logicalExpr == null) {
+                return QueryBuilders.matchAllQuery();
             }
+
+            QueryBuilder queryBuilder = convertLogicalExpressionToQuery(logicalExpr);
+            if (queryBuilder == null) {
+                return QueryBuilders.matchAllQuery();
+            }
+            return queryBuilder;
         }
         catch (Exception e) {
-            logger.warn("Tree-based parsing failed {}. Returning match_all query.", e.getMessage(), e);
+            logger.error("Failed to convert Substrait plan to Elasticsearch query", e);
+            throw new RuntimeException("Failed to convert Substrait plan to Elasticsearch query", e);
         }
-        return QueryBuilders.matchAllQuery();
     }
 
     /**
