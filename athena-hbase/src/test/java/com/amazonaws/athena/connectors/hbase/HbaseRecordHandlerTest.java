@@ -85,8 +85,10 @@ import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.REGION_
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.START_KEY_FIELD;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -267,7 +269,8 @@ public class HbaseRecordHandlerTest
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         assertTrue("Response should be ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        assertTrue("Record count should be greater than 0", response.getRecordCount() > 0);
+        // setupMockScanner() uses makeResults(10), which yields 3 Result objects per iteration
+        assertEquals("Record count should match mock scanner results", 30, response.getRecordCount());
         logger.info("doReadRecords_withQueryPassthroughEmptyFilter_returnsNonZeroRecords: exit");
     }
 
@@ -283,7 +286,8 @@ public class HbaseRecordHandlerTest
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         assertTrue("Response should be ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        assertTrue("Record count should be greater than or equal to 0", response.getRecordCount() >= 0);
+        // Mock scanner returns all makeResults(10) rows (3 rows per iteration) without applying the HBase filter
+        assertEquals("Record count should match mock scanner results", 30, response.getRecordCount());
         logger.info("doReadRecords_withQueryPassthroughWithFilter_returnsFilteredRecords: exit");
     }
 
@@ -327,7 +331,8 @@ public class HbaseRecordHandlerTest
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         assertTrue("Response should be ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        assertTrue("Record count should be greater than or equal to 0", response.getRecordCount() >= 0);
+        // Predicate family1:col3 == 1 matches exactly one row from makeResults(10)
+        assertEquals("Record count should match rows satisfying the predicate", 1, response.getRecordCount());
         logger.info("doReadRecords_withSpecificSchema_returnsRecordsForNativeSchema: exit");
     }
 
@@ -337,6 +342,10 @@ public class HbaseRecordHandlerTest
     {
         logger.info("doReadRecords_withRowKeyConstraint_returnsRecordsMatchingRowKey: enter");
         List<Result> results = TestUtils.makeResults(10);
+        // makeResult() does not set getRow(); stub it so the ROW equality constraint can match.
+        for (Result result : results) {
+            doReturn("test_row_key".getBytes(UTF_8)).when(result).getRow();
+        }
         ResultScanner mockScanner = mock(ResultScanner.class);
         when(mockScanner.iterator()).thenReturn(results.iterator());
 
@@ -377,7 +386,8 @@ public class HbaseRecordHandlerTest
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         assertTrue("Response should be ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        assertTrue("Record count should be greater than or equal to 0", response.getRecordCount() >= 0);
+        // All makeResults(10) rows (30 total) are stubbed with matching row key
+        assertEquals("Record count should match rows with the requested row key", 30, response.getRecordCount());
         logger.info("doReadRecords_withRowKeyConstraint_returnsRecordsMatchingRowKey: exit");
     }
 
@@ -455,7 +465,7 @@ public class HbaseRecordHandlerTest
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         assertTrue("Response should be ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        assertTrue("Record count should be greater than or equal to 0", response.getRecordCount() >= 0);
+        assertEquals("Record count should match all mock scanner results", 30, response.getRecordCount());
         logger.info("doReadRecords_withStructField_returnsRecordsWithStructField: exit");
     }
 
@@ -520,7 +530,8 @@ public class HbaseRecordHandlerTest
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         assertTrue("Response should be ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        assertTrue("Record count should be greater than or equal to 0", response.getRecordCount() >= 0);
+        // makeResults(10) yields 3 Result objects per iteration
+        assertEquals("Record count should match all mock scanner results", 30, response.getRecordCount());
         logger.info("doReadRecords_withNoConstraints_returnsAllRecords: exit");
     }
 
@@ -571,7 +582,7 @@ public class HbaseRecordHandlerTest
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         assertTrue("Response should be ReadRecordsResponse", rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        assertTrue("Record count should be greater than or equal to 0", response.getRecordCount() >= 0);
+        assertEquals("Record count should match all mock scanner results", 30, response.getRecordCount());
         logger.info("doReadRecords_withOnlyRowColumn_returnsRecordsWithRowColumnOnly: exit");
     }
 
