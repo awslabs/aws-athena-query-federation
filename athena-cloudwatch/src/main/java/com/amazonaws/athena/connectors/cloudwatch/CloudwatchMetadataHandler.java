@@ -51,6 +51,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsRequest;
@@ -163,6 +164,8 @@ public class CloudwatchMetadataHandler
         DescribeLogGroupsRequest.Builder requestBuilder = DescribeLogGroupsRequest.builder();
         DescribeLogGroupsResponse response;
         List<String> schemas = new ArrayList<>();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(listSchemasRequest.getIdentity().getConfigOptions());
+        requestBuilder.overrideConfiguration(overrideConfig);
         do {
             if (schemas.size() > MAX_RESULTS) {
                 throw new RuntimeException("Too many log groups, exceeded max metadata results for schema count.");
@@ -187,8 +190,10 @@ public class CloudwatchMetadataHandler
             throws TimeoutException
     {
         String nextToken = null;
-        String logGroupName = tableResolver.validateSchema(listTablesRequest.getSchemaName());
-        DescribeLogStreamsRequest.Builder requestBuilder = DescribeLogStreamsRequest.builder().logGroupName(logGroupName);
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(listTablesRequest.getIdentity().getConfigOptions());
+        String logGroupName = tableResolver.validateSchema(listTablesRequest.getSchemaName(), overrideConfig);
+        DescribeLogStreamsRequest.Builder requestBuilder = DescribeLogStreamsRequest.builder().logGroupName(logGroupName)
+                .overrideConfiguration(overrideConfig);
         DescribeLogStreamsResponse response;
         List<TableName> tables = new ArrayList<>();
         if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
@@ -233,7 +238,8 @@ public class CloudwatchMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         TableName tableName = getTableRequest.getTableName();
-        CloudwatchTableName cwTableName = tableResolver.validateTable(tableName);
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(getTableRequest.getIdentity().getConfigOptions());
+        CloudwatchTableName cwTableName = tableResolver.validateTable(tableName, overrideConfig);
         return new GetTableResponse(getTableRequest.getCatalogName(),
                 cwTableName.toTableName(),
                 CLOUDWATCH_SCHEMA,
@@ -273,9 +279,11 @@ public class CloudwatchMetadataHandler
             return;
         }
 
-        CloudwatchTableName cwTableName = tableResolver.validateTable(request.getTableName());
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(request.getIdentity().getConfigOptions());
+        CloudwatchTableName cwTableName = tableResolver.validateTable(request.getTableName(), overrideConfig);
 
-        DescribeLogStreamsRequest.Builder cwRequestBuilder = DescribeLogStreamsRequest.builder().logGroupName(cwTableName.getLogGroupName());
+        DescribeLogStreamsRequest.Builder cwRequestBuilder = DescribeLogStreamsRequest.builder().logGroupName(cwTableName.getLogGroupName())
+                .overrideConfiguration(overrideConfig);
         if (!ALL_LOG_STREAMS_TABLE.equals(cwTableName.getLogStreamName())) {
             cwRequestBuilder.logStreamNamePrefix(cwTableName.getLogStreamName());
         }
@@ -366,7 +374,8 @@ public class CloudwatchMetadataHandler
             throw new IllegalArgumentException("No Query passed through [{}]" + request);
         }
         // to get column names with limit 1
-        GetQueryResultsResponse getQueryResultsResponse = getResult(invoker, awsLogs, request.getQueryPassthroughArguments(), 1);
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(request.getIdentity().getConfigOptions());
+        GetQueryResultsResponse getQueryResultsResponse = getResult(invoker, awsLogs, request.getQueryPassthroughArguments(), 1, overrideConfig);
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         if (!getQueryResultsResponse.results().isEmpty()) {
             for (ResultField field : getQueryResultsResponse.results().get(0)) {
