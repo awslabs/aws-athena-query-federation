@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.connectors.influxdb;
 
-public final class InfluxDbConstants
+public final class InfluxDBConstants
 {
-    private InfluxDbConstants()
+    private InfluxDBConstants()
     {
     }
 
@@ -37,4 +37,5 @@ public final class InfluxDbConstants
     public static final String PART_TIME_UPPER = "time_upper";
     public static final String PART_TIME_LOWER = "time_lower";
     public static final String DEFAULT_TIME_COLUMN = "time";
+    public static final int MAX_EXCEPTION_CAUSE_SEARCH_DEPTH = 32;
 }

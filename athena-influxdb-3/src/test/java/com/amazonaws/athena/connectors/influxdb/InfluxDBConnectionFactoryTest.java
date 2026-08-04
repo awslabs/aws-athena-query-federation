@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.influxdb;
 
+import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler;
 import com.influxdb.v3.client.InfluxDBApiHttpException;
 import com.influxdb.v3.client.InfluxDBClient;
@@ -43,7 +44,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class InfluxDbConnectionFactoryTest
+public class InfluxDBConnectionFactoryTest
 {
     private FederationRequestHandler mockHandler;
 
@@ -62,7 +63,7 @@ public class InfluxDbConnectionFactoryTest
 
         when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
 
-        final InfluxDbConnectionFactory factory = new InfluxDbConnectionFactory(config, mockHandler);
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         assertEquals("my-plain-token", factory.resolveToken());
     }
 
@@ -76,7 +77,7 @@ public class InfluxDbConnectionFactoryTest
         when(mockHandler.resolveSecrets("${my-secret}"))
                 .thenReturn("{\"token\": \"secret-token-value\", \"other\": \"stuff\"}");
 
-        final InfluxDbConnectionFactory factory = new InfluxDbConnectionFactory(config, mockHandler);
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         assertEquals("secret-token-value", factory.resolveToken());
     }
 
@@ -91,7 +92,7 @@ public class InfluxDbConnectionFactoryTest
         when(mockHandler.resolveSecrets("${my-secret}"))
                 .thenReturn("{\"api_key\": \"custom-key-value\"}");
 
-        final InfluxDbConnectionFactory factory = new InfluxDbConnectionFactory(config, mockHandler);
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         assertEquals("custom-key-value", factory.resolveToken());
     }
 
@@ -105,7 +106,7 @@ public class InfluxDbConnectionFactoryTest
         // Secrets Manager returns a plain string, not JSON
         when(mockHandler.resolveSecrets("${my-secret}")).thenReturn("plain-secret-value");
 
-        final InfluxDbConnectionFactory factory = new InfluxDbConnectionFactory(config, mockHandler);
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         assertEquals("plain-secret-value", factory.resolveToken());
     }
 
@@ -115,8 +116,64 @@ public class InfluxDbConnectionFactoryTest
         final Map<String, String> config = new HashMap<>();
         config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
 
-        final InfluxDbConnectionFactory factory = new InfluxDbConnectionFactory(config, mockHandler);
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         factory.resolveToken();
+    }
+
+    @Test
+    public void testResolveTokenJsonMissingKeyFallsBackToRaw()
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
+        config.put("INFLUXDB3_AUTH_TOKEN", "${my-secret}");
+        when(mockHandler.resolveSecrets("${my-secret}")).thenReturn("{\"other\": \"value\"}");
+
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
+        // No 'token' key: the raw JSON will be used as the token.
+        assertEquals("{\"other\": \"value\"}", factory.resolveToken());
+    }
+
+    @Test
+    public void testResolveTokenInvalidJsonFallsBackToRaw()
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
+        config.put("INFLUXDB3_AUTH_TOKEN", "${my-secret}");
+        when(mockHandler.resolveSecrets("${my-secret}")).thenReturn("{not-valid-json");
+
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
+        assertEquals("{not-valid-json", factory.resolveToken());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetClientMissingHostThrows()
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
+        factory.getClient("db");
+    }
+
+    @Test
+    public void testInvalidMaxRetriesConfigFallsBackToDefault() throws Exception
+    {
+        final Map<String, String> config = baseConfig();
+        config.put("token_refresh_max_retries", "not-a-number");
+        // Falls back to the default (1) rather than throwing; a single auth error is retried once.
+        final InfluxDBConnectionFactory factory = spyFactoryReturningClient(config);
+        final AtomicInteger calls = new AtomicInteger();
+        try {
+            factory.executeWithTokenRetry("db", client -> {
+                calls.incrementAndGet();
+                throw CallStatus.UNAUTHENTICATED.toRuntimeException();
+            });
+            fail("expected auth error to propagate after the default single retry");
+        }
+        catch (final Exception e) {
+            assertTrue(InfluxDBConnectionFactory.isAuthError(e));
+        }
+        // Invalid config falls back to the default retry count (not a NumberFormatException at construction).
+        assertEquals(1 + InfluxDBConstants.DEFAULT_TOKEN_REFRESH_MAX_RETRIES, calls.get());
     }
 
     @Test
@@ -127,37 +184,69 @@ public class InfluxDbConnectionFactoryTest
         config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
         config.put("influxdb_database", "MyDatabase");
 
-        final InfluxDbConnectionFactory factory = new InfluxDbConnectionFactory(config, mockHandler);
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         assertEquals("MyDatabase", factory.resolveDatabase("mydatabase"));
     }
 
     @Test
     public void testIsAuthErrorFlightUnauthenticatedAndUnauthorized()
     {
-        assertTrue(InfluxDbConnectionFactory.isAuthError(CallStatus.UNAUTHENTICATED.toRuntimeException()));
-        assertTrue(InfluxDbConnectionFactory.isAuthError(CallStatus.UNAUTHORIZED.toRuntimeException()));
+        assertTrue(InfluxDBConnectionFactory.isAuthError(CallStatus.UNAUTHENTICATED.toRuntimeException()));
+        assertTrue(InfluxDBConnectionFactory.isAuthError(CallStatus.UNAUTHORIZED.toRuntimeException()));
     }
 
     @Test
     public void testIsAuthErrorHttp401And403()
     {
-        assertTrue(InfluxDbConnectionFactory.isAuthError(new InfluxDBApiHttpException("unauthorized", null, 401)));
-        assertTrue(InfluxDbConnectionFactory.isAuthError(new InfluxDBApiHttpException("forbidden", null, 403)));
+        assertTrue(InfluxDBConnectionFactory.isAuthError(new InfluxDBApiHttpException("unauthorized", null, 401)));
+        assertTrue(InfluxDBConnectionFactory.isAuthError(new InfluxDBApiHttpException("forbidden", null, 403)));
     }
 
     @Test
     public void testIsAuthErrorDetectedInCauseChain()
     {
         final Throwable wrapped = new RuntimeException("wrapper", CallStatus.UNAUTHENTICATED.toRuntimeException());
-        assertTrue(InfluxDbConnectionFactory.isAuthError(wrapped));
+        assertTrue(InfluxDBConnectionFactory.isAuthError(wrapped));
     }
 
     @Test
     public void testIsAuthErrorFalseForNonAuthErrors()
     {
-        assertFalse(InfluxDbConnectionFactory.isAuthError(new RuntimeException("boom")));
-        assertFalse(InfluxDbConnectionFactory.isAuthError(CallStatus.INTERNAL.toRuntimeException()));
-        assertFalse(InfluxDbConnectionFactory.isAuthError(new InfluxDBApiHttpException("server error", null, 500)));
+        assertFalse(InfluxDBConnectionFactory.isAuthError(new RuntimeException("boom")));
+        assertFalse(InfluxDBConnectionFactory.isAuthError(CallStatus.INTERNAL.toRuntimeException()));
+        assertFalse(InfluxDBConnectionFactory.isAuthError(new InfluxDBApiHttpException("server error", null, 500)));
+    }
+
+    @Test
+    public void testIsThrottleForFlightResourceExhaustedAndHttp429()
+    {
+        assertTrue(InfluxDBConnectionFactory.isThrottle(CallStatus.RESOURCE_EXHAUSTED.toRuntimeException()));
+        assertTrue(InfluxDBConnectionFactory.isThrottle(new InfluxDBApiHttpException("slow down", null, 429)));
+        assertTrue(InfluxDBConnectionFactory.isThrottle(
+                new RuntimeException("wrap", CallStatus.RESOURCE_EXHAUSTED.toRuntimeException())));
+    }
+
+    @Test
+    public void testIsThrottleFalseForOtherErrors()
+    {
+        assertFalse(InfluxDBConnectionFactory.isThrottle(new RuntimeException("boom")));
+        assertFalse(InfluxDBConnectionFactory.isThrottle(CallStatus.UNAUTHENTICATED.toRuntimeException()));
+        assertFalse(InfluxDBConnectionFactory.isThrottle(new InfluxDBApiHttpException("forbidden", null, 403)));
+    }
+
+    @Test
+    public void testExecuteWithTokenRetrySurfacesThrottleAsFederationThrottleException()
+    {
+        final InfluxDBConnectionFactory factory = spyFactoryReturningClient(baseConfig());
+        try {
+            factory.executeWithTokenRetry("db", client -> {
+                throw CallStatus.RESOURCE_EXHAUSTED.toRuntimeException();
+            });
+            fail("expected throttle to surface as FederationThrottleException");
+        }
+        catch (final Exception e) {
+            assertTrue(e instanceof FederationThrottleException);
+        }
     }
 
     private Map<String, String> baseConfig()
@@ -168,10 +257,10 @@ public class InfluxDbConnectionFactoryTest
         return config;
     }
 
-    private InfluxDbConnectionFactory spyFactoryReturningClient(final Map<String, String> config)
+    private InfluxDBConnectionFactory spyFactoryReturningClient(final Map<String, String> config)
     {
         final InfluxDBClient mockClient = mock(InfluxDBClient.class);
-        final InfluxDbConnectionFactory factory = spy(new InfluxDbConnectionFactory(config, mockHandler));
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
         doReturn(mockClient).when(factory).getClient(anyString());
         return factory;
     }
@@ -179,7 +268,7 @@ public class InfluxDbConnectionFactoryTest
     @Test
     public void testExecuteWithTokenRetrySucceedsWithoutRefresh() throws Exception
     {
-        final InfluxDbConnectionFactory factory = spyFactoryReturningClient(baseConfig());
+        final InfluxDBConnectionFactory factory = spyFactoryReturningClient(baseConfig());
         final String result = factory.executeWithTokenRetry("db", client -> "ok");
         assertEquals("ok", result);
         verify(factory, times(1)).getClient("db");
@@ -189,7 +278,7 @@ public class InfluxDbConnectionFactoryTest
     @Test
     public void testExecuteWithTokenRetryRefreshesOnceThenSucceeds() throws Exception
     {
-        final InfluxDbConnectionFactory factory = spyFactoryReturningClient(baseConfig());
+        final InfluxDBConnectionFactory factory = spyFactoryReturningClient(baseConfig());
         final AtomicInteger calls = new AtomicInteger();
         final String result = factory.executeWithTokenRetry("db", client -> {
             if (calls.getAndIncrement() == 0) {
@@ -208,7 +297,7 @@ public class InfluxDbConnectionFactoryTest
     {
         final Map<String, String> config = baseConfig();
         config.put("token_refresh_max_retries", "2");
-        final InfluxDbConnectionFactory factory = spyFactoryReturningClient(config);
+        final InfluxDBConnectionFactory factory = spyFactoryReturningClient(config);
         final AtomicInteger calls = new AtomicInteger();
         try {
             factory.executeWithTokenRetry("db", client -> {
@@ -218,7 +307,7 @@ public class InfluxDbConnectionFactoryTest
             fail("expected the auth error to propagate after exhausting retries");
         }
         catch (final Exception e) {
-            assertTrue(InfluxDbConnectionFactory.isAuthError(e));
+            assertTrue(InfluxDBConnectionFactory.isAuthError(e));
         }
         // 1 initial attempt + 2 refresh retries.
         assertEquals(3, calls.get());
@@ -228,7 +317,7 @@ public class InfluxDbConnectionFactoryTest
     @Test
     public void testExecuteWithTokenRetryDoesNotRetryNonAuthError()
     {
-        final InfluxDbConnectionFactory factory = spyFactoryReturningClient(baseConfig());
+        final InfluxDBConnectionFactory factory = spyFactoryReturningClient(baseConfig());
         final AtomicInteger calls = new AtomicInteger();
         try {
             factory.executeWithTokenRetry("db", client -> {
@@ -253,7 +342,7 @@ public class InfluxDbConnectionFactoryTest
         // First resolution returns t1, the next (after invalidation) returns t2.
         when(mockHandler.resolveSecrets("${my-secret}")).thenReturn("t1", "t2");
 
-        final InfluxDbConnectionFactory factory = new InfluxDbConnectionFactory(config, mockHandler);
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         assertEquals("t1", factory.resolveToken());
         // Cached — no re-resolution.
         assertEquals("t1", factory.resolveToken());

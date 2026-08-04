@@ -44,36 +44,38 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.PART_TIME_LOWER;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.PART_TIME_UPPER;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.SOURCE_TYPE;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.PART_TIME_LOWER;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.PART_TIME_UPPER;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.SOURCE_TYPE;
 
-public class InfluxDbRecordHandler
+public class InfluxDBRecordHandler
         extends
             RecordHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger(InfluxDbRecordHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(InfluxDBRecordHandler.class);
     private static final ZoneId UTC = ZoneId.of("UTC");
 
-    private final InfluxDbConnectionFactory connectionFactory;
+    private final InfluxDBConnectionFactory connectionFactory;
+    private final InfluxDBQueryPassthrough queryPassthrough = new InfluxDBQueryPassthrough();
 
-    public InfluxDbRecordHandler(final Map<String, String> configOptions)
+    public InfluxDBRecordHandler(final Map<String, String> configOptions)
     {
         this(S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(),
-                new InfluxDbConnectionFactory(configOptions, null),
+                new InfluxDBConnectionFactory(configOptions, null),
                 configOptions);
     }
 
     @VisibleForTesting
-    protected InfluxDbRecordHandler(
+    protected InfluxDBRecordHandler(
             final S3Client s3Client,
             final SecretsManagerClient secretsManager,
             final AthenaClient athena,
-            final InfluxDbConnectionFactory connectionFactory,
+            final InfluxDBConnectionFactory connectionFactory,
             final Map<String, String> configOptions)
     {
         super(s3Client, secretsManager, athena, SOURCE_TYPE, configOptions);
@@ -89,22 +91,36 @@ public class InfluxDbRecordHandler
             throws Exception
     {
         final Schema schema = recordsRequest.getSchema();
-        String tableName = recordsRequest.getTableName().getTableName();
-        final String schemaName = recordsRequest.getTableName().getSchemaName();
-
-        // Use the original case-sensitive table name stored by the MetadataHandler.
-        final String originalTableName = schema.getCustomMetadata().get("originalTableName");
-        if (originalTableName != null) {
-            tableName = originalTableName;
+        final String resolvedDB;
+        final String sql;
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            // Query passthrough: run the caller's native SQL verbatim against the supplied database.
+            final Map<String, String> qptArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            queryPassthrough.verify(qptArgs);
+            resolvedDB = qptArgs.get(InfluxDBQueryPassthrough.DATABASE);
+            sql = qptArgs.get(InfluxDBQueryPassthrough.QUERY);
+            logger.info("readWithConstraint: query passthrough against database={}", resolvedDB);
         }
+        else {
+            String tableName = recordsRequest.getTableName().getTableName();
+            final String schemaName = recordsRequest.getTableName().getSchemaName();
 
-        final String resolvedDb = schema.getCustomMetadata().get("resolvedDatabaseName");
+            // Use the original case-sensitive table name stored by the MetadataHandler.
+            final String caseSensitiveTableName = schema.getCustomMetadata().get("caseSensitiveTableName");
+            if (caseSensitiveTableName != null) {
+                tableName = caseSensitiveTableName;
+            }
 
-        final String timeLower = recordsRequest.getSplit().getProperty(PART_TIME_LOWER);
-        final String timeUpper = recordsRequest.getSplit().getProperty(PART_TIME_UPPER);
-        final String sql = InfluxDbQueryBuilder.buildSql(schema, tableName, recordsRequest.getConstraints(),
-                timeLower, timeUpper);
-        logger.info("readWithConstraint: schema={}, sql={}", schemaName, sql);
+            resolvedDB = schema.getCustomMetadata().get("resolvedDatabaseName");
+
+            final String timeLower = recordsRequest.getSplit().getProperty(PART_TIME_LOWER);
+            final String timeUpper = recordsRequest.getSplit().getProperty(PART_TIME_UPPER);
+            sql = InfluxDBQueryBuilder.buildSql(schema, tableName, recordsRequest.getConstraints(),
+                    timeLower, timeUpper);
+            logger.info("readWithConstraint: schema={}, table={}", schemaName, tableName);
+        }
+        // The SQL embeds constraint literal values (possible PII) so it is logged only at debug.
+        logger.debug("readWithConstraint SQL: {}", sql);
 
         final List<Field> fields = schema.getFields();
         // Pre-compute which columns are timestamps
@@ -114,7 +130,7 @@ public class InfluxDbRecordHandler
             isTimestamp[i] = (mt == Types.MinorType.TIMESTAMPMILLITZ || mt == Types.MinorType.DATEMILLI);
         }
 
-        connectionFactory.executeWithTokenRetry(resolvedDb, client -> {
+        connectionFactory.executeWithTokenRetry(resolvedDB, client -> {
             // queryBatches returns Arrow VectorSchemaRoots, so each timestamp column's
             // precision is known from its Arrow type rather than guessed from magnitude.
             try (Stream<VectorSchemaRoot> batches = client.queryBatches(sql)) {
@@ -123,28 +139,37 @@ public class InfluxDbRecordHandler
                     return;
                 }
                 final List<FieldVector> vectors = root.getFieldVectors();
+                // Resolve each result column to its position by name.
+                final Map<String, Integer> arrowIndexByName = new HashMap<>();
+                for (int i = 0; i < vectors.size(); i++) {
+                    arrowIndexByName.put(vectors.get(i).getField().getName(), i);
+                }
                 final int rowCount = root.getRowCount();
-                for (int r = 0; r < rowCount; r++) {
-                    final int rowIdx = r;
+                for (int i = 0; i < rowCount; i++) {
+                    final int rowIdx = i;
                     // Reuse the client's converter for value extraction (handles
-                    // dictionary-encoded tags, Utf8, numerics, booleans).
+                    // dictionary-encoded tags, Utf8, numerics, booleans). Values are returned in
+                    // Arrow column order, so they are indexed by the resolved Arrow position.
                     final Object[] values =
                             VectorSchemaRootConverter.INSTANCE.getArrayObjectFromVectorSchemaRoot(root, rowIdx);
                     spiller.writeRows((final Block block, final int rowNum) -> {
                         boolean matched = true;
-                        for (int i = 0; i < fields.size(); i++) {
-                            Object val = values[i];
-                            if (val != null && isTimestamp[i]) {
+                        for (int j = 0; j < fields.size(); j++) {
+                            final String fieldName = fields.get(j).getName();
+                            final Integer col = arrowIndexByName.get(fieldName);
+                            // A schema field absent from the result maps to null.
+                            Object val = (col != null) ? values[col] : null;
+                            if (val != null && isTimestamp[j]) {
                                 // BlockUtils.setValue for TIMESTAMPMILLITZ expects a ZonedDateTime.
                                 // Convert using the column's actual Arrow time unit.
-                                final FieldVector vector = vectors.get(i);
+                                final FieldVector vector = vectors.get(col);
                                 if (vector.getField().getType() instanceof ArrowType.Timestamp) {
                                     final TimeUnit unit =
                                             ((ArrowType.Timestamp) vector.getField().getType()).getUnit();
                                     val = toZonedDateTime(((TimeStampVector) vector).get(rowIdx), unit);
                                 }
                             }
-                            matched &= block.offerValue(fields.get(i).getName(), rowNum, val);
+                            matched &= block.offerValue(fieldName, rowNum, val);
                         }
                         return matched ? 1 : 0;
                     });
