@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.influxdb;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
@@ -45,13 +46,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.DEFAULT_TOKEN_KEY;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.DEFAULT_TOKEN_REFRESH_MAX_RETRIES;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.ENV_INFLUXDB_HOST;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.ENV_INFLUXDB_TOKEN;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.ENV_INFLUXDB_TOKEN_KEY;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.TOKEN_REFRESH_MAX_RETRIES;
-
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.DEFAULT_TOKEN_KEY;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.DEFAULT_TOKEN_REFRESH_MAX_RETRIES;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_HOST;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_TOKEN;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_TOKEN_KEY;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MAX_EXCEPTION_CAUSE_SEARCH_DEPTH;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.TOKEN_REFRESH_MAX_RETRIES;
 /**
  * Creates InfluxDB client connections, resolving the auth token from Secrets Manager.
  *
@@ -60,9 +61,9 @@ import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.TOKEN_R
  *
  * The env var influxdb_token can be either a literal token or a Secrets Manager reference using the SDK's ${secret_name} pattern.
  */
-public class InfluxDbConnectionFactory
+public class InfluxDBConnectionFactory
 {
-    private static final Logger logger = LoggerFactory.getLogger(InfluxDbConnectionFactory.class);
+    private static final Logger logger = LoggerFactory.getLogger(InfluxDBConnectionFactory.class);
     private static final Gson GSON = new Gson();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
 
@@ -72,7 +73,7 @@ public class InfluxDbConnectionFactory
     private final int maxTokenRefreshRetries;
     private FederationRequestHandler handler;
 
-    public InfluxDbConnectionFactory(final Map<String, String> configOptions, final FederationRequestHandler handler)
+    public InfluxDBConnectionFactory(final Map<String, String> configOptions, final FederationRequestHandler handler)
     {
         this.configOptions = configOptions;
         this.handler = handler;
@@ -134,7 +135,7 @@ public class InfluxDbConnectionFactory
      * stream consumption, not when {@code query()} is called.
      */
     @FunctionalInterface
-    public interface InfluxDbQuery<T>
+    public interface InfluxDBQuery<T>
     {
         T run(InfluxDBClient client) throws Exception;
     }
@@ -148,7 +149,7 @@ public class InfluxDbConnectionFactory
      * Auth errors occur at Flight stream initiation, before any rows are emitted, so retrying a query that streams into
      * a spiller does not risk duplicate output.
      */
-    public <T> T executeWithTokenRetry(final String database, final InfluxDbQuery<T> query) throws Exception
+    public <T> T executeWithTokenRetry(final String database, final InfluxDBQuery<T> query) throws Exception
     {
         int refreshes = 0;
         while (true) {
@@ -164,9 +165,32 @@ public class InfluxDbConnectionFactory
                     invalidateToken();
                     continue;
                 }
+                if (isThrottle(e)) {
+                    throw new FederationThrottleException("InfluxDB throttled the request", e);
+                }
                 throw e;
             }
         }
+    }
+
+    /**
+     * True if the throwable (or anything in its cause chain) indicates the downstream is throttling us: a Flight
+     * {@code RESOURCE_EXHAUSTED} or an HTTP 429.
+     */
+    static boolean isThrottle(final Throwable throwable)
+    {
+        Throwable cause = throwable;
+        for (int depth = 0; cause != null && depth < MAX_EXCEPTION_CAUSE_SEARCH_DEPTH; cause = cause.getCause(), depth++) {
+            if (cause instanceof FlightRuntimeException
+                    && ((FlightRuntimeException) cause).status().code() == FlightStatusCode.RESOURCE_EXHAUSTED) {
+                return true;
+            }
+            if (cause instanceof InfluxDBApiHttpException
+                    && ((InfluxDBApiHttpException) cause).statusCode() == 429) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -194,7 +218,7 @@ public class InfluxDbConnectionFactory
     static boolean isAuthError(final Throwable throwable)
     {
         Throwable cause = throwable;
-        for (int depth = 0; cause != null && depth < 32; cause = cause.getCause(), depth++) {
+        for (int depth = 0; cause != null && depth < MAX_EXCEPTION_CAUSE_SEARCH_DEPTH; cause = cause.getCause(), depth++) {
             if (cause instanceof FlightRuntimeException) {
                 final FlightStatusCode code = ((FlightRuntimeException) cause).status().code();
                 if (code == FlightStatusCode.UNAUTHENTICATED || code == FlightStatusCode.UNAUTHORIZED) {
@@ -228,17 +252,20 @@ public class InfluxDbConnectionFactory
     }
 
     /**
-     * Resolves a lowercased table name back to the original case by querying information_schema given an already-resolved database.
+     * Resolves a lowercased table name back to the original case by querying information_schema given an
+     * already-resolved database. Throws if no matching table exists — there is no correct-case name to fall back to,
+     * and proceeding with the lowercased name would only defer a guaranteed failure to the read stage.
      */
-    public String resolveTableName(final String resolvedDb, final TableName tableName) throws Exception
+    public String resolveTableName(final String resolvedDB, final TableName tableName) throws Exception
     {
         final Map<String, Object> parameters = Map.of("table_name", tableName.getTableName().toLowerCase(Locale.ROOT));
         final String sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'iox' AND lower(table_name) = $table_name";
-        return executeWithTokenRetry(resolvedDb, client -> {
+        return executeWithTokenRetry(resolvedDB, client -> {
             try (Stream<Object[]> stream = client.query(sql, parameters)) {
                 return stream.map(row -> String.valueOf(row[0]))
                         .findFirst()
-                        .orElse(tableName.getTableName());
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Table not found in database '" + resolvedDB + "': " + tableName.getTableName()));
             }
         });
     }
@@ -274,6 +301,10 @@ public class InfluxDbConnectionFactory
                         statusCode, refreshes, maxTokenRefreshRetries);
                 invalidateToken();
                 continue;
+            }
+            if (statusCode == 429) {
+                throw new FederationThrottleException(
+                        "InfluxDB throttled the request listing databases in host " + host);
             }
             throw new RuntimeException(
                     "Failed to list databases in host " + host + ": status code: " + statusCode);

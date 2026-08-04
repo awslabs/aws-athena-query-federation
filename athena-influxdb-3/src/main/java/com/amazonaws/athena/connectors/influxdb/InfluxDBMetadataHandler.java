@@ -50,9 +50,11 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Fil
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connectors.influxdb.InfluxDbConnectionFactory.DatabaseInfo;
+import com.amazonaws.athena.connector.util.PaginationHelper;
+import com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory.DatabaseInfo;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -72,34 +74,35 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.ENABLE_QUERY_PARALLELISM;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.PART_TIME_LOWER;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.PART_TIME_UPPER;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.QUERY_PARALLELISM_COUNT;
-import static com.amazonaws.athena.connectors.influxdb.InfluxDbConstants.SOURCE_TYPE;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENABLE_QUERY_PARALLELISM;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.PART_TIME_LOWER;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.PART_TIME_UPPER;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.QUERY_PARALLELISM_COUNT;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.SOURCE_TYPE;
 
-public class InfluxDbMetadataHandler
+public class InfluxDBMetadataHandler
         extends
             MetadataHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger(InfluxDbMetadataHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(InfluxDBMetadataHandler.class);
 
     // Split-count tuning for time-based query parallelism.
     private static final int DEFAULT_SPLIT_COUNT = 8;
     private static final int MIN_SPLIT_COUNT = 1;
     private static final int MAX_SPLIT_COUNT = 16;
 
-    private final InfluxDbConnectionFactory connectionFactory;
+    private final InfluxDBConnectionFactory connectionFactory;
+    private final InfluxDBQueryPassthrough queryPassthrough = new InfluxDBQueryPassthrough();
 
-    public InfluxDbMetadataHandler(final Map<String, String> configOptions)
+    public InfluxDBMetadataHandler(final Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
-        this.connectionFactory = new InfluxDbConnectionFactory(configOptions, this);
+        this.connectionFactory = new InfluxDBConnectionFactory(configOptions, this);
     }
 
     @VisibleForTesting
-    protected InfluxDbMetadataHandler(
-            final InfluxDbConnectionFactory connectionFactory,
+    protected InfluxDBMetadataHandler(
+            final InfluxDBConnectionFactory connectionFactory,
             final EncryptionKeyFactory keyFactory,
             final SecretsManagerClient secretsManager,
             final AthenaClient athena,
@@ -129,7 +132,86 @@ public class InfluxDbMetadataHandler
                                 .map(sf -> sf.getFunctionName().getFunctionName())
                                 .toArray(String[]::new))));
 
+        // Advertise the system.query(DATABASE, QUERY) passthrough (unless disabled via config).
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
+    /**
+     * Derives the result schema for a query passthrough by running the native query and inspecting the Arrow schema of
+     * its first result batch. The InfluxDB Arrow types are mapped to the same Athena types this connector produces for
+     * normal reads, so the RecordHandler's value conversion is identical for passthrough and non-passthrough reads.
+     */
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator allocator, final GetTableRequest request)
+            throws Exception
+    {
+        if (!request.isQueryPassthrough()) {
+            throw new IllegalArgumentException("doGetQueryPassthroughSchema called without query passthrough arguments");
+        }
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        queryPassthrough.customConnectorVerifications(request.getQueryPassthroughArguments());
+        final String database = request.getQueryPassthroughArguments().get(InfluxDBQueryPassthrough.DATABASE);
+        final String query = request.getQueryPassthroughArguments().get(InfluxDBQueryPassthrough.QUERY);
+        logger.info("doGetQueryPassthroughSchema: database={}", database);
+
+        final Schema schema = connectionFactory.executeWithTokenRetry(database, client -> {
+            final SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+            try (Stream<VectorSchemaRoot> batches = client.queryBatches(query)) {
+                final java.util.Optional<VectorSchemaRoot> first = batches.findFirst();
+                if (first.isEmpty()) {
+                    throw new IllegalStateException(
+                            "Query passthrough returned no result schema; cannot infer columns for: " + query);
+                }
+                for (final Field field : first.get().getSchema().getFields()) {
+                    addPassthroughField(schemaBuilder, field);
+                }
+            }
+            return schemaBuilder.build();
+        });
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+    }
+
+    /**
+     * Maps a column from the InfluxDB Flight result's Arrow schema to the Athena field type this connector uses for
+     * normal reads (timestamps normalized to millisecond UTC; tags/strings to VARCHAR; integers to BIGINT).
+     */
+    private static void addPassthroughField(final SchemaBuilder schemaBuilder, final Field field)
+    {
+        final String name = field.getName();
+        switch (Types.getMinorTypeForArrowType(field.getType())) {
+            case TIMESTAMPNANOTZ:
+            case TIMESTAMPMICROTZ:
+            case TIMESTAMPMILLITZ:
+            case TIMESTAMPSECTZ:
+            case TIMESTAMPNANO:
+            case TIMESTAMPMICRO:
+            case TIMESTAMPMILLI:
+            case TIMESTAMPSEC:
+            case DATEMILLI:
+            case DATEDAY:
+                schemaBuilder.addField(name, new ArrowType.Timestamp(
+                        org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC"));
+                break;
+            case BIGINT:
+            case INT:
+            case SMALLINT:
+            case TINYINT:
+                schemaBuilder.addField(name, Types.MinorType.BIGINT.getType());
+                break;
+            case FLOAT8:
+            case FLOAT4:
+                schemaBuilder.addField(name, Types.MinorType.FLOAT8.getType());
+                break;
+            case BIT:
+                schemaBuilder.addField(name, Types.MinorType.BIT.getType());
+                break;
+            default:
+                // Tags (dictionary-encoded Utf8), Utf8, and anything else, render as VARCHAR.
+                schemaBuilder.addField(name, Types.MinorType.VARCHAR.getType());
+                break;
+        }
     }
 
     @Override
@@ -163,9 +245,9 @@ public class InfluxDbMetadataHandler
     {
         logger.info("doListTables: catalog={}, schema={}", request.getCatalogName(), request.getSchemaName());
         final List<TableName> tables = new ArrayList<>();
-        final String resolvedDb = connectionFactory.resolveDatabase(request.getSchemaName());
+        final String resolvedDB = connectionFactory.resolveDatabase(request.getSchemaName());
         final String sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'iox'";
-        connectionFactory.executeWithTokenRetry(resolvedDb, client -> {
+        connectionFactory.executeWithTokenRetry(resolvedDB, client -> {
             // Clear in case the query is retried after a token refresh (auth errors precede any
             // rows, so this is normally a no-op, but it keeps a retry from duplicating entries).
             tables.clear();
@@ -179,7 +261,10 @@ public class InfluxDbMetadataHandler
             }
             return null;
         });
-        return new ListTablesResponse(request.getCatalogName(), tables, null);
+        // Manual (in-memory) pagination: InfluxDB returns the full table list in one query, and Athena
+        // may page a large catalog in via repeated calls using the returned continuation token.
+        return PaginationHelper.manualPagination(tables, request.getNextToken(), request.getPageSize(),
+                request.getCatalogName());
     }
 
     @Override
@@ -187,16 +272,16 @@ public class InfluxDbMetadataHandler
             throws Exception
     {
         logger.info("doGetTable: catalog={}, table={}", request.getCatalogName(), request.getTableName());
-        final String resolvedDb = connectionFactory.resolveDatabase(request.getTableName().getSchemaName());
-        final String resolvedTable = connectionFactory.resolveTableName(resolvedDb, request.getTableName());
+        final String resolvedDB = connectionFactory.resolveDatabase(request.getTableName().getSchemaName());
+        final String resolvedTable = connectionFactory.resolveTableName(resolvedDB, request.getTableName());
         final SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         // Store the original case-sensitive table name so the RecordHandler can use it
-        schemaBuilder.addMetadata("originalTableName", resolvedTable);
-        schemaBuilder.addMetadata("resolvedDatabaseName", resolvedDb);
+        schemaBuilder.addMetadata("caseSensitiveTableName", resolvedTable);
+        schemaBuilder.addMetadata("resolvedDatabaseName", resolvedDB);
         final Map<String, Object> parameters = Map.of("table_name", request.getTableName().getTableName().toLowerCase(Locale.ROOT));
         final String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE lower(table_name) = $table_name";
-        final List<Object[]> columns = connectionFactory.executeWithTokenRetry(resolvedDb, client -> {
+        final List<Object[]> columns = connectionFactory.executeWithTokenRetry(resolvedDB, client -> {
             try (Stream<Object[]> stream = client.query(sql, parameters)) {
                 return stream.collect(java.util.stream.Collectors.toList());
             }
@@ -249,7 +334,7 @@ public class InfluxDbMetadataHandler
 
     /**
      * Returns the number of time-based splits to generate, read from
-     * {@link InfluxDbConstants#QUERY_PARALLELISM_COUNT} and clamped to a safe
+     * {@link InfluxDBConstants#QUERY_PARALLELISM_COUNT} and clamped to a safe
      * range. Kept modest because the backend is a single InfluxDB instance and
      * too many concurrent split queries can overload it. Missing, blank, or
      * non-numeric config falls back to the default; values outside the range
@@ -372,8 +457,8 @@ public class InfluxDbMetadataHandler
             return null;
         }
 
-        long min = InfluxDbQueryBuilder.constraintEpochMillis(span.getLow().getValue(), tsType);
-        long max = InfluxDbQueryBuilder.constraintEpochMillis(span.getHigh().getValue(), tsType);
+        long min = InfluxDBQueryBuilder.constraintEpochMillis(span.getLow().getValue(), tsType);
+        long max = InfluxDBQueryBuilder.constraintEpochMillis(span.getHigh().getValue(), tsType);
         if (min >= max) {
             return null;
         }

@@ -21,10 +21,10 @@ package com.amazonaws.athena.connectors.influxdb;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
-public class InfluxDbCompositeHandler extends CompositeHandler
+public class InfluxDBCompositeHandler extends CompositeHandler
 {
-    public InfluxDbCompositeHandler()
+    public InfluxDBCompositeHandler()
     {
-        super(new InfluxDbMetadataHandler(System.getenv()), new InfluxDbRecordHandler(System.getenv()));
+        super(new InfluxDBMetadataHandler(System.getenv()), new InfluxDBRecordHandler(System.getenv()));
     }
 }

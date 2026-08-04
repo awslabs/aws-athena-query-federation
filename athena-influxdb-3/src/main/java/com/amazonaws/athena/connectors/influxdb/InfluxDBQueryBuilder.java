@@ -53,11 +53,11 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.
 /**
  * Builds SQL queries for InfluxDB 3 from Athena SDK constraints. Since InfluxDB speaks SQL natively, we construct standard SQL strings directly.
  */
-public class InfluxDbQueryBuilder
+public class InfluxDBQueryBuilder
 {
-    private static final Logger logger = LoggerFactory.getLogger(InfluxDbQueryBuilder.class);
+    private static final Logger logger = LoggerFactory.getLogger(InfluxDBQueryBuilder.class);
 
-    private InfluxDbQueryBuilder()
+    private InfluxDBQueryBuilder()
     {
     }
 
@@ -110,7 +110,6 @@ public class InfluxDbQueryBuilder
             sql.append(" LIMIT ").append(constraints.getLimit());
         }
 
-        logger.info("buildSql: {}", sql);
         return sql.toString();
     }
 
@@ -125,7 +124,7 @@ public class InfluxDbQueryBuilder
         }
         final long low = Long.parseLong(timeLowerMillis);
         final long high = Long.parseLong(timeUpperMillis);
-        final String col = quote(InfluxDbConstants.DEFAULT_TIME_COLUMN);
+        final String col = quote(InfluxDBConstants.DEFAULT_TIME_COLUMN);
         // Split bounds are already plain epoch millis (decoded in getPartitions),
         // so format them directly rather than through the packing-aware path.
         return "(" + col + " >= " + timestampLiteral(low)
