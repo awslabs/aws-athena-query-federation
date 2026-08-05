@@ -26,12 +26,8 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
-import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -106,7 +102,7 @@ public class GcsRecordHandler
             installGoogleCredentialsJsonFile(configOptions, getCachableSecretsManager());
         } 
         catch (Exception e) {
-            LOGGER.error("GcsRecordHandler, install failed with exception: ", e);
+            LOGGER.error("GcsRecordHandler, install certificate and credentials failed with exception: ", e);
         }
     }
 
@@ -137,19 +133,9 @@ public class GcsRecordHandler
         FileFormat format = FileFormat.valueOf(classification.toUpperCase());
         List<Field> partitionColumns = schema.getFields().stream().filter(field -> split.getProperties().containsKey(field.getName().toLowerCase())).collect(Collectors.toList());
 
-        Constraints constraints = recordsRequest.getConstraints();
-        LOGGER.info("readWithConstraint: queryPlan present: {}, substraitPlan present: {}",
-            constraints.getQueryPlan() != null,
-            constraints.getQueryPlan() != null && constraints.getQueryPlan().getSubstraitPlan() != null);
-
-        long limit = extractLimit(constraints);
-        boolean limitReached = false;
         long numRowsWritten = 0;
 
         for (String file : fileList) {
-            if (limitReached) {
-                break;
-            }
             String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
             Optional<String[]> selectedColumns =
@@ -185,46 +171,12 @@ public class GcsRecordHandler
                             // we are passing record to spiller to be written.
                             execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex, partitionColumns, split);
                             numRowsWritten++;
-                            if (limit > 0 && numRowsWritten >= limit) {
-                                LOGGER.info("Reached Substrait LIMIT of {}, stopping read", limit);
-                                limitReached = true;
-                                break;
-                            }
                         }
-                    }
-                    if (limitReached) {
-                        break;
                     }
                 }
             }
         }
         LOGGER.info("readWithConstraint: totalRowsWritten[{}]", numRowsWritten);
-    }
-
-    /**
-     * Extracts LIMIT from the Substrait plan if present and no ORDER BY exists.
-     * Returns -1 if LIMIT pushdown is not applicable.
-     */
-    private long extractLimit(Constraints constraints)
-    {
-        QueryPlan queryPlan = constraints.getQueryPlan();
-        if (queryPlan == null) {
-            return -1;
-        }
-        try {
-            io.substrait.proto.Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
-            SubstraitRelModel model = SubstraitRelModel.buildSubstraitRelModel(
-                plan.getRelations(0).getRoot().getInput());
-            if (model.getSortRel() == null && model.getFetchRel() != null) {
-                long limit = model.getFetchRel().getCount();
-                LOGGER.info("Substrait LIMIT pushdown enabled: {}", limit);
-                return limit;
-            }
-        }
-        catch (Exception e) {
-            LOGGER.warn("Failed to extract LIMIT from Substrait plan", e);
-        }
-        return -1;
     }
 
     /**
