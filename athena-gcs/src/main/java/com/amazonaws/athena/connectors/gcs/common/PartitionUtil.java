@@ -175,7 +175,12 @@ public class PartitionUtil
         if (null != partitionPattern) {
             for (FieldVector fieldVector : fieldVectors) {
                 fieldVector.getReader().setPosition(readerPosition);
-                partitionPattern = partitionPattern.replace("${" + fieldVector.getName() + "}", fieldVector.getReader().readObject().toString());
+                // Use case-insensitive replacement of partition-key placeholders in partitionPattern  
+                // since GDC stores partition-key names in lowercase but customer can use 
+                // any casing in partitionPattern (e.g. 'Gender=${GENDER}', 'Gender=${Gender}'')
+                partitionPattern = partitionPattern.replaceAll(
+                        "(?i)\\$\\{" + Pattern.quote(fieldVector.getName()) + "\\}",
+                        Matcher.quoteReplacement(fieldVector.getReader().readObject().toString()));
             }
             locationUri = (tableLocation.endsWith("/")
                     ? tableLocation

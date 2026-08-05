@@ -204,7 +204,8 @@ public class GcsMetadataHandler
             blockWriter.writeRows((Block block, int rowNum) ->
             {
                 for (Map.Entry<String, String> partition : folder.entrySet()) {
-                    block.setValue(partition.getKey(), rowNum, partition.getValue());
+                    // lower-casing partition-key names to match GDC case
+                    block.setValue(partition.getKey().toLowerCase(), rowNum, partition.getValue());
                 }
                 //we wrote 1 row so we return 1
                 return 1;
