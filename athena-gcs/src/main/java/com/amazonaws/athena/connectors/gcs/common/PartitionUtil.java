@@ -90,16 +90,22 @@ public class PartitionUtil
     protected static Map<String, String> getPartitionColumnData(String partitionPattern, String partitionFolder, String folderNameRegEx, List<Column> partitionColumns)
     {
         Map<String, String> partitions = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        // partitionPatternMatcher matches column names inside ${} in partitionPattern
+        // e.g. for a partitionPattern "Month=${month}/Year=${year}" , it returns "month" and "year"
         Matcher partitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPattern);
+        // partitionFolderMatcher matches values of partition columns in the folder path
+        // e.g. for a partitionFolder "Month=${03}/Year=${2002}" , it returns "03" and "2002"
         Matcher partitionFolderMatcher = Pattern.compile(folderNameRegEx).matcher(partitionFolder);
+        // Building a case-insensitive lookup set to validate partitionPattern column names are valid Glue table partition cols
         java.util.TreeSet<String> partitionColumnsSet = partitionColumns.stream()
                 .map(c -> c.name())
                 .collect(Collectors.toCollection(() -> new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER)));
         while (partitionFolderMatcher.find()) {
             for (int j = 1; j <= partitionFolderMatcher.groupCount() && partitionPatternMatcher.find(); j++) {
-                LOGGER.debug("Partition folder {} : {}", partitionPatternMatcher.group(1), partitionFolderMatcher.group(j));
-                if (partitionColumnsSet.contains(partitionPatternMatcher.group(1))) {
-                    partitions.put(partitionPatternMatcher.group(1), partitionFolderMatcher.group(j));
+                String partitionPatternColumnName = partitionPatternMatcher.group(1);
+                LOGGER.debug("Partition folder {} : {}", partitionPatternColumnName, partitionFolderMatcher.group(j));
+                if (partitionColumnsSet.contains(partitionPatternColumnName)) {
+                    partitions.put(partitionPatternColumnName, partitionFolderMatcher.group(j));
                 }
                 else {
                     throw new IllegalArgumentException("Column '" + partitionPatternMatcher.group(1) + "' is not defined as partition key in Glue Table");
@@ -175,7 +181,13 @@ public class PartitionUtil
         if (null != partitionPattern) {
             for (FieldVector fieldVector : fieldVectors) {
                 fieldVector.getReader().setPosition(readerPosition);
-                partitionPattern = partitionPattern.replace("${" + fieldVector.getName() + "}", fieldVector.getReader().readObject().toString());
+                // Use case-insensitive replacement of placeholders in partition.pattern
+                // because currently no validation exists for partition.pattern and 
+                // customer can use any casing for partition keys (e.g. ${Month}, ${MonTH})
+                // but fieldVector always uses lowercase (Glue native)
+                partitionPattern = partitionPattern.replaceAll(
+                        "(?i)\\$\\{" + Pattern.quote(fieldVector.getName()) + "\\}",
+                        Matcher.quoteReplacement(fieldVector.getReader().readObject().toString()));
             }
             locationUri = (tableLocation.endsWith("/")
                     ? tableLocation

@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.sun.jna.platform.unix.LibC;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -30,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.GetTableRequest;
 import software.amazon.awssdk.services.glue.model.Table;
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -51,8 +51,8 @@ import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.util.Base64;
 
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDS_SECRET_ARN;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.SSL_CERT_FILE_LOCATION;
@@ -97,10 +97,10 @@ public class GcsUtil
      * Install/place Google cloud platform credentials from AWS secret manager to temp location
      * This is required for dataset api
      */
-    public static void installGoogleCredentialsJsonFile(java.util.Map<String, String> configOptions) throws IOException
+    public static void installGoogleCredentialsJsonFile(java.util.Map<String, String> configOptions, CachableSecretsManager secretsManager) throws IOException
     {
-        CachableSecretsManager secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
-        String gcsCredentialsJsonString = secretsManager.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
+        String gcsCredentialsJsonString = secretsManager.getSecret(
+            configOptions.get(GCS_CREDS_SECRET_ARN));
         File destination = new File(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE);
         boolean destinationDirExists = new File(destination.getParent()).mkdirs();
         if (!destinationDirExists && destination.exists()) {
@@ -110,6 +110,13 @@ public class GcsUtil
             out.write(gcsCredentialsJsonString.getBytes(StandardCharsets.UTF_8));
             out.flush();
         }
+    }
+
+    public static StorageMetadata initDatasource(java.util.Map<String, String> configOptions, CachableSecretsManager secretsManager) throws IOException
+    {
+        String gcsCredentialsJsonString = secretsManager.getSecret(
+            configOptions.get(GCS_CREDS_SECRET_ARN));
+        return new StorageMetadata(gcsCredentialsJsonString);
     }
 
     /**
