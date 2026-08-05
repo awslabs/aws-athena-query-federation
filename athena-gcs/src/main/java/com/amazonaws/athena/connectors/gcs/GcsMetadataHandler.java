@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
@@ -41,7 +40,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
@@ -64,7 +62,6 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -288,8 +285,7 @@ public class GcsMetadataHandler
     }
 
     /*
-     * Currently only supports Filter and Limit pushdown.
-     * Does not support TOP-N pushdown as sorting huge number of rows in-memory can be costly.
+     * Currently only supports Limit pushdown
      */
     @Override
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
@@ -298,13 +294,6 @@ public class GcsMetadataHandler
 
         capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
                 LimitPushdownSubType.INTEGER_CONSTANT
-        ));
-
-        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
-                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
-                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
-                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
-                                .toArray(String[]::new))
         ));
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
