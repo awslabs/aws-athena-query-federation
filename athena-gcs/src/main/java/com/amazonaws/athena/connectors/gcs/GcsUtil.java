@@ -99,9 +99,6 @@ public class GcsUtil
      */
     public static void installGoogleCredentialsJsonFile(java.util.Map<String, String> configOptions, CachableSecretsManager secretsManager) throws IOException
     {
-        if (configOptions.get(GCS_CREDS_SECRET_ARN) == null) {
-            return;
-        }
         String gcsCredentialsJsonString = secretsManager.getSecret(
             configOptions.get(GCS_CREDS_SECRET_ARN));
         File destination = new File(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE);
