@@ -28,16 +28,9 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.GetTableRequest;
 import software.amazon.awssdk.services.glue.model.Table;
-import software.amazon.awssdk.services.sts.StsClient;
-import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
-import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
-import software.amazon.awssdk.services.sts.model.Credentials;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -107,7 +100,7 @@ public class GcsUtil
     public static void installGoogleCredentialsJsonFile(java.util.Map<String, String> configOptions, CachableSecretsManager secretsManager) throws IOException
     {
         String gcsCredentialsJsonString = secretsManager.getSecret(
-            configOptions.get(GCS_CREDS_SECRET_ARN), getCustomerRoleOverrideConfig());
+            configOptions.get(GCS_CREDS_SECRET_ARN));
         File destination = new File(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE);
         boolean destinationDirExists = new File(destination.getParent()).mkdirs();
         if (!destinationDirExists && destination.exists()) {
@@ -122,7 +115,7 @@ public class GcsUtil
     public static StorageMetadata initDatasource(java.util.Map<String, String> configOptions, CachableSecretsManager secretsManager) throws IOException
     {
         String gcsCredentialsJsonString = secretsManager.getSecret(
-            configOptions.get(GCS_CREDS_SECRET_ARN), getCustomerRoleOverrideConfig());
+            configOptions.get(GCS_CREDS_SECRET_ARN));
         return new StorageMetadata(gcsCredentialsJsonString);
     }
 
@@ -161,7 +154,6 @@ public class GcsUtil
         GetTableRequest getTableRequest = GetTableRequest.builder()
                 .databaseName(tableName.getSchemaName())
                 .name(tableName.getTableName())
-                .overrideConfiguration(getCustomerRoleOverrideConfig())
                 .build();
 
         software.amazon.awssdk.services.glue.model.GetTableResponse response = awsGlue.getTable(getTableRequest);
@@ -239,23 +231,5 @@ public class GcsUtil
                 GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION, LibC.INSTANCE.getenv(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION),
                 SSL_CERT_FILE_LOCATION, LibC.INSTANCE.getenv(SSL_CERT_FILE_LOCATION));
         }
-    }
-
-    private static AwsRequestOverrideConfiguration getCustomerRoleOverrideConfig() 
-    {
-        StsClient stsClient = StsClient.create();
-        AssumeRoleResponse assumeRoleResponse = stsClient.assumeRole(AssumeRoleRequest.builder()
-                .roleArn("arn:aws:iam::932332171447:role/dev")
-                .roleSessionName("glue-metadata-session")
-                .build());
-        Credentials stsCredentials = assumeRoleResponse.credentials();
-        StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
-                AwsSessionCredentials.create(
-                        stsCredentials.accessKeyId(),
-                        stsCredentials.secretAccessKey(),
-                        stsCredentials.sessionToken()));
-        return AwsRequestOverrideConfiguration.builder()
-                .credentialsProvider(credentialsProvider)
-                .build();
     }
 }

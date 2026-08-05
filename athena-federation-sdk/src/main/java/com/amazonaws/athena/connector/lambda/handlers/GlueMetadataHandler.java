@@ -33,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -42,8 +43,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -58,10 +57,6 @@ import software.amazon.awssdk.services.glue.model.GetTablesResponse;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.glue.paginators.GetDatabasesIterable;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.sts.StsClient;
-import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
-import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
-import software.amazon.awssdk.services.sts.model.Credentials;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -270,9 +265,8 @@ public abstract class GlueMetadataHandler
     protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request, DatabaseFilter filter)
             throws Exception
     {
-        // FederatedIdentity federatedIdentity = request.getIdentity();
-        // AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
-        AwsRequestOverrideConfiguration overrideConfig = getCustomerRoleOverrideConfig();
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         GetDatabasesRequest getDatabasesRequest = GetDatabasesRequest.builder()
                 .catalogId(getCatalog(request))
                 .overrideConfiguration(overrideConfig)
@@ -323,9 +317,8 @@ public abstract class GlueMetadataHandler
         String nextToken = request.getNextToken();
         int pageSize = request.getPageSize();
 
-        // FederatedIdentity federatedIdentity = request.getIdentity();
-        // AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
-        AwsRequestOverrideConfiguration overrideConfig = getCustomerRoleOverrideConfig();
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         logger.info("Starting pagination at {} with page size {}", nextToken, pageSize);
         do {
             GetTablesRequest.Builder getTablesRequest = GetTablesRequest.builder()
@@ -403,9 +396,8 @@ public abstract class GlueMetadataHandler
             throws Exception
     {
         TableName tableName = request.getTableName();
-        // FederatedIdentity federatedIdentity = request.getIdentity();
-        // AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
-        AwsRequestOverrideConfiguration overrideConfig = getCustomerRoleOverrideConfig();
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         //Full class name required due to name overlap with athena
         software.amazon.awssdk.services.glue.model.GetTableRequest getTableRequest = software.amazon.awssdk.services.glue.model.GetTableRequest.builder()
                 .catalogId(getCatalog(request))
@@ -636,23 +628,5 @@ public abstract class GlueMetadataHandler
             }
         }
         return Optional.empty();
-    }
-
-    private AwsRequestOverrideConfiguration getCustomerRoleOverrideConfig() 
-    {
-        StsClient stsClient = StsClient.create();
-        AssumeRoleResponse assumeRoleResponse = stsClient.assumeRole(AssumeRoleRequest.builder()
-                .roleArn("arn:aws:iam::932332171447:role/dev")
-                .roleSessionName("glue-metadata-session")
-                .build());
-        Credentials stsCredentials = assumeRoleResponse.credentials();
-        StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
-                AwsSessionCredentials.create(
-                        stsCredentials.accessKeyId(),
-                        stsCredentials.secretAccessKey(),
-                        stsCredentials.sessionToken()));
-        return AwsRequestOverrideConfiguration.builder()
-                .credentialsProvider(credentialsProvider)
-                .build();
     }
 }
