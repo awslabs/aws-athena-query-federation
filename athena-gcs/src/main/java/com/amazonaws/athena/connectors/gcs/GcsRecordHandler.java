@@ -31,7 +31,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
-import com.amazonaws.athena.connector.substrait.SubstraitRowFilter;
 import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -143,7 +142,6 @@ public class GcsRecordHandler
             constraints.getQueryPlan() != null,
             constraints.getQueryPlan() != null && constraints.getQueryPlan().getSubstraitPlan() != null);
 
-        SubstraitRowFilter rowFilter = SubstraitRowFilter.fromQueryPlan(constraints);
         long limit = extractLimit(constraints);
         boolean limitReached = false;
         long numRowsWritten = 0;
@@ -178,15 +176,12 @@ public class GcsRecordHandler
                 // We are loading records batch by batch until we reached at the end.
                 while (reader.loadNextBatch()) {
                     try (
-                            // Returns the vector schema root.
-                            // This will be loaded with new values on every call to loadNextBatch on the reader.
+                        // Returns the vector schema root.
+                        // This will be loaded with new values on every call to loadNextBatch on the reader.
                         VectorSchemaRoot root = reader.getVectorSchemaRoot()
                     ) {
                         // We will loop on batch records and consider each records to write in spiller.                 
                         for (int rowIndex = 0; rowIndex < root.getRowCount(); rowIndex++) {
-                            if (rowFilter.hasFilter() && !rowFilter.evaluate(root, rowIndex)) {
-                                continue;
-                            }
                             // we are passing record to spiller to be written.
                             execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex, partitionColumns, split);
                             numRowsWritten++;
