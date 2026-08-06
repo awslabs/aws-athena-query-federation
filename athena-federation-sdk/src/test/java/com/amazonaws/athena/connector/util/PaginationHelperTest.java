@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 
 import java.util.ArrayList;
@@ -164,6 +165,32 @@ class PaginationHelperTest
         assertEquals("tableD", resultTables.get(0).getTableName());
         assertEquals("tableE", resultTables.get(1).getTableName());
         assertNull(response.getNextToken()); // Should be null as we've reached the end
+    }
+
+    @Test
+    void testManualSchemasPagination_NormalCase()
+    {
+        List<String> allSchemas = Arrays.asList("schema_c", "schema_a", "schema_b", "schema_d", "schema_e");
+
+        ListSchemasResponse response = PaginationHelper.manualSchemasPagination(allSchemas, "1", 2, "testCatalog");
+
+        assertEquals("testCatalog", response.getCatalogName());
+        assertEquals(2, response.getSchemas().size());
+        assertTrue(response.getSchemas().containsAll(Arrays.asList("schema_b", "schema_c")));
+        assertEquals("3", response.getNextToken());
+    }
+
+    @Test
+    void testManualSchemasPagination_LastPage()
+    {
+        List<String> allSchemas = Arrays.asList("schema_a", "schema_b", "schema_c");
+
+        ListSchemasResponse response = PaginationHelper.manualSchemasPagination(allSchemas, "2", 2, "testCatalog");
+
+        assertEquals("testCatalog", response.getCatalogName());
+        assertEquals(1, response.getSchemas().size());
+        assertEquals("schema_c", response.getSchemas().iterator().next());
+        assertNull(response.getNextToken());
     }
 
     @Test
