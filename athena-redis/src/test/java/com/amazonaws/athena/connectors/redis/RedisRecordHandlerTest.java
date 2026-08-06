@@ -19,8 +19,11 @@
  */
 package com.amazonaws.athena.connectors.redis;
 
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
@@ -38,6 +41,7 @@ import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
+import com.amazonaws.athena.connectors.redis.qpt.RedisQueryPassthrough;
 import com.amazonaws.athena.connectors.redis.util.MockKeyScanCursor;
 import com.amazonaws.athena.connectors.redis.util.MockScoredValueScanCursor;
 import com.google.common.collect.ImmutableList;
@@ -45,6 +49,7 @@ import com.google.common.io.ByteStreams;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.ScoredValue;
+import io.lettuce.core.ScriptOutputType;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -60,9 +65,9 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -75,6 +80,7 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRespon
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -86,13 +92,19 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_PREFIX_TABLE_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_TYPE;
+import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.QPT_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_ENDPOINT_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.VALUE_TYPE_TABLE_PROP;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -187,7 +199,7 @@ public class RedisRecordHandlerTest
     }
 
     @Test
-    public void doReadRecordsLiteral()
+    public void doReadRecords_withLiteralValueTypeAndConstraints_returnsFilteredRecords()
             throws Exception
     {
         //4 keys per prefix
@@ -257,10 +269,10 @@ public class RedisRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsLiteral: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecords_withLiteralValueTypeAndConstraints_returnsFilteredRecords: rows[{}]", response.getRecordCount());
 
-        logger.info("doReadRecordsLiteral: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        assertTrue(response.getRecords().getRowCount() == 2);
+        logger.info("doReadRecords_withLiteralValueTypeAndConstraints_returnsFilteredRecords: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(2, response.getRecords().getRowCount());
 
         FieldReader keyReader = response.getRecords().getFieldReader(KEY_COLUMN_NAME);
         keyReader.setPosition(0);
@@ -272,7 +284,7 @@ public class RedisRecordHandlerTest
     }
 
     @Test
-    public void doReadRecordsHash()
+    public void doReadRecords_withHashValueTypeAndConstraints_returnsFilteredRecords()
             throws Exception
     {
         //4 keys per prefix
@@ -356,11 +368,11 @@ public class RedisRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsHash: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecords_withHashValueTypeAndConstraints_returnsFilteredRecords: rows[{}]", response.getRecordCount());
 
-        logger.info("doReadRecordsHash: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        assertTrue(response.getRecords().getRowCount() == 5);
-        assertTrue(response.getRecords().getFields().size() == schemaForRead.getFields().size());
+        logger.info("doReadRecords_withHashValueTypeAndConstraints_returnsFilteredRecords: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(5, response.getRecords().getRowCount());
+        assertEquals(response.getRecords().getFields().size(), schemaForRead.getFields().size());
 
         FieldReader keyReader = response.getRecords().getFieldReader(KEY_COLUMN_NAME);
         keyReader.setPosition(0);
@@ -376,7 +388,7 @@ public class RedisRecordHandlerTest
     }
 
     @Test
-    public void doReadRecordsZset()
+    public void doReadRecords_withZsetValueTypeAndConstraints_returnsFilteredRecords()
             throws Exception
     {
         //4 keys per prefix
@@ -470,10 +482,10 @@ public class RedisRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsZset: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecords_withZsetValueTypeAndConstraints_returnsFilteredRecords: rows[{}]", response.getRecordCount());
 
-        logger.info("doReadRecordsZset: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        assertTrue(response.getRecords().getRowCount() == 12);
+        logger.info("doReadRecords_withZsetValueTypeAndConstraints_returnsFilteredRecords: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(12, response.getRecords().getRowCount());
 
         FieldReader keyReader = response.getRecords().getFieldReader(KEY_COLUMN_NAME);
         keyReader.setPosition(0);
@@ -484,6 +496,108 @@ public class RedisRecordHandlerTest
         assertNotNull(intCol.readInteger());
     }
 
+    @Test
+    public void readWithConstraint_withQueryPassthrough_returnsFilteredRecords()
+    {
+        List<Object> evalResult = Arrays.asList("value1", Arrays.asList("value2", "value3"), "value4");
+
+        Map<String, String> passthroughArgs = Map.of(
+                RedisQueryPassthrough.SCRIPT, "return redis.call(\"GET\", KEYS[1])",
+                RedisQueryPassthrough.KEYS, "[\"l:a\"]",
+                RedisQueryPassthrough.ARGV, "[]",
+                "schemaFunctionName", "system.script",
+                "enableQueryPassthrough", "true",
+                "name", "script",
+                "schema", "system"
+        );
+
+        Split mockSplit = mock(Split.class);
+        when(mockSplit.getProperty("redis-endpoint")).thenReturn("localhost:6379");
+        when(mockSplit.getProperty("redis-db-number")).thenReturn("0");
+
+        ReadRecordsRequest mockRequest = mock(ReadRecordsRequest.class);
+        Constraints mockConstraints = mock(Constraints.class);
+        when(mockConstraints.isQueryPassThrough()).thenReturn(true);
+        when(mockConstraints.getQueryPassthroughArguments()).thenReturn(passthroughArgs);
+        when(mockRequest.getConstraints()).thenReturn(mockConstraints);
+        when(mockRequest.getSplit()).thenReturn(mockSplit);
+
+        RedisCommandsWrapper<String, String> mockRedisCommands = mock(RedisCommandsWrapper.class);
+        when(mockRedisCommands.evalReadOnly(any(), eq(ScriptOutputType.MULTI), any(), any())).thenReturn(evalResult);
+
+        RedisConnectionWrapper<String, String> mockConnection = mock(RedisConnectionWrapper.class);
+        when(mockConnection.sync()).thenReturn(mockRedisCommands);
+
+        RedisConnectionFactory mockFactory = mock(RedisConnectionFactory.class);
+        when(mockFactory.getOrCreateConn(anyString(), anyBoolean(), anyBoolean(), anyString()))
+                .thenReturn(mockConnection);
+
+        handler = new RedisRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockFactory, com.google.common.collect.ImmutableMap.of());
+
+        // Mocking the BlockSpiller and QueryStatusChecker
+        Block mockBlock = mock(Block.class);
+        StringBuilder writtenValues = new StringBuilder();
+        doAnswer(invocation -> {
+            String val = invocation.getArgument(2);
+            if (writtenValues.length() > 0) {
+                writtenValues.append(", ");
+            }
+            writtenValues.append(val);
+            return true;
+        }).when(mockBlock).offerValue(eq(QPT_COLUMN_NAME), anyInt(), anyString());
+
+        BlockSpiller mockSpiller = mock(BlockSpiller.class);
+        doAnswer(invocation -> {
+            BlockSpiller.RowWriter rowWriter = invocation.getArgument(0);
+            rowWriter.writeRows(mockBlock, 0);
+            return null;
+        }).when(mockSpiller).writeRows(any());
+
+        QueryStatusChecker mockStatusChecker = mock(QueryStatusChecker.class);
+        when(mockStatusChecker.isQueryRunning()).thenReturn(true);
+
+        handler.readWithConstraint(mockSpiller, mockRequest, mockStatusChecker);
+
+        assertEquals("value1, value2, value3, value4", writtenValues.toString());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void doReadRecords_withInvalidKeyTypeId_throwsIllegalArgumentException()
+            throws Exception
+    {
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        Split split = Split.newBuilder(splitLoc, keyFactory.create())
+                .add(REDIS_ENDPOINT_PROP, endpoint)
+                .add(KEY_TYPE, "invalid_key_type")
+                .add(KEY_PREFIX_TABLE_PROP, "key-*")
+                .add(VALUE_TYPE_TABLE_PROP, ValueType.LITERAL.getId())
+                .build();
+
+        Schema schemaForRead = SchemaBuilder.newBuilder()
+                .addField("_key_", Types.MinorType.VARCHAR.getType())
+                .addField("intcol", Types.MinorType.INT.getType())
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
+                "queryId-" + System.currentTimeMillis(),
+                TABLE_NAME,
+                schemaForRead,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        handler.doReadRecords(allocator, request);
+    }
+    
     private class ByteHolder
     {
         private byte[] bytes;
