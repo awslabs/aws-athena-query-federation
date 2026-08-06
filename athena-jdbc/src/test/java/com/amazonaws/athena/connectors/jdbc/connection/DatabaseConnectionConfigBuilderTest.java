@@ -82,6 +82,40 @@ public class DatabaseConnectionConfigBuilderTest
         Assert.assertEquals(Collections.singletonList(expected), databaseConnectionConfigs);
     }
 
+    @Test
+    public void build_WhenMySqlIamAuthConnectionString_ReturnsIamEnabledConfig()
+    {
+        final String iamConnectionString =
+                "mysql://jdbc:mysql://mydb.cluster-abc.us-east-1.rds.amazonaws.com:3306/mysql?iamAuth=true&user=athena_iam";
+        final DatabaseConnectionConfig expected = new DatabaseConnectionConfig(
+                "default",
+                "mysql",
+                "jdbc:mysql://mydb.cluster-abc.us-east-1.rds.amazonaws.com:3306/mysql",
+                new com.amazonaws.athena.connectors.jdbc.credentials.RdsIamAuthConfiguration(
+                        "mydb.cluster-abc.us-east-1.rds.amazonaws.com",
+                        3306,
+                        "athena_iam",
+                        software.amazon.awssdk.regions.Region.US_EAST_1));
+
+        final List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder()
+                .engine("mysql")
+                .properties(Collections.singletonMap("default", iamConnectionString))
+                .build();
+
+        Assert.assertEquals(Collections.singletonList(expected), databaseConnectionConfigs);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void build_WhenMySqlIamAuthCombinedWithSecret_ThrowsException()
+    {
+        new DatabaseConnectionConfigBuilder()
+                .engine("mysql")
+                .properties(Collections.singletonMap(
+                        "default",
+                        "mysql://jdbc:mysql://hostname:3306/mysql?iamAuth=true&user=athena_iam&${testSecret}"))
+                .build();
+    }
+
     @Test(expected = RuntimeException.class)
     public void build_WhenPostgresIamAuthWithoutPort_ThrowsException()
     {

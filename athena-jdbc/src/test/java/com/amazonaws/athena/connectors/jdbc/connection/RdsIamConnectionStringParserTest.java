@@ -61,6 +61,27 @@ public class RdsIamConnectionStringParserTest
     }
 
     @Test
+    public void parse_WhenMySqlIamAuthEnabled_SanitizesConnectionStringAndBuildsConfiguration()
+    {
+        final String jdbcConnectionString =
+                "jdbc:mysql://mydb.cluster-abc.us-east-1.rds.amazonaws.com:3306/mysql?iamAuth=true&user=athena_iam";
+
+        RdsIamConnectionStringParser.ParsedJdbcConnection parsed =
+                RdsIamConnectionStringParser.parse(jdbcConnectionString);
+
+        Assert.assertTrue(parsed.isIamAuthEnabled());
+        Assert.assertEquals(
+                "jdbc:mysql://mydb.cluster-abc.us-east-1.rds.amazonaws.com:3306/mysql",
+                parsed.getJdbcConnectionString());
+
+        RdsIamAuthConfiguration iamAuthConfiguration = parsed.getIamAuthConfiguration();
+        Assert.assertEquals("mydb.cluster-abc.us-east-1.rds.amazonaws.com", iamAuthConfiguration.getHostname());
+        Assert.assertEquals(3306, iamAuthConfiguration.getPort());
+        Assert.assertEquals("athena_iam", iamAuthConfiguration.getUsername());
+        Assert.assertEquals(Region.US_EAST_1, iamAuthConfiguration.getRegion());
+    }
+
+    @Test
     public void parse_WhenRegionOverrideProvided_UsesExplicitRegion()
     {
         final String jdbcConnectionString =
