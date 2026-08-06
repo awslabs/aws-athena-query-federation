@@ -60,6 +60,7 @@
             <version>${aws-cdk.version}</version>
             <scope>test</scope>
         </dependency>
+
     </dependencies>
     <build>
         <plugins>
@@ -91,6 +92,7 @@
                         <artifactId>maven-shade-plugin.log4j2-cachefile-transformer</artifactId>
                         <version>${log4j2.cachefile.transformer.version}</version>
                     </dependency>
+
                 </dependencies>
                 <executions>
                     <execution>
