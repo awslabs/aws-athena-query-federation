@@ -311,7 +311,8 @@ public class MySqlRecordHandlerTest
                 Collections.emptyMap(),
                 null
         );
-      
+    }
+    
     // Substrait plan: SELECT col1, col2, col3 FROM test_schema.test_table LIMIT 10
     private static final String SUBSTRAIT_PLAN_FETCH =
             "GlsSWQpXGlUKAgoAEksKSQoCCgASKAoEY29sMQoEY29sMgoEY29sMxIUCgRiAhABCgQqAhABCgRiAhABGAI6GQoLdGVzdF9zY2hlbWEKCnRlc3RfdGFibGUYACAK";
