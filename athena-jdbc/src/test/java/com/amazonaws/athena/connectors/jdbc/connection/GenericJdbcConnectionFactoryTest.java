@@ -156,7 +156,7 @@ public class GenericJdbcConnectionFactoryTest
     }
 
     @Test
-    public void close_afterPoolInitialized_closesPool() throws Exception
+    public void close_afterPoolInitialized_closesPoolAndAllowsReuse() throws Exception
     {
         DatabaseConnectionConfig config = new DatabaseConnectionConfig(TEST_CATALOG, TEST_ENGINE, uniqueH2Url());
         DatabaseConnectionInfo info = new DatabaseConnectionInfo(H2_DRIVER_CLASS, H2_DEFAULT_PORT);
@@ -166,11 +166,104 @@ public class GenericJdbcConnectionFactoryTest
             assertNotNull(connection);
         }
 
-        // Closes the underlying HikariDataSource — subsequent getConnection() should fail.
         factory.close();
 
-        SQLException failure = assertThrows(SQLException.class, () -> factory.getConnection(null));
-        assertNotNull(failure.getMessage());
+        // close() releases the pool but must not brick the factory: a handler that is closed and
+        // then reused would otherwise fail forever with "HikariDataSource has been closed".
+        try (Connection reopened = factory.getConnection(null)) {
+            assertNotNull(reopened);
+            Assert.assertTrue(reopened.isValid(2));
+        }
+
+        factory.close();
+    }
+
+    @Test
+    public void close_isIdempotent() throws Exception
+    {
+        DatabaseConnectionConfig config = new DatabaseConnectionConfig(TEST_CATALOG, TEST_ENGINE, uniqueH2Url());
+        DatabaseConnectionInfo info = new DatabaseConnectionInfo(H2_DRIVER_CLASS, H2_DEFAULT_PORT);
+        GenericJdbcConnectionFactory factory = new GenericJdbcConnectionFactory(config, EMPTY_JDBC_PROPERTIES, info);
+
+        try (Connection connection = factory.getConnection(null)) {
+            assertNotNull(connection);
+        }
+
+        factory.close();
+        factory.close();
+    }
+
+    @Test
+    public void getConnection_pooledMode_rebuildsPoolWhenCredentialsChange() throws Exception
+    {
+        // HikariCP snapshots credentials when the pool is built and rejects per-call credentials,
+        // so a pool created for one identity would keep serving it after a later request supplied
+        // different credentials -- one tenant borrowing another's connection.
+        String url = uniqueH2Url();
+        DatabaseConnectionConfig config = new DatabaseConnectionConfig(
+                TEST_CATALOG, TEST_ENGINE, url, TEST_SECRET_NAME);
+        DatabaseConnectionInfo info = new DatabaseConnectionInfo(H2_DRIVER_CLASS, H2_DEFAULT_PORT);
+        GenericJdbcConnectionFactory factory = new GenericJdbcConnectionFactory(config, EMPTY_JDBC_PROPERTIES, info);
+
+        CredentialsProvider tenantA = new StaticCredentialsProvider(new DefaultCredentials("tenantA", "secretA"));
+        CredentialsProvider tenantB = new StaticCredentialsProvider(new DefaultCredentials("tenantB", "secretB"));
+
+        try (Connection first = factory.getConnection(tenantA)) {
+            assertEquals("TENANTA", first.getMetaData().getUserName());
+        }
+
+        // H2 in-memory treats the first connection's credentials as the database owner, so a
+        // different user proves the pool was rebuilt rather than reused with stale credentials.
+        // Reuse would have silently returned a working tenantA connection instead.
+        Exception failure = assertThrows(Exception.class, () -> factory.getConnection(tenantB));
+        Assert.assertTrue("expected an authentication failure for the new identity, got: " + failure,
+                (failure.getMessage() + String.valueOf(failure.getCause())).contains("Wrong user name or password"));
+
+        factory.close();
+    }
+
+    @Test
+    public void getConnection_pooledMode_reusesPoolForSameCredentials() throws Exception
+    {
+        // The identity guard must not defeat pooling: repeated calls with the same credentials
+        // have to keep serving from one pool.
+        DatabaseConnectionConfig config = new DatabaseConnectionConfig(TEST_CATALOG, TEST_ENGINE, uniqueH2Url());
+        DatabaseConnectionInfo info = new DatabaseConnectionInfo(H2_DRIVER_CLASS, H2_DEFAULT_PORT);
+        GenericJdbcConnectionFactory factory = new GenericJdbcConnectionFactory(config, EMPTY_JDBC_PROPERTIES, info);
+
+        String firstPool;
+        try (Connection first = factory.getConnection(null)) {
+            firstPool = first.unwrap(Connection.class).toString();
+            assertNotNull(firstPool);
+        }
+        try (Connection second = factory.getConnection(null)) {
+            // Same underlying physical connection handed back by the same pool.
+            assertEquals(firstPool, second.unwrap(Connection.class).toString());
+        }
+
+        factory.close();
+    }
+
+    @Test
+    public void getConnection_pooledMode_distinctFactoriesDoNotBlockEachOther() throws Exception
+    {
+        // The pool-init lock is per instance, not per class: two unrelated factories (e.g. two
+        // multiplexed catalogs) must be able to build their pools concurrently.
+        DatabaseConnectionInfo info = new DatabaseConnectionInfo(H2_DRIVER_CLASS, H2_DEFAULT_PORT);
+        GenericJdbcConnectionFactory one = new GenericJdbcConnectionFactory(
+                new DatabaseConnectionConfig(TEST_CATALOG, TEST_ENGINE, uniqueH2Url()), EMPTY_JDBC_PROPERTIES, info);
+        GenericJdbcConnectionFactory two = new GenericJdbcConnectionFactory(
+                new DatabaseConnectionConfig("otherCatalog", TEST_ENGINE, uniqueH2Url()), EMPTY_JDBC_PROPERTIES, info);
+
+        try (Connection a = one.getConnection(null); Connection b = two.getConnection(null)) {
+            assertNotNull(a);
+            assertNotNull(b);
+            // Independent pools, so independent physical connections.
+            Assert.assertNotEquals(a.toString(), b.toString());
+        }
+
+        one.close();
+        two.close();
     }
 
     @Test
