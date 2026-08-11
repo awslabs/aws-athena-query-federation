@@ -19,15 +19,33 @@
  */
 package com.amazonaws.athena.connectors.snowflake;
 
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcCasingSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
 
-public class SnowflakeDialect extends JdbcCasingSqlDialect
+import java.util.Locale;
+
+/**
+ * Snowflake-specific SQL dialect with catalog casing filter support. Uses double quote
+ * ({@code "}) for identifier quoting.
+ */
+public class SnowflakeDialect extends org.apache.calcite.sql.dialect.SnowflakeSqlDialect
 {
     public static final SqlDialect DEFAULT = org.apache.calcite.sql.dialect.SnowflakeSqlDialect.DEFAULT;
 
+    private final boolean catalogCasingFilter;
+
     public SnowflakeDialect(boolean catalogCasingFilter)
     {
-        super(DatabaseProduct.SNOWFLAKE, "\"", catalogCasingFilter);
+        super(DEFAULT_CONTEXT);
+        this.catalogCasingFilter = catalogCasingFilter;
+    }
+
+    @Override
+    public StringBuilder quoteIdentifier(StringBuilder buf, String identifier)
+    {
+        if (catalogCasingFilter) {
+            String upper = identifier.toUpperCase(Locale.ROOT);
+            return buf.append("\"").append(upper.replace("\"", "\"\"")).append("\"");
+        }
+        return super.quoteIdentifier(buf, identifier);
     }
 }
