@@ -31,11 +31,15 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -57,6 +61,8 @@ public class GenericJdbcConnectionFactory
     
     private final boolean useDirectConnection;
     private volatile HikariDataSource ds;
+    /** Hash of the JDBC URL and credentials the current pool was built for. */
+    private volatile String poolIdentityKey;
 
     /**
      * Existing constructor — defaults to no configOptions (no Glue managed connection).
@@ -117,27 +123,73 @@ public class GenericJdbcConnectionFactory
     protected Connection getConnectionFromManagedPool(final CredentialsProvider credentialsProvider) throws SQLException
     {
         final String derivedJdbcString = getDerivedJdbcString(credentialsProvider);
+        // HikariCP snapshots the credentials at pool-construction time (setDataSourceProperties
+        // copies them) and rejects per-call credentials with SQLFeatureNotSupportedException. A
+        // pool built for one identity would therefore keep serving that identity's connections
+        // even after a later request merged different credentials into jdbcProperties. Rebuild
+        // the pool when the effective identity changes so a request never borrows another's
+        // credentials. This matters for multi-tenant callers, where connectors such as Snowflake
+        // stay pooled even when fas_token is present.
+        final String poolIdentity = buildPoolIdentity(derivedJdbcString);
 
-        if (ds == null) {
-            synchronized (GenericJdbcConnectionFactory.class) { // Synchronize on the class level
-                if (ds == null) { // Double-check to avoid creating more than one instance
+        HikariDataSource dataSource = ds;
+        if (dataSource == null || dataSource.isClosed() || !poolIdentity.equals(poolIdentityKey)) {
+            // Lock on this instance, not on the class: each factory owns its own pool, so a
+            // class-level lock made unrelated factories (e.g. different multiplexed catalogs)
+            // serialize behind each other while a pool was being built.
+            synchronized (this) {
+                if (ds == null || ds.isClosed() || !poolIdentity.equals(poolIdentityKey)) { // Double-check to avoid creating more than one instance
+                    if (ds != null && !ds.isClosed()) {
+                        LOGGER.debug("Connection identity changed; replacing existing data source");
+                        ds.close();
+                    }
                     HikariConfig config2 = new HikariConfig();
                     config2.setDriverClassName(databaseConnectionInfo.getDriverClassName());
                     config2.setDataSourceProperties(jdbcProperties);
                     config2.setJdbcUrl(derivedJdbcString);
                     config2.setMinimumIdle(1);
                     ds = new HikariDataSource(config2);
+                    poolIdentityKey = poolIdentity;
                     LOGGER.debug("Create data source");
                 }
+                dataSource = ds;
             }
         }
 
         try {
-            return ds.getConnection();
+            return dataSource.getConnection();
         }
         catch (SQLException e) {
             handleSQLExceptionWhenGetConnection(e);
             throw e;
+        }
+    }
+
+    /**
+     * Builds an opaque key identifying the connection identity a pool was created for: the JDBC
+     * URL plus the credential-bearing properties. Values are hashed so credentials are never
+     * retained in memory in plaintext or exposed through logs.
+     */
+    private String buildPoolIdentity(final String derivedJdbcString)
+    {
+        StringBuilder identity = new StringBuilder(derivedJdbcString);
+        for (String key : new TreeSet<>(jdbcProperties.stringPropertyNames())) {
+            identity.append('\n').append(key).append('=').append(jdbcProperties.getProperty(key));
+        }
+
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(identity.toString().getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        }
+        catch (NoSuchAlgorithmException e) {
+            // SHA-256 is required of every JVM, so this is unreachable in practice.
+            throw new AthenaConnectorException("SHA-256 is unavailable",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -196,11 +248,20 @@ public class GenericJdbcConnectionFactory
         throw e;
     }
 
+    /**
+     * Closes the connection pool, releasing pooled connections and their background threads.
+     * The factory stays usable: a later {@code getConnection} rebuilds the pool, so closing a
+     * handler that is subsequently reused does not permanently break it.
+     */
     @Override
-    public void close() 
+    public void close()
     {
-        if (ds != null) {
-            ds.close();
+        synchronized (this) {
+            if (ds != null) {
+                ds.close();
+                ds = null;
+                poolIdentityKey = null;
+            }
         }
     }
 }
