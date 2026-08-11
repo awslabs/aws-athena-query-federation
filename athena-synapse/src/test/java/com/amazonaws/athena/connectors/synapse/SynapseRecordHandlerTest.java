@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
@@ -45,6 +46,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -64,6 +66,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.CATALOG_CASING_FILTER;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.UPPERCASE_ONLY;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
 import static com.amazonaws.athena.connectors.synapse.SynapseConstants.QUOTE_CHARACTER;
 import static org.mockito.ArgumentMatchers.eq;
@@ -250,6 +254,66 @@ public class SynapseRecordHandlerTest
             verify(spiller, Mockito.times(2)).writeRows(Mockito.any());
             verify(resultSet, Mockito.times(3)).next(); // Called 3 times (2 true, 1 false)
 
+    }
+
+    @Test
+    public void readWithConstraint_AzureServerless_SkipsAutoCommitAndCommit() throws Exception {
+        // Serverless (on-demand) host: autoCommit must stay at default and commit() must be skipped,
+        // otherwise the connection close triggers a rollback that emits @@TRANCOUNT (unsupported on serverless).
+        runReadWithConstraintForUrl("jdbc:sqlserver://test-ondemand.sql.azuresynapse.net:1433;databaseName=testdb;");
+
+        verify(connection, Mockito.never()).setAutoCommit(Mockito.anyBoolean());
+        verify(connection, Mockito.never()).commit();
+    }
+
+    @Test
+    public void readWithConstraint_DedicatedPool_SetsAutoCommitAndCommits() throws Exception {
+        // Dedicated pool host (no "ondemand"): transactions are supported, so autoCommit(false) + commit() are used.
+        runReadWithConstraintForUrl("jdbc:sqlserver://test.sql.azuresynapse.net:1433;databaseName=testdb;");
+
+        verify(connection, Mockito.times(1)).setAutoCommit(false);
+        verify(connection, Mockito.times(1)).commit();
+    }
+
+    private void runReadWithConstraintForUrl(String jdbcUrl) throws Exception {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder(TEST_ID_COL, Types.MinorType.INT.getType()).build())
+                .addField(FieldBuilder.newBuilder(TEST_NAME_COL, Types.MinorType.VARCHAR.getType()).build())
+                .build();
+
+        Split split = Mockito.mock(Split.class);
+        when(split.getProperties()).thenReturn(Collections.emptyMap());
+
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.getInt(TEST_ID_COL)).thenReturn(TEST_ID_1);
+        when(resultSet.getString(TEST_NAME_COL)).thenReturn(TEST_NAME_1);
+
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        when(connection.prepareStatement(Mockito.anyString())).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        DatabaseMetaData metaData = Mockito.mock(DatabaseMetaData.class);
+        when(connection.getMetaData()).thenReturn(metaData);
+        when(metaData.getURL()).thenReturn(jdbcUrl);
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                federatedIdentity,
+                TEST_CATALOG,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1000, Collections.emptyMap(), null),
+                0,
+                0
+        );
+
+        BlockSpiller spiller = Mockito.mock(BlockSpiller.class);
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        synapseRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
     }
 
     @Test
@@ -661,5 +725,55 @@ public class SynapseRecordHandlerTest
     private SchemaBuilder createSchemaWithValueField() {
         return createSchemaWithCommonFields()
                 .addField(FieldBuilder.newBuilder(COL_VALUE, Types.MinorType.FLOAT8.getType()).build());
+    }
+
+    // Substrait plan (base64) for: SELECT col1, col2, col3 FROM test_schema.test_table LIMIT 10
+    private static final String SUBSTRAIT_PLAN_FETCH =
+            "GlsSWQpXGlUKAgoAEksKSQoCCgASKAoEY29sMQoEY29sMgoEY29sMxIUCgRiAhABCgQqAhABCgRiAhABGAI6GQoLdGVzdF9zY2hlbWEKCnRlc3RfdGFibGUYACAK";
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithUppercaseCasingFilter_UppercasesIdentifiers() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql(UPPERCASE_ONLY, "SELECT TOP (10) *\nFROM [TEST_SCHEMA].[TEST_TABLE]");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithLowercaseCasingFilter_PreservesCase() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql("LOWERCASE_ONLY", "SELECT TOP (10) *\nFROM [test_schema].[test_table]");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithoutCasingFilter_PreservesCase() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql(null, "SELECT TOP (10) *\nFROM [test_schema].[test_table]");
+    }
+
+    private void assertSubstraitPlanGeneratesExpectedSql(String casingFilter, String expectedSql) throws SQLException
+    {
+        TableName tableName = new TableName("test_schema", "test_table");
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("col1", Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("col2", Types.MinorType.INT.getType()).build())
+                .addField(FieldBuilder.newBuilder("col3", Types.MinorType.VARCHAR.getType()).build())
+                .build();
+
+        // No PARTITION_COLUMN stubbed -> getPartitionWhereClauses returns empty, so the asserted SQL is purely the rendered plan.
+        Split split = Mockito.mock(Split.class);
+        when(split.getProperty(CATALOG_CASING_FILTER)).thenReturn(casingFilter);
+
+        QueryPlan queryPlan = new QueryPlan("", SUBSTRAIT_PLAN_FETCH);
+        Constraints constraints = Mockito.mock(Constraints.class);
+        when(constraints.getQueryPlan()).thenReturn(queryPlan);
+
+        PreparedStatement mockStmt = Mockito.mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(Mockito.anyString())).thenReturn(mockStmt);
+        when(mockStmt.getParameterMetaData()).thenReturn(null);
+
+        this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(this.connection).prepareStatement(sqlCaptor.capture());
+        Assert.assertEquals(expectedSql, sqlCaptor.getValue());
     }
 }
