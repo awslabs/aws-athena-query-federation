@@ -44,6 +44,8 @@ import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -59,6 +61,7 @@ import java.util.Map;
 public class MultiplexingJdbcMetadataHandler
         extends JdbcMetadataHandler
 {
+    private static final Logger MUX_LOGGER = LoggerFactory.getLogger(MultiplexingJdbcMetadataHandler.class);
     private static final int MAX_CATALOGS_TO_MULTIPLEX = 100;
     protected Map<String, JdbcMetadataHandler> metadataHandlerMap;
 
@@ -182,5 +185,41 @@ public class MultiplexingJdbcMetadataHandler
     {
         validateMultiplexer(request.getCatalogName());
         return this.metadataHandlerMap.get(request.getCatalogName()).doGetDataSourceCapabilities(allocator, request);
+    }
+
+    /**
+     * Closes this handler's own connection factory along with every delegate's, since each
+     * delegate owns an independent connection pool. Delegates are closed on a best-effort
+     * basis so that one failure cannot leak the remaining pools.
+     */
+    @Override
+    public void close() throws Exception
+    {
+        Exception firstFailure = null;
+
+        for (Map.Entry<String, JdbcMetadataHandler> delegate : this.metadataHandlerMap.entrySet()) {
+            try {
+                delegate.getValue().close();
+            }
+            catch (Exception e) {
+                MUX_LOGGER.warn("Failed to close metadata handler for catalog {}", delegate.getKey(), e);
+                if (firstFailure == null) {
+                    firstFailure = e;
+                }
+            }
+        }
+
+        try {
+            super.close();
+        }
+        catch (Exception e) {
+            if (firstFailure == null) {
+                firstFailure = e;
+            }
+        }
+
+        if (firstFailure != null) {
+            throw firstFailure;
+        }
     }
 }
