@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -377,6 +377,13 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 </td>
 </tr>
 <tr id="i8" class="altColor">
+<td class="colFirst"><code>protected boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isValidSplitColumn(java.lang.String)">isValidSplitColumn</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;columnName)</code></th>
+<td class="colLast">
+<div class="block">Defense-in-depth validation for a primary-key column name before it is used to generate splits.</div>
+</td>
+</tr>
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>protected <a href="../../connector/lambda/metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
                    <a href="../../connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;listTablesRequest)</code></th>
@@ -384,13 +391,13 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 <div class="block">This is default getAllTables without true pagination.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listTables(java.sql.Connection,java.lang.String)">listTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#wrapNameWithEscapedCharacter(java.lang.String)">wrapNameWithEscapedCharacter</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;input)</code></th>
 <td class="colLast">&nbsp;</td>
@@ -843,13 +850,36 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 <a id="wrapNameWithEscapedCharacter(java.lang.String)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>wrapNameWithEscapedCharacter</h4>
 <pre class="methodSignature">protected&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;wrapNameWithEscapedCharacter&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;input)</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
 <dd><code><a href="../jdbc/manager/JdbcMetadataHandler.html#wrapNameWithEscapedCharacter(java.lang.String)">wrapNameWithEscapedCharacter</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></code></dd>
+</dl>
+</li>
+</ul>
+<a id="isValidSplitColumn(java.lang.String)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>isValidSplitColumn</h4>
+<pre class="methodSignature">protected&nbsp;boolean&nbsp;isValidSplitColumn&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;columnName)</pre>
+<div class="block">Defense-in-depth validation for a primary-key column name before it is used to generate splits.
+ The name originates from database metadata that a low-privilege user can influence, so it is
+ treated as untrusted. Quoting/escaping via <a href="#wrapNameWithEscapedCharacter(java.lang.String)"><code>wrapNameWithEscapedCharacter(String)</code></a> is the
+ primary SQL-injection control; this method is a secondary filter that rejects values which are
+ either impossible for a real identifier (null or empty) or undesirable to propagate (control
+ characters -- rejected for log-injection safety rather than because SQL quoting cannot handle
+ them). Rejection is non-fatal: the caller simply skips split generation and the query still runs,
+ just without primary-key-based parallelism.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>columnName</code> - primary-key column name reported by the JDBC driver</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>true if the name is safe to use for split generation, false otherwise</dd>
 </dl>
 </li>
 </ul>
