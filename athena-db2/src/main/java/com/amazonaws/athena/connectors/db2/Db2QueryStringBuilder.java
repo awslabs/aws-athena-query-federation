@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
+import org.apache.calcite.sql.SqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,5 +83,17 @@ public class Db2QueryStringBuilder extends JdbcSplitQueryBuilder
             LOGGER.debug("Fetching data without Partition");
         }
         return Collections.emptyList();
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return Db2Dialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new Db2Dialect(catalogCasingFilterUpperCase);
     }
 }
