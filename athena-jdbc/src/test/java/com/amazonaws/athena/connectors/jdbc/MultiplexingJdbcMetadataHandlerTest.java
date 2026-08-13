@@ -194,4 +194,40 @@ public class MultiplexingJdbcMetadataHandlerTest
         this.jdbcMetadataHandler.doGetDataSourceCapabilities(this.allocator, getDataSourceCapabilitiesRequest);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doGetDataSourceCapabilities(Mockito.eq(this.allocator), Mockito.eq(getDataSourceCapabilitiesRequest));
     }
+
+    @Test
+    public void testCloseClosesDelegatesAndOwnFactory() throws Exception
+    {
+        // Each delegate owns an independent HikariCP pool. Closing only the multiplexer's own
+        // factory leaked one pool (and its housekeeper thread) per delegate for the life of the
+        // container, which showed up in production as 34 pools started and zero shut down.
+        this.jdbcMetadataHandler.close();
+
+        Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).close();
+        Mockito.verify(this.jdbcConnectionFactory, Mockito.times(1)).close();
+    }
+
+    @Test
+    public void testCloseClosesRemainingDelegatesWhenOneFails() throws Exception
+    {
+        JdbcMetadataHandler failingHandler = Mockito.mock(JdbcMetadataHandler.class);
+        JdbcMetadataHandler healthyHandler = Mockito.mock(JdbcMetadataHandler.class);
+        Mockito.doThrow(new RuntimeException("boom")).when(failingHandler).close();
+
+        Map<String, JdbcMetadataHandler> handlerMap = new HashMap<>();
+        handlerMap.put("failing", failingHandler);
+        handlerMap.put("healthy", healthyHandler);
+
+        JdbcConnectionFactory ownFactory = Mockito.mock(JdbcConnectionFactory.class);
+        JdbcMetadataHandler handler = new MultiplexingJdbcMetadataHandler(
+                this.secretsManager, this.athena, ownFactory, handlerMap,
+                this.databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
+
+        // The first failure surfaces, but no pool is left behind because of it.
+        assertThrows(RuntimeException.class, handler::close);
+
+        Mockito.verify(failingHandler, Mockito.times(1)).close();
+        Mockito.verify(healthyHandler, Mockito.times(1)).close();
+        Mockito.verify(ownFactory, Mockito.times(1)).close();
+    }
 }
