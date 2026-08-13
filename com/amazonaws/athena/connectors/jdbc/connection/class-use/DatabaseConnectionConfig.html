@@ -599,6 +599,21 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </a>
 <h3>Uses of <a href="../DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a> in <a href="../package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a></h3>
 <table class="useSummary">
+<caption><span>Fields in <a href="../package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a> declared as <a href="../DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Field</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">GenericJdbcConnectionFactory.</span><code><span class="memberNameLink"><a href="../GenericJdbcConnectionFactory.html#databaseConnectionConfig">databaseConnectionConfig</a></span></code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary">
 <caption><span>Methods in <a href="../package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a> that return types with arguments of type <a href="../DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a></span><span class="tabEnd">&nbsp;</span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
@@ -635,7 +650,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;properties,
                             <a href="../DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a>&nbsp;databaseConnectionInfo)</code></th>
 <td class="colLast">
-<div class="block">Existing constructor — uses HikariCP.</div>
+<div class="block">Existing constructor — defaults to no configOptions (no Glue managed connection).</div>
 </td>
 </tr>
 <tr class="rowColor">

@@ -1344,6 +1344,32 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Closes the connection to the HBase instance.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html#close()">close()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
+<dd>
+<div class="block">Closes the connection pool, releasing pooled connections and their background threads.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcConnectionFactory.html#close()">close()</a></span> - Method in interface com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#close()">close()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
+<dd>
+<div class="block">Closes the underlying <a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection"><code>JdbcConnectionFactory</code></a>, releasing any pooled connections
+ and their associated background threads.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html#close()">close()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></dt>
+<dd>
+<div class="block">Closes the underlying <a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection"><code>JdbcConnectionFactory</code></a>, releasing any pooled connections
+ and their associated background threads.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html#close()">close()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
+<dd>
+<div class="block">Closes this handler's own connection factory along with every delegate's, since each
+ delegate owns an independent connection pool.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcRecordHandler.html#close()">close()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcRecordHandler</a></dt>
+<dd>
+<div class="block">Closes this handler's own connection factory along with every delegate's, since each
+ delegate owns an independent connection pool.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionWrapper.html#close()">close()</a></span> - Method in class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisConnectionWrapper</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorImpl.html#closeBatches()">closeBatches()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorImpl.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockAllocatorImpl</a></dt>
@@ -2331,6 +2357,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneSparqlQueryPassthrough.html#DATABASE">DATABASE</a></span> - Static variable in class com.amazonaws.athena.connectors.neptune.qpt.<a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneSparqlQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.neptune.qpt">NeptuneSparqlQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html#databaseConnectionConfig">databaseConnectionConfig</a></span> - Variable in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection"><span class="typeNameLink">DatabaseConnectionConfig</span></a> - Class in <a href="com/amazonaws/athena/connectors/jdbc/connection/package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a></dt>
 <dd>
 <div class="block">Encapsulates database JDBC connection configuration.</div>
@@ -2348,6 +2376,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Builds connection configurations for all catalogs and databases provided in environment properties.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfigBuilder.html#%3Cinit%3E()">DatabaseConnectionConfigBuilder()</a></span> - Constructor for class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfigBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfigBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html#databaseConnectionInfo">databaseConnectionInfo</a></span> - Variable in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection"><span class="typeNameLink">DatabaseConnectionInfo</span></a> - Class in <a href="com/amazonaws/athena/connectors/jdbc/connection/package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a></dt>
 <dd>
@@ -4746,7 +4776,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo)">GenericJdbcConnectionFactory(DatabaseConnectionConfig, Map&lt;String, String&gt;, DatabaseConnectionInfo)</a></span> - Constructor for class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
 <dd>
-<div class="block">Existing constructor — uses HikariCP.</div>
+<div class="block">Existing constructor — defaults to no configOptions (no Glue managed connection).</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo,java.util.Map)">GenericJdbcConnectionFactory(DatabaseConnectionConfig, Map&lt;String, String&gt;, DatabaseConnectionInfo, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
@@ -5134,6 +5164,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/connection/SnowflakeConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.snowflake.connection.<a href="com/amazonaws/athena/connectors/snowflake/connection/SnowflakeConnectionFactory.html" title="class in com.amazonaws.athena.connectors.snowflake.connection">SnowflakeConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html#getConnectionFromManagedPool(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnectionFromManagedPool(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
+<dd>
+<div class="block">Returns a connection from the HikariCP connection pool, initializing the pool on first call.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/ClouderaHiveEnvironmentProperties.html#getConnectionStringPrefix(java.util.Map)">getConnectionStringPrefix(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/ClouderaHiveEnvironmentProperties.html" title="class in com.amazonaws.athena.connectors.cloudera">ClouderaHiveEnvironmentProperties</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/ImpalaEnvironmentProperties.html#getConnectionStringPrefix(java.util.Map)">getConnectionStringPrefix(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/ImpalaEnvironmentProperties.html" title="class in com.amazonaws.athena.connectors.cloudera">ImpalaEnvironmentProperties</a></dt>
@@ -7105,7 +7139,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html#getTableMetadata(java.sql.PreparedStatement,java.lang.String)">getTableMetadata(PreparedStatement, String)</a></span> - Static method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseUtil</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#getTableMetadata(java.sql.PreparedStatement,java.lang.String)">getTableMetadata(PreparedStatement, String)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">Lists tables/views for the given prepared statement.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/TableName.html#getTableName()">getTableName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></dt>
 <dd>
 <div class="block">Gets the name of the table.</div>
@@ -8437,6 +8473,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Used only by Multiplexing handler.</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandlerFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.manager"><span class="typeNameLink">JdbcMetadataHandlerFactory</span></a> - Interface in <a href="com/amazonaws/athena/connectors/jdbc/manager/package-summary.html">com.amazonaws.athena.connectors.jdbc.manager</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html#jdbcProperties">jdbcProperties</a></span> - Variable in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#jdbcQueryPassthrough">jdbcQueryPassthrough</a></span> - Variable in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
