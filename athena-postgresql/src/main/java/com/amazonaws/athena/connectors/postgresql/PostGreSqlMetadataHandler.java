@@ -59,6 +59,7 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.postgresql.core.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -68,7 +69,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -110,7 +110,7 @@ public class PostGreSqlMetadataHandler
     private static final String GET_DATA_TYPE_QUERY = "SELECT data_type FROM information_schema.columns " +
             "WHERE table_schema = ? AND table_name = ? AND column_name = ?";
     protected final SplitterFactory splitterFactory = new SplitterFactory();
-    protected static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s;";
+    protected static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s";
     protected static final int DEFAULT_NUM_SPLITS = 20;
 
     /**
@@ -462,6 +462,11 @@ public class PostGreSqlMetadataHandler
             }
 
             if (primaryKeyColumn != null) {
+                if (!isValidSplitColumn(primaryKeyColumn)) {
+                    LOGGER.warn("Primary key column name is not a valid split identifier for table {}.{}. Skipping split generation.",
+                            tableName.getSchemaName(), tableName.getTableName());
+                    return splitClauses;
+                }
                 // Check if the primary key column is UUID type
                 if (isUuidColumn(jdbcConnection, tableName, primaryKeyColumn)) {
                     LOGGER.info("Primary key '{}' is UUID type. Skipping split generation for table: {}.{} " +
@@ -470,13 +475,24 @@ public class PostGreSqlMetadataHandler
                     return splitClauses;
                 }
                 else {
-                    try (Statement statement = jdbcConnection.createStatement();
-                         ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumn, primaryKeyColumn,
-                                 wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
+                    // Quote and escape the column name so it is interpreted strictly as a SQL identifier.
+                    // This value is interpolated into the min/max bounds query below AND, via the Splitter,
+                    // into the partition WHERE-clause that is later appended to the record-read query
+                    // (see IntegerSplitter#nextRangeClause and JdbcSplitQueryBuilder#getPartitionWhereClauses).
+                    // Both places must use the quoted form to prevent SQL injection (CWE-89).
+                    String quotedPrimaryKeyColumn = wrapNameWithEscapedCharacter(primaryKeyColumn);
+                    // Use a PreparedStatement (extended query protocol) rather than a plain Statement.
+                    // The bounds query has no bind parameters -- an identifier can never be a '?' parameter --
+                    // but the extended protocol rejects multiple commands in one statement, so a stacked
+                    // payload (e.g. "; GRANT ...") fails loudly instead of executing. This is an independent
+                    // second layer on top of the identifier quoting above.
+                    try (PreparedStatement statement = jdbcConnection.prepareStatement(String.format(SQL_SPLITS_STRING, quotedPrimaryKeyColumn, quotedPrimaryKeyColumn,
+                                 wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())));
+                         ResultSet minMaxResultSet = statement.executeQuery()) {
                         minMaxResultSet.next(); // expecting one result row
                         long min = minMaxResultSet.getLong(1);
                         long max = minMaxResultSet.getLong(2);
-                        Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumn, minMaxResultSet, DEFAULT_NUM_SPLITS);
+                        Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(quotedPrimaryKeyColumn, minMaxResultSet, DEFAULT_NUM_SPLITS);
 
                         if (optionalSplitter.isPresent()) {
                             if (max - min < DEFAULT_NUM_SPLITS) {
@@ -535,6 +551,61 @@ public class PostGreSqlMetadataHandler
 
     protected String wrapNameWithEscapedCharacter(String input)
     {
-        return "\"" + input + "\"";
+        // Delegate identifier quoting to the PostgreSQL driver's own escaper (org.postgresql.core.Utils)
+        // rather than hand-rolling it. This is the exact routine PGConnection#escapeIdentifier uses: it
+        // wraps the value in double quotes and doubles any embedded double quote, and it throws if the
+        // value contains a NUL (the only character PostgreSQL forbids in an identifier). Using the
+        // driver's implementation removes any doubt about the escaping being correct (CWE-89). The
+        // Redshift connector inherits this method; its driver is a pgjdbc fork with identical identifier
+        // rules, so the same escaping applies.
+        try {
+            return Utils.escapeIdentifier(null, input).toString();
+        }
+        catch (SQLException ex) {
+            // Only thrown for a NUL byte, which isValidSplitColumn already rejects before we get here.
+            throw new RuntimeException("Unable to escape SQL identifier", ex);
+        }
+    }
+
+    /**
+     * Defense-in-depth validation for a primary-key column name before it is used to generate splits.
+     * The name originates from database metadata that a low-privilege user can influence, so it is
+     * treated as untrusted. Quoting/escaping via {@link #wrapNameWithEscapedCharacter(String)} is the
+     * primary SQL-injection control; this method is a secondary filter that rejects values which are
+     * either impossible for a real identifier (null or empty) or undesirable to propagate (control
+     * characters -- rejected for log-injection safety rather than because SQL quoting cannot handle
+     * them). Rejection is non-fatal: the caller simply skips split generation and the query still runs,
+     * just without primary-key-based parallelism.
+     *
+     * @param columnName primary-key column name reported by the JDBC driver
+     * @return true if the name is safe to use for split generation, false otherwise
+     */
+    protected boolean isValidSplitColumn(String columnName)
+    {
+        if (columnName == null || columnName.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < columnName.length(); i++) {
+            // Reject control characters. The two engines that share this method differ:
+            //  - PostgreSQL forbids only NUL (code zero) in an identifier; other control characters
+            //    (tab, CR, LF, ...) are technically legal inside a quoted identifier. See
+            //    https://www.postgresql.org/docs/current/sql-syntax-lexical.html#SQL-SYNTAX-IDENTIFIERS
+            //    ("Quoted identifiers can contain any character, except the character with code zero").
+            //  - Redshift is stricter: identifiers "must consist of only UTF-8 printable characters", so
+            //    control characters are not valid in a Redshift identifier at all. See
+            //    https://docs.aws.amazon.com/redshift/latest/dg/r_names.html
+            // Rejecting all control characters therefore enforces Redshift's rule outright and, for
+            // PostgreSQL, is defense-in-depth: CR/LF enable log injection (the name is logged and SQL
+            // quoting does not sanitize the log sink) and control chars never appear in legitimate
+            // schemas. Worst case for a PostgreSQL name that is pathological-but-legal is that we skip
+            // split generation -- the query still runs correctly, just without primary-key-based
+            // parallelism. Spaces and other printable characters (including SQL metacharacters like ; " )
+            // are intentionally allowed: both engines permit them in a quoted identifier and they are
+            // fully neutralized by wrapNameWithEscapedCharacter().
+            if (Character.isISOControl(columnName.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 }
