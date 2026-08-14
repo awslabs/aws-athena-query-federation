@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connectors.cloudwatch.qpt.CloudwatchQueryPassthrough;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsRequest;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsResponse;
@@ -63,17 +64,36 @@ public final class CloudwatchUtils
 
     public static GetQueryResultsResponse getQueryResults(CloudWatchLogsClient awsLogs, StartQueryResponse startQueryResponse)
     {
-        return awsLogs.getQueryResults(GetQueryResultsRequest.builder().queryId(startQueryResponse.queryId()).build());
+        return getQueryResults(awsLogs, startQueryResponse, null);
+    }
+
+    public static GetQueryResultsResponse getQueryResults(CloudWatchLogsClient awsLogs, StartQueryResponse startQueryResponse,
+            AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
+    {
+        return awsLogs.getQueryResults(GetQueryResultsRequest.builder().queryId(startQueryResponse.queryId())
+                .overrideConfiguration(awsRequestOverrideConfiguration).build());
     }
 
     public static GetQueryResultsResponse getResult(ThrottlingInvoker invoker, CloudWatchLogsClient awsLogs, Map<String, String> qptArguments, int limit) throws TimeoutException, InterruptedException
     {
-        StartQueryResponse startQueryResponse = invoker.invoke(() -> getQueryResult(awsLogs, startQueryRequest(qptArguments).toBuilder().limit(limit).build()));
+        return getResult(invoker, awsLogs, qptArguments, limit, null);
+    }
+
+    /**
+     * Runs a Cloudwatch Logs Insights query (StartQuery + poll GetQueryResults). When a non-null
+     * {@link AwsRequestOverrideConfiguration} is supplied (managed-connector / Athena federation path),
+     * the customer FAS credentials it carries are applied to every Cloudwatch Logs call.
+     */
+    public static GetQueryResultsResponse getResult(ThrottlingInvoker invoker, CloudWatchLogsClient awsLogs, Map<String, String> qptArguments, int limit,
+            AwsRequestOverrideConfiguration awsRequestOverrideConfiguration) throws TimeoutException, InterruptedException
+    {
+        StartQueryResponse startQueryResponse = invoker.invoke(() -> getQueryResult(awsLogs, startQueryRequest(qptArguments).toBuilder().limit(limit)
+                .overrideConfiguration(awsRequestOverrideConfiguration).build()));
         QueryStatus status = null;
         GetQueryResultsResponse getQueryResultsResponse;
         Instant startTime = Instant.now(); // Record the start time
         do {
-            getQueryResultsResponse = invoker.invoke(() -> getQueryResults(awsLogs, startQueryResponse));
+            getQueryResultsResponse = invoker.invoke(() -> getQueryResults(awsLogs, startQueryResponse, awsRequestOverrideConfiguration));
             status = getQueryResultsResponse.status();
             Thread.sleep(1000);
 
