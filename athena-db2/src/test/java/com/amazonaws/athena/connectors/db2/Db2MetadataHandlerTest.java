@@ -702,4 +702,45 @@ public class Db2MetadataHandlerTest extends TestBase {
         assertTrue("Should support integer constant limit pushdown",
                 limitSubTypes.contains(LimitPushdownSubType.INTEGER_CONSTANT.getSubType()));
     }
+
+    @Test
+    public void doListSchemaNames_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        Db2MetadataHandler spy = Mockito.spy(this.db2MetadataHandler);
+        Statement statement = Mockito.mock(Statement.class);
+        ResultSet schemaResultSet = Mockito.mock(ResultSet.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        Mockito.when(statement.executeQuery(Db2Constants.QRY_TO_LIST_SCHEMAS)).thenReturn(schemaResultSet);
+        Mockito.when(schemaResultSet.next()).thenReturn(false);
+
+        ListSchemasRequest listSchemasRequest = new ListSchemasRequest(this.federatedIdentity, "testQueryId", "testCatalogName");
+        spy.doListSchemaNames(this.blockAllocator, listSchemasRequest);
+
+        // The metadata connection must be opened with the request's (federated) credentials, not the
+        // connector's default role. getRequestOverrideConfig(request) is only consulted on that path.
+        Mockito.verify(spy).getRequestOverrideConfig(listSchemasRequest);
+    }
+
+    @Test
+    public void doGetTableLayout_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        Db2MetadataHandler spy = Mockito.spy(this.db2MetadataHandler);
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        TableName tableName = new TableName("testSchema", "testTable");
+        Schema partitionSchema = spy.getPartitionSchema("testCatalogName");
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+
+        PreparedStatement partitionPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.PARTITION_QUERY)).thenReturn(partitionPreparedStatement);
+        ResultSet partitionResultSet = mockResultSet(new String[] {"DATAPARTITIONID"}, new int[] {Types.INTEGER}, new Object[][] {{}}, new AtomicInteger(-1));
+        Mockito.when(partitionPreparedStatement.executeQuery()).thenReturn(partitionResultSet);
+
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        spy.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
+
+        Mockito.verify(spy, Mockito.atLeastOnce()).getRequestOverrideConfig(getTableLayoutRequest);
+    }
 }
