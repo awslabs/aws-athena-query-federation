@@ -441,5 +441,62 @@ public class Db2As400MetadataHandlerTest extends TestBase {
                 new TableName("TESTSCHEMA", "testTABLE")};
         Assert.assertEquals(Arrays.toString(expectedTables), listTablesResponse.getTables().toString());
     }
+
+    @Test
+    public void doListSchemaNames_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        Db2As400MetadataHandler spy = Mockito.spy(this.db2As400MetadataHandler);
+        Statement statement = Mockito.mock(Statement.class);
+        ResultSet schemaResultSet = Mockito.mock(ResultSet.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        Mockito.when(statement.executeQuery(Db2As400Constants.QRY_TO_LIST_SCHEMAS)).thenReturn(schemaResultSet);
+        Mockito.when(schemaResultSet.next()).thenReturn(false);
+
+        ListSchemasRequest listSchemasRequest = new ListSchemasRequest(this.federatedIdentity, "testQueryId", "testCatalogName");
+        spy.doListSchemaNames(this.blockAllocator, listSchemasRequest);
+
+        // The metadata connection must be opened with the request's (federated) credentials, not the
+        // connector's default role. getRequestOverrideConfig(request) is only consulted on that path.
+        Mockito.verify(spy).getRequestOverrideConfig(listSchemasRequest);
+    }
+
+    @Test
+    public void doListTables_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        Db2As400MetadataHandler spy = Mockito.spy(this.db2As400MetadataHandler);
+        PreparedStatement tableStatement = Mockito.mock(PreparedStatement.class);
+        ResultSet tableResultSet = Mockito.mock(ResultSet.class);
+        Mockito.when(this.connection.prepareStatement(Db2As400Constants.QRY_TO_LIST_TABLES_AND_VIEWS)).thenReturn(tableStatement);
+        Mockito.when(tableStatement.executeQuery()).thenReturn(tableResultSet);
+        Mockito.when(tableResultSet.next()).thenReturn(false);
+
+        ListTablesRequest listTablesRequest = new ListTablesRequest(this.federatedIdentity, "testQueryId", "testCatalogName", "testSchema", null, 0);
+        spy.doListTables(this.blockAllocator, listTablesRequest);
+
+        Mockito.verify(spy).getRequestOverrideConfig(listTablesRequest);
+    }
+
+    @Test
+    public void doGetTableLayout_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        Db2As400MetadataHandler spy = Mockito.spy(this.db2As400MetadataHandler);
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tableName = new TableName("testSchema", "testTable");
+        Schema partitionSchema = spy.getPartitionSchema("testCatalogName");
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+
+        PreparedStatement partitionPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2As400Constants.PARTITION_QUERY)).thenReturn(partitionPreparedStatement);
+        ResultSet partitionResultSet = mockResultSet(new String[] {"DATAPARTITIONID"}, new int[] {Types.INTEGER}, new Object[][] {{}}, new AtomicInteger(-1));
+        Mockito.when(partitionPreparedStatement.executeQuery()).thenReturn(partitionResultSet);
+
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        spy.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
+
+        Mockito.verify(spy, Mockito.atLeastOnce()).getRequestOverrideConfig(getTableLayoutRequest);
+    }
 }
 
