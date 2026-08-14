@@ -65,6 +65,8 @@ import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -509,7 +511,14 @@ public class DocDBMetadataHandler
             }
         }
 
-        String connStr = String.format(CONNECTION_STRING_TEMPLATE, username, password, host, port, authDb);
+        // Percent-encode the Secrets Manager username and password before inserting them into the
+        // MongoDB connection URI. Without encoding, special characters (e.g. '/', '@', ':', '?') in
+        // the credential values can terminate or restructure the URI authority, enabling host and
+        // authMechanism injection. The MongoDB driver URL-decodes userinfo, so URLEncoder-encoded
+        // values round-trip to their original form.
+        String encodedUsername = URLEncoder.encode(username, StandardCharsets.UTF_8);
+        String encodedPassword = URLEncoder.encode(password, StandardCharsets.UTF_8);
+        String connStr = String.format(CONNECTION_STRING_TEMPLATE, encodedUsername, encodedPassword, host, port, authDb);
         if (jdbcParams != null) {
             connStr += "?" + jdbcParams;
         }
