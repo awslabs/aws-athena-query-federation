@@ -42,6 +42,17 @@ public final class SnowflakeConstants
      * This constant limits the number of records to be returned in a single split.
      */
     public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
+    /**
+     * Tables exceeding this row count threshold will skip the expensive primary key uniqueness check
+     * and fall back to single partition.
+     */
+    public static final long LARGE_TABLE_THRESHOLD = 100_000_000L;
+    /**
+     * Statement-level timeout (in seconds) for the primary key uniqueness check query.
+     * If the query exceeds this timeout, it will be cancelled and the connector will
+     * fall back to single partition rather than waiting for the Lambda timeout (900s).
+     */
+    public static final int UNIQUENESS_CHECK_TIMEOUT_SECONDS = 120;
     public static final String DOUBLE_QUOTE_CHAR = "\"";
     public static final String SINGLE_QUOTE_CHAR = "\'";
 
@@ -89,6 +100,8 @@ public final class SnowflakeConstants
      */
     public static final String USERNAME = "username";
     public static final String PASSWORD = "password";
+    public static final String USERNAME_UPPERCASE = "USERNAME";
+    public static final String PASSWORD_UPPERCASE = "PASSWORD";
     public static final String USER = "user";
 
     /**

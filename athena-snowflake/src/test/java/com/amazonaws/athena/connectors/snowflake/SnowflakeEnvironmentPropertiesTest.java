@@ -425,24 +425,109 @@ public class SnowflakeEnvironmentPropertiesTest
     }
 
     @Test
-    public void getSnowFlakeParameter_WithEmptyStringValues_ReturnsQuotedEmptyStrings()
+    public void getSnowFlakeParameter_WithEmptyStringValues_ExcludesParameters()
     {
+        // Quoting an empty value yields warehouse="" — a case-sensitive reference to an object
+        // that cannot exist. Omit the parameter so Snowflake applies the user's default instead.
         Map<String, String> baseProperty = new HashMap<>();
         baseProperty.put(USER, TEST_USER);
-        
+
         Map<String, String> connectionProperties = new HashMap<>();
         connectionProperties.put(DEFAULT_GLUE_CONNECTION, "true");
         connectionProperties.put(WAREHOUSE, "");
         connectionProperties.put(DATABASE, "");
         connectionProperties.put(SCHEMA, "");
-        
+
         Map<String, String> parameters = SnowflakeEnvironmentProperties.getSnowFlakeParameter(baseProperty, connectionProperties);
-        
+
         assertNotNull(parameters);
         assertEquals(TEST_USER, parameters.get(USER));
-        assertEquals("\"\"", parameters.get(DEFAULT_WAREHOUSE));
-        assertEquals("\"\"", parameters.get(DB));
-        assertEquals("\"\"", parameters.get(DEFAULT_SCHEMA));
+        assertFalse(parameters.containsKey(DEFAULT_WAREHOUSE));
+        assertFalse(parameters.containsKey(DB));
+        assertFalse(parameters.containsKey(DEFAULT_SCHEMA));
+    }
+
+    @Test
+    public void getSnowFlakeParameter_WithNullLiteralValues_ExcludesParameters()
+    {
+        // Upstream Glue config can supply the literal string "null" for an unset field. Quoting it
+        // produced warehouse="null", so the session opened with no active warehouse and every
+        // query failed with "No active warehouse selected in the current session" (ErrorCode 606).
+        Map<String, String> baseProperty = new HashMap<>();
+        baseProperty.put(USER, TEST_USER);
+
+        Map<String, String> connectionProperties = new HashMap<>();
+        connectionProperties.put(DEFAULT_GLUE_CONNECTION, "true");
+        connectionProperties.put(WAREHOUSE, "null");
+        connectionProperties.put(DATABASE, "null");
+        connectionProperties.put(SCHEMA, "null");
+
+        Map<String, String> parameters = SnowflakeEnvironmentProperties.getSnowFlakeParameter(baseProperty, connectionProperties);
+
+        assertNotNull(parameters);
+        assertEquals(TEST_USER, parameters.get(USER));
+        assertFalse(parameters.containsKey(DEFAULT_WAREHOUSE));
+        assertFalse(parameters.containsKey(DB));
+        assertFalse(parameters.containsKey(DEFAULT_SCHEMA));
+    }
+
+    @Test
+    public void getSnowFlakeParameter_WithNullLiteralMixedCaseAndWhitespace_ExcludesParameters()
+    {
+        Map<String, String> baseProperty = new HashMap<>();
+        baseProperty.put(USER, TEST_USER);
+
+        Map<String, String> connectionProperties = new HashMap<>();
+        connectionProperties.put(DEFAULT_GLUE_CONNECTION, "true");
+        connectionProperties.put(WAREHOUSE, "NULL");
+        connectionProperties.put(DATABASE, " Null ");
+        connectionProperties.put(SCHEMA, "   ");
+
+        Map<String, String> parameters = SnowflakeEnvironmentProperties.getSnowFlakeParameter(baseProperty, connectionProperties);
+
+        assertNotNull(parameters);
+        assertFalse(parameters.containsKey(DEFAULT_WAREHOUSE));
+        assertFalse(parameters.containsKey(DB));
+        assertFalse(parameters.containsKey(DEFAULT_SCHEMA));
+    }
+
+    @Test
+    public void getSnowFlakeParameter_WithNullLiteralWarehouseOnly_KeepsOtherParameters()
+    {
+        // Only the unusable value is dropped; valid siblings must still be forwarded.
+        Map<String, String> baseProperty = new HashMap<>();
+        baseProperty.put(USER, TEST_USER);
+
+        Map<String, String> connectionProperties = new HashMap<>();
+        connectionProperties.put(DEFAULT_GLUE_CONNECTION, "true");
+        connectionProperties.put(WAREHOUSE, "null");
+        connectionProperties.put(DATABASE, TEST_DATABASE);
+        connectionProperties.put(SCHEMA, TEST_SCHEMA);
+
+        Map<String, String> parameters = SnowflakeEnvironmentProperties.getSnowFlakeParameter(baseProperty, connectionProperties);
+
+        assertNotNull(parameters);
+        assertFalse(parameters.containsKey(DEFAULT_WAREHOUSE));
+        assertEquals("\"" + TEST_DATABASE + "\"", parameters.get(DB));
+        assertEquals("\"" + TEST_SCHEMA + "\"", parameters.get(DEFAULT_SCHEMA));
+    }
+
+    @Test
+    public void getSnowFlakeParameter_WithValueContainingNull_IsPreserved()
+    {
+        // Only an exact "null" is unusable; a real identifier that merely contains it is valid.
+        Map<String, String> baseProperty = new HashMap<>();
+        baseProperty.put(USER, TEST_USER);
+
+        Map<String, String> connectionProperties = new HashMap<>();
+        connectionProperties.put(DEFAULT_GLUE_CONNECTION, "true");
+        connectionProperties.put(WAREHOUSE, "NULLABLE_WH");
+        connectionProperties.put(DATABASE, "nullsafe_db");
+
+        Map<String, String> parameters = SnowflakeEnvironmentProperties.getSnowFlakeParameter(baseProperty, connectionProperties);
+
+        assertEquals("\"NULLABLE_WH\"", parameters.get(DEFAULT_WAREHOUSE));
+        assertEquals("\"nullsafe_db\"", parameters.get(DB));
     }
 
     @Test
