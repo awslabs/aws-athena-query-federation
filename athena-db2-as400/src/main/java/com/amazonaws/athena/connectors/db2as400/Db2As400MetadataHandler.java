@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.db2as400;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -68,6 +69,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -260,6 +262,9 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
         Split.Builder splitBuilder;
         Set<Split> splits = new HashSet<>();
 
+        Map<String, String> identityConfigOptions = getSplitsRequest.getIdentity().getConfigOptions();
+        String catalogCasingFilter = identityConfigOptions != null ? identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER) : null;
+
         LOGGER.debug("partitionContd: {}", partitionContd);
 
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
@@ -275,14 +280,19 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
             // Included partition information to split if the table is partitioned
             if (partInfo.contains(":::")) {
                 String[] partInfoAr = partInfo.split(":::");
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITIONING_COLUMN, partInfoAr[0])
                         .add(PARTITION_NUMBER, partInfoAr[1]);
             }
             else {
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfo);
             }
+
+            if (catalogCasingFilter != null) {
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, catalogCasingFilter);
+            }
+
             splits.add(splitBuilder.build());
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
