@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.db2as400;
 
 import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.dialect.Db2SqlDialect;
 
 import java.util.Locale;
@@ -46,5 +47,17 @@ public class Db2As400Dialect extends Db2SqlDialect
     {
         String value = catalogCasingFilter ? identifier.toUpperCase(Locale.ROOT) : identifier;
         return buf.append("\"").append(value.replace("\"", "\"\"")).append("\"");
+    }
+
+    /**
+     * Db2 for i does not support the {@code NULLS FIRST}/{@code NULLS LAST} keyword and rejects it
+     * with SQL0199 at prepare time. When a Substrait sort requests a null ordering that differs from
+     * Db2's default null collation, emulate it with an {@code IS NULL} companion sort key instead of
+     * emitting the unsupported keyword, so the generated {@code ORDER BY} is valid on Db2 for i.
+     */
+    @Override
+    public SqlNode emulateNullDirection(SqlNode node, boolean nullsFirst, boolean desc)
+    {
+        return emulateNullDirectionWithIsNull(node, nullsFirst, desc);
     }
 }
