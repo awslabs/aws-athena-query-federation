@@ -7,7 +7,7 @@ cachetools==5.5.2
 certifi==2025.1.31
 cffi==2.0.0
 charset-normalizer==3.4.1
-cryptography==48.0.1
+cryptography==50.0.0
 Events==0.5
 filelock==3.20.3
 google-api-core==2.25.1
@@ -40,7 +40,7 @@ PyJWT==2.13.0
 pymssql==2.3.7
 PyMySQL==1.1.1
 pyodbc==5.2.0
-pyOpenSSL==26.2.0
+pyOpenSSL==26.4.0
 python-dateutil==2.9.0.post0
 pytz==2025.2
 PyYAML==6.0.2
