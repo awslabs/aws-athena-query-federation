@@ -110,7 +110,7 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(readRecordsRequest)))) {
             String environment = DataLakeGen2Util.checkEnvironment(connection.getMetaData().getURL());
             if (!DataLakeGen2Constants.SQL_POOL.equalsIgnoreCase(environment)) {
                 // For consistency. This is needed to be false to enable streaming for some database types.
