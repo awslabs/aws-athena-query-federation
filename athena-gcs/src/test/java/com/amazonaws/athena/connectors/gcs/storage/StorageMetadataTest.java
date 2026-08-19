@@ -31,6 +31,10 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.dataset.file.FileFormat;
+import org.apache.arrow.dataset.file.FileSystemDatasetFactory;
+import org.apache.arrow.dataset.jni.NativeMemoryPool;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -43,6 +47,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -137,7 +142,7 @@ public class StorageMetadataTest extends GenericGcsTest
     }
 
     @Test
-    public void testBuildTableSchema() throws Exception
+    public void buildTableSchema_withGlueParquetTable_returnsNonNullSchema() throws Exception
     {
         Table table = Table.builder()
                 .name("birthday")
@@ -162,7 +167,7 @@ public class StorageMetadataTest extends GenericGcsTest
     }
 
     @Test
-    public void testGetPartitionFolders() throws Exception
+    public void getPartitionFolders_withGcsPartitionPaths_returnsPartitionMaps() throws Exception
     {
         //single partition
         getStorageList(ImmutableList.of("year=2000/birthday.parquet", "year=2000/", "year=2000/birthday1.parquet"));
@@ -228,7 +233,7 @@ public class StorageMetadataTest extends GenericGcsTest
         List<Field> fieldList4 = ImmutableList.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
         List<Column> partKeys4 = ImmutableList.of(createColumn("year", "varchar"));
         Schema schema4 = getSchema(glue, fieldList4, partKeys4, "year=${year}/");
-        List<Map<String, String>> partValue4 = storageMetadata.getPartitionFolders(schema3, new TableName("testSchema", "testTable"),
+        List<Map<String, String>> partValue4 = storageMetadata.getPartitionFolders(schema4, new TableName("testSchema", "testTable"),
                 new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), glue);
         assertEquals(0, partValue4.size());
         assertEquals(partValue4, ImmutableList.of());
@@ -274,5 +279,58 @@ public class StorageMetadataTest extends GenericGcsTest
         }
         blobList = ImmutableList.copyOf(bList);
         Mockito.when(blobPage.iterateAll()).thenReturn(blobList);
+    }
+
+    @Test
+    public void getFileSchema_withParquetUri_returnsMatchingSchemaWithOneField()
+    {
+        final String fieldName = "test_field";
+        final String bucketName = "test-bucket";
+        final String path = "test-path/data.parquet";
+        final String uri = "gs://test-bucket/test-path/data.parquet";
+        FileFormat format = FileFormat.PARQUET;
+        BufferAllocator allocator = mock(BufferAllocator.class);
+        
+        // Create expected schema to be returned by the mock
+        Field testField = new Field(fieldName, FieldType.nullable(new ArrowType.Utf8()), null);
+        Schema expectedSchema = new Schema(List.of(testField));
+        
+        try (MockedStatic<com.amazonaws.athena.connectors.gcs.GcsUtil> mockedGcsUtil = Mockito.mockStatic(com.amazonaws.athena.connectors.gcs.GcsUtil.class);
+             MockedStatic<NativeMemoryPool> mockedNativeMemoryPool = Mockito.mockStatic(NativeMemoryPool.class);
+             MockedConstruction<FileSystemDatasetFactory> mockedFactory = Mockito.mockConstruction(FileSystemDatasetFactory.class,
+                 (mock, context) -> {
+                     // Verify constructor was called with correct parameters
+                     assertEquals(4, context.arguments().size());
+                     assertEquals(allocator, context.arguments().get(0));
+                     assertEquals(format, context.arguments().get(2));
+                     assertEquals(uri, context.arguments().get(3));
+                     
+                     // Mock the inspect() method to return our expected schema
+                     when(mock.inspect()).thenReturn(expectedSchema);
+                 })) {
+            
+            // Mock static methods
+            mockedGcsUtil.when(() -> com.amazonaws.athena.connectors.gcs.GcsUtil.createUri(bucketName, path))
+                    .thenReturn(uri);
+            
+            NativeMemoryPool mockMemoryPool = mock(NativeMemoryPool.class);
+            mockedNativeMemoryPool.when(NativeMemoryPool::getDefault).thenReturn(mockMemoryPool);
+
+            Schema actualSchema = storageMetadata.getFileSchema(bucketName, path, format, allocator);
+
+            assertNotNull("Schema should not be null", actualSchema);
+            assertEquals("Schema should match expected schema", expectedSchema, actualSchema);
+            assertEquals("Schema should have one field", 1, actualSchema.getFields().size());
+            assertEquals("Field name should match", fieldName, actualSchema.getFields().get(0).getName());
+            
+            // Verify mock interactions
+            mockedGcsUtil.verify(() -> com.amazonaws.athena.connectors.gcs.GcsUtil.createUri(bucketName, path));
+            mockedNativeMemoryPool.verify(NativeMemoryPool::getDefault);
+            
+            // Verify factory was constructed and inspect was called
+            assertEquals("One factory should be constructed", 1, mockedFactory.constructed().size());
+            FileSystemDatasetFactory constructedFactory = mockedFactory.constructed().get(0);
+            Mockito.verify(constructedFactory).inspect();
+        }
     }
 }
