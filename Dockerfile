@@ -89,8 +89,9 @@ RUN for file in ${LAMBDA_TASK_ROOT}/*.jar ${LAMBDA_TASK_ROOT}/*.zip; do \
         for svc in /tmp/extract/META-INF/services/*; do \
           [ -f "$svc" ] || continue; \
           base=$(basename "$svc"); \
-          cat "$svc" >> "${LAMBDA_TASK_ROOT}/META-INF/services/${base}" && \
-          sort -u "${LAMBDA_TASK_ROOT}/META-INF/services/${base}" -o "${LAMBDA_TASK_ROOT}/META-INF/services/${base}"; \
+          dest="${LAMBDA_TASK_ROOT}/META-INF/services/${base}"; \
+          touch "$dest"; \
+          awk '!seen[$0]++' "$dest" "$svc" > "$dest.tmp" && mv "$dest.tmp" "$dest"; \
         done && \
         rm -rf /tmp/extract/META-INF/services; \
       fi && \
