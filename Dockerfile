@@ -78,7 +78,24 @@ COPY \
   athena-vertica/target/athena-vertica-${JAR_VERSION}.jar \
   ${LAMBDA_TASK_ROOT}/
 
-# Run a shell loop to iterate over all jar/zip files and extract each one.
+# Unpack all connector jars/zips into the same task root.
+# Merge META-INF/services so SPI providers from each artifact are preserved.
 RUN for file in ${LAMBDA_TASK_ROOT}/*.jar ${LAMBDA_TASK_ROOT}/*.zip; do \
-      jar xf "$file" && rm -f "$file"; \
+      [ -e "$file" ] || continue; \
+      mkdir -p /tmp/extract && \
+      (cd /tmp/extract && jar xf "$file") && \
+      if [ -d /tmp/extract/META-INF/services ]; then \
+        mkdir -p ${LAMBDA_TASK_ROOT}/META-INF/services && \
+        for svc in /tmp/extract/META-INF/services/*; do \
+          [ -f "$svc" ] || continue; \
+          base=$(basename "$svc"); \
+          dest="${LAMBDA_TASK_ROOT}/META-INF/services/${base}"; \
+          touch "$dest"; \
+          awk '!seen[$0]++' "$dest" "$svc" > "$dest.tmp" && mv "$dest.tmp" "$dest"; \
+        done && \
+        rm -rf /tmp/extract/META-INF/services; \
+      fi && \
+      cp -a /tmp/extract/. ${LAMBDA_TASK_ROOT}/ && \
+      rm -rf /tmp/extract && \
+      rm -f "$file"; \
 done
