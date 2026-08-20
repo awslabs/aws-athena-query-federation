@@ -49,6 +49,18 @@ public class Db2QueryStringBuilderTest {
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(Mockito.eq("partition_number"))).thenReturn("0");
         Mockito.when(split.getProperty(Mockito.eq("PARTITIONING_COLUMN"))).thenReturn("PC");
-        Assert.assertEquals(List.of(" DATAPARTITIONNUM(PC) = 0"), builder.getPartitionWhereClauses(split));
+        Assert.assertEquals(List.of(" DATAPARTITIONNUM(\"PC\") = 0"), builder.getPartitionWhereClauses(split));
+    }
+
+    @Test
+    public void getPartitionWhereClauses_partitioningColumnWithSpecialCharacters_returnsQuotedIdentifier()
+    {
+        Db2QueryStringBuilder builder = new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
+        Split split = Mockito.mock(Split.class);
+        Mockito.when(split.getProperty(Mockito.eq("partition_number"))).thenReturn("0");
+        Mockito.when(split.getProperty(Mockito.eq("PARTITIONING_COLUMN"))).thenReturn("\"X\") = 0 OR 1=1 --");
+        Assert.assertEquals(
+                List.of(" DATAPARTITIONNUM(\"\"\"X\"\") = 0 OR 1=1 --\") = 0"),
+                builder.getPartitionWhereClauses(split));
     }
 }
