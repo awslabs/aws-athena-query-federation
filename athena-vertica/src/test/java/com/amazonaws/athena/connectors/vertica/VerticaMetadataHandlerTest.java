@@ -58,6 +58,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
@@ -92,6 +93,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_NAME;
+import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_EXPORT_BUCKET;
+import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_OBJECT_KEY;
+import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_QUERY_ID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -428,6 +432,41 @@ public class VerticaMetadataHandlerTest extends TestBase
     }
 
     @Test
+    public void testGetPartitionsWithQueryPlan() throws Exception {
+        System.setProperty("aws.region", "us-east-1");
+        try {
+            Schema tableSchema = createTestSchemaForSubstrait();
+            Set<String> partitionCols = new HashSet<>();
+            partitionCols.add(PREPARED_STMT_FIELD);
+            partitionCols.add(TEST_QUERY_ID);
+            partitionCols.add(AWS_REGION_SQL_FIELD);
+            String queryId = "queryId" + UUID.randomUUID().toString().replace("-", "");
+            String s3ExportBucket = "s3://testS3Bucket";
+
+            Mockito.when(connection.getMetaData().getColumns(null, "public", "basic_write_nonexist", null)).thenReturn(Mockito.mock(ResultSet.class));
+            Mockito.lenient().when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
+            Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(s3ExportBucket);
+            com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan queryPlan = new com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan("", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRrsAxLpAwrZAzrWAwoFEgMKARYSwAMSvQMKAgoAEo4DCosDCgIKABLkAgoEZGF0ZQoLZmxvYXRfdmFsdWUKBXByaWNlCgtlbXBsb3llZV9pZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoJdGltZXN0YW1wCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoFY291bnQKBmFtb3VudAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRKYAQoFggECEAEKBFoCEAEKBFoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiABCgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaJhokCAEaBAoCEAEiDBoKEggKBBICCAMiACIMGgoKCGIGRU1QMDAxGgoSCAoEEgIIAyIAEgtFTVBMT1lFRV9JRDILEEoqB2lzdGhtdXM=");
+
+            try (GetTableLayoutRequest req = new GetTableLayoutRequest(federatedIdentity, queryId, "default",
+                    new TableName("public", "basic_write_nonexist"),
+                    new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan),
+                    tableSchema, partitionCols);
+                 GetTableLayoutResponse res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req)) {
+                Block partitions = res.getPartitions();
+
+                String actualExportSql = partitions.getFieldReader("preparedStmt").readText().toString();
+                assertTrue("Expected SQL to contain SELECT \"employee_id\" FROM ... WHERE clause, got: " + actualExportSql,
+                        actualExportSql.contains("SELECT \"employee_id\"") &&
+                        actualExportSql.contains("FROM \"public\".\"basic_write_nonexist\"") &&
+                        actualExportSql.contains("WHERE"));
+            }
+        } finally {
+            System.clearProperty("aws.region");
+        }
+    }
+
+    @Test
     public void doGetSplits()
     {
         Schema schema = SchemaBuilder.newBuilder()
@@ -573,9 +612,55 @@ public class VerticaMetadataHandlerTest extends TestBase
         assertFalse(response.getSplits().isEmpty());
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
+    public void doGetSplits_MultipleExportedObjects_ShouldReturnSplitPerObject() {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField(PREPARED_STMT_FIELD)
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
+                .build();
+
+        Block partitions = allocator.createBlock(schema);
+        BlockUtils.setValue(partitions.getFieldVector(PREPARED_STMT_FIELD), 0, TEST_VALUE);
+        BlockUtils.setValue(partitions.getFieldVector(TEST_QUERY_ID), 0, "123");
+        BlockUtils.setValue(partitions.getFieldVector(AWS_REGION_SQL_FIELD), 0, "us-west-2");
+
+        // Multiple exported objects exercise the split-per-object loop; sibling tests only ever mock one object.
+        List<String> exportedKeys = ImmutableList.of("123/part1.parquet", "123/part2.parquet", "123/part3.parquet");
+        List<S3Object> objectList = new ArrayList<>();
+        for (String key : exportedKeys) {
+            objectList.add(S3Object.builder().key(key).build());
+        }
+        ListObjectsResponse listObjectsResponse = ListObjectsResponse.builder().contents(objectList).build();
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(TEST_S3_BUCKET);
+        Mockito.when(amazonS3.listObjects(nullable(ListObjectsRequest.class))).thenReturn(listObjectsResponse);
+
+        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, TEST_QUERY_ID, "catalog_name",
+                new TableName("schema", "table_name"), partitions, Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
+
+        GetSplitsResponse response = verticaMetadataHandlerMocked.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, response.getRequestType());
+        assertEquals(exportedKeys.size(), response.getSplits().size());
+
+        Set<String> actualKeys = new HashSet<>();
+        for (Split split : response.getSplits()) {
+            assertEquals("123", split.getProperty(VERTICA_SPLIT_QUERY_ID));
+            assertEquals(TEST_S3_BUCKET, split.getProperty(VERTICA_SPLIT_EXPORT_BUCKET));
+            actualKeys.add(split.getProperty(VERTICA_SPLIT_OBJECT_KEY));
+        }
+        assertEquals(new HashSet<>(exportedKeys), actualKeys);
+    }
+
+    @Test
     public void doGetSplits_NullRequest_ShouldThrowException() {
-        verticaMetadataHandlerMocked.doGetSplits(allocator, null);
+        try {
+            verticaMetadataHandlerMocked.doGetSplits(allocator, null);
+            fail("Expected RuntimeException");
+        }
+        catch (RuntimeException e) {
+            assertTrue(e.getMessage() != null && e.getMessage().contains("doGetSplits failed"));
+        }
     }
 
     @Test(expected = RuntimeException.class)
@@ -892,6 +977,77 @@ public class VerticaMetadataHandlerTest extends TestBase
         logger.info("Empty constraints test - Generated SQL: {}", actualSql);
     }
 
+    /**
+     * Verifies testAccess() uses double-quoted identifiers and uppercase LIMIT.
+     */
+    @Test
+    public void testAccess_ShouldUseDoubleQuotedIdentifiersAndUppercaseLimit() throws Exception {
+        String testSchemaName = "my_schema";
+        String testTableName = "my_table";
+
+        // Set up mock connection and PreparedStatement
+        Connection testConnection = Mockito.mock(Connection.class);
+        PreparedStatement mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+        ResultSet mockResultSet = Mockito.mock(ResultSet.class);
+
+        // Use ArgumentCaptor to capture the SQL passed to prepareStatement
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.when(testConnection.prepareStatement(sqlCaptor.capture())).thenReturn(mockPreparedStatement);
+        Mockito.when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+
+        TableName testTableNameObj = new TableName(testSchemaName, testTableName);
+
+        verticaMetadataHandler.testAccess(testConnection, testTableNameObj);
+
+        // Verify and inspect the captured SQL
+        String capturedSql = sqlCaptor.getValue();
+        assertNotNull("SQL passed to prepareStatement should not be null", capturedSql);
+
+        // Assert double-quoted identifiers are used (not unquoted or backtick-quoted)
+        assertTrue("testAccess SQL should use double-quoted schema identifier. Got: " + capturedSql,
+                capturedSql.contains("\"" + testSchemaName + "\""));
+        assertTrue("testAccess SQL should use double-quoted table identifier. Got: " + capturedSql,
+                capturedSql.contains("\"" + testTableName + "\""));
+        assertTrue("testAccess SQL should use FROM with properly quoted identifiers. Got: " + capturedSql,
+                capturedSql.contains("FROM \"" + testSchemaName + "\".\"" + testTableName + "\""));
+
+        // Assert uppercase LIMIT (not lowercase 'limit')
+        assertTrue("testAccess SQL should use uppercase LIMIT. Got: " + capturedSql,
+                capturedSql.contains("LIMIT 1"));
+        assertFalse("testAccess SQL should not use lowercase limit. Got: " + capturedSql,
+                capturedSql.contains("limit 1"));
+    }
+
+    /**
+     * Verifies testAccess() doubles embedded double quotes in identifiers.
+     * Without the fix, {@code my"table} renders as {@code "my"table"} - breaking out of quoting.
+     */
+    @Test
+    public void testAccess_ShouldEscapeEmbeddedDoubleQuoteInIdentifier() throws Exception {
+        String testSchemaName = "my_schema";
+        String testTableName = "my\"table";
+
+        Connection testConnection = Mockito.mock(Connection.class);
+        PreparedStatement mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+        ResultSet mockResultSet = Mockito.mock(ResultSet.class);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.when(testConnection.prepareStatement(sqlCaptor.capture())).thenReturn(mockPreparedStatement);
+        Mockito.when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+
+        TableName testTableNameObj = new TableName(testSchemaName, testTableName);
+
+        verticaMetadataHandler.testAccess(testConnection, testTableNameObj);
+
+        String capturedSql = sqlCaptor.getValue();
+        assertNotNull("SQL passed to prepareStatement should not be null", capturedSql);
+
+        assertTrue("Embedded double quote in table identifier must be escaped by doubling. Got: " + capturedSql,
+                capturedSql.contains("\"my\"\"table\""));
+        assertFalse("Unescaped embedded double quote would break out of identifier quoting. Got: " + capturedSql,
+                capturedSql.contains("\"my\"table\""));
+    }
+
     private Schema createTestSchema(String... columnSpecs)
     {
         SchemaBuilder builder = SchemaBuilder.newBuilder();
@@ -957,5 +1113,32 @@ public class VerticaMetadataHandlerTest extends TestBase
 
             return actualSql;
         }
+    }
+
+    private Schema createTestSchemaForSubstrait() {
+        return SchemaBuilder.newBuilder()
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("employee_id", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("is_active", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("employee_name", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("job_title", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("address", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("join_date", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("timestamp", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("duration", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("salary", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("bonus", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("hash1", new ArrowType.Int(32, false)).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("hash2", new ArrowType.Int(32, false)).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("code", new ArrowType.Int(32, false)).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("debit", new ArrowType.Decimal(19, 0, 128)).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("count", new ArrowType.Int(32, false)).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("amount", new ArrowType.Decimal(19, 0, 128)).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("balance", new ArrowType.Int(32, false)).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("rate", new ArrowType.Decimal(19, 0, 128)).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("difference", new ArrowType.Int(32, false)).build())
+                .addStringField("preparedStmt")
+                .addStringField("queryId")
+                .addStringField("awsRegionSql")
+                .build();
     }
 }
