@@ -4,7 +4,7 @@ ARG JAVA_VERSION=11.al2023-x86_64
 FROM public.ecr.aws/lambda/java:${JAVA_VERSION} AS builder
 
 # Argument for JAR version
-ARG JAR_VERSION=2022.47.1
+ARG JAR_VERSION=2026.33.1
 # Copy function code and runtime dependencies from Maven layout
 COPY target/athena-vertica-${JAR_VERSION}.jar /app/
 
