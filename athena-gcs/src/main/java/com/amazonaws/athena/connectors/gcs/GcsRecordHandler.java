@@ -59,6 +59,9 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsThrottlingExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.installCaCertificate;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.installGoogleCredentialsJsonFile;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.setupNativeEnvironmentVariables;
 
 public class GcsRecordHandler
         extends RecordHandler
@@ -92,6 +95,15 @@ public class GcsRecordHandler
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+
+        setupNativeEnvironmentVariables();
+        try {
+            installCaCertificate();
+            installGoogleCredentialsJsonFile(configOptions, getCachableSecretsManager());
+        } 
+        catch (Exception e) {
+            LOGGER.error("GcsRecordHandler, install certificate and credentials failed with exception: ", e);
+        }
     }
 
     /**
@@ -120,12 +132,15 @@ public class GcsRecordHandler
         String classification = split.getProperty(FILE_FORMAT);
         FileFormat format = FileFormat.valueOf(classification.toUpperCase());
         List<Field> partitionColumns = schema.getFields().stream().filter(field -> split.getProperties().containsKey(field.getName().toLowerCase())).collect(Collectors.toList());
+
+        long numRowsWritten = 0;
+
         for (String file : fileList) {
             String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
             Optional<String[]> selectedColumns =
                 getSchemaFromSource(uri, classification).map(schemaFromSource -> getSelectedColumnNames(schemaFromSource, recordsRequest.getSchema()));
-            ScanOptions options = new ScanOptions(BATCH_SIZE, selectedColumns);
+            ScanOptions options = new ScanOptions(BATCH_SIZE, selectedColumns);   
             try (
                     // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
                     // Thus, we can peek the schema for data sources and decide on a unified schema.
@@ -147,19 +162,21 @@ public class GcsRecordHandler
                 // We are loading records batch by batch until we reached at the end.
                 while (reader.loadNextBatch()) {
                     try (
-                            // Returns the vector schema root.
-                            // This will be loaded with new values on every call to loadNextBatch on the reader.
-                            VectorSchemaRoot root = reader.getVectorSchemaRoot()
+                        // Returns the vector schema root.
+                        // This will be loaded with new values on every call to loadNextBatch on the reader.
+                        VectorSchemaRoot root = reader.getVectorSchemaRoot()
                     ) {
-                        // We will loop on batch records and consider each records to write in spiller.
+                        // We will loop on batch records and consider each records to write in spiller.                 
                         for (int rowIndex = 0; rowIndex < root.getRowCount(); rowIndex++) {
                             // we are passing record to spiller to be written.
                             execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex, partitionColumns, split);
+                            numRowsWritten++;
                         }
                     }
                 }
             }
         }
+        LOGGER.info("readWithConstraint: totalRowsWritten[{}]", numRowsWritten);
     }
 
     /**

@@ -47,7 +47,7 @@ import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
-import  software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;

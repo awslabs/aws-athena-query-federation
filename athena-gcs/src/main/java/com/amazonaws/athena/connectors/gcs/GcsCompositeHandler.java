@@ -28,10 +28,6 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
 
-import static com.amazonaws.athena.connectors.gcs.GcsUtil.installCaCertificate;
-import static com.amazonaws.athena.connectors.gcs.GcsUtil.installGoogleCredentialsJsonFile;
-import static com.amazonaws.athena.connectors.gcs.GcsUtil.setupNativeEnvironmentVariables;
-
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data.
@@ -47,8 +43,5 @@ public class GcsCompositeHandler
     public GcsCompositeHandler() throws IOException, CertificateEncodingException, NoSuchAlgorithmException, KeyStoreException
     {
         super(new GcsMetadataHandler(allocator, new GcsEnvironmentProperties().createEnvironment()), new GcsRecordHandler(allocator, new GcsEnvironmentProperties().createEnvironment()));
-        installCaCertificate();
-        installGoogleCredentialsJsonFile(new GcsEnvironmentProperties().createEnvironment());
-        setupNativeEnvironmentVariables();
     }
 }
