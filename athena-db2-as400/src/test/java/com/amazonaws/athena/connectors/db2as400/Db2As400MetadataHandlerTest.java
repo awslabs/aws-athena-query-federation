@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.db2as400;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -135,6 +136,97 @@ public class Db2As400MetadataHandlerTest extends TestBase {
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
+    }
+
+    @Test
+    public void doGetSplits_withCatalogCasingFilter_propagatesToSplit()
+            throws Exception
+    {
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        Schema schema = this.db2As400MetadataHandler.getPartitionSchema("testCatalogName");
+        Set<String> cols = schema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, schema, cols);
+
+        PreparedStatement partitionPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2As400Constants.PARTITION_QUERY)).thenReturn(partitionPreparedStatement);
+        ResultSet partitionResultSet = mockResultSet(new String[] {"DATAPARTITIONID"}, new int[] {Types.INTEGER}, new Object[][] {{}}, new AtomicInteger(-1));
+        Mockito.when(partitionPreparedStatement.executeQuery()).thenReturn(partitionResultSet);
+
+        GetTableLayoutResponse getTableLayoutResponse = this.db2As400MetadataHandler.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
+
+        Mockito.when(this.federatedIdentity.getConfigOptions()).thenReturn(
+                Collections.singletonMap(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY));
+
+        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(cols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.db2As400MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+
+        Assert.assertEquals(1, getSplitsResponse.getSplits().size());
+        Split split = getSplitsResponse.getSplits().iterator().next();
+        Assert.assertEquals("0", split.getProperty(PARTITION_NUMBER));
+        Assert.assertEquals(EnvironmentConstants.UPPERCASE_ONLY, split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER));
+    }
+
+    @Test
+    public void doGetSplits_withConfigOptionsButNoCasingFilter_doesNotAddCasingProperty()
+            throws Exception
+    {
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        Schema schema = this.db2As400MetadataHandler.getPartitionSchema("testCatalogName");
+        Set<String> cols = schema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, schema, cols);
+
+        PreparedStatement partitionPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2As400Constants.PARTITION_QUERY)).thenReturn(partitionPreparedStatement);
+        ResultSet partitionResultSet = mockResultSet(new String[] {"DATAPARTITIONID"}, new int[] {Types.INTEGER}, new Object[][] {{}}, new AtomicInteger(-1));
+        Mockito.when(partitionPreparedStatement.executeQuery()).thenReturn(partitionResultSet);
+
+        GetTableLayoutResponse getTableLayoutResponse = this.db2As400MetadataHandler.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
+
+        Mockito.when(this.federatedIdentity.getConfigOptions()).thenReturn(Collections.singletonMap("someOtherKey", "someValue"));
+
+        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(cols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.db2As400MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+
+        Assert.assertEquals(1, getSplitsResponse.getSplits().size());
+        Split split = getSplitsResponse.getSplits().iterator().next();
+        Assert.assertEquals("0", split.getProperty(PARTITION_NUMBER));
+        Assert.assertFalse(split.getProperties().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER));
+    }
+
+    @Test
+    public void doGetSplits_withNullConfigOptions_doesNotAddCasingProperty()
+            throws Exception
+    {
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        Schema schema = this.db2As400MetadataHandler.getPartitionSchema("testCatalogName");
+        Set<String> cols = schema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, schema, cols);
+
+        PreparedStatement partitionPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2As400Constants.PARTITION_QUERY)).thenReturn(partitionPreparedStatement);
+        ResultSet partitionResultSet = mockResultSet(new String[] {"DATAPARTITIONID"}, new int[] {Types.INTEGER}, new Object[][] {{}}, new AtomicInteger(-1));
+        Mockito.when(partitionPreparedStatement.executeQuery()).thenReturn(partitionResultSet);
+
+        GetTableLayoutResponse getTableLayoutResponse = this.db2As400MetadataHandler.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
+
+        Mockito.when(this.federatedIdentity.getConfigOptions()).thenReturn(null);
+
+        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(cols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.db2As400MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+
+        Assert.assertEquals(1, getSplitsResponse.getSplits().size());
+        Split split = getSplitsResponse.getSplits().iterator().next();
+        Assert.assertEquals("0", split.getProperty(PARTITION_NUMBER));
+        Assert.assertFalse(split.getProperties().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER));
     }
 
     @Test
@@ -348,6 +440,63 @@ public class Db2As400MetadataHandlerTest extends TestBase {
                 new TableName("TESTSCHEMA", "testtable"),
                 new TableName("TESTSCHEMA", "testTABLE")};
         Assert.assertEquals(Arrays.toString(expectedTables), listTablesResponse.getTables().toString());
+    }
+
+    @Test
+    public void doListSchemaNames_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        Db2As400MetadataHandler spy = Mockito.spy(this.db2As400MetadataHandler);
+        Statement statement = Mockito.mock(Statement.class);
+        ResultSet schemaResultSet = Mockito.mock(ResultSet.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        Mockito.when(statement.executeQuery(Db2As400Constants.QRY_TO_LIST_SCHEMAS)).thenReturn(schemaResultSet);
+        Mockito.when(schemaResultSet.next()).thenReturn(false);
+
+        ListSchemasRequest listSchemasRequest = new ListSchemasRequest(this.federatedIdentity, "testQueryId", "testCatalogName");
+        spy.doListSchemaNames(this.blockAllocator, listSchemasRequest);
+
+        // The metadata connection must be opened with the request's (federated) credentials, not the
+        // connector's default role. getRequestOverrideConfig(request) is only consulted on that path.
+        Mockito.verify(spy).getRequestOverrideConfig(listSchemasRequest);
+    }
+
+    @Test
+    public void doListTables_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        Db2As400MetadataHandler spy = Mockito.spy(this.db2As400MetadataHandler);
+        PreparedStatement tableStatement = Mockito.mock(PreparedStatement.class);
+        ResultSet tableResultSet = Mockito.mock(ResultSet.class);
+        Mockito.when(this.connection.prepareStatement(Db2As400Constants.QRY_TO_LIST_TABLES_AND_VIEWS)).thenReturn(tableStatement);
+        Mockito.when(tableStatement.executeQuery()).thenReturn(tableResultSet);
+        Mockito.when(tableResultSet.next()).thenReturn(false);
+
+        ListTablesRequest listTablesRequest = new ListTablesRequest(this.federatedIdentity, "testQueryId", "testCatalogName", "testSchema", null, 0);
+        spy.doListTables(this.blockAllocator, listTablesRequest);
+
+        Mockito.verify(spy).getRequestOverrideConfig(listTablesRequest);
+    }
+
+    @Test
+    public void doGetTableLayout_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        Db2As400MetadataHandler spy = Mockito.spy(this.db2As400MetadataHandler);
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tableName = new TableName("testSchema", "testTable");
+        Schema partitionSchema = spy.getPartitionSchema("testCatalogName");
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+
+        PreparedStatement partitionPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2As400Constants.PARTITION_QUERY)).thenReturn(partitionPreparedStatement);
+        ResultSet partitionResultSet = mockResultSet(new String[] {"DATAPARTITIONID"}, new int[] {Types.INTEGER}, new Object[][] {{}}, new AtomicInteger(-1));
+        Mockito.when(partitionPreparedStatement.executeQuery()).thenReturn(partitionResultSet);
+
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        spy.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
+
+        Mockito.verify(spy, Mockito.atLeastOnce()).getRequestOverrideConfig(getTableLayoutRequest);
     }
 }
 

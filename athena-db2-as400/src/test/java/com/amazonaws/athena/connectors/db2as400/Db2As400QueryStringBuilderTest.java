@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.db2as400;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.Db2SqlDialect;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -48,5 +50,21 @@ public class Db2As400QueryStringBuilderTest {
         Mockito.when(split.getProperty(Mockito.eq("partition_number"))).thenReturn("0");
         Mockito.when(split.getProperty(Mockito.eq("PARTITIONING_COLUMN"))).thenReturn("PC");
         Assert.assertEquals(Arrays.asList(" DATAPARTITIONNUM(PC) = 0"), builder.getPartitionWhereClauses(split));
+    }
+
+    @Test
+    public void getSqlDialect_returnsDb2Dialect()
+    {
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("\"");
+        SqlDialect dialect = builder.getSqlDialect();
+        Assert.assertTrue(dialect instanceof Db2SqlDialect);
+    }
+
+    @Test
+    public void getSqlDialectWithCasingFilter_returnsDb2Dialect()
+    {
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("\"");
+        SqlDialect dialect = builder.getSqlDialect(true);
+        Assert.assertTrue(dialect instanceof Db2As400Dialect);
     }
 }
