@@ -33,22 +33,31 @@ class BigQueryPage<T>
         implements Page<T>
 {
     final Collection<T> collection;
+    private final String nextPageToken;
+    private final boolean hasNextPage;
 
     BigQueryPage(Collection<T> collection)
     {
+        this(collection, null, false);
+    }
+
+    BigQueryPage(Collection<T> collection, String nextPageToken, boolean hasNextPage)
+    {
         this.collection = collection;
+        this.nextPageToken = nextPageToken;
+        this.hasNextPage = hasNextPage;
     }
 
     @Override
     public boolean hasNextPage()
     {
-        return false;
+        return hasNextPage;
     }
 
     @Override
     public String getNextPageToken()
     {
-        return null;
+        return nextPageToken;
     }
 
     @Override
