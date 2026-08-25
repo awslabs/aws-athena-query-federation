@@ -751,6 +751,45 @@ public class DocDBMetadataHandlerTest
         }
     }
 
+    @Test
+    public void getConnectionStringForFederatedRequestsEncodesCredentials() throws Exception
+    {
+        // Regression test for the DocumentDB connection-URI injection (CWE-75). Credentials read from
+        // Secrets Manager must be percent-encoded before being inserted into the MongoDB URI so that
+        // special characters cannot terminate/restructure the URI authority or inject an authMechanism.
+        String maliciousUser = "attackerHost";
+        String maliciousPassword = "p/ss:w@rd?authMechanism=MONGODB-AWS";
+        String secretJson = "{\"username\":\"" + maliciousUser + "\",\"password\":\"" + maliciousPassword + "\"}";
+
+        when(secretsManager.getSecretValue(any(software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest.class)))
+                .thenReturn(software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse.builder()
+                        .secretString(secretJson).build());
+
+        Map<String, String> connConfigOptions = new HashMap<>();
+        connConfigOptions.put("secret_arn", "arn:aws:secretsmanager:us-east-1:123456789012:secret:docdb-abc");
+        connConfigOptions.put("HOST", "realhost.docdb.amazonaws.com");
+        connConfigOptions.put("PORT", "27017");
+
+        java.lang.reflect.Method method = DocDBMetadataHandler.class
+                .getDeclaredMethod("getConnectionStringForFederatedRequests", Map.class);
+        method.setAccessible(true);
+        String connStr = (String) method.invoke(handler, connConfigOptions);
+
+        logger.info("Constructed federated connStr (encoded): {}", connStr);
+
+        // The real host/port must remain the effective authority (authority not terminated early).
+        assertTrue("real host/port must be preserved as the URI authority",
+                connStr.contains("@realhost.docdb.amazonaws.com:27017"));
+        // Password special characters must be percent-encoded.
+        assertTrue("'/' must be encoded to %2F", connStr.contains("%2F"));
+        assertTrue("'@' must be encoded to %40", connStr.contains("%40"));
+        assertTrue("':' must be encoded to %3A", connStr.contains("%3A"));
+        assertTrue("'?' must be encoded to %3F", connStr.contains("%3F"));
+        // The injected auth mechanism must not appear as an unencoded URI option.
+        assertFalse("authMechanism must not be injectable via credential values",
+                connStr.contains("?authMechanism=MONGODB-AWS"));
+    }
+
     private void assertMinorType(Schema schema, String field, Types.MinorType expected)
     {
         Field f = schema.findField(field);

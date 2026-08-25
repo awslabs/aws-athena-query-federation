@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.datalakegen2;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -191,8 +192,17 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         }
         // Always create single split
         Set<Split> splits = new HashSet<>();
-        splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
-                .add(PARTITION_NUMBER, "0").build());
+        Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
+                .add(PARTITION_NUMBER, "0");
+
+        Map<String, String> identityConfigOptions = getSplitsRequest.getIdentity().getConfigOptions();
+        if (identityConfigOptions != null && identityConfigOptions.containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+            String catalogCasingFilter = identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER);
+            LOGGER.info("Catalog Casing Filter found: {}", catalogCasingFilter);
+            splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, catalogCasingFilter);
+        }
+
+        splits.add(splitBuilder.build());
         return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
     }
 

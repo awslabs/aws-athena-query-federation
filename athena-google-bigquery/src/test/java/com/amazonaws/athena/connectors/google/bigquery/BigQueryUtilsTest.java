@@ -497,4 +497,21 @@ public class BigQueryUtilsTest
         String result = BigQueryUtils.fixCaseForDatasetName(BigQueryTestUtils.PROJECT_1_NAME, datasetName, bigQuery);
         assertNotNull(result);
     }
+
+    @Test
+    public void testGetComplexObjectFromFieldValueWithNullFieldValue() throws ParseException
+    {
+        org.apache.arrow.vector.types.pojo.Field structField = 
+            new org.apache.arrow.vector.types.pojo.Field("test_struct", FieldType.nullable(new ArrowType.Struct()), null);
+        assertNull(BigQueryUtils.getComplexObjectFromFieldValue(structField, null));
+    }
+
+    @Test
+    public void testGetComplexObjectFromFieldValueWithIsNullFieldValue() throws ParseException
+    {
+        org.apache.arrow.vector.types.pojo.Field structField =
+            new org.apache.arrow.vector.types.pojo.Field("test_struct", FieldType.nullable(new ArrowType.Struct()), null);
+        FieldValue nullRecordValue = FieldValue.of(FieldValue.Attribute.RECORD, null);
+        assertNull(BigQueryUtils.getComplexObjectFromFieldValue(structField, nullRecordValue));
+    }
 }
