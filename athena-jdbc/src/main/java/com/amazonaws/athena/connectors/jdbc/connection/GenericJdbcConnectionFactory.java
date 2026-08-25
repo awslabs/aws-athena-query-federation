@@ -101,15 +101,67 @@ public class GenericJdbcConnectionFactory
         }
     }
 
+    private static final int MAX_CONNECTION_RETRIES = 3;
+    private static final long CONNECTION_RETRY_BACKOFF_MS = 15_000; // 15 seconds
+
     @Override
     public Connection getConnection(final CredentialsProvider credentialsProvider)
             throws Exception
     {
-        if (useDirectConnection) {
-            return createDirectConnection(credentialsProvider);
-        }
+        Connection connection = null;
+        Exception lastException = null;
 
-        return getConnectionFromManagedPool(credentialsProvider);
+        for (int attempt = 1; attempt <= MAX_CONNECTION_RETRIES; attempt++) {
+            try {
+                if (useDirectConnection) {
+                    connection = createDirectConnection(credentialsProvider);
+                }
+                else {
+                    connection = getConnectionFromManagedPool(credentialsProvider);
+                }
+                if (attempt > 1) {
+                    LOGGER.info("Successfully connected on attempt {}", attempt);
+                }
+                return connection;
+            }
+            catch (Exception e) {
+                lastException = e;
+                if (attempt == MAX_CONNECTION_RETRIES || !isRetryableConnectionError(e)) {
+                    throw e;
+                }
+                LOGGER.warn("Connection attempt {} of {} failed: {}. Retrying in {}ms...",
+                        attempt, MAX_CONNECTION_RETRIES, e.getMessage(), CONNECTION_RETRY_BACKOFF_MS);
+                try {
+                    Thread.sleep(CONNECTION_RETRY_BACKOFF_MS);
+                }
+                catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw lastException;
+                }
+            }
+        }
+        if (lastException != null) {
+            throw lastException;
+        }
+        return connection;
+    }
+
+    /**
+     * Determines if an exception represents a transient connection failure,
+     * typically caused by Aurora Serverless v2 resuming from a paused state (0 ACU).
+     */
+    private boolean isRetryableConnectionError(Throwable e)
+    {
+        Throwable current = e;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && (message.toLowerCase().contains("failed to initialize pool")
+                    || message.toLowerCase().contains("connect timed out"))) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**

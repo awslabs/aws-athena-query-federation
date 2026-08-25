@@ -401,4 +401,119 @@ public class GenericJdbcConnectionFactoryTest
             assertEquals(expected, actual);
         }
     }
+
+    // --- Retry logic tests ---
+
+    @Test
+    public void getConnection_directMode_retriesOnPoolInitFailureAndSucceeds() throws Exception
+    {
+        GenericJdbcConnectionFactory factory = newDirectModeFactory(uniqueH2Url());
+        Connection mockConnection = Mockito.mock(Connection.class);
+        SQLException poolInitError = new SQLException("Failed to initialize pool: The connection attempt failed.");
+
+        try (MockedStatic<DriverManager> mockedDriverManager = Mockito.mockStatic(DriverManager.class)) {
+            mockedDriverManager.when(() -> DriverManager.getConnection(any(String.class), any(Properties.class)))
+                    .thenThrow(poolInitError)
+                    .thenReturn(mockConnection);
+
+            Connection result = factory.getConnection(null);
+
+            assertEquals(mockConnection, result);
+            mockedDriverManager.verify(() -> DriverManager.getConnection(any(String.class), any(Properties.class)),
+                    Mockito.times(2));
+        }
+    }
+
+    @Test
+    public void getConnection_directMode_retriesOnConnectTimedOutAndSucceeds() throws Exception
+    {
+        GenericJdbcConnectionFactory factory = newDirectModeFactory(uniqueH2Url());
+        Connection mockConnection = Mockito.mock(Connection.class);
+        RuntimeException timeoutError = new RuntimeException("connect timed out");
+
+        try (MockedStatic<DriverManager> mockedDriverManager = Mockito.mockStatic(DriverManager.class)) {
+            mockedDriverManager.when(() -> DriverManager.getConnection(any(String.class), any(Properties.class)))
+                    .thenThrow(timeoutError)
+                    .thenReturn(mockConnection);
+
+            Connection result = factory.getConnection(null);
+
+            assertEquals(mockConnection, result);
+            mockedDriverManager.verify(() -> DriverManager.getConnection(any(String.class), any(Properties.class)),
+                    Mockito.times(2));
+        }
+    }
+
+    @Test
+    public void getConnection_directMode_exhaustsRetriesOnPersistentPoolInitFailure()
+    {
+        GenericJdbcConnectionFactory factory = newDirectModeFactory(uniqueH2Url());
+        SQLException poolInitError = new SQLException("Failed to initialize pool: The connection attempt failed.");
+
+        try (MockedStatic<DriverManager> mockedDriverManager = Mockito.mockStatic(DriverManager.class)) {
+            mockedDriverManager.when(() -> DriverManager.getConnection(any(String.class), any(Properties.class)))
+                    .thenThrow(poolInitError);
+
+            assertThrows(SQLException.class, () -> factory.getConnection(null));
+            mockedDriverManager.verify(() -> DriverManager.getConnection(any(String.class), any(Properties.class)),
+                    Mockito.times(3));
+        }
+    }
+
+    @Test
+    public void getConnection_directMode_doesNotRetryOnNonRetryableError()
+    {
+        GenericJdbcConnectionFactory factory = newDirectModeFactory(uniqueH2Url());
+        SQLException authError = new SQLException("Access denied: invalid credentials");
+
+        try (MockedStatic<DriverManager> mockedDriverManager = Mockito.mockStatic(DriverManager.class)) {
+            mockedDriverManager.when(() -> DriverManager.getConnection(any(String.class), any(Properties.class)))
+                    .thenThrow(authError);
+
+            assertThrows(SQLException.class, () -> factory.getConnection(null));
+            mockedDriverManager.verify(() -> DriverManager.getConnection(any(String.class), any(Properties.class)),
+                    Mockito.times(1));
+        }
+    }
+
+    @Test
+    public void getConnection_directMode_retriesOnNestedCauseChain() throws Exception
+    {
+        GenericJdbcConnectionFactory factory = newDirectModeFactory(uniqueH2Url());
+        Connection mockConnection = Mockito.mock(Connection.class);
+        Exception nested = new RuntimeException("wrapper",
+                new java.net.SocketTimeoutException("connect timed out"));
+
+        try (MockedStatic<DriverManager> mockedDriverManager = Mockito.mockStatic(DriverManager.class)) {
+            mockedDriverManager.when(() -> DriverManager.getConnection(any(String.class), any(Properties.class)))
+                    .thenThrow(nested)
+                    .thenReturn(mockConnection);
+
+            Connection result = factory.getConnection(null);
+
+            assertEquals(mockConnection, result);
+            mockedDriverManager.verify(() -> DriverManager.getConnection(any(String.class), any(Properties.class)),
+                    Mockito.times(2));
+        }
+    }
+
+    @Test
+    public void getConnection_directMode_retriesOnCaseInsensitivePoolInitFailure() throws Exception
+    {
+        GenericJdbcConnectionFactory factory = newDirectModeFactory(uniqueH2Url());
+        Connection mockConnection = Mockito.mock(Connection.class);
+        SQLException poolInitError = new SQLException("FAILED TO INITIALIZE POOL: Connection attempt failed.");
+
+        try (MockedStatic<DriverManager> mockedDriverManager = Mockito.mockStatic(DriverManager.class)) {
+            mockedDriverManager.when(() -> DriverManager.getConnection(any(String.class), any(Properties.class)))
+                    .thenThrow(poolInitError)
+                    .thenReturn(mockConnection);
+
+            Connection result = factory.getConnection(null);
+
+            assertEquals(mockConnection, result);
+            mockedDriverManager.verify(() -> DriverManager.getConnection(any(String.class), any(Properties.class)),
+                    Mockito.times(2));
+        }
+    }
 }
