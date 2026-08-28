@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDS_SECRET_ARN;
 
 public class GcsEnvironmentProperties extends EnvironmentProperties
 {
@@ -34,7 +34,7 @@ public class GcsEnvironmentProperties extends EnvironmentProperties
     {
         Map<String, String> environment = new HashMap<>();
 
-        environment.put(GCS_SECRET_KEY_ENV_VAR, connectionProperties.get(SECRET_NAME));
+        environment.put(GCS_CREDS_SECRET_ARN, connectionProperties.get(SECRET_NAME));
         return environment;
     }
 }
