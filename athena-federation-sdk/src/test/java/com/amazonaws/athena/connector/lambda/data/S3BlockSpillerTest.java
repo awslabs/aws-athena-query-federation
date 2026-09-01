@@ -220,8 +220,11 @@ public class S3BlockSpillerTest
         assertEquals("arn:aws:kms:us-east-1:123456789012:key/test-key-id", 
                 overrideConfig.headers().get("x-amz-server-side-encryption-aws-kms-key-id").get(0));
 
-        // Verify headers are NOT in metadata
-        assertTrue("Metadata should be null or empty, not contain headers", capturedRequest.metadata().isEmpty());
+        // Verify SSE-KMS request headers are NOT in user-metadata (they belong in overrideConfiguration)
+        assertFalse("SSE-KMS header should not appear in user-metadata",
+                capturedRequest.metadata().containsKey("x-amz-server-side-encryption"));
+        assertFalse("SSE-KMS key-id header should not appear in user-metadata",
+                capturedRequest.metadata().containsKey("x-amz-server-side-encryption-aws-kms-key-id"));
     }
 
     @Test
@@ -237,8 +240,9 @@ public class S3BlockSpillerTest
         assertFalse("Request should not have overrideConfiguration when no headers configured", 
                 capturedRequest.overrideConfiguration().isPresent());
 
-        // Verify metadata is null or empty
-        assertTrue("Metadata should be null when no headers configured", capturedRequest.metadata().isEmpty());
+        // Spill stats metadata is always present even when no request headers are configured.
+        assertTrue("Spill stats metadata should always be set",
+                capturedRequest.metadata().containsKey(S3BlockSpiller.SPILL_METADATA_ROW_COUNT));
     }
 
     @Test
@@ -277,8 +281,39 @@ public class S3BlockSpillerTest
         
         assertEquals("Should have 3 headers", 3, overrideConfig.headers().size());
 
-        // Verify headers are NOT in metadata
-        assertTrue("Metadata should be null, not contain headers", capturedRequest.metadata().isEmpty());
+        // Verify SSE-KMS / storage-class request headers are NOT in user-metadata
+        assertFalse(capturedRequest.metadata().containsKey("x-amz-server-side-encryption"));
+        assertFalse(capturedRequest.metadata().containsKey("x-amz-server-side-encryption-aws-kms-key-id"));
+        assertFalse(capturedRequest.metadata().containsKey("x-amz-storage-class"));
+    }
+
+    @Test
+    public void spillTest_WritesArrowStatsMetadata()
+            throws IOException
+    {
+        // expected has 2 columns (col1 Int32, col2 Utf8) and rowCount=2 (set in @Before).
+        PutObjectRequest capturedRequest = executeSpillWithConfig(com.google.common.collect.ImmutableMap.of());
+
+        java.util.Map<String, String> meta = capturedRequest.metadata();
+
+        // Row count: matches expected.getRowCount()
+        assertEquals("x-arrow-row-count must reflect Block.getRowCount()",
+                Integer.toString(expected.getRowCount()),
+                meta.get(S3BlockSpiller.SPILL_METADATA_ROW_COUNT));
+
+        // Byte size: matches Block.getSize() (uncompressed Arrow buffer size, not encrypted bytes).
+        assertEquals("x-arrow-byte-size must reflect Block.getSize()",
+                Long.toString(expected.getSize()),
+                meta.get(S3BlockSpiller.SPILL_METADATA_BYTE_SIZE));
+
+        // Column count: schema has 2 fields (col1, col2)
+        assertEquals("x-arrow-num-columns must reflect Schema.getFields().size()",
+                Integer.toString(expected.getSchema().getFields().size()),
+                meta.get(S3BlockSpiller.SPILL_METADATA_NUM_COLUMNS));
+
+        // No unexpected metadata keys leaked in (e.g. SSE-KMS request headers).
+        assertEquals("Only the three x-arrow-* stats keys should be in user-metadata",
+                3, meta.size());
     }
 
     /**
