@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -152,7 +153,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
         String qualifiedTable = ImpalaUtils.qualifiedTableForMetadataSql(getTableLayoutRequest.getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)));
              Statement stmt = connection.createStatement()) {
             Map<String, String> columnHashMap = getMetadataForGivenTable(stmt, GET_METADATA_QUERY + qualifiedTable);
             String tableType = columnHashMap.get("TableType");
@@ -252,12 +253,18 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
         Set<Split> splits = new HashSet<>();
         Block partitions = getSplitsRequest.getPartitions();
 
+        Map<String, String> identityConfigOptions = getSplitsRequest.getIdentity().getConfigOptions();
+        String catalogCasingFilter = identityConfigOptions != null ? identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER) : null;
+
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
             FieldReader locationReader = partitions.getFieldReader(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME);
             locationReader.setPosition(curPartition);
             SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                     .add(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
+            if (catalogCasingFilter != null) {
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, catalogCasingFilter);
+            }
             splits.add(splitBuilder.build());
             if (splits.size() >= ImpalaConstants.MAX_SPLITS_PER_REQUEST) {
                 return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits,
@@ -293,7 +300,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration))) {
             try (Statement stmt = connection.createStatement()) {
                 Map<String, String> hashMap = getMetadataForGivenTable(stmt,
                         GET_METADATA_QUERY + ImpalaUtils.qualifiedTableForMetadataSql(tableName));
