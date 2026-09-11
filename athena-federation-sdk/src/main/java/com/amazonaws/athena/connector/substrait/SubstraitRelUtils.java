@@ -233,7 +233,7 @@ public final class SubstraitRelUtils
             byte[] planBytes = Base64.getDecoder().decode(planString);
             return Plan.parseFrom(planBytes);
         }
-        catch (InvalidProtocolBufferException e) {
+        catch (InvalidProtocolBufferException | IllegalArgumentException e) {
             throw new RuntimeException("Failed to parse Substrait plan", e);
         }
     }
