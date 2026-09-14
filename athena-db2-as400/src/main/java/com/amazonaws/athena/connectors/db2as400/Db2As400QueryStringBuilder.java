@@ -20,13 +20,17 @@
 package com.amazonaws.athena.connectors.db2as400;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
+import org.apache.calcite.sql.SqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Db2As400QueryStringBuilder extends JdbcSplitQueryBuilder
 {
@@ -79,5 +83,43 @@ public class Db2As400QueryStringBuilder extends JdbcSplitQueryBuilder
             LOGGER.debug("Fetching data without Partition");
         }
         return Collections.emptyList();
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return Db2As400Dialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new Db2As400Dialect(catalogCasingFilterUpperCase);
+    }
+
+    /**
+     * Db2 for i rejects the ANSI {@code NULLS FIRST}/{@code NULLS LAST} keyword (SQL0199), so emulate the
+     * requested null ordering with a {@code CASE ... IS NULL} companion sort key instead of the keyword.
+     *
+     * @param constraints constraints carrying the order-by clause to push down.
+     * @return an {@code ORDER BY} clause valid on Db2 for i, or an empty string when there is no order-by.
+     */
+    @Override
+    protected String extractOrderByClause(Constraints constraints)
+    {
+        List<OrderByField> orderByClause = constraints.getOrderByClause();
+        if (orderByClause == null || orderByClause.size() == 0) {
+            return "";
+        }
+        return "ORDER BY " + orderByClause.stream()
+                .map(orderByField -> {
+                    String column = quote(orderByField.getColumnName());
+                    String ordering = orderByField.getDirection().isAscending() ? "ASC" : "DESC";
+                    String nullsKey = orderByField.getDirection().isNullsFirst()
+                            ? "CASE WHEN " + column + " IS NULL THEN 0 ELSE 1 END"
+                            : "CASE WHEN " + column + " IS NULL THEN 1 ELSE 0 END";
+                    return nullsKey + ", " + column + " " + ordering;
+                })
+                .collect(Collectors.joining(", "));
     }
 }
