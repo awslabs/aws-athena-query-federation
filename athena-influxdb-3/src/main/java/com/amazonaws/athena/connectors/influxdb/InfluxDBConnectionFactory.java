@@ -22,9 +22,13 @@ package com.amazonaws.athena.connectors.influxdb;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 import com.influxdb.v3.client.InfluxDBApiHttpException;
 import com.influxdb.v3.client.InfluxDBClient;
@@ -32,6 +36,8 @@ import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightStatusCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.naming.ConfigurationException;
 
 import java.io.IOException;
 import java.net.URI;
@@ -43,11 +49,12 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.DEFAULT_TOKEN_KEY;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.DEFAULT_TOKEN_REFRESH_MAX_RETRIES;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_ALLOW_INSECURE_TRANSPORT;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_HOST;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_TOKEN;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_TOKEN_KEY;
@@ -66,9 +73,11 @@ public class InfluxDBConnectionFactory
     private static final Logger logger = LoggerFactory.getLogger(InfluxDBConnectionFactory.class);
     private static final Gson GSON = new Gson();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
+    private static final int INFLUXDB_CLIENT_CACHE_CAPACITY = 100;
+    private static final int INFLUXDB_CLIENT_CACHE_MINUTES_TO_LIVE = 30;
 
     private volatile String resolvedToken;
-    private final Map<String, InfluxDBClient> influxDbClients;
+    private final Cache<String, InfluxDBClient> influxDbClients;
     private final Map<String, String> configOptions;
     private final int maxTokenRefreshRetries;
     private FederationRequestHandler handler;
@@ -77,9 +86,26 @@ public class InfluxDBConnectionFactory
     {
         this.configOptions = configOptions;
         this.handler = handler;
-        this.influxDbClients = new ConcurrentHashMap<>();
+        this.influxDbClients = CacheBuilder.newBuilder()
+            .maximumSize(INFLUXDB_CLIENT_CACHE_CAPACITY)
+            .expireAfterAccess(Duration.ofMinutes(INFLUXDB_CLIENT_CACHE_MINUTES_TO_LIVE))
+            .removalListener((final RemovalNotification<String, InfluxDBClient> notification) -> {
+                final InfluxDBClient client = notification.getValue();
+                if (client != null) {
+                    try {
+                        client.close();
+                    }
+                    catch (final Exception e) {
+                        logger.warn("Failed to close evicted InfluxDBClient for db '{}'", notification.getKey(), e);
+                    }
+                }
+            })
+            .build();
         this.resolvedToken = null;
         this.maxTokenRefreshRetries = parseMaxTokenRefreshRetries(configOptions);
+        // The Athena federation SDK exposes no explicit container-teardown callback, so release cached clients
+        // (gRPC channels, threads, allocators) via a JVM shutdown hook when the Lambda environment is torn down.
+        Runtime.getRuntime().addShutdownHook(new Thread(this::closeAllClients, "influxdb-client-cache-shutdown"));
     }
 
     private static int parseMaxTokenRefreshRetries(final Map<String, String> configOptions)
@@ -121,12 +147,61 @@ public class InfluxDBConnectionFactory
         }
 
         final String token = resolveToken();
-        String db = database;
-        if (db == null || db.isEmpty()) {
-            db = configOptions.getOrDefault("influxdb_database", "");
+
+        final String configuredDb = configOptions.getOrDefault("influxdb_database", "");
+        String db = (database == null || database.isEmpty()) ? configuredDb : database;
+        if (db.isEmpty()) {
+            throw new IllegalArgumentException("No database specified and no influxdb_database default is configured");
         }
 
-        return influxDbClients.computeIfAbsent(db, key -> InfluxDBClient.getInstance(host, token.toCharArray(), key));
+        if (!configuredDb.isEmpty() && !configuredDb.equalsIgnoreCase(db)) {
+            throw new IllegalArgumentException("Access to database '" + db + "' is denied; this connector is scoped to '" + configuredDb + "'");
+        }
+
+        final InfluxDBClient cachedInfluxDbClient = influxDbClients.getIfPresent(db);
+        if (cachedInfluxDbClient != null) {
+            return cachedInfluxDbClient;
+        }
+        assertDatabaseExists(db);
+        try {
+            return influxDbClients.get(db, () -> InfluxDBClient.getInstance(host, token.toCharArray(), db));
+        }
+        catch (final ExecutionException e) {
+            // InfluxDBClient.getInstance throws only unchecked exceptions, so Guava never actually wraps a checked
+            // one here; unwrap defensively rather than leak a checked exception that cannot occur.
+            final Throwable cause = e.getCause() != null ? e.getCause() : e;
+            throw new RuntimeException("Failed to create InfluxDB client for database '" + db + "'", cause);
+        }
+    }
+
+    /**
+    * Verifies {@code database} is an existing database on the target server, failing closed if it is not.
+    * Gates {@link #getClient} so a caller-supplied name cannot mint (and cache) a live client for a database
+    * that doesn't exist — this is what bounds the client cache to real databases.
+    *
+    * Expects an already case-resolved name (see {@link #resolveDatabase}); the match is exact because InfluxDB
+    * database names are case-sensitive and the minted client will query with this exact name.
+    */
+    private void assertDatabaseExists(final String database)
+    {
+        if (database == null || database.isEmpty()) {
+            throw new IllegalArgumentException("Database name must be provided");
+        }
+        final boolean exists;
+        try {
+            exists = listDatabases().stream()
+                .anyMatch(db -> db != null && database.equals(db.name));
+        }
+        catch (final IOException e) {
+            throw new RuntimeException("Failed to verify database '" + database + "' exists", e);
+        }
+        catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while verifying database '" + database + "' exists", e);
+        }
+        if (!exists) {
+            throw new IllegalArgumentException("Database does not exist: '" + database + "'");
+        }
     }
 
     /**
@@ -200,15 +275,19 @@ public class InfluxDBConnectionFactory
     synchronized void invalidateToken()
     {
         resolvedToken = null;
-        for (final InfluxDBClient client : influxDbClients.values()) {
-            try {
-                client.close();
-            }
-            catch (final Exception e) {
-                logger.warn("Failed to close cached InfluxDBClient during token invalidation", e);
-            }
-        }
-        influxDbClients.clear();
+        influxDbClients.invalidateAll();
+        influxDbClients.cleanUp();
+    }
+
+    /**
+     * Closes and evicts every cached client, releasing each one's gRPC channel, threads, and allocator. Wired to a JVM
+     * shutdown hook so cached clients are released on container teardown. Closing runs through the cache's removal
+     * listener; {@code invalidateAll} + {@code cleanUp} guarantees the listener fires for every entry. Idempotent.
+     */
+    synchronized void closeAllClients()
+    {
+        influxDbClients.invalidateAll();
+        influxDbClients.cleanUp();
     }
 
     /**
@@ -238,6 +317,11 @@ public class InfluxDBConnectionFactory
     /**
      * Resolves a lowercased schema name back to the original database name. Athena lowercases all identifiers, but InfluxDB is case-sensitive.
      *
+     * Fails closed: if no configured default matches and the schema is not among the databases discoverable on the
+     * server, throws instead of returning the requested name unchanged. Returning the unverified name would let a
+     * caller-supplied schema masquerade as a real database and defer a guaranteed failure to a later stage.
+     *
+     * @throws IllegalArgumentException if the schema does not resolve to an existing database
      * @throws InterruptedException
      * @throws IOException
      */
@@ -248,7 +332,8 @@ public class InfluxDBConnectionFactory
             return configuredDb;
         }
         return listDatabases().stream().map(db -> db != null ? db.name : null)
-                .filter(name -> name != null && name.equalsIgnoreCase(schemaName)).findFirst().orElse(schemaName);
+                .filter(name -> name != null && name.equalsIgnoreCase(schemaName)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Database not found: '" + schemaName + "'"));
     }
 
     /**
@@ -273,14 +358,18 @@ public class InfluxDBConnectionFactory
     List<DatabaseInfo> listDatabases() throws IOException, InterruptedException
     {
         final String host = configOptions.get(ENV_INFLUXDB_HOST);
+        final boolean allowInsecureTransport = Boolean.parseBoolean(configOptions.getOrDefault(ENV_ALLOW_INSECURE_TRANSPORT, "false"));
         if (host == null || host.isEmpty()) {
             throw new IllegalArgumentException("Missing required env var: " + ENV_INFLUXDB_HOST);
+        }
+        if (host.startsWith("http://") && !allowInsecureTransport) {
+            throw new IllegalArgumentException("Invalid host: '" + host + "'. Host must use HTTPS");
         }
         int refreshes = 0;
         while (true) {
             final String token = resolveToken();
             final HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(host + "/api/v3/configure/database?format=json"))
+                    .uri(URI.create(host).resolve("/api/v3/configure/database?format=json"))
                     .timeout(Duration.ofMinutes(2))
                     .header("Authorization", "Bearer " + token)
                     .header("Accept", "application/json")
@@ -317,36 +406,39 @@ public class InfluxDBConnectionFactory
      */
     String resolveToken()
     {
-        if (resolvedToken != null) {
-            return resolvedToken;
+        if (this.resolvedToken != null) {
+            return this.resolvedToken;
         }
         final String rawToken = configOptions.get(ENV_INFLUXDB_TOKEN);
         if (rawToken == null || rawToken.isEmpty()) {
             throw new IllegalArgumentException("Missing required env var: " + ENV_INFLUXDB_TOKEN);
         }
 
-        // Use the SDK's built-in secret resolution for ${secret_name} patterns
+        // Use the SDK's built-in secret resolution for ${secret_name} patterns.
         final String resolved = handler.resolveSecrets(rawToken);
 
-        // If the resolved value looks like JSON, extract the token key
-        final String trimmed = resolved.trim();
-        resolvedToken = trimmed;
-        if (resolvedToken.startsWith("{")) {
+        // If the resolved value looks like JSON, extract the token key.
+        String trimmed = resolved.trim();
+        if (trimmed.startsWith("{")) {
             try {
                 final JsonObject json = GSON.fromJson(trimmed, JsonObject.class);
                 final String tokenKey = configOptions.getOrDefault(ENV_INFLUXDB_TOKEN_KEY, DEFAULT_TOKEN_KEY);
                 if (json.has(tokenKey)) {
-                    resolvedToken = json.get(tokenKey).getAsString();
+                    trimmed = json.get(tokenKey).getAsString();
                 }
                 else {
-                    logger.warn("JSON secret does not contain key '{}', using raw value", tokenKey);
+                    throw new ConfigurationException("JSON secret does not contain key '" + tokenKey + "'");
                 }
             }
+            catch (final JsonSyntaxException jse) {
+                logger.warn("Failed to parse secret as JSON. Treating secret as a raw token");
+            }
             catch (final Exception e) {
-                logger.warn("Failed to parse secret as JSON, using raw value");
+                throw new RuntimeException("Unexpected error occurred while parsing secret JSON: " + e.getMessage());
             }
         }
-        return resolvedToken;
+        this.resolvedToken = trimmed;
+        return this.resolvedToken;
     }
 
     public static final class DatabaseInfo

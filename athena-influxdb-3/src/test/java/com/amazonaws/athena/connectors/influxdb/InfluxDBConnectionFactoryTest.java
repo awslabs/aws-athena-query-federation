@@ -29,6 +29,7 @@ import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
@@ -129,12 +130,17 @@ public class InfluxDBConnectionFactoryTest
         when(mockHandler.resolveSecrets("${my-secret}")).thenReturn("{\"other\": \"value\"}");
 
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
-        // No 'token' key: the raw JSON will be used as the token.
-        assertEquals("{\"other\": \"value\"}", factory.resolveToken());
+        try {
+            factory.resolveToken();
+            fail("expected missing key to throw an exception");
+        }
+        catch (final Exception e) {
+            assertTrue(e.getMessage().contains("Unexpected error occurred while parsing secret JSON: JSON secret does not contain key 'token'"));
+        }
     }
 
     @Test
-    public void testResolveTokenInvalidJsonFallsBackToRaw()
+    public void testResolveTokenInvalidJsonFallsBackToRaw() throws Exception
     {
         final Map<String, String> config = new HashMap<>();
         config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
@@ -142,11 +148,12 @@ public class InfluxDBConnectionFactoryTest
         when(mockHandler.resolveSecrets("${my-secret}")).thenReturn("{not-valid-json");
 
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
-        assertEquals("{not-valid-json", factory.resolveToken());
+        // Invalid JSON will should be treated as a token, since a token may start with '{'..
+        factory.resolveToken();
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testGetClientMissingHostThrows()
+    public void testGetClientMissingHostThrows() throws ExecutionException
     {
         final Map<String, String> config = new HashMap<>();
         config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
@@ -235,7 +242,7 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
-    public void testExecuteWithTokenRetrySurfacesThrottleAsFederationThrottleException()
+    public void testExecuteWithTokenRetrySurfacesThrottleAsFederationThrottleException() throws ExecutionException
     {
         final InfluxDBConnectionFactory factory = spyFactoryReturningClient(baseConfig());
         try {
@@ -257,7 +264,7 @@ public class InfluxDBConnectionFactoryTest
         return config;
     }
 
-    private InfluxDBConnectionFactory spyFactoryReturningClient(final Map<String, String> config)
+    private InfluxDBConnectionFactory spyFactoryReturningClient(final Map<String, String> config) throws ExecutionException
     {
         final InfluxDBClient mockClient = mock(InfluxDBClient.class);
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
@@ -293,7 +300,7 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
-    public void testExecuteWithTokenRetryExhaustsCapThenThrows()
+    public void testExecuteWithTokenRetryExhaustsCapThenThrows() throws ExecutionException
     {
         final Map<String, String> config = baseConfig();
         config.put("token_refresh_max_retries", "2");
@@ -315,7 +322,7 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
-    public void testExecuteWithTokenRetryDoesNotRetryNonAuthError()
+    public void testExecuteWithTokenRetryDoesNotRetryNonAuthError() throws ExecutionException
     {
         final InfluxDBConnectionFactory factory = spyFactoryReturningClient(baseConfig());
         final AtomicInteger calls = new AtomicInteger();

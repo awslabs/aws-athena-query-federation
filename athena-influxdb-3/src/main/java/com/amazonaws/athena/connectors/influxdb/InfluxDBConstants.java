@@ -25,6 +25,7 @@ public final class InfluxDBConstants
     {
     }
 
+    public static final String ENV_ALLOW_INSECURE_TRANSPORT = "ALLOW_INSECURE_TRANSPORT";
     public static final String SOURCE_TYPE = "influxdb";
     public static final String ENV_INFLUXDB_HOST = "INFLUXDB3_HOST_URL";
     public static final String ENV_INFLUXDB_TOKEN = "INFLUXDB3_AUTH_TOKEN";

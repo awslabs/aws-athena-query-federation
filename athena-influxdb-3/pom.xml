@@ -32,6 +32,11 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
         <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -92,6 +97,19 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow ${argLine}</argLine>
+                    <environmentVariables>
+                        <AWS_REGION>us-east-1</AWS_REGION>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <!-- Integration tests (*IntegTest) run only when failsafe is invoked explicitly.
+                     Arrow's off-heap allocator needs Netty's Unsafe path, so the failsafe fork
+                     requires the same JVM args as surefire above. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
                     <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow ${argLine}</argLine>
                     <environmentVariables>

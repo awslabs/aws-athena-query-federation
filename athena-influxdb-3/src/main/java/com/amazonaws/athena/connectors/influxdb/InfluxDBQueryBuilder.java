@@ -406,14 +406,10 @@ public class InfluxDBQueryBuilder
         final Types.MinorType minorType = Types.getMinorTypeForArrowType(type);
         switch (minorType) {
             case VARCHAR :
-                // Escape single quotes
                 return "'" + String.valueOf(value).replace("'", "''") + "'";
             case BIT :
                 return Boolean.TRUE.equals(value) ? "true" : "false";
             case TIMESTAMPMILLITZ : {
-                // Plain epoch-millis (or temporal) value to literal. Packed Athena
-                // constraint values are decoded upstream by constraintLiteral, so this
-                // must NOT unpack. ISO_INSTANT keeps millisecond precision (trailing 'Z').
                 final Instant instant;
                 if (value instanceof Number) {
                     instant = Instant.ofEpochMilli(((Number) value).longValue());
@@ -438,13 +434,16 @@ public class InfluxDBQueryBuilder
                     final Instant instant = Instant.ofEpochMilli(((Number) value).longValue());
                     return "'" + DateTimeFormatter.ISO_INSTANT.format(instant) + "'";
                 }
-                return "'" + value + "'";
+                return "'" + String.valueOf(value).replace("'", "''") + "'";
             }
             case BIGINT :
             case INT :
             case FLOAT8 :
             case FLOAT4 :
-                return String.valueOf(value);
+                if (value instanceof Number) {
+                    return String.valueOf(value);
+                }
+                return "'" + String.valueOf(value).replace("'", "''") + "'";
             default :
                 return "'" + String.valueOf(value).replace("'", "''") + "'";
         }
