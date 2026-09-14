@@ -27,6 +27,9 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -37,6 +40,8 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -65,6 +70,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -107,6 +113,22 @@ public class Db2As400MetadataHandlerTest extends TestBase {
         Assert.assertEquals(SchemaBuilder.newBuilder()
                         .addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
                 this.db2As400MetadataHandler.getPartitionSchema("testCatalogName"));
+    }
+
+    @Test
+    public void doGetDataSourceCapabilities()
+    {
+        GetDataSourceCapabilitiesRequest request = Mockito.mock(GetDataSourceCapabilitiesRequest.class);
+        Mockito.when(request.getCatalogName()).thenReturn("testCatalog");
+        GetDataSourceCapabilitiesResponse response = this.db2As400MetadataHandler.doGetDataSourceCapabilities(this.blockAllocator, request);
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+        Assert.assertTrue(capabilities.containsKey(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.getOptimization()));
+        Assert.assertTrue(capabilities.containsKey(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization()));
+        Assert.assertTrue(capabilities.containsKey(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.getOptimization()));
+        Assert.assertTrue(capabilities.containsKey(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.getOptimization()));
+        // NULLIF is intentionally excluded from the advertised complex-expression functions.
+        List<OptimizationSubType> complexExpression = capabilities.get(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization());
+        Assert.assertFalse(complexExpression.get(0).getProperties().contains(StandardFunctions.NULLIF_FUNCTION_NAME.getFunctionName().getFunctionName()));
     }
 
     @Test
