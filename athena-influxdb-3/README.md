@@ -182,7 +182,7 @@ Create a Secrets Manager secret holding the InfluxDB token and pass its name/ARN
 | `INFLUXDB3_HOST_URL` (`InfluxDBHost`) | InfluxDB 3 host URL, e.g. `https://<endpoint>:8181`. |
 | `INFLUXDB3_AUTH_TOKEN` (`InfluxDBSecretId`) | Token, or `${secret_name}` Secrets Manager reference. |
 | `INFLUXDB3_AUTH_TOKEN_KEY` (`InfluxDBTokenKey`) | Key to read from a JSON secret (default `token`). |
-| `influxdb_database` (`InfluxDBDatabase`) | Optional default database; if empty, all accessible databases are exposed. |
+| `influxdb_database` (`InfluxDBDatabase`) | Optional default database; if empty, all accessible databases are exposed. If included, only the supplied singular and accessible database may be accessed, not the default database. Ideally, permissions should be scoped at the token level. |
 | `enable_query_parallelism` | `true` to enable time-based split parallelism (default `false`). |
 | `query_parallelism_count` | Number of time buckets/splits when parallelism is enabled (default `8`, clamped). |
 | `enable_query_passthrough` | `true` (default) to expose the `system.query` passthrough table function. |

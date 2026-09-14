@@ -83,7 +83,7 @@ import static org.mockito.Mockito.when;
 /**
  * Integration test that runs against a local InfluxDB 3 Core container.
  */
-public class InfluxDBLocalIntegrationTest
+public class InfluxDBLocalIntegTest
 {
     private static final FederatedIdentity IDENTITY = new FederatedIdentity("arn", "account",
             Collections.<String, String>emptyMap(), Collections.<String>emptyList(),
@@ -149,6 +149,7 @@ public class InfluxDBLocalIntegrationTest
 
         // Set config options that are necessary for the connector.
         configOptions = new HashMap<>();
+        configOptions.put("ALLOW_INSECURE_TRANSPORT", "true");
         configOptions.put("INFLUXDB3_HOST_URL", host);
         configOptions.put("INFLUXDB3_AUTH_TOKEN", influxDBV3Token);
         configOptions.put("influxdb_database", database);
@@ -245,6 +246,7 @@ public class InfluxDBLocalIntegrationTest
         // Set up config options, leaving out "influxdb_database". Doing this causes
         // all databases to be discoverable.
         final HashMap<String, String> newConfigOptions = new HashMap<>();
+        newConfigOptions.put("ALLOW_INSECURE_TRANSPORT", "true");
         newConfigOptions.put("INFLUXDB3_HOST_URL", host);
         newConfigOptions.put("INFLUXDB3_AUTH_TOKEN", influxDBV3Token);
         newConfigOptions.put("spill_bucket", "test-bucket");

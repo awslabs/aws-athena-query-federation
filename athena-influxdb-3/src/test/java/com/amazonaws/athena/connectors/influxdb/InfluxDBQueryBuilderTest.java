@@ -291,6 +291,34 @@ public class InfluxDBQueryBuilderTest
                 new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")));
     }
 
+    /**
+     * A caller can declare a numeric or date Arrow type over a Utf8 value block; the SDK never reconciles the
+     * declared type with the runtime value class. toLiteral must not trust the declared type — a non-Number value
+     * under a numeric type, or a non-temporal value under DATEMILLI, must be quoted and single-quote-escaped so it
+     * cannot break out of the literal and inject SQL.
+     */
+    @Test
+    public void testToLiteralNeutralizesTypeConfusionInjection()
+    {
+        // Numeric types declared over a String value: must NOT splice raw (would be unquoted injection).
+        final String bareInjection = "0 OR 1=1 --";
+        assertEquals("'0 OR 1=1 --'", InfluxDBQueryBuilder.toLiteral(bareInjection, new ArrowType.Int(64, true)));
+        assertEquals("'0 OR 1=1 --'", InfluxDBQueryBuilder.toLiteral(bareInjection, new ArrowType.Int(32, true)));
+        assertEquals("'0 OR 1=1 --'", InfluxDBQueryBuilder.toLiteral(bareInjection, new ArrowType.FloatingPoint(
+                org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE)));
+
+        // Quote-breakout payload under a numeric type: embedded quotes must be doubled.
+        assertEquals("'x'' OR ''1''=''1'",
+                InfluxDBQueryBuilder.toLiteral("x' OR '1'='1", new ArrowType.Int(64, true)));
+
+        // DATEMILLI declared over a String value: must be quoted AND escaped, not spliced quoted-but-unescaped.
+        assertEquals("'x'' OR ''1''=''1'",
+                InfluxDBQueryBuilder.toLiteral("x' OR '1'='1", Types.MinorType.DATEMILLI.getType()));
+
+        // Legitimate numeric values still render bare (no behavior change).
+        assertEquals("42", InfluxDBQueryBuilder.toLiteral(42L, new ArrowType.Int(64, true)));
+    }
+
     @Test
     public void testQuoteEscaping()
     {

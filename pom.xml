@@ -29,11 +29,11 @@
         <assertj.version>3.27.7</assertj.version>
         <testng.version>7.12.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
-        <fasterxml.jackson.version>2.21.1</fasterxml.jackson.version>
+        <fasterxml.jackson.version>2.21.5</fasterxml.jackson.version>
         <!-- jackson-annotations does not publish patch versions -->
         <fasterxml.jackson.annotations.version>2.21</fasterxml.jackson.annotations.version>
         <surefire.failsafe.version>3.5.5</surefire.failsafe.version>
-        <log4j2Version>2.26.0</log4j2Version>
+        <log4j2Version>2.26.1</log4j2Version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <apache.arrow.version>18.3.0</apache.arrow.version>
         <guava.version>33.6.0-jre</guava.version>
@@ -52,7 +52,7 @@
         <mvn.javadoc.plugin.version>3.12.0</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.5.0</mvn.jar.plugin.version>
         <io.substrait.version>0.65.0</io.substrait.version>
-        <org.apache.calcite.version>1.40.0</org.apache.calcite.version>
+        <org.apache.calcite.version>1.42.0</org.apache.calcite.version>
         <com.google.protobuf.version>4.34.1</com.google.protobuf.version>
         <doclint>none</doclint>
     </properties>
@@ -101,7 +101,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.2.13.Final</version>
+                <version>4.2.17.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -109,7 +109,13 @@
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
-                <version>5.6.1</version>
+                <version>5.6.3</version>
+            </dependency>
+            <!-- Fix for CVE-2026-54399: Override httpcore5 (transitive via calcite-server -> avatica-core); 5.4.3 is the version httpclient5 5.6.3 targets -->
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5</artifactId>
+                <version>5.4.3</version>
             </dependency>
             <!-- Fix for CVE-2024-57699: Override json-smart version from transitive dependencies -->
             <dependency>
