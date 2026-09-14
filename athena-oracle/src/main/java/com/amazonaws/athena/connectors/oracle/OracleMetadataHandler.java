@@ -228,7 +228,7 @@ public class OracleMetadataHandler
 
             LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), partitionValue);
 
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                     .add(BLOCK_PARTITION_COLUMN_NAME, partitionValue);
 
             if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {

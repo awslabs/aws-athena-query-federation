@@ -70,6 +70,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1064,6 +1065,217 @@ public class PostGreSqlMetadataHandlerTest
         assertEquals(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, partitionSchema.getFields().get(1).getName());
     }
 
+    /**
+     * Test getSplitClauses when table has no primary key.
+     * Expected: Returns empty list.
+     */
+    @Test
+    public void getSplitClauses_NoPrimaryKey_ReturnsEmptyList() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys(null, false);
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue("Expected empty list when no primary key exists", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when primary key is UUID type.
+     * Expected: Returns empty list and skips split generation.
+     */
+    @Test
+    public void getSplitClauses_UuidPrimaryKey_ReturnsEmptyList() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys("id", true);
+        mockDataTypeCheck("uuid");
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue("Expected empty list when primary key is UUID", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when primary key is INTEGER and splitter returns splits.
+     * Expected: Returns list of split clauses.
+     */
+    @Test
+    public void getSplitClauses_IntegerPrimaryKey_ReturnsSplitClauses() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys("order_id", true);
+        mockDataTypeCheck("integer");
+        mockMinMaxQuery("order_id", 100);
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
+
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Expected non-empty list when splits can be generated", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when an exception occurs during processing.
+     * Expected: Returns empty list and logs warning.
+     */
+    @Test
+    public void getSplitClauses_ExceptionDuringProcessing_ReturnsEmptyList() throws Exception
+    {
+        TableName tableName = new TableName("testSchema", "errorTable");
+        when(connection.getMetaData().getPrimaryKeys(null, "testSchema", "errorTable"))
+                .thenThrow(new SQLException("Database connection error"));
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue("Expected empty list when exception occurs", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when UUID check returns false (column exists but is not UUID).
+     * Expected: Proceeds to generate splits.
+     */
+    @Test
+    public void getSplitClauses_UuidCheckReturnsFalse_GeneratesSplits() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys("product_id", true);
+        mockDataTypeCheck(null);
+        mockMinMaxQuery("product_id", 50);
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
+
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Expected splits to be generated when UUID check returns false", result.isEmpty());
+    }
+
+    /**
+     * Test getSplitClauses when UUID check throws exception.
+     * Expected: Proceeds to generate splits (fallback).
+     */
+    @Test
+    public void getSplitClauses_UuidCheckThrowsException_GeneratesSplits() throws Exception
+    {
+        TableName tableName = getTableName();
+        mockPrimaryKeys("id", true);
+
+        when(connection.prepareStatement(Mockito.contains("SELECT data_type FROM information_schema.columns")))
+                .thenThrow(new SQLException("UUID check failed"));
+
+        mockMinMaxQuery("id", 100);
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
+
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Expected splits to be generated when UUID check throws exception", result.isEmpty());
+    }
+
+    /**
+     * Regression test for CWE-89 (SQL injection via primary-key column name).
+     * A malicious PK column name must be quoted and escaped in BOTH sinks:
+     * (A) the min/max bounds query, and (B) the split range clause that is later appended to the
+     * record-read query. The payload must never break out of the identifier.
+     */
+    @Test
+    public void getSplitClauses_MaliciousPrimaryKeyColumnName_IsQuotedAndEscapedInBothSinks() throws Exception
+    {
+        TableName tableName = getTableName();
+        String maliciousColumn = "id\");GRANT rds_superuser TO report_user;--";
+        String wrappedColumn = "\"" + maliciousColumn.replace("\"", "\"\"") + "\"";
+
+        mockPrimaryKeys(maliciousColumn, true);
+        mockDataTypeCheck(null); // not UUID -> proceeds to split generation
+
+        // The bounds query is built with prepareStatement (a PreparedStatement, extended protocol) and
+        // executed with no-arg executeQuery(); capture the SQL text passed to prepareStatement.
+        PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+        ResultSet minMaxResultSet = Mockito.mock(ResultSet.class);
+        java.sql.ResultSetMetaData minMaxMetadata = Mockito.mock(java.sql.ResultSetMetaData.class);
+        when(connection.prepareStatement(anyString())).thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(minMaxResultSet);
+        when(minMaxResultSet.next()).thenReturn(true);
+        when(minMaxResultSet.getMetaData()).thenReturn(minMaxMetadata);
+        when(minMaxMetadata.getColumnType(1)).thenReturn(Types.INTEGER);
+        when(minMaxResultSet.getLong(1)).thenReturn(1L);
+        when(minMaxResultSet.getLong(2)).thenReturn(100L);
+
+        List<String> result = postGreSqlMetadataHandler.getSplitClauses(tableName, null);
+
+        // Place 1: bounds query must reference the column only in escaped, quoted form. Match the
+        // min(...) fragment specifically (prepareStatement is also called for other queries such as the
+        // UUID data-type check, so capture all calls and assert against the bounds query).
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(connection, Mockito.atLeastOnce()).prepareStatement(sqlCaptor.capture());
+        String boundsSql = sqlCaptor.getAllValues().stream()
+                .filter(sql -> sql.contains("min("))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("bounds query was never prepared; calls: " + sqlCaptor.getAllValues()));
+        Assert.assertTrue("Bounds query must use the escaped identifier, was: " + boundsSql,
+                boundsSql.contains("min(" + wrappedColumn + ")"));
+        Assert.assertFalse("Bounds query must not contain an unescaped identifier break-out, was: " + boundsSql,
+                boundsSql.contains("min(id\");"));
+
+        // Place 2: split range clauses (appended to the record-read query) must use the escaped identifier.
+        Assert.assertFalse("Expected splits to be generated", result.isEmpty());
+        for (String clause : result) {
+            Assert.assertTrue("Split range clause must use the escaped identifier: " + clause,
+                    clause.contains(wrappedColumn));
+            Assert.assertFalse("Split range clause must not leak an unescaped break-out: " + clause,
+                    clause.contains("id\") "));
+        }
+    }
+
+    /**
+     * Defense-in-depth: null, empty, and control-character names are rejected; ordinary names
+     * (including quoted-identifier-legal spaces) are accepted.
+     */
+    @Test
+    public void isValidSplitColumn_RejectsNullEmptyAndControlChars_AcceptsNormal()
+    {
+        Assert.assertTrue(postGreSqlMetadataHandler.isValidSplitColumn("order_id"));
+        Assert.assertTrue("Quoted identifiers may legitimately contain spaces",
+                postGreSqlMetadataHandler.isValidSplitColumn("my order id"));
+        Assert.assertFalse(postGreSqlMetadataHandler.isValidSplitColumn(null));
+        Assert.assertFalse(postGreSqlMetadataHandler.isValidSplitColumn(""));
+        Assert.assertFalse("Newline is a control char and must be rejected",
+                postGreSqlMetadataHandler.isValidSplitColumn("id\nGRANT"));
+        Assert.assertFalse("NUL must be rejected",
+                postGreSqlMetadataHandler.isValidSplitColumn("id\u0000GRANT"));
+    }
+
+    /**
+     * The identifier wrapper must double embedded double-quotes so a name cannot terminate the
+     * quoted identifier early (ANSI/PostgreSQL delimited-identifier rule).
+     */
+    @Test
+    public void wrapNameWithEscapedCharacter_EscapesEmbeddedDoubleQuotes()
+    {
+        Assert.assertEquals("\"order_id\"", postGreSqlMetadataHandler.wrapNameWithEscapedCharacter("order_id"));
+        Assert.assertEquals("\"a\"\"b\"", postGreSqlMetadataHandler.wrapNameWithEscapedCharacter("a\"b"));
+        Assert.assertEquals("\"x\"\");--\"", postGreSqlMetadataHandler.wrapNameWithEscapedCharacter("x\");--"));
+    }
+
+    /**
+     * Helper method to mock primary keys result set.
+     */
+    private void mockPrimaryKeys(String columnName, boolean hasPrimaryKey) throws SQLException
+    {
+        ResultSet primaryKeysResultSet = Mockito.mock(ResultSet.class);
+        if (hasPrimaryKey) {
+            when(primaryKeysResultSet.next()).thenReturn(true).thenReturn(false);
+            when(primaryKeysResultSet.getString("COLUMN_NAME")).thenReturn(columnName);
+        }
+        else {
+            when(primaryKeysResultSet.next()).thenReturn(false);
+        }
+
+        when(connection.getMetaData().getPrimaryKeys(null, "testSchema", "testTable"))
+                .thenReturn(primaryKeysResultSet);
+
+    }
+
     private void verifyCommonCapabilities(GetDataSourceCapabilitiesResponse response)
     {
         Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
@@ -1177,6 +1389,58 @@ public class PostGreSqlMetadataHandlerTest
             when(tableResultSet.getString("table_name")).thenReturn(resolvedTableName);
         }
 
+    }
+
+    /**
+     * Helper method to mock UUID type check with a specific data type.
+     */
+    private void mockDataTypeCheck(String dataType) throws SQLException
+    {
+        PreparedStatement uuidCheckStmt = Mockito.mock(PreparedStatement.class);
+        ResultSet uuidCheckResultSet = Mockito.mock(ResultSet.class);
+
+        when(connection.prepareStatement(Mockito.contains("SELECT data_type FROM information_schema.columns")))
+                .thenReturn(uuidCheckStmt);
+        when(uuidCheckStmt.executeQuery()).thenReturn(uuidCheckResultSet);
+
+        if (dataType != null) {
+            when(uuidCheckResultSet.next()).thenReturn(true);
+            when(uuidCheckResultSet.getString("data_type")).thenReturn(dataType);
+        }
+        else {
+            when(uuidCheckResultSet.next()).thenReturn(false);
+        }
+    }
+
+    /**
+     * Helper method to mock MIN/MAX query execution.
+     */
+    private void mockMinMaxQuery(String columnName, int maxValue) throws SQLException
+    {
+        PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+        ResultSet minMaxResultSet = Mockito.mock(ResultSet.class);
+        java.sql.ResultSetMetaData minMaxMetadata = Mockito.mock(java.sql.ResultSetMetaData.class);
+
+        // The bounds query is now run through a PreparedStatement (extended protocol, blocks stacked
+        // statements) and the split-column identifier is quoted/escaped, so the SQL contains the
+        // wrapped form: min("col"), max("col").
+        String wrappedColumn = "\"" + columnName.replace("\"", "\"\"") + "\"";
+        when(connection.prepareStatement(Mockito.contains("select min(" + wrappedColumn + "), max(" + wrappedColumn + ")")))
+                .thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(minMaxResultSet);
+        when(minMaxResultSet.next()).thenReturn(true);
+        when(minMaxResultSet.getMetaData()).thenReturn(minMaxMetadata);
+        when(minMaxMetadata.getColumnType(1)).thenReturn(Types.INTEGER);
+
+        /*when(minMaxResultSet.getInt(1)).thenReturn(1);
+        when(minMaxResultSet.getInt(2)).thenReturn(maxValue);*/
+        when(minMaxResultSet.getLong(1)).thenReturn(1L);
+        when(minMaxResultSet.getLong(2)).thenReturn((long) maxValue);
+    }
+
+    private TableName getTableName()
+    {
+        return new TableName("testSchema", "testTable");
     }
 
 }

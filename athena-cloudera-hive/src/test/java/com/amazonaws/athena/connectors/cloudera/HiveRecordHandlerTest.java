@@ -107,7 +107,7 @@ public class HiveRecordHandlerTest
     private static final String TEST_COL4 = "testCol4";
     private static final String PARTITION_PROPERTY = "partition";
     private static final String PARTITION_VALUE = "p0";
-    private static final String QPT_TEST_QUERY = "SELECT * FROM testSchema.testTable WHERE testCol1 = 1";
+    private static final String QPT_TEST_QUERY = "SELECT * FROM `testSchema`.`testTable` WHERE testCol1 = 1";
     private static final String QPT_SCHEMA_FUNCTION_NAME_VALUE = "system.query";
     private static final String QPT_NAME_PROPERTY = "name";
     private static final String QPT_SCHEMA_PROPERTY = "schema";
@@ -362,7 +362,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_WithComplexConstraints_ReturnsPreparedStatement()
+    public void buildSplitSql_whenComplexConstraints_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -410,7 +410,7 @@ public class HiveRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT id, name, age, salary, department, is_active, created_date, updated_timestamp, amount FROM testSchema.testTable  WHERE (id IN (?,?,?,?,?)) AND ((age >= ? AND age <= ?)) AND ((salary > ?)) AND (department = ?) AND (is_active = ?) AND (amount = ?) AND p0";
+        String expectedSql = "SELECT `id`, `name`, `age`, `salary`, `department`, `is_active`, `created_date`, `updated_timestamp`, `amount` FROM `testSchema`.`testTable`  WHERE (`id` IN (?,?,?,?,?)) AND ((`age` >= ? AND `age` <= ?)) AND ((`salary` > ?)) AND (`department` = ?) AND (`is_active` = ?) AND (`amount` = ?) AND p0";
 
         PreparedStatement expectedPreparedStatement = executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
 
@@ -429,7 +429,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_WithOrderByAndLimit_ReturnsPreparedStatement()
+    public void buildSplitSql_whenOrderByAndLimit_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -458,13 +458,13 @@ public class HiveRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT id, name, salary FROM testSchema.testTable  WHERE p0 ORDER BY salary DESC NULLS LAST LIMIT 10";
+        String expectedSql = "SELECT `id`, `name`, `salary` FROM `testSchema`.`testTable`  WHERE p0 ORDER BY `salary` DESC NULLS LAST LIMIT 10";
 
         executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
     }
 
     @Test
-    public void buildSplitSql_WithTopNQuery_ReturnsPreparedStatement()
+    public void buildSplitSql_whenTopNQuery_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -497,7 +497,7 @@ public class HiveRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT id, name, salary, department FROM testSchema.testTable  WHERE ((salary > ?)) AND (department = ?) AND p0 ORDER BY salary DESC NULLS LAST LIMIT 5";
+        String expectedSql = "SELECT `id`, `name`, `salary`, `department` FROM `testSchema`.`testTable`  WHERE ((`salary` > ?)) AND (`department` = ?) AND p0 ORDER BY `salary` DESC NULLS LAST LIMIT 5";
 
         PreparedStatement expectedPreparedStatement = executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
 
@@ -507,7 +507,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_WithDateConstraints_ReturnsPreparedStatement()
+    public void buildSplitSql_whenDateConstraints_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -542,7 +542,7 @@ public class HiveRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT created_date, updated_timestamp FROM testSchema.testTable  WHERE (created_date = ?) AND (updated_timestamp = cast(? as timestamp)) AND p0";
+        String expectedSql = "SELECT `created_date`, `updated_timestamp` FROM `testSchema`.`testTable`  WHERE (`created_date` = ?) AND (`updated_timestamp` = cast(? as timestamp)) AND p0";
 
         PreparedStatement expectedPreparedStatement = executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
 
@@ -552,7 +552,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_WithNullConstraints_ReturnsPreparedStatement()
+    public void buildSplitSql_whenNullConstraints_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -579,13 +579,13 @@ public class HiveRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT name FROM testSchema.testTable  WHERE (name IS NULL) AND p0";
+        String expectedSql = "SELECT `name` FROM `testSchema`.`testTable`  WHERE (`name` IS NULL) AND p0";
 
         executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
     }
 
     @Test
-    public void buildSplitSql_WithEmptyConstraints_ReturnsPreparedStatement()
+    public void buildSplitSql_whenEmptyConstraints_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -606,13 +606,13 @@ public class HiveRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT id FROM testSchema.testTable  WHERE p0";
+        String expectedSql = "SELECT `id` FROM `testSchema`.`testTable`  WHERE p0";
 
         executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
     }
 
     @Test
-    public void buildSplitSql_WithMultipleOrderByFields_ReturnsPreparedStatement()
+    public void buildSplitSql_whenMultipleOrderByFields_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -644,7 +644,7 @@ public class HiveRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT department, salary, name FROM testSchema.testTable  WHERE p0 ORDER BY department ASC NULLS LAST, salary DESC NULLS FIRST, name ASC NULLS LAST";
+        String expectedSql = "SELECT `department`, `salary`, `name` FROM `testSchema`.`testTable`  WHERE p0 ORDER BY `department` ASC NULLS LAST, `salary` DESC NULLS FIRST, `name` ASC NULLS LAST";
 
         executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
     }

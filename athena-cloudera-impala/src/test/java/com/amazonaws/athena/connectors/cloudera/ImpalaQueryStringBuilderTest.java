@@ -40,10 +40,10 @@ public class ImpalaQueryStringBuilderTest
 	Split split;
 	
 	@Test
-	public void testQueryBuilder()
+	public void getFromClauseWithSplit_whenCatalogSchemaTableProvided_returnsBacktickQuotedFromClause()
 	{
-	    String expectedFrom1 = " FROM default.schema.table ";
-	    String expectedFrom2 = " FROM default.table ";
+	    String expectedFrom1 = " FROM `default`.`schema`.`table` ";
+	    String expectedFrom2 = " FROM `default`.`table` ";
 		ImpalaQueryStringBuilder builder = new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER));
 		String fromResult1 = builder.getFromClauseWithSplit("default", "schema", "table", split);
 		String fromResult2 = builder.getFromClauseWithSplit("default", "", "table", split);
@@ -52,7 +52,7 @@ public class ImpalaQueryStringBuilderTest
 	}
 
 	@Test
-	public void testGetPartitionWhereClauses_withAllPartitions()
+	public void getPartitionWhereClauses_whenAllPartitions_returnsEmptyList()
 	{
 		Mockito.when(split.getProperty(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME)).thenReturn("*");
 

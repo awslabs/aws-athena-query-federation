@@ -45,8 +45,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
-import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
-import com.amazonaws.athena.connectors.jdbc.splits.SplitterFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -69,8 +67,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -86,14 +82,12 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
  */
 public abstract class JdbcMetadataHandler
         extends MetadataHandler
+        implements AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
-    private static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s;";
-    private static final int DEFAULT_NUM_SPLITS = 20;
     public static final String TABLES_AND_VIEWS = "Tables and Views";
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
-    private final SplitterFactory splitterFactory = new SplitterFactory();
     protected final JDBCCaseResolver caseResolver;
     protected JdbcQueryPassthrough jdbcQueryPassthrough = new JdbcQueryPassthrough();
 
@@ -477,53 +471,6 @@ public abstract class JdbcMetadataHandler
     @Override
     public abstract GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest);
 
-    protected List<String> getSplitClauses(final TableName tableName)
-    {
-        return getSplitClauses(tableName, null);
-    }
-
-    protected List<String> getSplitClauses(final TableName tableName, final GetSplitsRequest getSplitsRequest)
-    {
-        List<String> splitClauses = new ArrayList<>();
-        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(
-                getCredentialProvider(getSplitsRequest != null ? getRequestOverrideConfig(getSplitsRequest) : null));
-                ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
-            List<String> primaryKeyColumns = new ArrayList<>();
-            while (resultSet.next()) {
-                primaryKeyColumns.add(resultSet.getString("COLUMN_NAME"));
-            }
-            if (!primaryKeyColumns.isEmpty()) {
-                try (Statement statement = jdbcConnection.createStatement();
-                        ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
-                                wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
-                    minMaxResultSet.next(); // expecting one result row
-                    long min = minMaxResultSet.getLong(1);
-                    long max = minMaxResultSet.getLong(2);
-                    Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
-
-                    if (optionalSplitter.isPresent()) {
-                        if (max - min < DEFAULT_NUM_SPLITS) {
-                            LOGGER.info("Range too small for splitting (min={}, max={}), skipping", min, max);
-                            return splitClauses;
-                        }
-
-                        Splitter splitter = optionalSplitter.get();
-                        while (splitter.hasNext()) {
-                            String splitClause = splitter.nextRangeClause();
-                            LOGGER.debug("Split generated {}", splitClause);
-                            splitClauses.add(splitClause);
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex) {
-            LOGGER.warn("Unable to split data.", ex);
-        }
-
-        return splitClauses;
-    }
-
     /**
      * Converts an ARRAY column's TYPE_NAME (provided by the jdbc metadata) to an ArrowType.
      * @param typeName The column's TYPE_NAME (e.g. _int4, _text, _float8, etc...)
@@ -549,7 +496,7 @@ public abstract class JdbcMetadataHandler
         //Since this is QPT query we return a fixed split.
         Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
         return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(request)))
                         .applyProperties(qptArguments)
                         .build());
     }
@@ -557,5 +504,19 @@ public abstract class JdbcMetadataHandler
     protected String wrapNameWithEscapedCharacter(String input)
     {
         return input;
+    }
+
+    /**
+     * Closes the underlying {@link JdbcConnectionFactory}, releasing any pooled connections
+     * and their associated background threads. Callers that create handler instances per-request
+     * (e.g., multi-tenant wrappers) should call this method when the handler is no longer needed
+     * to prevent thread and memory leaks from unreleased connection pools.
+     */
+    @Override
+    public void close() throws Exception
+    {
+        if (jdbcConnectionFactory != null) {
+            jdbcConnectionFactory.close();
+        }
     }
 }

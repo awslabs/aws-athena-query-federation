@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
@@ -51,8 +50,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
-import software.amazon.awssdk.services.glue.model.ErrorDetails;
-import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient;
@@ -328,15 +325,7 @@ public class TimestreamMetadataHandler
         List<ColumnInfo> columnInfo = queryResult.columnInfo();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         for (ColumnInfo column : columnInfo) {
-            String scalarType = column.type().scalarTypeAsString();
-            if (scalarType == null) {
-                throw new AthenaConnectorException(
-                    "The Timestream connector supports only a subset of the data types available in Timestream, specifically: "
-                    + "the scalar values varchar, double, and timestamp. Column '" + column.name() + "' has an unsupported type. "
-                    + "For more details, see https://docs.aws.amazon.com/athena/latest/ug/connectors-timestream.html",
-                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
-            }
-            Field nextField = TimestreamSchemaUtils.makeField(column.name(), scalarType.toLowerCase());
+            Field nextField = TimestreamSchemaUtils.makeFieldFromColumnInfo(column);
             schemaBuilder.addField(nextField);
         }
 

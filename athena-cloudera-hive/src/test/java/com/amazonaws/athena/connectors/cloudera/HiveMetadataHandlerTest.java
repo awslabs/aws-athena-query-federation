@@ -51,7 +51,6 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -63,7 +62,6 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -137,7 +135,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void getPartitionSchema()
+    public void getPartitionSchema_whenCatalogNameProvided_returnsPartitionFieldWithVarcharType()
     {
         assertEquals(SchemaBuilder.newBuilder()
                         .addField("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
@@ -145,7 +143,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_whenShowPartitionsReturnsPartitions_returnsTwoPartitionRowsWithValues()
             throws Exception
     {
         String[] schema = {"data_type", "col_name"};
@@ -169,15 +167,16 @@ public class HiveMetadataHandlerTest
         Object[][] values4 = {{"PARTITIONED:true"}};
         ResultSet resultSet2 = mockResultSet(columns3, types3, values4, new AtomicInteger(-1));
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
-        String tableName = getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
-        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + tableName)).thenReturn(preparestatement1);
-        final String getPartitionExistsSql = "show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
+        final String qualifiedTable = HiveUtils.qualifiedTableForMetadataSql(getTableLayoutRequest.getTableName());
+        final String describeSql = HiveMetadataHandler.GET_METADATA_QUERY + qualifiedTable;
+        final String getPartitionExistsSql = "show table extended in "
+                + HiveUtils.quoteIdentifier(getTableLayoutRequest.getTableName().getSchemaName().toUpperCase())
+                + " like " + HiveUtils.likePatternLiteral(getTableLayoutRequest.getTableName().getTableName());
+        final String getPartitionDetailsSql = "show partitions " + qualifiedTable;
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
-        Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
+        Mockito.when(statement1.executeQuery(describeSql)).thenReturn(resultSet);
         Mockito.when(statement1.executeQuery(getPartitionDetailsSql)).thenReturn(resultSet1);
         Mockito.when(statement1.executeQuery(getPartitionExistsSql)).thenReturn(resultSet2);
         Mockito.when(resultSet2.getString(1)).thenReturn("PARTITIONED:true");
@@ -197,7 +196,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayoutWithNoPartitions()
+    public void doGetTableLayout_whenShowPartitionsReturnsEmpty_returnsAllPartitionsRow()
             throws Exception
     {
         String[] schema = {"data_type", "col_name"};
@@ -215,13 +214,13 @@ public class HiveMetadataHandlerTest
         int[] types2 = {Types.VARCHAR};
         Object[][] values1 = {};
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
-        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + tempTableName.getQualifiedTableName())).thenReturn(preparestatement1);
-        final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
+        final String qualifiedTable = HiveUtils.qualifiedTableForMetadataSql(getTableLayoutRequest.getTableName());
+        final String describeSql = HiveMetadataHandler.GET_METADATA_QUERY + qualifiedTable;
+        final String getPartitionDetailsSql = "show partitions " + qualifiedTable;
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
-        Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
+        Mockito.when(statement1.executeQuery(describeSql)).thenReturn(resultSet);
         Mockito.when(statement1.executeQuery(getPartitionDetailsSql)).thenReturn(resultSet1);
         GetTableLayoutResponse getTableLayoutResponse = this.hiveMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         List<String> expectedValues = new ArrayList<>();
@@ -237,7 +236,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void doGetTableLayoutWithSQLException()
+    public void doGetTableLayout_whenSQLException_throwsRuntimeException()
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -255,7 +254,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_whenLayoutHasTwoPartitions_returnsTwoSplits()
             throws Exception
     {
         String[] schema = {"data_type", "col_name"};
@@ -279,15 +278,16 @@ public class HiveMetadataHandlerTest
         int[] types2 = {Types.VARCHAR};
         Object[][] values1 = {{value2}, {value3}};
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
-        String tableName = getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
-        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + tableName)).thenReturn(preparestatement1);
-        final String getPartitionExistsSql = "show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
+        final String qualifiedTable = HiveUtils.qualifiedTableForMetadataSql(getTableLayoutRequest.getTableName());
+        final String describeSql = HiveMetadataHandler.GET_METADATA_QUERY + qualifiedTable;
+        final String getPartitionExistsSql = "show table extended in "
+                + HiveUtils.quoteIdentifier(getTableLayoutRequest.getTableName().getSchemaName().toUpperCase())
+                + " like " + HiveUtils.likePatternLiteral(getTableLayoutRequest.getTableName().getTableName());
+        final String getPartitionDetailsSql = "show partitions " + qualifiedTable;
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
-        Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
+        Mockito.when(statement1.executeQuery(describeSql)).thenReturn(resultSet);
         Mockito.when(statement1.executeQuery(getPartitionDetailsSql)).thenReturn(resultSet1);
         Mockito.when(statement1.executeQuery(getPartitionExistsSql)).thenReturn(resultSet2);
         Mockito.when(resultSet2.getString(1)).thenReturn("PARTITIONED:true");
@@ -299,7 +299,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits_WithQueryPassthrough_ReturnsPassthroughSplit() {
+    public void doGetSplits_whenQueryPassthroughEnabled_returnsOneSplitWithQueryProperty() {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream()
@@ -338,7 +338,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits_WithContinuationToken_ReturnsSplitsFromToken() {
+    public void doGetSplits_whenContinuationTokenZero_returnsTwoSplitsWithPartitionValues() {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream()
@@ -378,7 +378,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void decodeContinuationToken_WithValidToken_DecodesToken() throws Exception {
+    public void decodeContinuationToken_whenTokenIsOne_returnsNonNullTokenValue() throws Exception {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Constraints constraints = Mockito.mock(Constraints.class);
         Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
@@ -402,7 +402,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_whenDescribeReturnsColumns_returnsTableWithArrowColumnTypes()
             throws Exception
     {
         String[] schema = {"data_type", "col_name"};
@@ -418,9 +418,11 @@ public class HiveMetadataHandlerTest
                 {Types.OTHER, 12, "case_unsupported", 0, 0}};
         ResultSet resultSet1 = mockResultSet(schema1, values1, new AtomicInteger(-1));
         TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
-        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + inputTableName.getQualifiedTableName().toUpperCase())).thenReturn(preparestatement1);
-        Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
+        final String describeSql = HiveMetadataHandler.GET_METADATA_QUERY
+                + HiveUtils.qualifiedTableForMetadataSql(inputTableName);
+        Statement metadataStatement = Mockito.mock(Statement.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(metadataStatement);
+        Mockito.when(metadataStatement.executeQuery(describeSql)).thenReturn(resultSet);
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
         Mockito.when(this.connection.getMetaData().getColumns(CATALOG_NAME, inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet1);
         Mockito.when(this.connection.getCatalog()).thenReturn(CATALOG_NAME);
@@ -441,14 +443,14 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableNoColumns() throws Exception
+    public void doGetTable_whenJdbcReturnsNoColumns_returnsTableWithEmptySchema() throws Exception
     {
         TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         this.hiveMetadataHandler.doGetTable(blockAllocator, new GetTableRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME, inputTableName, Collections.emptyMap()));
     }
 
     @Test(expected = SQLException.class)
-    public void doGetTableSQLException() throws Exception {
+    public void doGetTable_whenSQLException_throwsSQLException() throws Exception {
         TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
@@ -456,7 +458,7 @@ public class HiveMetadataHandlerTest
     }
 
     @Test
-    public void doGetDataSourceCapabilities_WithValidRequest_ReturnsCapabilities() {
+    public void doGetDataSourceCapabilities_whenCapabilitiesRequestedForCatalog_returnsFilterComplexTopNAndLimitPushdownSubTypes() {
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, QUERY_ID, CATALOG_NAME);
         GetDataSourceCapabilitiesResponse response = hiveMetadataHandler.doGetDataSourceCapabilities(blockAllocator, request);
 

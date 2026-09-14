@@ -97,6 +97,7 @@ import java.util.Objects;
  */
 public abstract class JdbcRecordHandler
         extends RecordHandler
+        implements AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
@@ -434,6 +435,20 @@ public abstract class JdbcRecordHandler
             default:
                 throw new AthenaConnectorException("Unhandled type " + fieldType,
                         ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+        }
+    }
+
+    /**
+     * Closes the underlying {@link JdbcConnectionFactory}, releasing any pooled connections
+     * and their associated background threads. Callers that create handler instances per-request
+     * (e.g., multi-tenant wrappers) should call this method when the handler is no longer needed
+     * to prevent thread and memory leaks from unreleased connection pools.
+     */
+    @Override
+    public void close() throws Exception
+    {
+        if (jdbcConnectionFactory != null) {
+            jdbcConnectionFactory.close();
         }
     }
 }

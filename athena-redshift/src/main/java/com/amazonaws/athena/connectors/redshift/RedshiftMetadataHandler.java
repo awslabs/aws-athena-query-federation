@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -35,6 +36,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
+import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.redshift.resolver.RedshiftJDBCCaseResolver;
 import com.google.common.collect.ImmutableMap;
@@ -46,9 +48,12 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DRIVER_CLASS;
@@ -123,5 +128,68 @@ public class RedshiftMetadataHandler
         preparedStatement.setInt(4, token);
         LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
+    }
+
+    @Override
+    protected List<String> getSplitClauses(final TableName tableName, final GetSplitsRequest getSplitsRequest)
+    {
+        List<String> splitClauses = new ArrayList<>();
+        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(
+                getCredentialProvider(getSplitsRequest != null ? getRequestOverrideConfig(getSplitsRequest) : null));
+             ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
+            List<String> primaryKeyColumns = new ArrayList<>();
+            while (resultSet.next()) {
+                primaryKeyColumns.add(resultSet.getString("COLUMN_NAME"));
+            }
+            if (!primaryKeyColumns.isEmpty()) {
+                String primaryKeyColumn = primaryKeyColumns.get(0);
+                // Defense-in-depth: the primary-key column name is attacker-influenced metadata
+                // (a low-privilege DB user with CREATE can name a column arbitrarily). Reject names
+                // that cannot be a legitimate split identifier before it is used anywhere in SQL.
+                if (!isValidSplitColumn(primaryKeyColumn)) {
+                    LOGGER.warn("Primary key column name is not a valid split identifier for table {}.{}. Skipping split generation.",
+                            tableName.getSchemaName(), tableName.getTableName());
+                    return splitClauses;
+                }
+                // Quote and escape the column name so it is interpreted strictly as a SQL identifier.
+                // This value is interpolated into the min/max bounds query below AND, via the Splitter,
+                // into the partition WHERE-clause later appended to the record-read query
+                // (see IntegerSplitter#nextRangeClause and JdbcSplitQueryBuilder#getPartitionWhereClauses).
+                // Both places must use the quoted form to prevent SQL injection (CWE-89).
+                String quotedPrimaryKeyColumn = wrapNameWithEscapedCharacter(primaryKeyColumn);
+                // Use a PreparedStatement (extended query protocol) rather than a plain Statement. The
+                // bounds query has no bind parameters -- an identifier can never be a '?' parameter -- but
+                // the extended protocol rejects multiple commands in one statement, so a stacked payload
+                // (e.g. "; GRANT ...") fails loudly instead of executing. Independent second layer on top
+                // of the identifier quoting above.
+                try (PreparedStatement statement = jdbcConnection.prepareStatement(String.format(SQL_SPLITS_STRING, quotedPrimaryKeyColumn, quotedPrimaryKeyColumn,
+                             wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())));
+                     ResultSet minMaxResultSet = statement.executeQuery()) {
+                    minMaxResultSet.next(); // expecting one result row
+                    long min = minMaxResultSet.getLong(1);
+                    long max = minMaxResultSet.getLong(2);
+                    Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(quotedPrimaryKeyColumn, minMaxResultSet, DEFAULT_NUM_SPLITS);
+
+                    if (optionalSplitter.isPresent()) {
+                        if (max - min < DEFAULT_NUM_SPLITS) {
+                            LOGGER.info("Range too small for splitting (min={}, max={}), skipping", min, max);
+                            return splitClauses;
+                        }
+
+                        Splitter splitter = optionalSplitter.get();
+                        while (splitter.hasNext()) {
+                            String splitClause = splitter.nextRangeClause();
+                            LOGGER.debug("Split generated {}", splitClause);
+                            splitClauses.add(splitClause);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex) {
+            LOGGER.warn("Unable to split data.", ex);
+        }
+
+        return splitClauses;
     }
 }
