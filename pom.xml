@@ -50,7 +50,7 @@
         <mvn.source.plugin.version>3.4.0</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.12.0</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.5.1</mvn.jar.plugin.version>
-        <io.substrait.version>0.65.0</io.substrait.version>
+        <io.substrait.version>0.84.1</io.substrait.version>
         <org.apache.calcite.version>1.42.0</org.apache.calcite.version>
         <com.google.protobuf.version>4.35.1</com.google.protobuf.version>
         <doclint>none</doclint>
