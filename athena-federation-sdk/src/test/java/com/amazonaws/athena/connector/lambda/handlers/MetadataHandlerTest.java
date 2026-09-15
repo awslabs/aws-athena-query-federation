@@ -40,6 +40,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
@@ -57,6 +58,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
@@ -68,6 +70,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.handlers.MetadataHandler.SPILL_BUCKET_ENV;
+import static com.amazonaws.athena.connector.lambda.handlers.MetadataHandler.SPILL_PREFIX_ENV;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -87,6 +91,8 @@ public class MetadataHandlerTest
     private static final String SCHEMA_NAME = "testSchema";
     private static final String TABLE_NAME = "testTable";
     private static final String PARTITION_COL = "partition_col";
+    private static final String SPILL_BUCKET = "bucket";
+    private static final String SPILL_PREFIX = "prefix";
     @Mock
     private Constraints mockConstraints;
 
@@ -94,19 +100,21 @@ public class MetadataHandlerTest
     public void setUp()
     {
         Map<String, String> configOptions = new HashMap<>();
-        String bucket = "bucket";
-        configOptions.put("spill_bucket", bucket);
-        String prefix = "prefix";
-        configOptions.put("spill_prefix", prefix);
+        configOptions.put(SPILL_BUCKET_ENV, SPILL_BUCKET);
+        configOptions.put(SPILL_PREFIX_ENV, SPILL_PREFIX);
+        metadataHandler = createMetadataHandler(configOptions);
+        blockAllocator = new BlockAllocatorImpl();
+    }
 
-        // Create a mock implementation of MetadataHandler for testing
-        metadataHandler = new MetadataHandler(
+    private MetadataHandler createMetadataHandler(Map<String, String> configOptions)
+    {
+        return new MetadataHandler(
                 new LocalKeyFactory(),
                 mock(SecretsManagerClient.class),
                 mock(AthenaClient.class),
                 "test",
-                bucket,
-                prefix,
+                SPILL_BUCKET,
+                SPILL_PREFIX,
                 configOptions
         ) {
             @Override
@@ -138,6 +146,13 @@ public class MetadataHandlerTest
             }
 
             @Override
+            public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request)
+            {
+                fail("doGetQueryPassthroughSchema should not run when Query Passthrough is disabled");
+                return null;
+            }
+
+            @Override
             public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             {
                 try {
@@ -158,8 +173,6 @@ public class MetadataHandlerTest
                 throw new UnsupportedOperationException();
             }
         };
-
-        blockAllocator = new BlockAllocatorImpl();
     }
 
     @After
@@ -236,6 +249,31 @@ public class MetadataHandlerTest
 
         FederationResponse response = objectMapper.readValue(outputStream.toByteArray(), FederationResponse.class);
         assertNotNull(response);
+    }
+
+    @Test
+    public void testGetTableRequestWithQueryPassthroughDisabledThrows() throws Exception
+    {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(SPILL_BUCKET_ENV, SPILL_BUCKET);
+        configOptions.put(SPILL_PREFIX_ENV, SPILL_PREFIX);
+        configOptions.put(QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH, "false");
+        MetadataHandler disabledHandler = createMetadataHandler(configOptions);
+
+        Map<String, String> qptArguments = new HashMap<>();
+        qptArguments.put(QueryPassthroughSignature.SCHEMA_FUNCTION_NAME, "system.traverse");
+        qptArguments.put("DATABASE", "graph-database");
+        GetTableRequest request = new GetTableRequest(identity, QUERY_ID, CATALOG, new TableName(SCHEMA_NAME, TABLE_NAME), qptArguments);
+
+        try {
+            disabledHandler.doHandleRequest(blockAllocator, VersionedObjectMapperFactory.create(blockAllocator),
+                    request, new ByteArrayOutputStream());
+            fail("Expected AthenaConnectorException when Query Passthrough is disabled");
+        }
+        catch (AthenaConnectorException e) {
+            assertTrue(e.getMessage().contains("Query Passthrough is disabled"));
+            assertEquals(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString(), e.getErrorDetails().errorCode());
+        }
     }
 
     @Test
