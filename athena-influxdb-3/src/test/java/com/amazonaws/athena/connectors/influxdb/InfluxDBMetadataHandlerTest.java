@@ -28,6 +28,9 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
+import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -67,10 +70,13 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -442,5 +448,245 @@ public class InfluxDBMetadataHandlerTest
             assertEquals(Types.MinorType.TIMESTAMPMILLITZ,
                     Types.getMinorTypeForArrowType(derived.findField("time").getType()));
         }
+    }
+
+    @Test
+    public void testDoGetQueryPassthroughSchemaMapsIntegerBooleanAndDateTypes() throws Exception
+    {
+        try (BufferAllocator arrow = new RootAllocator()) {
+            final Schema resultSchema = new Schema(List.of(
+                    new Field("count", FieldType.nullable(new ArrowType.Int(64, true)), null),
+                    new Field("small", FieldType.nullable(new ArrowType.Int(32, true)), null),
+                    new Field("flag", FieldType.nullable(new ArrowType.Bool()), null),
+                    new Field("day", FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null),
+                    new Field("ratio", FieldType.nullable(
+                            new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), null)));
+            final VectorSchemaRoot root = VectorSchemaRoot.create(resultSchema, arrow);
+            when(mockClient.queryBatches(anyString())).thenReturn(Stream.of(root).onClose(root::close));
+
+            final GetTableResponse response = handler.doGetQueryPassthroughSchema(allocator,
+                    new GetTableRequest(IDENTITY, "queryId", "catalog", new TableName("system", "query"),
+                            passthroughArgs("SELECT * FROM cpu")));
+
+            final Schema derived = response.getSchema();
+            assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(derived.findField("count").getType()));
+            assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(derived.findField("small").getType()));
+            assertEquals(Types.MinorType.BIT, Types.getMinorTypeForArrowType(derived.findField("flag").getType()));
+            assertEquals(Types.MinorType.TIMESTAMPMILLITZ,
+                    Types.getMinorTypeForArrowType(derived.findField("day").getType()));
+            assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(derived.findField("ratio").getType()));
+        }
+    }
+
+    @Test
+    public void testDoGetQueryPassthroughSchemaFailsWhenQueryReturnsNoBatches() throws Exception
+    {
+        when(mockClient.queryBatches(anyString())).thenReturn(Stream.empty());
+        try {
+            handler.doGetQueryPassthroughSchema(allocator,
+                    new GetTableRequest(IDENTITY, "queryId", "catalog", new TableName("system", "query"),
+                            passthroughArgs("SELECT 1 WHERE false")));
+            fail("expected an empty result to fail schema inference");
+        }
+        catch (final IllegalStateException e) {
+            assertTrue(e.getMessage().contains("returned no result schema"));
+        }
+    }
+
+    @Test
+    public void testDoGetQueryPassthroughSchemaRejectsNonPassthroughRequest() throws Exception
+    {
+        try {
+            handler.doGetQueryPassthroughSchema(allocator,
+                    new GetTableRequest(IDENTITY, "queryId", "catalog", new TableName("mydb", "cpu"),
+                            Collections.emptyMap()));
+            fail("expected a non-passthrough request to be rejected");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("without query passthrough arguments"));
+        }
+    }
+
+    private static Map<String, String> passthroughArgs(final String query)
+    {
+        final Map<String, String> args = new HashMap<>();
+        args.put("schemaFunctionName", "SYSTEM.QUERY");
+        args.put(InfluxDBQueryPassthrough.DATABASE, "mydb");
+        args.put(InfluxDBQueryPassthrough.QUERY, query);
+        return args;
+    }
+
+    private static final ArrowType.Timestamp TS_MILLI_UTC = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
+
+    /** Athena/Trino packs TIMESTAMP WITH TIME ZONE constraint values as {@code (millisUtc << 12) | tzKey}. */
+    private static long packed(final long millisUtc)
+    {
+        return millisUtc << 12;
+    }
+
+    private Constraints timeConstraints(final Range range)
+    {
+        final Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("time", SortedRangeSet.of(range));
+        return new Constraints(summary, Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, null, null);
+    }
+
+    @Test
+    public void testExtractTimeRangeUnpacksBoundsAndRejectsDegenerateRanges()
+    {
+        final Long[] bounds = InfluxDBMetadataHandler.extractTimeRange(timeConstraints(
+                Range.range(allocator, TS_MILLI_UTC, packed(1000L), true, packed(5000L), true)));
+        assertEquals(Long.valueOf(1000L), bounds[0]);
+        assertEquals(Long.valueOf(5000L), bounds[1]);
+
+        // A single value has min == max and cannot be bucketed.
+        assertNull(InfluxDBMetadataHandler.extractTimeRange(timeConstraints(
+                Range.equal(allocator, TS_MILLI_UTC, packed(1000L)))));
+        // Half-open ranges cannot be bucketed.
+        assertNull(InfluxDBMetadataHandler.extractTimeRange(timeConstraints(
+                Range.greaterThan(allocator, TS_MILLI_UTC, packed(1000L)))));
+        // A "time" column that is not a timestamp is ignored.
+        assertNull(InfluxDBMetadataHandler.extractTimeRange(timeConstraints(
+                Range.range(allocator, Types.MinorType.BIGINT.getType(), 1L, true, 5L, true))));
+        // A none value set is ignored.
+        final Map<String, ValueSet> none = new HashMap<>();
+        none.put("time", SortedRangeSet.none(TS_MILLI_UTC));
+        assertNull(InfluxDBMetadataHandler.extractTimeRange(new Constraints(none, Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null)));
+    }
+
+    @Test
+    public void testGetPartitionsBucketsTimeRangeIntoHalfOpenSplits() throws Exception
+    {
+        final InfluxDBMetadataHandler pHandler = handlerWithParallelism("true", "4");
+        final Schema partSchema = SchemaBuilder.newBuilder()
+                        .addField("time_lower", Types.MinorType.BIGINT.getType())
+                        .addField("time_upper", Types.MinorType.BIGINT.getType())
+                        .build();
+        final Block block = allocator.createBlock(partSchema);
+        block.constrain(ConstraintEvaluator.emptyEvaluator());
+
+        final AtomicInteger written = new AtomicInteger();
+        final BlockWriter writer = mock(BlockWriter.class);
+        Mockito.doAnswer(inv -> {
+            final BlockWriter.RowWriter rw = inv.getArgument(0);
+            written.set(rw.writeRows(block, 0));
+            block.setRowCount(written.get());
+            return null;
+        }).when(writer).writeRows(any());
+
+        // [1000, 1010] with 4 buckets -> width 2, last bucket extends one millisecond past max.
+        final GetTableLayoutRequest request = new GetTableLayoutRequest(IDENTITY, "q", "catalog",
+                new TableName("mydb", "cpu"),
+                timeConstraints(Range.range(allocator, TS_MILLI_UTC, packed(1000L), true, packed(1010L), true)),
+                partSchema, Collections.emptySet());
+        pHandler.getPartitions(writer, request, mock(QueryStatusChecker.class));
+
+        assertEquals(4, written.get());
+        final long[] lows = new long[4];
+        final long[] highs = new long[4];
+        for (int i = 0; i < 4; i++) {
+            block.getFieldReader("time_lower").setPosition(i);
+            block.getFieldReader("time_upper").setPosition(i);
+            lows[i] = block.getFieldReader("time_lower").readLong();
+            highs[i] = block.getFieldReader("time_upper").readLong();
+        }
+        assertArrayEquals(new long[] {1000L, 1002L, 1004L, 1006L}, lows);
+        assertArrayEquals(new long[] {1002L, 1004L, 1006L, 1011L}, highs);
+    }
+
+    @Test
+    public void testGetPartitionsNeverCreatesMoreBucketsThanMilliseconds() throws Exception
+    {
+        final InfluxDBMetadataHandler pHandler = handlerWithParallelism("true", "16");
+        final Schema partSchema = SchemaBuilder.newBuilder()
+                        .addField("time_lower", Types.MinorType.BIGINT.getType())
+                        .addField("time_upper", Types.MinorType.BIGINT.getType())
+                        .build();
+        final Block block = allocator.createBlock(partSchema);
+        block.constrain(ConstraintEvaluator.emptyEvaluator());
+        final AtomicInteger written = new AtomicInteger();
+        final BlockWriter writer = mock(BlockWriter.class);
+        Mockito.doAnswer(inv -> {
+            written.set(((BlockWriter.RowWriter) inv.getArgument(0)).writeRows(block, 0));
+            return null;
+        }).when(writer).writeRows(any());
+
+        // A 3ms range can only be split three ways regardless of the configured count.
+        pHandler.getPartitions(writer, new GetTableLayoutRequest(IDENTITY, "q", "catalog",
+                new TableName("mydb", "cpu"),
+                timeConstraints(Range.range(allocator, TS_MILLI_UTC, packed(1000L), true, packed(1003L), true)),
+                partSchema, Collections.emptySet()), mock(QueryStatusChecker.class));
+        assertEquals(3, written.get());
+    }
+
+    @Test
+    public void testDoGetSplitsWithNoPartitionsStillReturnsOneSplit() throws Exception
+    {
+        final Schema partSchema = SchemaBuilder.newBuilder()
+                        .addField("time_lower", Types.MinorType.BIGINT.getType())
+                        .addField("time_upper", Types.MinorType.BIGINT.getType())
+                        .build();
+        final Block partitions = allocator.createBlock(partSchema);
+        partitions.constrain(ConstraintEvaluator.emptyEvaluator());
+        partitions.setRowCount(0);
+
+        final Constraints constraints = new Constraints(new HashMap<>(), Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
+        final GetSplitsResponse response = handler.doGetSplits(allocator, new GetSplitsRequest(IDENTITY, "q",
+                "catalog", new TableName("mydb", "cpu"), partitions, List.of("time_lower", "time_upper"),
+                constraints, null));
+        assertEquals(1, response.getSplits().size());
+        assertNull(response.getSplits().iterator().next().getProperty("time_lower"));
+    }
+
+    @Test
+    public void testDoGetSplitsSkipsBoundsForNullPartitionRow() throws Exception
+    {
+        final Schema partSchema = SchemaBuilder.newBuilder()
+                        .addField("time_lower", Types.MinorType.BIGINT.getType())
+                        .addField("time_upper", Types.MinorType.BIGINT.getType())
+                        .build();
+        final Block partitions = allocator.createBlock(partSchema);
+        partitions.constrain(ConstraintEvaluator.emptyEvaluator());
+        partitions.setValue("time_lower", 0, null);
+        partitions.setValue("time_upper", 0, null);
+        partitions.setRowCount(1);
+
+        final Constraints constraints = new Constraints(new HashMap<>(), Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
+        final GetSplitsResponse response = handler.doGetSplits(allocator, new GetSplitsRequest(IDENTITY, "q",
+                "catalog", new TableName("mydb", "cpu"), partitions, List.of("time_lower", "time_upper"),
+                constraints, null));
+        assertEquals(1, response.getSplits().size());
+        assertNull(response.getSplits().iterator().next().getProperty("time_lower"));
+    }
+
+    @Test
+    public void testToArrowTypeUnknownFallsBackToVarchar()
+    {
+        assertEquals(Types.MinorType.VARCHAR, InfluxDBMetadataHandler.toArrowType("Decimal128(10, 2)"));
+        assertEquals(Types.MinorType.VARCHAR, InfluxDBMetadataHandler.toArrowType("Dictionary(Int32, Utf8)"));
+        assertEquals(Types.MinorType.TIMESTAMPMILLITZ, InfluxDBMetadataHandler.toArrowType("Timestamp(Nanosecond, None)"));
+    }
+
+    @Test
+    public void testDoListTablesPaginates() throws Exception
+    {
+        when(mockFactory.resolveDatabase("testdb")).thenReturn("testdb");
+        when(mockClient.query(anyString())).thenAnswer(inv -> Stream.<Object[]>of(
+                new Object[] {"Alpha"}, new Object[] {"Beta"}, new Object[] {"Gamma"}));
+
+        final ListTablesResponse firstPage = handler.doListTables(allocator,
+                new ListTablesRequest(IDENTITY, "q", "catalog", "testdb", null, 2));
+        assertEquals(2, firstPage.getTables().size());
+        assertNotNull(firstPage.getNextToken());
+
+        final ListTablesResponse secondPage = handler.doListTables(allocator,
+                new ListTablesRequest(IDENTITY, "q", "catalog", "testdb", firstPage.getNextToken(), 2));
+        assertEquals(1, secondPage.getTables().size());
+        assertNull(secondPage.getNextToken());
+        assertEquals(new TableName("testdb", "gamma"), secondPage.getTables().iterator().next());
     }
 }
