@@ -102,11 +102,11 @@ public class MetadataHandlerTest
         Map<String, String> configOptions = new HashMap<>();
         configOptions.put(SPILL_BUCKET_ENV, SPILL_BUCKET);
         configOptions.put(SPILL_PREFIX_ENV, SPILL_PREFIX);
-        metadataHandler = createMetadataHandler(configOptions);
+        metadataHandler = createMetadataHandler(configOptions, false);
         blockAllocator = new BlockAllocatorImpl();
     }
 
-    private MetadataHandler createMetadataHandler(Map<String, String> configOptions)
+    private MetadataHandler createMetadataHandler(Map<String, String> configOptions, boolean failOnQueryPassthroughSchema)
     {
         return new MetadataHandler(
                 new LocalKeyFactory(),
@@ -148,8 +148,15 @@ public class MetadataHandlerTest
             @Override
             public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request)
             {
-                fail("doGetQueryPassthroughSchema should not run when Query Passthrough is disabled");
-                return null;
+                if (failOnQueryPassthroughSchema) {
+                    fail("doGetQueryPassthroughSchema should not run when Query Passthrough is disabled");
+                    return null;
+                }
+                Schema schema = SchemaBuilder.newBuilder()
+                        .addStringField("id")
+                        .addIntField("age")
+                        .build();
+                return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
             }
 
             @Override
@@ -258,12 +265,8 @@ public class MetadataHandlerTest
         configOptions.put(SPILL_BUCKET_ENV, SPILL_BUCKET);
         configOptions.put(SPILL_PREFIX_ENV, SPILL_PREFIX);
         configOptions.put(QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH, "false");
-        MetadataHandler disabledHandler = createMetadataHandler(configOptions);
-
-        Map<String, String> qptArguments = new HashMap<>();
-        qptArguments.put(QueryPassthroughSignature.SCHEMA_FUNCTION_NAME, "system.traverse");
-        qptArguments.put("DATABASE", "graph-database");
-        GetTableRequest request = new GetTableRequest(identity, QUERY_ID, CATALOG, new TableName(SCHEMA_NAME, TABLE_NAME), qptArguments);
+        MetadataHandler disabledHandler = createMetadataHandler(configOptions, true);
+        GetTableRequest request = buildQueryPassthroughGetTableRequest();
 
         try {
             disabledHandler.doHandleRequest(blockAllocator, VersionedObjectMapperFactory.create(blockAllocator),
@@ -274,6 +277,34 @@ public class MetadataHandlerTest
             assertTrue(e.getMessage().contains("Query Passthrough is disabled"));
             assertEquals(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString(), e.getErrorDetails().errorCode());
         }
+    }
+
+    @Test
+    public void testGetTableRequestWithQueryPassthroughEnabledReturnsSchema() throws Exception
+    {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(SPILL_BUCKET_ENV, SPILL_BUCKET);
+        configOptions.put(SPILL_PREFIX_ENV, SPILL_PREFIX);
+        configOptions.put(QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH, "true");
+        MetadataHandler enabledHandler = createMetadataHandler(configOptions, false);
+        GetTableRequest request = buildQueryPassthroughGetTableRequest();
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(blockAllocator);
+        enabledHandler.doHandleRequest(blockAllocator, objectMapper, request, outputStream);
+
+        GetTableResponse response = (GetTableResponse) objectMapper.readValue(outputStream.toByteArray(), FederationResponse.class);
+        assertNotNull(response);
+        assertNotNull(response.getSchema());
+        assertEquals(2, response.getSchema().getFields().size());
+    }
+
+    private GetTableRequest buildQueryPassthroughGetTableRequest()
+    {
+        Map<String, String> qptArguments = new HashMap<>();
+        qptArguments.put(QueryPassthroughSignature.SCHEMA_FUNCTION_NAME, "system.traverse");
+        qptArguments.put("DATABASE", "graph-database");
+        return new GetTableRequest(identity, QUERY_ID, CATALOG, new TableName(SCHEMA_NAME, TABLE_NAME), qptArguments);
     }
 
     @Test

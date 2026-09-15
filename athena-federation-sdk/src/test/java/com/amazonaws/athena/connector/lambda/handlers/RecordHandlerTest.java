@@ -171,11 +171,62 @@ public class RecordHandlerTest
                 fail("readWithConstraint should not run when Query Passthrough is disabled");
             }
         };
+        ReadRecordsRequest request = buildQueryPassthroughReadRecordsRequest();
 
+        try {
+            disabledHandler.doReadRecords(blockAllocator, request);
+            fail("Expected AthenaConnectorException when Query Passthrough is disabled");
+        }
+        catch (AthenaConnectorException e) {
+            assertTrue(e.getMessage().contains("Query Passthrough is disabled"));
+            assertEquals(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString(), e.getErrorDetails().errorCode());
+        }
+    }
+
+    @Test
+    public void doReadRecordsWithQueryPassthroughEnabledReadsRecords()
+            throws Exception
+    {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(MetadataHandler.SPILL_BUCKET_ENV, SPILL_BUCKET);
+        configOptions.put(MetadataHandler.SPILL_PREFIX_ENV, SPILL_PREFIX);
+        configOptions.put(ENABLE_QUERY_PASSTHROUGH, "true");
+        RecordHandler enabledHandler = new RecordHandler(mock(S3Client.class), mock(SecretsManagerClient.class),
+                mock(AthenaClient.class), "test", configOptions) {
+            @Override
+            protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+            {
+                // no-op: QPT execution is allowed and should reach the record path
+            }
+        };
+
+        RecordResponse response = enabledHandler.doReadRecords(blockAllocator, buildQueryPassthroughReadRecordsRequest());
+
+        assertNotNull(response);
+        assertEquals(CATALOG, response.getCatalogName());
+    }
+
+    @Test
+    public void doReadRecordsWithoutQueryPassthrough()
+            throws Exception
+    {
+        RecordResponse response = recordHandler.doReadRecords(blockAllocator, buildReadRecordsRequest(Collections.emptyMap()));
+
+        assertNotNull(response);
+        assertEquals(CATALOG, response.getCatalogName());
+    }
+
+    private ReadRecordsRequest buildQueryPassthroughReadRecordsRequest()
+    {
         Map<String, String> qptArguments = new HashMap<>();
         qptArguments.put("schemaFunctionName", "system.traverse");
         qptArguments.put("TRAVERSE", "g.V().limit(1)");
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
+        return buildReadRecordsRequest(qptArguments);
+    }
+
+    private ReadRecordsRequest buildReadRecordsRequest(Map<String, String> queryPassthroughArguments)
+    {
+        return new ReadRecordsRequest(identity,
                 CATALOG,
                 QUERY_ID,
                 new TableName("testSchema", "testTable"),
@@ -188,19 +239,10 @@ public class RecordHandlerTest
                                         .build(),
                                 keyFactory.create())
                         .build(),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, qptArguments, null),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, queryPassthroughArguments, null),
                 1_500_000L,
                 0
         );
-
-        try {
-            disabledHandler.doReadRecords(blockAllocator, request);
-            fail("Expected AthenaConnectorException when Query Passthrough is disabled");
-        }
-        catch (AthenaConnectorException e) {
-            assertTrue(e.getMessage().contains("Query Passthrough is disabled"));
-            assertEquals(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString(), e.getErrorDetails().errorCode());
-        }
     }
 
     @Test
