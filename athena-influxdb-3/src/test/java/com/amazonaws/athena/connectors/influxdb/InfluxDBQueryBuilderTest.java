@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
@@ -48,6 +49,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -433,5 +437,149 @@ public class InfluxDBQueryBuilderTest
         final ArrowType ts = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
         assertTrue(sqlForExpression(fce(sf("GREATER_THAN_OPERATOR_FUNCTION_NAME"), BOOL,
                 var("time", ts), constant(1782258710000L, ts))).contains("TIMESTAMP"));
+    }
+
+    @Test
+    public void testExpressionPushdownRemainingOperators()
+    {
+        final VariableExpression usage = var("usage_idle", FLOAT8);
+        final VariableExpression host = var("host", UTF8);
+
+        assertTrue(sqlForExpression(fce(sf("NULLIF_FUNCTION_NAME"), UTF8, host, constant("x", UTF8)))
+                .contains("NULLIF(\"host\", 'x')"));
+        assertTrue(sqlForExpression(fce(sf("NOT_EQUAL_OPERATOR_FUNCTION_NAME"), BOOL, host, constant("x", UTF8)))
+                .contains("\"host\" <> 'x'"));
+        assertTrue(sqlForExpression(fce(sf("LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME"), BOOL, usage, constant(5.0, FLOAT8)))
+                .contains("\"usage_idle\" <= 5.0"));
+        assertTrue(sqlForExpression(fce(sf("IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME"), BOOL, host, constant("x", UTF8)))
+                .contains("\"host\" IS DISTINCT FROM 'x'"));
+        assertTrue(sqlForExpression(fce(sf("IN_PREDICATE_FUNCTION_NAME"), BOOL, host,
+                fce(sf("ARRAY_CONSTRUCTOR_FUNCTION_NAME"), UTF8, constant("a", UTF8), constant("b", UTF8))))
+                .contains("\"host\" IN ('a', 'b')"));
+        assertTrue(sqlForExpression(fce(sf("SUBTRACT_FUNCTION_NAME"), FLOAT8, usage, constant(1.0, FLOAT8)))
+                .contains("\"usage_idle\" - 1.0"));
+        assertTrue(sqlForExpression(fce(sf("MULTIPLY_FUNCTION_NAME"), FLOAT8, usage, constant(2.0, FLOAT8)))
+                .contains("\"usage_idle\" * 2.0"));
+        assertTrue(sqlForExpression(fce(sf("DIVIDE_FUNCTION_NAME"), FLOAT8, usage, constant(2.0, FLOAT8)))
+                .contains("\"usage_idle\" / 2.0"));
+        assertTrue(sqlForExpression(fce(sf("MODULUS_FUNCTION_NAME"), FLOAT8, usage, constant(2.0, FLOAT8)))
+                .contains("\"usage_idle\" % 2.0"));
+        assertTrue(sqlForExpression(fce(sf("NEGATE_FUNCTION_NAME"), FLOAT8, usage))
+                .contains("(-\"usage_idle\")"));
+    }
+
+    @Test
+    public void testExpressionPushdownUnknownArgumentAndEmptyConstantRenderAsNull()
+    {
+        // An expression type the builder does not understand is rendered as NULL rather than failing.
+        final FederationExpression unknown = new FederationExpression(UTF8)
+        {
+            @Override
+            public List<? extends FederationExpression> getChildren()
+            {
+                return Collections.emptyList();
+            }
+
+            @Override
+            public int hashCode()
+            {
+                return 0;
+            }
+
+            @Override
+            public boolean equals(final Object obj)
+            {
+                return this == obj;
+            }
+
+            @Override
+            public String toString()
+            {
+                return "unknown";
+            }
+        };
+        assertTrue(sqlForExpression(fce(sf("EQUAL_OPERATOR_FUNCTION_NAME"), BOOL, var("host", UTF8), unknown))
+                .contains("\"host\" = NULL"));
+
+        // A constant with no rows is NULL.
+        final Block empty = allocator.createBlock(new SchemaBuilder().addField("col1", UTF8).build());
+        empty.setRowCount(0);
+        assertTrue(sqlForExpression(fce(sf("EQUAL_OPERATOR_FUNCTION_NAME"), BOOL, var("host", UTF8),
+                new ConstantExpression(empty, UTF8))).contains("\"host\" = NULL"));
+    }
+
+    @Test
+    public void testBuildOrderByClauseEmptyWhenNoOrderBy()
+    {
+        final Constraints constraints = new Constraints(new HashMap<>(), Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
+        assertEquals("", InfluxDBQueryBuilder.buildOrderByClause(constraints));
+        assertEquals("", InfluxDBQueryBuilder.buildOrderByClause(new Constraints(new HashMap<>(),
+                Collections.emptyList(), null, Constraints.DEFAULT_NO_LIMIT, null, null)));
+    }
+
+    @Test
+    public void testBuildSqlIgnoresNonSortedRangeSetAndEmptyValueSets()
+    {
+        final Map<String, ValueSet> summary = new HashMap<>();
+        // Non-SortedRangeSet value sets are not pushed down.
+        summary.put("host", EquatableValueSet.newBuilder(allocator, UTF8, true, false).add("a").build());
+        // A SortedRangeSet with no ranges and nulls disallowed yields no predicate.
+        summary.put("usage_idle", SortedRangeSet.none(FLOAT8));
+        final Constraints constraints = new Constraints(summary, Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
+        assertEquals("SELECT \"time\", \"host\", \"usage_idle\" FROM \"cpu\"",
+                InfluxDBQueryBuilder.buildSql(schema, "cpu", constraints));
+    }
+
+    @Test
+    public void testBuildSqlWithNullableRangeAndExclusiveUpperBound()
+    {
+        final Map<String, ValueSet> summary = new HashMap<>();
+        // Nulls allowed alongside a range: rendered as an OR of IS NULL and the range.
+        summary.put("usage_idle", SortedRangeSet.of(true, Range.lessThan(allocator, FLOAT8, 10.0)));
+        // Unbounded on both sides with nulls disallowed: IS NOT NULL.
+        summary.put("host", SortedRangeSet.of(false, Range.all(allocator, UTF8)));
+        final Constraints constraints = new Constraints(summary, Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
+        final String sql = InfluxDBQueryBuilder.buildSql(schema, "cpu", constraints);
+        assertTrue(sql.contains("(\"usage_idle\" IS NULL) OR (\"usage_idle\" < 10.0)"));
+        assertTrue(sql.contains("(\"host\" IS NOT NULL)"));
+    }
+
+    @Test
+    public void testConstraintEpochMillisHandlesTemporalRepresentations()
+    {
+        final ArrowType.Timestamp tsType = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
+        final long millis = 1764764130000L;
+        final Instant instant = Instant.ofEpochMilli(millis);
+        assertEquals(millis, InfluxDBQueryBuilder.constraintEpochMillis(instant.atZone(ZoneOffset.UTC), tsType));
+        assertEquals(millis, InfluxDBQueryBuilder.constraintEpochMillis(instant, tsType));
+        assertEquals(millis, InfluxDBQueryBuilder.constraintEpochMillis(
+                LocalDateTime.ofInstant(instant, ZoneOffset.UTC), tsType));
+        assertEquals(millis, InfluxDBQueryBuilder.constraintEpochMillis(instant.toString(), tsType));
+    }
+
+    @Test
+    public void testToLiteralTemporalAndNonNumericVariants()
+    {
+        final ArrowType.Timestamp tsType = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
+        final Instant instant = Instant.parse("2025-12-03T10:15:30Z");
+        final String expectedTs = "TIMESTAMP '2025-12-03T10:15:30Z'";
+        assertEquals(expectedTs, InfluxDBQueryBuilder.toLiteral(instant.atZone(ZoneOffset.UTC), tsType));
+        assertEquals(expectedTs, InfluxDBQueryBuilder.toLiteral(instant, tsType));
+        assertEquals(expectedTs, InfluxDBQueryBuilder.toLiteral("2025-12-03T10:15:30Z", tsType));
+
+        final ArrowType dateMilli = Types.MinorType.DATEMILLI.getType();
+        assertEquals("'2025-12-03T10:15:30'",
+                InfluxDBQueryBuilder.toLiteral(LocalDateTime.ofInstant(instant, ZoneOffset.UTC), dateMilli));
+        assertEquals("'2025-12-03T10:15:30Z'", InfluxDBQueryBuilder.toLiteral(instant.toEpochMilli(), dateMilli));
+        assertEquals("'raw''date'", InfluxDBQueryBuilder.toLiteral("raw'date", dateMilli));
+
+        // A non-numeric value for a numeric column is quoted rather than interpolated.
+        assertEquals("'1 OR 1=1'", InfluxDBQueryBuilder.toLiteral("1 OR 1=1", Types.MinorType.INT.getType()));
+        // Types without a dedicated rendering fall back to a quoted string.
+        assertEquals("'19700'", InfluxDBQueryBuilder.toLiteral(19700, Types.MinorType.DATEDAY.getType()));
+        assertEquals("NULL", InfluxDBQueryBuilder.toLiteral(null, FLOAT8));
     }
 }

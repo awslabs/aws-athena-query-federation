@@ -19,25 +19,43 @@
  */
 package com.amazonaws.athena.connectors.influxdb;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler;
 import com.influxdb.v3.client.InfluxDBApiHttpException;
 import com.influxdb.v3.client.InfluxDBClient;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
 import org.apache.arrow.flight.CallStatus;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -338,6 +356,336 @@ public class InfluxDBConnectionFactoryTest
         }
         assertEquals(1, calls.get());
         verify(factory, never()).invalidateToken();
+    }
+
+    @Test
+    public void testSetHandlerIsUsedForSecretResolution()
+    {
+        final Map<String, String> config = baseConfig();
+        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, null);
+        factory.setHandler(mockHandler);
+        assertEquals("my-plain-token", factory.resolveToken());
+        verify(mockHandler, times(1)).resolveSecrets("my-plain-token");
+    }
+
+    @Test
+    public void testGetClientUsesConfiguredDefaultAndCachesClient() throws Exception
+    {
+        final Map<String, String> config = baseConfig();
+        config.put("influxdb_database", "MyDb");
+        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
+        doReturn(List.of(new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).listDatabases();
+
+        // null and empty fall back to the configured default database.
+        final InfluxDBClient first = factory.getClient(null);
+        assertNotNull(first);
+        assertSame(first, factory.getClient(""));
+        assertSame(first, factory.getClient("MyDb"));
+        // Existence is only verified when a client is minted, not on cache hits.
+        verify(factory, times(1)).listDatabases();
+
+        // Closing evicts the cached client; the next call mints (and re-verifies) a new one.
+        factory.closeAllClients();
+        final InfluxDBClient second = factory.getClient("MyDb");
+        assertNotNull(second);
+        assertNotSame(first, second);
+        verify(factory, times(2)).listDatabases();
+        factory.closeAllClients();
+    }
+
+    @Test
+    public void testGetClientDeniesDatabaseOutsideConfiguredScope() throws Exception
+    {
+        final Map<String, String> config = baseConfig();
+        config.put("influxdb_database", "MyDb");
+        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
+        try {
+            factory.getClient("OtherDb");
+            fail("expected access to an out-of-scope database to be denied");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("scoped to 'MyDb'"));
+        }
+        verify(factory, never()).listDatabases();
+    }
+
+    @Test
+    public void testGetClientWithoutDatabaseOrDefaultThrows()
+    {
+        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(baseConfig(), mockHandler);
+        try {
+            factory.getClient(null);
+            fail("expected missing database to throw");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("No database specified"));
+        }
+    }
+
+    @Test
+    public void testGetClientRejectsNonExistentDatabase() throws Exception
+    {
+        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        doReturn(Arrays.asList(new InfluxDBConnectionFactory.DatabaseInfo("Other"), null)).when(factory).listDatabases();
+        try {
+            factory.getClient("MyDb");
+            fail("expected a non-existent database to be rejected");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("Database does not exist: 'MyDb'"));
+        }
+    }
+
+    @Test
+    public void testGetClientWrapsListDatabasesFailures() throws Exception
+    {
+        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+
+        doThrow(new IOException("io")).when(factory).listDatabases();
+        try {
+            factory.getClient("MyDb");
+            fail("expected IOException to be wrapped");
+        }
+        catch (final RuntimeException e) {
+            assertTrue(e.getMessage().contains("Failed to verify database 'MyDb' exists"));
+            assertTrue(e.getCause() instanceof IOException);
+        }
+
+        doThrow(new InterruptedException("interrupted")).when(factory).listDatabases();
+        try {
+            factory.getClient("MyDb");
+            fail("expected InterruptedException to be wrapped");
+        }
+        catch (final RuntimeException e) {
+            assertTrue(e.getMessage().contains("Interrupted while verifying database 'MyDb' exists"));
+            assertTrue(Thread.interrupted()); // also clears the flag so later tests are unaffected
+        }
+    }
+
+    @Test
+    public void testResolveDatabaseFallsBackToServerListAndFailsClosed() throws Exception
+    {
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        doReturn(Arrays.asList(null, new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).listDatabases();
+
+        assertEquals("MyDb", factory.resolveDatabase("mydb"));
+        try {
+            factory.resolveDatabase("missing");
+            fail("expected an unknown schema to be rejected");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("Database not found: 'missing'"));
+        }
+    }
+
+    @Test
+    public void testResolveTableNameRestoresCaseFromInformationSchema() throws Exception
+    {
+        final InfluxDBClient mockClient = mock(InfluxDBClient.class);
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        doReturn(mockClient).when(factory).getClient(anyString());
+        when(mockClient.query(anyString(), anyMap())).thenReturn(Stream.<Object[]>of(new Object[] {"MyTable"}));
+
+        assertEquals("MyTable", factory.resolveTableName("MyDb", new TableName("mydb", "mytable")));
+        verify(mockClient).query(anyString(), eq(Map.of("table_name", "mytable")));
+    }
+
+    @Test
+    public void testResolveTableNameThrowsWhenTableMissing() throws Exception
+    {
+        final InfluxDBClient mockClient = mock(InfluxDBClient.class);
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        doReturn(mockClient).when(factory).getClient(anyString());
+        when(mockClient.query(anyString(), anyMap())).thenReturn(Stream.empty());
+        try {
+            factory.resolveTableName("MyDb", new TableName("mydb", "nope"));
+            fail("expected a missing table to throw");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("Table not found in database 'MyDb': nope"));
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testListDatabasesMissingHostThrows() throws Exception
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
+        new InfluxDBConnectionFactory(config, mockHandler).listDatabases();
+    }
+
+    @Test
+    public void testListDatabasesRejectsPlainHttpUnlessAllowed() throws Exception
+    {
+        final Map<String, String> config = baseConfig();
+        config.put("INFLUXDB3_HOST_URL", "http://localhost:8086");
+        try {
+            new InfluxDBConnectionFactory(config, mockHandler).listDatabases();
+            fail("expected plain http to be rejected");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("Host must use HTTPS"));
+        }
+    }
+
+    @Test
+    public void testListDatabasesParsesResponse() throws Exception
+    {
+        final List<Integer> statuses = new ArrayList<>();
+        final List<String> authHeaders = new ArrayList<>();
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> {
+            authHeaders.add(exchange.getRequestHeaders().getFirst("Authorization"));
+            statuses.add(200);
+            return new String[] {"200", "[{\"iox::database\":\"DbOne\"},{\"iox::database\":\"DbTwo\"}]"};
+        })) {
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
+            final List<InfluxDBConnectionFactory.DatabaseInfo> databases = factory.listDatabases();
+            assertEquals(2, databases.size());
+            assertEquals("DbOne", databases.get(0).name);
+            assertEquals("DbTwo", databases.get(1).name);
+            assertEquals(List.of("Bearer my-plain-token"), authHeaders);
+            assertEquals("/api/v3/configure/database", server.lastPath());
+        }
+    }
+
+    @Test
+    public void testListDatabasesTreatsNullBodyAsEmpty() throws Exception
+    {
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"200", "null"})) {
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
+            assertTrue(factory.listDatabases().isEmpty());
+        }
+    }
+
+    @Test
+    public void testListDatabasesRefreshesTokenOnAuthErrorThenSucceeds() throws Exception
+    {
+        final List<String> authHeaders = new ArrayList<>();
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> {
+            final String auth = exchange.getRequestHeaders().getFirst("Authorization");
+            authHeaders.add(auth);
+            return "Bearer t2".equals(auth)
+                    ? new String[] {"200", "[{\"iox::database\":\"Db\"}]"}
+                    : new String[] {"401", "unauthorized"};
+        })) {
+            final Map<String, String> config = server.config();
+            config.put("INFLUXDB3_AUTH_TOKEN", "${my-secret}");
+            when(mockHandler.resolveSecrets("${my-secret}")).thenReturn("t1", "t2");
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
+            final List<InfluxDBConnectionFactory.DatabaseInfo> databases = factory.listDatabases();
+            assertEquals(1, databases.size());
+            assertEquals("Db", databases.get(0).name);
+            assertEquals(List.of("Bearer t1", "Bearer t2"), authHeaders);
+        }
+    }
+
+    @Test
+    public void testListDatabasesGivesUpAfterRetryCapOnAuthError() throws Exception
+    {
+        final AtomicInteger requests = new AtomicInteger();
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> {
+            requests.incrementAndGet();
+            return new String[] {"403", "forbidden"};
+        })) {
+            final Map<String, String> config = server.config();
+            config.put("token_refresh_max_retries", "1");
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
+            try {
+                factory.listDatabases();
+                fail("expected a persistent auth failure to propagate");
+            }
+            catch (final RuntimeException e) {
+                assertTrue(e.getMessage().contains("status code: 403"));
+            }
+            // 1 initial attempt + 1 refresh retry.
+            assertEquals(2, requests.get());
+        }
+    }
+
+    @Test
+    public void testListDatabasesSurfaces429AsThrottle() throws Exception
+    {
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"429", "slow down"})) {
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
+            try {
+                factory.listDatabases();
+                fail("expected 429 to surface as FederationThrottleException");
+            }
+            catch (final FederationThrottleException e) {
+                assertTrue(e.getMessage().contains("throttled"));
+            }
+        }
+    }
+
+    @Test
+    public void testListDatabasesFailsOnUnexpectedStatus() throws Exception
+    {
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"500", "boom"})) {
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
+            try {
+                factory.listDatabases();
+                fail("expected a 500 to fail");
+            }
+            catch (final RuntimeException e) {
+                assertTrue(e.getMessage().contains("status code: 500"));
+            }
+        }
+    }
+
+    /**
+     * Minimal local HTTP server standing in for the InfluxDB {@code /api/v3/configure/database} endpoint. The
+     * responder returns {@code {statusCode, body}} for each request.
+     */
+    private static final class LocalInfluxServer implements AutoCloseable
+    {
+        private final HttpServer server;
+        private volatile String lastPath;
+
+        LocalInfluxServer(final Function<HttpExchange, String[]> responder) throws IOException
+        {
+            server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            server.createContext("/", exchange -> {
+                lastPath = exchange.getRequestURI().getPath();
+                final String[] response = responder.apply(exchange);
+                final byte[] body = response[1].getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(Integer.parseInt(response[0]), body.length);
+                try (OutputStream out = exchange.getResponseBody()) {
+                    out.write(body);
+                }
+            });
+            server.start();
+        }
+
+        Map<String, String> config()
+        {
+            final Map<String, String> config = new HashMap<>();
+            config.put("INFLUXDB3_HOST_URL", "http://127.0.0.1:" + server.getAddress().getPort());
+            config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
+            config.put("ALLOW_INSECURE_TRANSPORT", "true");
+            return config;
+        }
+
+        String lastPath()
+        {
+            return lastPath;
+        }
+
+        @Override
+        public void close()
+        {
+            server.stop(0);
+        }
     }
 
     @Test
