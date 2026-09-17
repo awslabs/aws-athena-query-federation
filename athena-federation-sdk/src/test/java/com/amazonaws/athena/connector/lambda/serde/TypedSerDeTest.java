@@ -33,6 +33,7 @@ import java.util.Collections;
 
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_FIVE;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_FOUR;
+import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_SEVEN;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_SIX;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_TWO;
 
@@ -44,6 +45,7 @@ public abstract class TypedSerDeTest<T>
     protected ObjectMapper mapperV4;
     protected ObjectMapper mapperV5;
     protected ObjectMapper mapperV6;
+    protected ObjectMapper mapperV7;
     protected FederatedIdentity federatedIdentity = new FederatedIdentity("testArn", "0123456789", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     protected String expectedSerDeText;
     protected T expected;
@@ -56,10 +58,12 @@ public abstract class TypedSerDeTest<T>
         mapperV4 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_FOUR);
         mapperV5 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_FIVE);
         mapperV6 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_SIX);
+        mapperV7 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_SEVEN);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         mapperV4.enable(SerializationFeature.INDENT_OUTPUT);
         mapperV5.enable(SerializationFeature.INDENT_OUTPUT);
         mapperV6.enable(SerializationFeature.INDENT_OUTPUT);
+        mapperV7.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
     @After
