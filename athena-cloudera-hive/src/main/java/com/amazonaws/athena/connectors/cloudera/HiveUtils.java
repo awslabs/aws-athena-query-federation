@@ -26,8 +26,9 @@ import org.apache.calcite.sql.dialect.HiveSqlDialect;
 import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_CHARACTER;
 
 /**
- * Builds Hive-safe quoted identifiers for dynamic SQL. JDBC {@code ?} placeholders apply to values,
- * not table references, so identifiers must be quoted and escaped explicitly.
+ * Builds Hive-safe quoted identifiers and string literals for dynamic SQL. JDBC {@code ?}
+ * placeholders apply to values, not table references, so identifiers and literals must be
+ * quoted and escaped explicitly.
  */
 public class HiveUtils
 {
@@ -47,6 +48,39 @@ public class HiveUtils
     }
 
     /**
+     * Single-quoted Hive string literal. Hive string literals accept both quote-doubling and C-style
+     * backslash escapes, so backslashes are escaped first, then
+     * {@link HiveSqlDialect#quoteStringLiteral(String)} applies Hive dialect quoting rules.
+     */
+    public static String quoteStringLiteral(String value)
+    {
+        String escaped = value.replace("\\", "\\\\");
+        return HIVE_SQL_DIALECT.quoteStringLiteral(escaped);
+    }
+
+    /**
+     * Right-hand side of a partition equality predicate. Quote STRING, VARCHAR, CHAR, and DATE;
+     * leave INT, BOOLEAN, and other types unquoted. {@code VARCHAR} is covered by {@code contains("CHAR")}.
+     */
+    public static String partitionValueExpression(String columnType, String partitionValue)
+    {
+        if (isQuotedPartitionType(columnType)) {
+            return quoteStringLiteral(partitionValue);
+        }
+        return partitionValue;
+    }
+    
+    private static boolean isQuotedPartitionType(String columnType)
+    {
+        if (columnType == null) {
+            return false;
+        }
+        String type = columnType.toUpperCase();
+        return type.contains("STRING") || type.contains("CHAR")
+                || type.equals("DATE") || type.startsWith("DATE(");
+    }
+
+    /**
      * {@code schema.table} for metadata statements, upper-casing each segment then quoting so names
      * cannot break out of identifier context.
      */
@@ -57,14 +91,11 @@ public class HiveUtils
     }
 
     /**
-     * Single-quoted pattern for {@code SHOW TABLE EXTENDED IN ... LIKE '...'}. Hive string literals
-     * accept both quote-doubling and C-style backslash escapes. Backslashes are escaped first, then
-     * {@link HiveSqlDialect#quoteStringLiteral(String)} applies Hive dialect quoting rules. The name
-     * is upper-cased to match prior connector behavior.
+     * Single-quoted pattern for {@code SHOW TABLE EXTENDED IN ... LIKE '...'}. The name is
+     * upper-cased to match prior connector behavior.
      */
     public static String likePatternLiteral(String pattern)
     {
-        String escaped = pattern.toUpperCase().replace("\\", "\\\\");
-        return HIVE_SQL_DIALECT.quoteStringLiteral(escaped);
+        return quoteStringLiteral(pattern.toUpperCase());
     }
 }
