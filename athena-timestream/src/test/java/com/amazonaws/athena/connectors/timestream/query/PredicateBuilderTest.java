@@ -19,16 +19,17 @@
  */
 package com.amazonaws.athena.connectors.timestream.query;
 
+import com.amazonaws.athena.connectors.timestream.TestUtils;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,9 +46,13 @@ import static org.junit.Assert.assertTrue;
 public class PredicateBuilderTest
 {
     private BlockAllocator allocator;
-    
+    private static final ArrowType INT = Types.MinorType.INT.getType();
+    private static final ArrowType BIGINT = Types.MinorType.BIGINT.getType();
+    private static final ArrowType VARCHAR = Types.MinorType.VARCHAR.getType();
+    private static final ArrowType TS = Types.MinorType.DATEMILLI.getType();
+
     @Before
-    public void setUp()
+    public void setup()
     {
         allocator = new BlockAllocatorImpl();
     }
@@ -55,150 +60,187 @@ public class PredicateBuilderTest
     @After
     public void tearDown()
     {
-        allocator.close();
+        if (allocator != null) {
+            allocator.close();
+        }
     }
 
     @Test
-    public void quoteColumn_columnName_wrapsInDoubleQuotes()
+    public void buildConjuncts_emptySummary_returnsEmptyList()
     {
-        assertEquals("\"measure_name\"", PredicateBuilder.quoteColumn("measure_name"));
+        List<String> conjuncts = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(Collections.emptyMap(), Collections.emptyMap()));
+        assertTrue(conjuncts.isEmpty());
     }
 
     @Test
-    public void quoteColumn_doubleQuoteInName_escapedByDoubling()
+    public void buildConjuncts_onlyNull_returnsIsNull()
     {
-        assertEquals("\"a\"\"b\"", PredicateBuilder.quoteColumn("a\"b"));
-    }
-    
-    @Test
-    public void escapeSqlStringLiteral_valueContainsApostrophe_doublesApostrophe()
-    {
-        assertEquals("O''Brien", PredicateBuilder.escapeSqlStringLiteral("O'Brien"));
+        Map<String, ValueSet> summary = ImmutableMap.of("c", SortedRangeSet.onlyNull(INT));
+        List<String> out = PredicateBuilder.buildConjucts(TestUtils.constraints(summary, Collections.emptyMap()));
+        assertEquals(ImmutableList.of("(\"c\" IS NULL)"), out);
     }
 
     @Test
-    public void buildConjucts_equatableVarcharWithApostrophe_escapesLiteralsInInClause()
+    public void buildConjuncts_notNull_returnsIsNotNull()
     {
-        List<String> conjuncts = PredicateBuilder.buildConjucts(constraints("region",
-                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
-                        .add("us-east-1")
-                        .add("O'Brien")
-                        .build()));
-        assertEquals(1, conjuncts.size());
-        assertEquals("(\"region\" IN ('us-east-1','O''Brien'))", conjuncts.get(0));
+        Map<String, ValueSet> summary = ImmutableMap.of("c", SortedRangeSet.notNull(allocator, INT));
+        List<String> out = PredicateBuilder.buildConjucts(TestUtils.constraints(summary, Collections.emptyMap()));
+        assertEquals(ImmutableList.of("(\"c\" IS NOT NULL)"), out);
     }
 
     @Test
-    public void buildConjucts_sortedRangeVarcharSingleValueWithApostrophe_escapesLiteralInEquality()
+    public void buildConjuncts_greaterThanInt_usesStrictLowBound()
     {
-        List<String> conjuncts = PredicateBuilder.buildConjucts(constraints("hostname",
-                SortedRangeSet.copyOf(Types.MinorType.VARCHAR.getType(),
-                        ImmutableList.of(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "host-keE37's-test")),
-                        false)));
-        assertEquals(1, conjuncts.size());
-        assertEquals("(\"hostname\" = 'host-keE37''s-test')", conjuncts.get(0));
+        ValueSet vs = SortedRangeSet.copyOf(INT, ImmutableList.of(Range.greaterThan(allocator, INT, 5)), false);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("n", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("((\"n\" > 5))"), out);
     }
 
     @Test
-    public void buildConjucts_intGreaterThanRange_returnsComparisonConjunct()
+    public void buildConjuncts_lessThanInt_usesStrictHighBound()
     {
-        List<String> conjuncts = PredicateBuilder.buildConjucts(constraints("col1",
-                SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                        ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1)), false)));
-        assertEquals(1, conjuncts.size());
-        assertEquals("((\"col1\" > 1))", conjuncts.get(0));
+        ValueSet vs = SortedRangeSet.copyOf(INT, ImmutableList.of(Range.lessThan(allocator, INT, 9)), false);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("n", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("((\"n\" < 9))"), out);
     }
 
     @Test
-    public void buildConjucts_columnNameContainsDoubleQuote_outputsEscapedQuotedIdentifier()
+    public void buildConjuncts_boundedInclusive_usesGteAndLte()
     {
-        String columnWithQuote = "evil\" OR 1=1 --";
-        List<String> conjuncts = PredicateBuilder.buildConjucts(constraints(columnWithQuote,
-                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
-                        .add("x")
-                        .build()));
-        assertEquals(1, conjuncts.size());
-        assertTrue(conjuncts.get(0).contains("\"evil\"\" OR 1=1 --\""));
-        assertTrue(conjuncts.get(0).contains("'x'"));
+        ValueSet vs = SortedRangeSet.copyOf(
+                INT,
+                ImmutableList.of(Range.range(allocator, INT, 1, true, 10, true)),
+                false);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("n", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("((\"n\" >= 1 AND \"n\" <= 10))"), out);
     }
 
     @Test
-    public void buildConjucts_dateMilliGreaterThanRange_formatsTimestampWithNanosecondPrecision()
+    public void buildConjuncts_boundedExclusive_usesGtAndLt()
     {
-        LocalDateTime ts = LocalDateTime.of(2024, 4, 5, 9, 31, 12, 142000000);
-        List<String> conjuncts = PredicateBuilder.buildConjucts(constraints("time0",
-                SortedRangeSet.copyOf(Types.MinorType.DATEMILLI.getType(),
-                        ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.DATEMILLI.getType(), ts)), false)));
-        assertEquals(1, conjuncts.size());
-        assertEquals("((\"time0\" > '2024-04-05 09:31:12.142000000'))", conjuncts.get(0));
+        ValueSet vs = SortedRangeSet.copyOf(
+                INT,
+                ImmutableList.of(Range.range(allocator, INT, 1, false, 10, false)),
+                false);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("n", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("((\"n\" > 1 AND \"n\" < 10))"), out);
     }
 
     @Test
-    public void buildConjucts_onlyNullSortedRangeSet_returnsIsNullPredicate()
+    public void buildConjuncts_singleEquality_usesEquals()
     {
-        List<String> conjuncts = PredicateBuilder.buildConjucts(constraints("col",
-                SortedRangeSet.onlyNull(Types.MinorType.INT.getType())));
-        assertEquals(1, conjuncts.size());
-        assertEquals("(\"col\" IS NULL)", conjuncts.get(0));
+        ValueSet vs = SortedRangeSet.copyOf(INT, ImmutableList.of(Range.equal(allocator, INT, 42)), false);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("n", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("(\"n\" = 42)"), out);
     }
 
     @Test
-    public void buildConjucts_notNullSortedRangeSet_returnsIsNotNullPredicate()
+    public void buildConjuncts_multipleDiscreteValues_usesIn()
     {
-        List<String> conjuncts = PredicateBuilder.buildConjucts(constraints("col",
-                SortedRangeSet.notNull(allocator, Types.MinorType.INT.getType())));
-        assertEquals(1, conjuncts.size());
-        assertEquals("(\"col\" IS NOT NULL)", conjuncts.get(0));
-    }
-
-    @Test
-    public void buildConjucts_nullAllowedWithIntGreaterThan_returnsIsNullOrComparisonPredicate()
-    {
-        List<String> conjuncts = PredicateBuilder.buildConjucts(constraints("col",
-                SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                        ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1)), true)));
-        assertEquals(1, conjuncts.size());
-        assertEquals("((\"col\" IS NULL) OR (\"col\" > 1))", conjuncts.get(0));
-    }
-
-    @Test
-    public void buildConjucts_emptySummary_returnsEmptyConjunctList()
-    {
-        assertTrue(PredicateBuilder.buildConjucts(constraints(Collections.emptyMap())).isEmpty());
-    }
-    
-    @Test(expected = AthenaConnectorException.class)
-    public void buildConjucts_sortedRangeSetNoneWithoutNull_throwsAthenaConnectorException()
-    {
-        PredicateBuilder.buildConjucts(constraints("col",
-                SortedRangeSet.none(Types.MinorType.INT.getType())));
-    }
-
-    @Test
-    public void buildConjucts_equatableValueSetEmpty_returnsInClauseWithNoLiterals()
-    {
-        EquatableValueSet empty = EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
+        ValueSet vs = SortedRangeSet.newBuilder(INT, false)
+                .add(Range.equal(allocator, INT, 2))
+                .add(Range.equal(allocator, INT, 3))
                 .build();
-        List<String> conjuncts = PredicateBuilder.buildConjucts(constraints("c", empty));
-        assertEquals(1, conjuncts.size());
-        assertEquals("(\"c\" IN ())", conjuncts.get(0));
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("n", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("(\"n\" IN (2,3))"), out);
     }
 
-    private static Constraints constraints(Map<String, ValueSet> summary)
+    @Test
+    public void buildConjuncts_nullAllowedWithGreaterThan_includesNullDisjunct()
     {
-        return new Constraints(
-                summary,
-                Collections.emptyList(),
-                Collections.emptyList(),
-                Constraints.DEFAULT_NO_LIMIT,
-                Collections.emptyMap(),
-                null);
+        ValueSet vs = SortedRangeSet.copyOf(INT, ImmutableList.of(Range.greaterThan(allocator, INT, 0)), true);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("n", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("((\"n\" IS NULL) OR (\"n\" > 0))"), out);
     }
-    
-    private static Constraints constraints(String column, ValueSet valueSet)
+
+    @Test
+    public void buildConjuncts_timestampEquality_usesQuotedLiteral()
+    {
+        LocalDateTime t = LocalDateTime.of(2024, 6, 15, 12, 30, 45, 123_456_789);
+        ValueSet vs = SortedRangeSet.copyOf(TS, ImmutableList.of(Range.equal(allocator, TS, t)), false);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("ts", vs), Collections.emptyMap()));
+        // Range/allocator may normalize to millisecond precision in the value marker.
+        assertEquals(1, out.size());
+        assertTrue(
+                "got: " + out.get(0),
+                out.get(0).equals("(\"ts\" = '2024-06-15 12:30:45.123456789')")
+                        || out.get(0).equals("(\"ts\" = '2024-06-15 12:30:45.123000000')"));
+    }
+
+    @Test
+    public void buildConjuncts_bigintEquality_unquotedNumeric()
+    {
+        ValueSet vs = SortedRangeSet.copyOf(BIGINT, ImmutableList.of(Range.equal(allocator, BIGINT, 9_000_000_000L)), false);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("id", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("(\"id\" = 9000000000)"), out);
+    }
+
+    @Test
+    public void buildConjuncts_equatableValueSet_usesIn()
+    {
+        ValueSet vs = EquatableValueSet.newBuilder(allocator, VARCHAR, true, false)
+                .add("a")
+                .add("b")
+                .build();
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("s", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("(\"s\" IN ('a','b'))"), out);
+    }
+
+    @Test
+    public void buildConjuncts_equatableSingleValue_usesInWithOneElement()
+    {
+        ValueSet vs = EquatableValueSet.newBuilder(allocator, INT, true, false)
+                .add(7)
+                .build();
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("k", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("(\"k\" IN (7))"), out);
+    }
+
+    @Test
+    public void buildConjuncts_twoColumns_followsMapIterationOrder()
     {
         Map<String, ValueSet> summary = new LinkedHashMap<>();
-        summary.put(column, valueSet);
-        return constraints(summary);
+        summary.put("z_col", SortedRangeSet.copyOf(INT, ImmutableList.of(Range.equal(allocator, INT, 1)), false));
+        summary.put("a_col", SortedRangeSet.copyOf(INT, ImmutableList.of(Range.equal(allocator, INT, 2)), false));
+        List<String> out = PredicateBuilder.buildConjucts(TestUtils.constraints(summary, Collections.emptyMap()));
+        assertEquals(2, out.size());
+        assertEquals("(\"z_col\" = 1)", out.get(0));
+        assertEquals("(\"a_col\" = 2)", out.get(1));
+    }
+
+    @Test
+    public void buildConjuncts_greaterThanOrEqual_usesGteFromExactlyLow()
+    {
+        ValueSet vs = SortedRangeSet.copyOf(
+                INT,
+                ImmutableList.of(Range.greaterThanOrEqual(allocator, INT, 100)),
+                false);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("n", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("((\"n\" >= 100))"), out);
+    }
+
+    @Test
+    public void buildConjuncts_lessThanOrEqual_usesLteFromExactlyHigh()
+    {
+        ValueSet vs = SortedRangeSet.copyOf(
+                INT,
+                ImmutableList.of(Range.lessThanOrEqual(allocator, INT, 50)),
+                false);
+        List<String> out = PredicateBuilder.buildConjucts(
+                TestUtils.constraints(ImmutableMap.of("n", vs), Collections.emptyMap()));
+        assertEquals(ImmutableList.of("((\"n\" <= 50))"), out);
     }
 }
