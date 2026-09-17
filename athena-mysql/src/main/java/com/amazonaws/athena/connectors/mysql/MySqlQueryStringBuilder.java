@@ -64,7 +64,8 @@ public class MySqlQueryStringBuilder
             return String.format(" FROM %s ", tableName);
         }
 
-        return String.format(" FROM %s PARTITION(%s) ", tableName, partitionName);
+        // Identifiers cannot be bound with JDBC ?; quote() wraps and doubles embedded backticks.
+        return String.format(" FROM %s PARTITION(%s) ", tableName, quote(partitionName));
     }
 
     @Override
