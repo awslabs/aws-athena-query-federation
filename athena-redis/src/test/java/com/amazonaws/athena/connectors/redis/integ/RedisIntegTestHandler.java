@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-docdb
+ * athena-redis
  * %%
  * Copyright (C) 2019 - 2021 Amazon Web Services
  * %%
