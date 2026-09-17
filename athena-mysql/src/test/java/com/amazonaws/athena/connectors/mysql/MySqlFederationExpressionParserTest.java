@@ -75,7 +75,7 @@ public class MySqlFederationExpressionParserTest {
     }
 
     @Test
-    public void testParseConstantExpression()
+    public void parseConstantExpression_withIntConstant_returnsPlaceholderAndAccumulatesValue()
     {
         List<TypeAndValue> accumulator = new ArrayList<>();
         ConstantExpression ten = buildIntConstantExpression();
@@ -87,7 +87,7 @@ public class MySqlFederationExpressionParserTest {
 
 
     @Test
-    public void testParseConstantListOfInts()
+    public void parseConstantExpression_withIntList_returnsPlaceholdersAndAccumulatesValues()
     {
         List<TypeAndValue> accumulator = new ArrayList<>();
         ConstantExpression listOfNums = new ConstantExpression(
@@ -107,7 +107,7 @@ public class MySqlFederationExpressionParserTest {
     }
 
     @Test
-    public void testParseConstantListOfStrings()
+    public void parseConstantExpression_withStringList_returnsPlaceholdersAndAccumulatesValues()
     {
         List<TypeAndValue> accumulator = new ArrayList<>();
         List<Object> rawStrings = ImmutableList.of("fed", "er", "ation");
@@ -128,21 +128,21 @@ public class MySqlFederationExpressionParserTest {
 
 
     @Test
-    public void testParseVariableExpression()
+    public void parseVariableExpression_withColumnName_returnsQuotedColumnName()
     {
         VariableExpression colThree = new VariableExpression("colThree", intType);
         assertEquals(federationExpressionParser.parseVariableExpression(colThree), COLUMN_QUOTE_CHAR + "colThree" + COLUMN_QUOTE_CHAR);
     }
 
     @Test(expected = AthenaConnectorException.class)
-    public void testCreateSqlForComplexExpressionContent_InvalidUnaryInput()
+    public void mapFunctionToDataSourceSyntax_withInvalidUnaryInput_throwsAthenaConnectorException()
     {
         FunctionName functionName = StandardFunctions.NEGATE_FUNCTION_NAME.getFunctionName();
         federationExpressionParser.mapFunctionToDataSourceSyntax(functionName, intType, ImmutableList.of("1", "2"));
     }
 
     @Test
-    public void testCreateSqlForComplexExpressionContent_UnaryFunction()
+    public void mapFunctionToDataSourceSyntax_withUnaryFunction_returnsNegatedExpression()
     {
         FunctionName negateFunction = StandardFunctions.NEGATE_FUNCTION_NAME.getFunctionName();
         String negateClause = federationExpressionParser.mapFunctionToDataSourceSyntax(negateFunction, intType, ImmutableList.of("110"));
@@ -150,14 +150,14 @@ public class MySqlFederationExpressionParserTest {
     }
 
     @Test(expected = AthenaConnectorException.class)
-    public void testCreateSqlForComplexExpressionContent_InvalidBinaryInput()
+    public void mapFunctionToDataSourceSyntax_withInvalidBinaryInput_throwsAthenaConnectorException()
     {
         FunctionName functionName = StandardFunctions.ADD_FUNCTION_NAME.getFunctionName();
         federationExpressionParser.mapFunctionToDataSourceSyntax(functionName, intType, ImmutableList.of("1"));
     }
 
     @Test
-    public void testCreateSqlForComplexExpressionContent_BinaryFunction()
+    public void mapFunctionToDataSourceSyntax_withBinaryFunction_returnsSubtractionExpression()
     {
         FunctionName subFunction = StandardFunctions.SUBTRACT_FUNCTION_NAME.getFunctionName();
         String subClause = federationExpressionParser.mapFunctionToDataSourceSyntax(subFunction, intType, ImmutableList.of("`col1`", "10"));
@@ -165,7 +165,7 @@ public class MySqlFederationExpressionParserTest {
     }
 
     @Test
-    public void testCreateSqlForComplexExpressionContent_VarargFunction()
+    public void mapFunctionToDataSourceSyntax_withVarargFunction_returnsInPredicateAndArrayConstructor()
     {
         FunctionName inFunction = StandardFunctions.IN_PREDICATE_FUNCTION_NAME.getFunctionName();
         FunctionName arrayFunction = StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME.getFunctionName();
@@ -176,7 +176,7 @@ public class MySqlFederationExpressionParserTest {
     }
 
     @Test
-    public void testComplexExpressions_Simple()
+    public void parseFunctionCallExpression_withSimpleComparison_returnsSqlWithPlaceholder()
     {
         // colOne + colThree < 10
         VariableExpression colOne = new VariableExpression("colOne", intType);
@@ -204,7 +204,7 @@ public class MySqlFederationExpressionParserTest {
     // OR
     // colFour <> "fruit"
     @Test
-    public void testComplexExpressions_Deep()
+    public void parseFunctionCallExpression_withDeepExpression_returnsFullSqlClause()
     {
         // colOne + colTwo
         FederationExpression colOne = new VariableExpression("colOne", intType);
