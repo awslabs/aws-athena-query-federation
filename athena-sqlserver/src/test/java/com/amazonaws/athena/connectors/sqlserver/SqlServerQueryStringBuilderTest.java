@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
-import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
 
 public class SqlServerQueryStringBuilderTest
 {
@@ -44,15 +43,15 @@ public class SqlServerQueryStringBuilderTest
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
         Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
-        Assert.assertEquals(" FROM \"default\".\"table\" ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM \"default\".\"schema\".\"table\" ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(new SqlServerFederationExpressionParser());
+        Assert.assertEquals(" FROM [default].[table] ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM [default].[schema].[table] ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test
     public void testGetPartitionWhereClauses()
     {
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(new SqlServerFederationExpressionParser());
 
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "0"));
@@ -63,14 +62,14 @@ public class SqlServerQueryStringBuilderTest
         Mockito.when(split1.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn("pf");
         Mockito.when(split1.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn("col");
         Mockito.when(split1.getProperty(PARTITION_NUMBER)).thenReturn("1");
-        Assert.assertEquals(Collections.singletonList(" $PARTITION.pf(col) = 1"), builder.getPartitionWhereClauses(split1));
+        Assert.assertEquals(Collections.singletonList(" $PARTITION.[pf]([col]) = 1"), builder.getPartitionWhereClauses(split1));
 
     }
 
     @Test
     public void getPartitionWhereClausesWhenPartitionFunctionIsNull()
     {
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(new SqlServerFederationExpressionParser());
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn(null);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn("col");
@@ -83,7 +82,7 @@ public class SqlServerQueryStringBuilderTest
     @Test
     public void getPartitionWhereClausesWhenPartitioningColumnIsNull()
     {
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(new SqlServerFederationExpressionParser());
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn("pf");
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn(null);
@@ -96,7 +95,7 @@ public class SqlServerQueryStringBuilderTest
     @Test
     public void getPartitionWhereClausesWhenPartitionFunctionAndColumnAreNull()
     {
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(new SqlServerFederationExpressionParser());
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn(null);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn(null);
@@ -107,12 +106,22 @@ public class SqlServerQueryStringBuilderTest
     }
 
     @Test
+    public void getPartitionWhereClausesQuotesIdentifiers()
+    {
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(new SqlServerFederationExpressionParser());
+        Split quotedNames = Mockito.mock(Split.class);
+        Mockito.when(quotedNames.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn("pf]x");
+        Mockito.when(quotedNames.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn("col]y");
+        Mockito.when(quotedNames.getProperty(PARTITION_NUMBER)).thenReturn("2");
+        Assert.assertEquals(Collections.singletonList(" $PARTITION.[pf]]x]([col]]y]) = 2"), builder.getPartitionWhereClauses(quotedNames));
+    }
+
+    @Test
     public void testLimitClause()
     {
         Split split = Mockito.mock(Split.class);
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(new SqlServerFederationExpressionParser());
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 5L, Collections.emptyMap(), null);
         Assert.assertEquals("", builder.appendLimitOffset(split, constraints));
     }
-
 }

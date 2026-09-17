@@ -24,7 +24,10 @@ public final class SqlServerConstants
     public static final String NAME = "sqlserver";
     public static final String DRIVER_CLASS = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
     public static final int DEFAULT_PORT = 1433;
-    public static final String SQLSERVER_QUOTE_CHARACTER = "\"";
+    /** Opening delimiter for SQL Server identifiers ({@code [name]}). */
+    public static final String SQLSERVER_QUOTE_START = "[";
+    /** Closing delimiter. An embedded {@code ]} is escaped as {@code ]]}. */
+    public static final String SQLSERVER_QUOTE_END = "]";
     static final String PARTITION_NUMBER = "partition_number";
     private SqlServerConstants() {}
 }
