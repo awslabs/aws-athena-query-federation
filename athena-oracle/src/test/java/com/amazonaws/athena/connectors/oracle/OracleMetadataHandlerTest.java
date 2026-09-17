@@ -140,7 +140,7 @@ public class OracleMetadataHandlerTest
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "\'TESTTABLE\'");
+        TableName tableName = new TableName("testSchema", "TESTTABLE");
         Schema partitionSchema = this.oracleMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQUERY_ID", CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
@@ -172,6 +172,7 @@ public class OracleMetadataHandlerTest
         assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         assertEquals(tableName, getTableLayoutResponse.getTableName());
 
+        // Bind the raw dictionary name, not convertToLiteral()'s quoted form ('TESTTABLE').
         verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
     }
 
@@ -180,7 +181,7 @@ public class OracleMetadataHandlerTest
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "\'TESTTABLE\'");
+        TableName tableName = new TableName("testSchema", "TESTTABLE");
         Schema partitionSchema = this.oracleMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQUERY_ID", CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
@@ -211,7 +212,8 @@ public class OracleMetadataHandlerTest
         Schema expectedSchema = expectedSchemaBuilder.build();
         assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         assertEquals(tableName, getTableLayoutResponse.getTableName());
-
+        
+        // Bind the raw dictionary name, not convertToLiteral()'s quoted form ('TESTTABLE').
         verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
     }
 
