@@ -190,8 +190,8 @@ public class TeradataMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
-        String GET_PARTITIONS_QUERY = "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
-                getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
+        String GET_PARTITIONS_QUERY = "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM \"" + getTableLayoutRequest.getTableName().getSchemaName() + "\".\"" +
+                getTableLayoutRequest.getTableName().getTableName() + "\" where 1= ?";
         Mockito.when(this.connection.prepareStatement(GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
         String[] columns = {TEST_PARTITION_COLUMN};
@@ -230,8 +230,8 @@ public class TeradataMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
-        String GET_PARTITIONS_QUERY = "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
-                getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
+        String GET_PARTITIONS_QUERY = "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM \"" + getTableLayoutRequest.getTableName().getSchemaName() + "\".\"" +
+                getTableLayoutRequest.getTableName().getTableName() + "\" where 1= ?";
         Mockito.when(this.connection.prepareStatement(GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
         String[] columns = {TEST_PARTITION_COLUMN};
@@ -300,8 +300,8 @@ public class TeradataMetadataHandlerTest
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
-        String GET_PARTITIONS_QUERY = "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
-                getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
+        String GET_PARTITIONS_QUERY = "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM \"" + getTableLayoutRequest.getTableName().getSchemaName() + "\".\"" +
+                getTableLayoutRequest.getTableName().getTableName() + "\" where 1= ?";
         Mockito.when(this.connection.prepareStatement(GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
         GetTableLayoutResponse getTableLayoutResponse = this.teradataMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
@@ -330,8 +330,8 @@ public class TeradataMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
-        String GET_PARTITIONS_QUERY = "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
-                getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
+        String GET_PARTITIONS_QUERY = "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM \"" + getTableLayoutRequest.getTableName().getSchemaName() + "\".\"" +
+                getTableLayoutRequest.getTableName().getTableName() + "\" where 1= ?";
         Mockito.when(this.connection.prepareStatement(GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
         String[] columns = {TEST_PARTITION_COLUMN};
@@ -647,8 +647,8 @@ public class TeradataMetadataHandlerTest
 
     private String buildPartitionCountQuery(GetTableLayoutRequest request)
     {
-        return "Select  count(distinct " + TEST_PARTITION_COLUMN + " ) as " + PARTITION_COUNT_COLUMN + " FROM " + request.getTableName().getSchemaName() + "." +
-                request.getTableName().getTableName() + " where 1= ?";
+        return "Select  count(distinct " + TEST_PARTITION_COLUMN + " ) as " + PARTITION_COUNT_COLUMN + " FROM \"" + request.getTableName().getSchemaName() + "\".\"" +
+                request.getTableName().getTableName() + "\" where 1= ?";
     }
 
     private void mockPartitionCountQuery(GetTableLayoutRequest request, String countValue) throws SQLException
@@ -665,8 +665,8 @@ public class TeradataMetadataHandlerTest
 
     private String buildPartitionDetailsQuery(GetTableLayoutRequest request)
     {
-        return "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM " + request.getTableName().getSchemaName() + "." +
-                request.getTableName().getTableName() + " where 1= ?";
+        return "Select DISTINCT " + TEST_PARTITION_COLUMN + " FROM \"" + request.getTableName().getSchemaName() + "\".\"" +
+                request.getTableName().getTableName() + "\" where 1= ?";
     }
 
     private void mockPartitionDetailsQuery(GetTableLayoutRequest request, Object[][] values) throws SQLException
