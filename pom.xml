@@ -121,6 +121,11 @@
                 <artifactId>junit</artifactId>
                 <version>${junit.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-layout-template-json</artifactId>
+                <version>${log4j2Version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <organization>
