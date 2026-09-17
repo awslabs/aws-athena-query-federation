@@ -34,8 +34,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -51,8 +49,6 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.google.common.collect.ImmutableList;
-import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
@@ -301,6 +297,65 @@ public class SnowflakeMetadataHandlerTest
 
         assertNotNull(partitions);
         assertTrue(partitions.getRowCount() > 0);
+    }
+
+    @Test
+    public void getPartitions_whenTableHasUniquePrimaryKey_quotesSchemaTableAndPrimaryKeyInMetadataSql() throws Exception
+    {
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("id")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                .build();
+
+        ResultSet viewResultSet = mockResultSet(
+                new String[] {"TABLE_SCHEM", "TABLE_NAME"},
+                new int[] {Types.VARCHAR, Types.VARCHAR},
+                new Object[][] {},
+                new AtomicInteger(-1));
+        PreparedStatement viewStmt = mock(PreparedStatement.class);
+        when(viewStmt.executeQuery()).thenReturn(viewResultSet);
+
+        ResultSet countResultSet = mockResultSet(
+                new String[] {"row_count"},
+                new int[] {Types.BIGINT},
+                new Object[][] {{1000L}},
+                new AtomicInteger(-1));
+        when(countResultSet.getLong(1)).thenReturn(1000L);
+        PreparedStatement countStmt = mock(PreparedStatement.class);
+        when(countStmt.executeQuery()).thenReturn(countResultSet);
+
+        ResultSet primaryKeyResultSet = mockResultSet(
+                new String[] {"column_name"},
+                new int[] {Types.VARCHAR},
+                new Object[][] {{"ID"}},
+                new AtomicInteger(-1));
+        PreparedStatement primaryKeyStmt = mock(PreparedStatement.class);
+        when(primaryKeyStmt.executeQuery()).thenReturn(primaryKeyResultSet);
+
+        ResultSet uniquenessResultSet = mockResultSet(
+                new String[] {"COUNTS"},
+                new int[] {Types.INTEGER},
+                new Object[][] {{1}},
+                new AtomicInteger(-1));
+        PreparedStatement uniquenessStmt = mock(PreparedStatement.class);
+        when(uniquenessStmt.executeQuery()).thenReturn(uniquenessResultSet);
+
+        when(connection.prepareStatement(contains("information_schema.views"))).thenReturn(viewStmt);
+        when(connection.prepareStatement(contains("information_schema.tables"))).thenReturn(countStmt);
+        when(connection.prepareStatement(contains("SHOW PRIMARY KEYS"))).thenReturn(primaryKeyStmt);
+        when(connection.prepareStatement(contains("COUNTS"))).thenReturn(uniquenessStmt);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("schema1", "table1"),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Map.of(), null),
+                tableSchema,
+                Collections.singleton(BLOCK_PARTITION_COLUMN_NAME));
+
+        GetTableLayoutResponse res = snowflakeMetadataHandler.doGetTableLayout(allocator, req);
+
+        assertTrue(res.getPartitions().getRowCount() > 0);
+        verify(connection).prepareStatement("SHOW PRIMARY KEYS IN \"schema1\".\"table1\"");
+        verify(connection).prepareStatement("SELECT \"ID\", count(*) as COUNTS FROM \"schema1\".\"table1\" GROUP BY \"ID\" ORDER BY COUNTS DESC");
     }
 
     @Test
