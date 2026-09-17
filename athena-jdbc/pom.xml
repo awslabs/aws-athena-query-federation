@@ -141,7 +141,6 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>rds</artifactId>
             <version>${aws-sdk-v2.version}</version>
-            <scope>test</scope>
             <exclusions>
                 <exclusion>
                     <groupId>software.amazon.awssdk</groupId>
