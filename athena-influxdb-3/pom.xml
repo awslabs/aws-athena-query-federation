@@ -98,20 +98,27 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED ${argLine}</argLine>
+                    <!-- Arrow's off-heap allocator uses Netty's sun.misc.Unsafe path. On JDK 24+
+                         Unsafe memory access is denied by default (JEP 498), so the test fork must
+                         opt back in or Arrow buffer allocation fails with a Netty ClassCastException.
+                         The connector targets JDK 25/26; the flag is recognized on JDK 23+. -->
+                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow ${argLine}</argLine>
                     <environmentVariables>
                         <AWS_REGION>us-east-1</AWS_REGION>
                     </environmentVariables>
                 </configuration>
             </plugin>
             <plugin>
-                <!-- Integration tests (*IntegTest) run only when failsafe is invoked explicitly.
-                     Arrow's off-heap allocator needs Netty's Unsafe path, so the failsafe fork
-                     requires the same JVM args as surefire above. -->
+                <!-- Integration tests (*IntegTest) run only when failsafe is invoked explicitly,
+                     and need the same JVM args as surefire above (see the argLine note below). -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
-                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED ${argLine}</argLine>
+                    <!-- Arrow's off-heap allocator uses Netty's sun.misc.Unsafe path. On JDK 24+
+                         Unsafe memory access is denied by default (JEP 498), so the test fork must
+                         opt back in or Arrow buffer allocation fails with a Netty ClassCastException.
+                         The connector targets JDK 25/26; the flag is recognized on JDK 23+. -->
+                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow ${argLine}</argLine>
                     <environmentVariables>
                         <AWS_REGION>us-east-1</AWS_REGION>
                     </environmentVariables>
