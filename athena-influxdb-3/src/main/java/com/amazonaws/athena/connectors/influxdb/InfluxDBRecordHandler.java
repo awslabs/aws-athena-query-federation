@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.influxdb;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.influxdb.v3.client.internal.VectorSchemaRootConverter;
@@ -102,22 +103,24 @@ public class InfluxDBRecordHandler
             logger.info("readWithConstraint: query passthrough against database={}", resolvedDB);
         }
         else {
-            String tableName = recordsRequest.getTableName().getTableName();
-            final String schemaName = recordsRequest.getTableName().getSchemaName();
-
-            // Use the original case-sensitive table name stored by the MetadataHandler.
-            final String caseSensitiveTableName = schema.getCustomMetadata().get("caseSensitiveTableName");
-            if (caseSensitiveTableName != null) {
-                tableName = caseSensitiveTableName;
-            }
-
-            resolvedDB = schema.getCustomMetadata().get("resolvedDatabaseName");
+            // SECURITY: derive the physical InfluxDB target from the *authorized* TableName using the
+            // same trusted resolution the MetadataHandler applies at plan time — never from the
+            // request's schema custom metadata. Athena/Lake Formation enforce table- and column-level
+            // grants against this logical TableName; trusting request-supplied "resolvedDatabaseName"/
+            // "caseSensitiveTableName" metadata lets a forged ReadRecordsRequest point the read at a
+            // different database/table than the one that was authorized (Talos finding 03363fd2).
+            // resolveDatabase() also re-applies the influxdb_database scope and server-side existence
+            // checks on every read rather than deferring them to plan time.
+            final TableName authorizedTable = recordsRequest.getTableName();
+            final String schemaName = authorizedTable.getSchemaName();
+            resolvedDB = connectionFactory.resolveDatabase(schemaName);
+            final String resolvedTable = connectionFactory.resolveTableName(resolvedDB, authorizedTable);
 
             final String timeLower = recordsRequest.getSplit().getProperty(PART_TIME_LOWER);
             final String timeUpper = recordsRequest.getSplit().getProperty(PART_TIME_UPPER);
-            sql = InfluxDBQueryBuilder.buildSql(schema, tableName, recordsRequest.getConstraints(),
+            sql = InfluxDBQueryBuilder.buildSql(schema, resolvedTable, recordsRequest.getConstraints(),
                     timeLower, timeUpper);
-            logger.info("readWithConstraint: schema={}, table={}", schemaName, tableName);
+            logger.info("readWithConstraint: schema={}, table={}", schemaName, resolvedTable);
         }
         // The SQL embeds constraint literal values (possible PII) so it is logged only at debug.
         logger.debug("readWithConstraint SQL: {}", sql);

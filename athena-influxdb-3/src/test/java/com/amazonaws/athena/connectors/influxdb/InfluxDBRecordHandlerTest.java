@@ -49,6 +49,7 @@ import org.apache.arrow.vector.util.Text;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -61,8 +62,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -93,6 +97,10 @@ public class InfluxDBRecordHandlerTest
             final InfluxDBConnectionFactory.InfluxDBQuery<?> query = invocation.getArgument(1);
             return query.run(mockClient);
         });
+        // Trusted resolution path used by the read path to derive the physical target from the
+        // authorized TableName (schema "testdb", table "cpu" -> case-sensitive "cpu").
+        when(mockFactory.resolveDatabase(anyString())).thenReturn("testdb");
+        when(mockFactory.resolveTableName(anyString(), any())).thenReturn("cpu");
 
         final Map<String, String> config = new HashMap<>();
         config.put("spill_bucket", "test-bucket");
@@ -233,6 +241,56 @@ public class InfluxDBRecordHandlerTest
         assertEquals(2, rowsWritten.get());
         // Values (including the timestamp conversion path) landed in the block.
         assertEquals("server01", block.getFieldReader("host").readText().toString());
+    }
+
+    /**
+     * Security regression for Talos finding 03363fd2: the read path must derive its physical target
+     * from the authorized TableName via the trusted resolution path, and must ignore the request's
+     * schema custom metadata. A forged request whose metadata points at a different database/table
+     * must still read only the authorized target.
+     */
+    @Test
+    public void testReadWithConstraintIgnoresForgedSchemaMetadata() throws Exception
+    {
+        // Forged schema: metadata names a database/table the caller is not authorized for, while the
+        // Athena-authorized TableName (from readRequest) remains testdb.cpu.
+        final Schema forged = new SchemaBuilder()
+                .addMetadata("caseSensitiveTableName", "secret_table")
+                .addMetadata("resolvedDatabaseName", "secret_db")
+                .addField("host", Types.MinorType.VARCHAR.getType())
+                .addField("usage_idle", Types.MinorType.FLOAT8.getType())
+                .addField("time", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC"))
+                .build();
+
+        final VectorSchemaRoot root = buildBatch();
+        final ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockClient.queryBatches(sqlCaptor.capture())).thenReturn(Stream.of(root).onClose(root::close));
+
+        final QueryStatusChecker checker = mock(QueryStatusChecker.class);
+        when(checker.isQueryRunning()).thenReturn(true);
+
+        final Block block = blockAllocator.createBlock(forged);
+        block.constrain(ConstraintEvaluator.emptyEvaluator());
+        final AtomicInteger rowsWritten = new AtomicInteger();
+        final BlockSpiller spiller = spillerWritingTo(block, rowsWritten);
+
+        handler.readWithConstraint(spiller, readRequest(forged), checker);
+
+        // Target is re-derived from the authorized TableName, never from schema metadata.
+        verify(mockFactory).resolveDatabase("testdb");
+        verify(mockFactory).resolveTableName(eq("testdb"), any());
+
+        // The read runs against the authorized database, not the forged one.
+        final ArgumentCaptor<String> dbCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockFactory).executeWithTokenRetry(dbCaptor.capture(), any());
+        assertEquals("testdb", dbCaptor.getValue());
+
+        // The SQL targets the resolved table and never references the forged metadata values.
+        final String sql = sqlCaptor.getValue();
+        assertTrue("SQL should target resolved table \"cpu\": " + sql, sql.contains("\"cpu\""));
+        assertFalse("SQL must not reference forged table: " + sql, sql.contains("secret_table"));
+        assertFalse("SQL must not reference forged database: " + sql, sql.contains("secret_db"));
+        assertEquals(2, rowsWritten.get());
     }
 
     @Test
