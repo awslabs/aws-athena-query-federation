@@ -103,14 +103,6 @@ public class InfluxDBRecordHandler
             logger.info("readWithConstraint: query passthrough against database={}", resolvedDB);
         }
         else {
-            // SECURITY: derive the physical InfluxDB target from the *authorized* TableName using the
-            // same trusted resolution the MetadataHandler applies at plan time — never from the
-            // request's schema custom metadata. Athena/Lake Formation enforce table- and column-level
-            // grants against this logical TableName; trusting request-supplied "resolvedDatabaseName"/
-            // "caseSensitiveTableName" metadata lets a forged ReadRecordsRequest point the read at a
-            // different database/table than the one that was authorized (Talos finding 03363fd2).
-            // resolveDatabase() also re-applies the influxdb_database scope and server-side existence
-            // checks on every read rather than deferring them to plan time.
             final TableName authorizedTable = recordsRequest.getTableName();
             final String schemaName = authorizedTable.getSchemaName();
             resolvedDB = connectionFactory.resolveDatabase(schemaName);
