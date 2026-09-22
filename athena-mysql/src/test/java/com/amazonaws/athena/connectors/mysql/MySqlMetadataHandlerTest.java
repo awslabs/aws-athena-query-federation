@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.mysql;
 
 import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
@@ -28,6 +29,8 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -36,6 +39,7 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -69,6 +73,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_NAME;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class MySqlMetadataHandlerTest
@@ -83,6 +90,8 @@ public class MySqlMetadataHandlerTest
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
     private BlockAllocator blockAllocator;
+    private static final String QUERY_ID = "queryId";
+    private static final String CATALOG_NAME = "testCatalogName";
 
     @Before
     public void setup()
@@ -100,7 +109,7 @@ public class MySqlMetadataHandlerTest
     }
 
     @Test
-    public void getPartitionSchema()
+    public void getPartitionSchema_withCatalogName_returnsSchemaWithPartitionColumn()
     {
         Assert.assertEquals(SchemaBuilder.newBuilder()
                         .addField(MySqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
@@ -108,10 +117,10 @@ public class MySqlMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_withPartitions_returnsLayoutWithPartitionList()
             throws Exception
     {
-        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        try (BlockAllocator blockAllocator = new BlockAllocatorImpl()) {
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
         Schema partitionSchema = this.mySqlMetadataHandler.getPartitionSchema("testCatalogName");
@@ -147,13 +156,14 @@ public class MySqlMetadataHandlerTest
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getSchemaName());
+        }
     }
 
     @Test
-    public void doGetTableLayoutWithNoPartitions()
+    public void doGetTableLayout_withNoPartitions_returnsLayoutWithDefaultPartition()
             throws Exception
     {
-        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        try (BlockAllocator blockAllocator = new BlockAllocatorImpl()) {
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
         Schema partitionSchema = this.mySqlMetadataHandler.getPartitionSchema("testCatalogName");
@@ -189,14 +199,14 @@ public class MySqlMetadataHandlerTest
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getSchemaName());
+        }
     }
 
     @Test
-    public void doListPaginatedTables()
+    public void doListTables_withPagination_returnsListOfTablesWithNextToken()
         throws Exception
     {
-        BlockAllocator blockAllocator = new BlockAllocatorImpl();
-
+        try (BlockAllocator blockAllocator = new BlockAllocatorImpl()) {
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(MySqlMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
@@ -223,10 +233,11 @@ public class MySqlMetadataHandlerTest
                         "testCatalog", "testSchema", "1", 1));
         Assert.assertEquals("2", listTablesResponse.getNextToken());
         Assert.assertArrayEquals(nextExpected, listTablesResponse.getTables().toArray());
+        }
     }
 
     @Test(expected = RuntimeException.class)
-    public void doGetTableLayoutWithSQLException()
+    public void doGetTableLayout_whenSqlException_throwsRuntimeException()
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -245,10 +256,11 @@ public class MySqlMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_withTableLayout_returnsListOfSplitsPerPartition()
             throws Exception
     {
-        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        try (BlockAllocator blockAllocator = new BlockAllocatorImpl();
+             BlockAllocator splitBlockAllocator = new BlockAllocatorImpl()) {
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
 
@@ -269,7 +281,6 @@ public class MySqlMetadataHandlerTest
 
         GetTableLayoutResponse getTableLayoutResponse = this.mySqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
-        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
         GetSplitsResponse getSplitsResponse = this.mySqlMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
@@ -279,6 +290,7 @@ public class MySqlMetadataHandlerTest
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
+        }
     }
 
     @Test
@@ -319,10 +331,11 @@ public class MySqlMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplitsContinuation()
+    public void doGetSplits_withContinuationToken_returnsListOfRemainingSplits()
             throws Exception
     {
-        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        try (BlockAllocator blockAllocator = new BlockAllocatorImpl();
+             BlockAllocator splitBlockAllocator = new BlockAllocatorImpl()) {
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
         Schema partitionSchema = this.mySqlMetadataHandler.getPartitionSchema("testCatalogName");
@@ -343,7 +356,6 @@ public class MySqlMetadataHandlerTest
 
         GetTableLayoutResponse getTableLayoutResponse = this.mySqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
-        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, "1");
         GetSplitsResponse getSplitsResponse = this.mySqlMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
@@ -352,10 +364,11 @@ public class MySqlMetadataHandlerTest
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
+        }
     }
 
     @org.testng.annotations.Test(expectedExceptions = {RuntimeException.class}, expectedExceptionsMessageRegExp = "More than one table that matches 'testtable' was returned from Database testSchema")
-    public void doGetTableCaseInsensitiveDuplicateTableNames()
+    public void doGetTable_withCaseInsensitiveDuplicateTableNames_throwsRuntimeException()
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testtable");
@@ -370,7 +383,7 @@ public class MySqlMetadataHandlerTest
     }
 
     @org.testng.annotations.Test(expectedExceptions = {RuntimeException.class}, expectedExceptionsMessageRegExp = "During Case Insensitive look up could not find Table testtable in Database testSchema")
-    public void doGetTableCaseInsensitiveNoTablesFound()
+    public void doGetTable_withCaseInsensitiveNoTablesFound_throwsRuntimeException()
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testtable");
@@ -381,5 +394,115 @@ public class MySqlMetadataHandlerTest
 
         GetTableResponse getTableResponse = this.mySqlMetadataHandler.doGetTable(this.blockAllocator,
                 new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+    }
+
+    @Test
+    public void doGetDataSourceCapabilities_withDefaultRequest_returnsDataSourceCapabilities()
+    {
+        try (BlockAllocator allocator = new BlockAllocatorImpl()) {
+        GetDataSourceCapabilitiesRequest request =
+                new GetDataSourceCapabilitiesRequest(federatedIdentity, QUERY_ID, CATALOG_NAME);
+
+        GetDataSourceCapabilitiesResponse response =
+                mySqlMetadataHandler.doGetDataSourceCapabilities(allocator, request);
+
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+
+        assertEquals(CATALOG_NAME, response.getCatalogName());
+
+        // Filter pushdown
+        List<OptimizationSubType> filterPushdown = capabilities.get("supports_filter_pushdown");
+        assertNotNull("Expected supports_filter_pushdown capability to be present", filterPushdown);
+        assertEquals(2, filterPushdown.size());
+        assertTrue("Expected filter pushdown to contain 'sorted_range_set' subtype",
+                filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals("sorted_range_set")));
+        assertTrue("Expected filter pushdown to contain 'nullable_comparison' subtype",
+                filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals("nullable_comparison")));
+
+        // Complex expression pushdown
+        List<OptimizationSubType> complexPushdown = capabilities.get("supports_complex_expression_pushdown");
+        assertNotNull("Expected supports_complex_expression_pushdown capability to be present", complexPushdown);
+        assertEquals(1, complexPushdown.size());
+        assertTrue("Expected complex pushdown to contain 'supported_function_expression_types' subtype with non-empty properties",
+                complexPushdown.stream().anyMatch(subType ->
+                subType.getSubType().equals("supported_function_expression_types") &&
+                        !subType.getProperties().isEmpty()));
+        }
+    }
+
+    @Test
+    public void doGetSplits_withQueryPassthrough_returnsSingleSplitWithPassthroughArguments()
+    {
+        try (BlockAllocator blockAllocator = new BlockAllocatorImpl()) {
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.isQueryPassThrough()).thenReturn(true);
+        Map<String, String> passthroughArgs = new HashMap<>();
+        passthroughArgs.put("arg1", "val1");
+        passthroughArgs.put("arg2", "val2");
+        Mockito.when(constraints.getQueryPassthroughArguments()).thenReturn(passthroughArgs);
+
+        Block partitions = Mockito.mock(Block.class);
+
+        GetSplitsRequest request = new GetSplitsRequest(
+                federatedIdentity,
+                "queryId",
+                CATALOG_NAME,
+                tableName,
+                partitions,
+                Collections.emptyList(),
+                constraints,
+                null
+        );
+
+        GetSplitsResponse response = mySqlMetadataHandler.doGetSplits(blockAllocator, request);
+
+        // Assertions
+        assertEquals(CATALOG_NAME, response.getCatalogName());
+        assertEquals(1, response.getSplits().size());
+
+        Map<String, String> actualProps = response.getSplits().iterator().next().getProperties();
+        assertEquals(passthroughArgs, actualProps);
+        }
+    }
+
+    @Test
+    public void listTables_WithRows_ReturnsTableNameList()
+            throws Exception
+    {
+        String listTablesQuery = "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?";
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(listTablesQuery)).thenReturn(preparedStatement);
+        String[] columns = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}};
+        ResultSet resultSet = mockResultSet(columns, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        List<TableName> tables = this.mySqlMetadataHandler.listTables(this.connection, "testSchema");
+
+        Assert.assertArrayEquals(new TableName[] {
+                new TableName("testSchema", "testTable"),
+                new TableName("testSchema", "testTable2")
+        }, tables.toArray());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "testSchema");
+    }
+
+    @Test
+    public void listTables_NoRows_ReturnsEmptyList()
+            throws Exception
+    {
+        String listTablesQuery = "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?";
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(listTablesQuery)).thenReturn(preparedStatement);
+        String[] columns = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {};
+        ResultSet resultSet = mockResultSet(columns, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        List<TableName> tables = this.mySqlMetadataHandler.listTables(this.connection, "testSchema");
+
+        assertTrue(tables.isEmpty());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "testSchema");
     }
 }
