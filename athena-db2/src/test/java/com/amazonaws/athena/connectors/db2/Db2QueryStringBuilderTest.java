@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.db2;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.Db2SqlDialect;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -62,5 +64,21 @@ public class Db2QueryStringBuilderTest {
         Assert.assertEquals(
                 List.of(" DATAPARTITIONNUM(\"\"\"X\"\") = 0 OR 1=1 --\") = 0"),
                 builder.getPartitionWhereClauses(split));
+    }
+
+    @Test
+    public void getSqlDialect_returnsDb2Dialect()
+    {
+        Db2QueryStringBuilder builder = new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
+        SqlDialect dialect = builder.getSqlDialect();
+        Assert.assertTrue(dialect instanceof Db2SqlDialect);
+    }
+
+    @Test
+    public void getSqlDialectWithCasingFilter_returnsDb2Dialect()
+    {
+        Db2QueryStringBuilder builder = new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
+        SqlDialect dialect = builder.getSqlDialect(true);
+        Assert.assertTrue(dialect instanceof Db2Dialect);
     }
 }
