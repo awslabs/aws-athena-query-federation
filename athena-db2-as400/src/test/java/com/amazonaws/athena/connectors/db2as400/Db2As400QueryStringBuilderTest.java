@@ -20,11 +20,17 @@
 package com.amazonaws.athena.connectors.db2as400;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.Db2SqlDialect;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.testng.Assert;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class Db2As400QueryStringBuilderTest {
@@ -62,5 +68,63 @@ public class Db2As400QueryStringBuilderTest {
         Assert.assertEquals(
                 List.of(" DATAPARTITIONNUM(\"\"\"X\"\") = 0 OR 1=1 --\") = 0"),
                 builder.getPartitionWhereClauses(split));
+    }
+
+    @Test
+    public void getSqlDialect_returnsDb2Dialect()
+    {
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("\"");
+        SqlDialect dialect = builder.getSqlDialect();
+        Assert.assertTrue(dialect instanceof Db2SqlDialect);
+    }
+
+    @Test
+    public void getSqlDialectWithCasingFilter_returnsDb2Dialect()
+    {
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("\"");
+        SqlDialect dialect = builder.getSqlDialect(true);
+        Assert.assertTrue(dialect instanceof Db2As400Dialect);
+    }
+
+    @Test
+    public void extractOrderByClause_emulatesNullsWithoutNullsKeyword()
+    {
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("\"");
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.getOrderByClause()).thenReturn(Arrays.asList(
+                new OrderByField("ID", OrderByField.Direction.DESC_NULLS_LAST),
+                new OrderByField("NAME", OrderByField.Direction.ASC_NULLS_FIRST)));
+        String orderBy = builder.extractOrderByClause(constraints);
+        // Db2 for i rejects the NULLS keyword (SQL0199); it must not appear in the generated clause.
+        Assert.assertFalse(orderBy.toUpperCase().contains("NULLS"));
+        Assert.assertEquals(
+                "ORDER BY CASE WHEN \"ID\" IS NULL THEN 1 ELSE 0 END, \"ID\" DESC, "
+                        + "CASE WHEN \"NAME\" IS NULL THEN 0 ELSE 1 END, \"NAME\" ASC",
+                orderBy);
+    }
+
+    @Test
+    public void extractOrderByClause_emptyWhenNoOrderBy()
+    {
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("\"");
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.getOrderByClause()).thenReturn(Collections.emptyList());
+        Assert.assertEquals("", builder.extractOrderByClause(constraints));
+    }
+
+    @Test
+    public void extractOrderByClause_coversRemainingNullDirections()
+    {
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("\"");
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.getOrderByClause()).thenReturn(Arrays.asList(
+                new OrderByField("A", OrderByField.Direction.ASC_NULLS_LAST),
+                new OrderByField("B", OrderByField.Direction.DESC_NULLS_FIRST)));
+        String orderBy = builder.extractOrderByClause(constraints);
+        Assert.assertFalse(orderBy.toUpperCase().contains("NULLS"));
+        Assert.assertEquals(
+                "ORDER BY CASE WHEN \"A\" IS NULL THEN 1 ELSE 0 END, \"A\" ASC, "
+                        + "CASE WHEN \"B\" IS NULL THEN 0 ELSE 1 END, \"B\" DESC",
+                orderBy);
     }
 }
