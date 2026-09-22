@@ -203,6 +203,42 @@ public class InfluxDBMetadataHandlerTest
     }
 
     @Test
+    public void testDoGetQueryPassthroughSchemaRejectedWhenDisabled() throws Exception
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put("spill_bucket", "test-bucket");
+        config.put("spill_prefix", "test-prefix");
+        config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
+        config.put("INFLUXDB3_AUTH_TOKEN", "test-token");
+        config.put("enable_query_passthrough", "false");
+        final InfluxDBMetadataHandler disabledHandler = new InfluxDBMetadataHandler(
+                mockFactory,
+                new com.amazonaws.athena.connector.lambda.security.LocalKeyFactory(),
+                mock(software.amazon.awssdk.services.secretsmanager.SecretsManagerClient.class),
+                mock(software.amazon.awssdk.services.athena.AthenaClient.class),
+                "test-bucket",
+                "test-prefix",
+                config);
+
+        final Map<String, String> qpt = new HashMap<>();
+        qpt.put("schemaFunctionName", "SYSTEM.QUERY");
+        qpt.put(InfluxDBQueryPassthrough.DATABASE, "mydb");
+        qpt.put(InfluxDBQueryPassthrough.QUERY, "SELECT * FROM cpu");
+        final GetTableRequest request = new GetTableRequest(IDENTITY, "queryId", "catalog",
+                new TableName("system", "query"), qpt);
+
+        try {
+            disabledHandler.doGetQueryPassthroughSchema(allocator, request);
+            fail("expected doGetQueryPassthroughSchema to be rejected when passthrough is disabled");
+        }
+        catch (final UnsupportedOperationException expected) {
+            // ok
+        }
+        // The native SQL must never reach InfluxDB.
+        Mockito.verify(mockClient, Mockito.never()).queryBatches(anyString());
+    }
+
+    @Test
     public void testDoListTables() throws Exception
     {
         final Object[][] rows = {new Object[]{"cpu"}, new Object[]{"mem"}};

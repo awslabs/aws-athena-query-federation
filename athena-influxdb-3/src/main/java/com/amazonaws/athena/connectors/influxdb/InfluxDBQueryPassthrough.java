@@ -84,4 +84,17 @@ public class InfluxDBQueryPassthrough implements QueryPassthroughSignature
                 + "contain only letters, numbers, '_', '-', or '/'.");
         }
     }
+
+    /**
+     * Enforces the {@code enable_query_passthrough} flag at execution time.
+     *
+     * @throws UnsupportedOperationException if {@code enable_query_passthrough} is not {@code true}
+     */
+    public void assertEnabled(final Map<String, String> configOptions)
+    {
+        if (!allowQueryPassthrough(configOptions)) {
+            throw new UnsupportedOperationException(
+                "Query passthrough is disabled; set " + ENABLE_QUERY_PASSTHROUGH + "=true to enable it");
+        }
+    }
 }

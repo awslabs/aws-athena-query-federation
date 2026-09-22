@@ -150,6 +150,9 @@ public class InfluxDBMetadataHandler
         if (!request.isQueryPassthrough()) {
             throw new IllegalArgumentException("doGetQueryPassthroughSchema called without query passthrough arguments");
         }
+        // Enforce enable_query_passthrough before executing the caller's native SQL to infer the
+        // schema.
+        queryPassthrough.assertEnabled(configOptions);
         queryPassthrough.verify(request.getQueryPassthroughArguments());
         queryPassthrough.customConnectorVerifications(request.getQueryPassthroughArguments());
         final String database = request.getQueryPassthroughArguments().get(InfluxDBQueryPassthrough.DATABASE);

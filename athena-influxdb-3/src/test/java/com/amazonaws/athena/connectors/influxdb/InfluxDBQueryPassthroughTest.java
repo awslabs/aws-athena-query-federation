@@ -59,6 +59,35 @@ public class InfluxDBQueryPassthroughTest
     }
 
     @Test
+    public void testAssertEnabledPassesWhenEnabledByDefault()
+    {
+        // enable_query_passthrough defaults to true when the key is absent.
+        signature.assertEnabled(new HashMap<>()); // should not throw
+    }
+
+    @Test
+    public void testAssertEnabledPassesWhenExplicitlyTrue()
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put(QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH, "true");
+        signature.assertEnabled(config); // should not throw
+    }
+
+    @Test
+    public void testAssertEnabledRejectsWhenDisabled()
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put(QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH, "false");
+        try {
+            signature.assertEnabled(config);
+            fail("expected assertEnabled to reject when passthrough is disabled");
+        }
+        catch (final UnsupportedOperationException expected) {
+            // ok
+        }
+    }
+
+    @Test
     public void testVerifyRejectsWrongFunctionSignature()
     {
         final Map<String, String> args = validArgs();
