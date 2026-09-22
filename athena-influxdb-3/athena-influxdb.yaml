@@ -1,0 +1,174 @@
+Transform: 'AWS::Serverless-2016-10-31'
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaInfluxDBConnector
+    Description: 'This connector enables Amazon Athena to query InfluxDB 3 time-series data via Flight SQL.'
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels:
+      - athena-federation
+    HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+    SemanticVersion: 2022.47.1
+    SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+Parameters:
+  AthenaCatalogName:
+    Description: 'The name of the Lambda function and Athena catalog that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    Default: athena-influxdb
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  InfluxDBHost:
+    Description: 'The InfluxDB 3 host URL (e.g., https://us-east-1-1.aws.cloud2.influxdata.com).'
+    AllowedPattern: '^https://.+'
+    Type: String
+  InfluxDBSecretId:
+    Description: 'The name or ARN of the Secrets Manager secret containing the InfluxDB auth token.'
+    Type: String
+  InfluxDBTokenKey:
+    Description: 'If the secret is JSON, the key to extract the token from. Defaults to "token".'
+    Type: String
+    Default: token
+  InfluxDBDatabase:
+    Description: '(Optional) Default InfluxDB database to query. If left empty, all accessible databases are exposed.'
+    Type: String
+    Default: ''
+  LambdaTimeout:
+    Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: 'Lambda memory in MB (min 128 - 3008 max).'
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: 'false'
+    Type: String
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+  SecurityGroupIds:
+    Description: "(Optional) Comma-delimited list of security group IDs for VPC access. Required for Timestream for InfluxDB."
+    Type: CommaDelimitedList
+    Default: ''
+  SubnetIds:
+    Description: "(Optional) Comma-delimited list of subnet IDs for VPC access. Required for Timestream for InfluxDB."
+    Type: CommaDelimitedList
+    Default: ''
+  VpcId:
+    Description: "(Optional) VPC ID in which to create a dedicated security group for the connector Lambda. Provide this (together with SubnetIds) for Timestream for InfluxDB so the template creates the Lambda's security group and outputs the exact ingress rule to add to your cluster's security group. If left empty, the connector uses the security groups given in SecurityGroupIds instead."
+    Type: String
+    Default: ''
+  InfluxDBPort:
+    Description: "The TCP port the InfluxDB cluster listens on. Used only to render the required cluster security-group ingress rule in the stack Outputs."
+    Type: Number
+    Default: 8181
+  EnableQueryPassthrough:
+    Description: "(Optional) Whether to enable query passthrough (the system.query table function). Defaults to 'true'."
+    Type: String
+    Default: 'true'
+  EnableQueryParallelism:
+    Description: "(Optional) Whether to enable query parallelism. When this is enabled, queries with lower and upper time bounds will be split into multiple Lambda functions in parallel, for improved query performance."
+    Type: String
+    Default: 'false'
+  QueryParallelismCount:
+    Description: "(Optional) The number of Lambda functions to execute in parallel, when EnableQueryParallelism is true."
+    Type: String
+    Default: '8'
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  HasVpcConfig: !Not [ !Equals [ !Join [ "", !Ref SubnetIds ], "" ] ]
+  CreateConnectorSecurityGroup: !Not [ !Equals [ !Ref VpcId, "" ] ]
+Resources:
+  # Dedicated security group for the connector Lambda, created when a VpcId is provided.
+  # Reference this group's ID as the source in an inbound rule on your cluster's security group.
+  ConnectorSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Condition: CreateConnectorSecurityGroup
+    Properties:
+      GroupDescription: !Sub 'Egress security group for the ${AthenaCatalogName} Athena InfluxDB connector Lambda'
+      VpcId: !Ref VpcId
+      # Default egress (allow-all) is intentionally retained so the Lambda can reach the cluster
+      # and, via VPC endpoints or a NAT gateway, Secrets Manager / S3 / Athena.
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          INFLUXDB3_HOST_URL: !Ref InfluxDBHost
+          INFLUXDB3_AUTH_TOKEN: !Join ['', ['${', !Ref InfluxDBSecretId, '}']]
+          INFLUXDB3_AUTH_TOKEN_KEY: !Ref InfluxDBTokenKey
+          influxdb_database: !Ref InfluxDBDatabase
+          enable_query_parallelism: !Ref EnableQueryParallelism
+          query_parallelism_count: !Ref QueryParallelismCount
+          enable_query_passthrough: !Ref EnableQueryPassthrough
+          # Apache Arrow (used by the SDK's BlockAllocator) relies on Netty direct
+          # memory via sun.misc.Unsafe, which is disabled by default on the java25
+          # runtime. These flags re-enable it (mirrors the pom's surefire argLine).
+          JAVA_TOOL_OPTIONS: '--add-opens=java.base/java.nio=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow'
+      FunctionName: !Ref AthenaCatalogName
+      Handler: "com.amazonaws.athena.connectors.influxdb.InfluxDBCompositeHandler"
+      CodeUri: "./target/athena-influxdb-2022.47.1.jar"
+      Description: "Enables Amazon Athena to query InfluxDB 3 time-series data via Flight SQL."
+      Runtime: java25
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
+      VpcConfig: !If
+        - HasVpcConfig
+        - SecurityGroupIds: !If
+            - CreateConnectorSecurityGroup
+            - [ !Ref ConnectorSecurityGroup ]
+            - !Ref SecurityGroupIds
+          SubnetIds: !Ref SubnetIds
+        - !Ref "AWS::NoValue"
+      Policies:
+        - Statement:
+            - Action:
+                - athena:GetQueryExecution
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:athena:${AWS::Region}:${AWS::AccountId}:workgroup/*'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - s3:GetObject
+                - s3:PutObject
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${SpillBucket}/${SpillPrefix}/*'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${InfluxDBSecretId}*'
+          Version: '2012-10-17'
+        # VPC access: attach the AWS-managed Lambda VPC execution role only when deployed into a VPC.
+        - !If
+            - HasVpcConfig
+            - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole'
+            - !Ref 'AWS::NoValue'
+Outputs:
+  ConnectorSecurityGroupId:
+    Condition: CreateConnectorSecurityGroup
+    Description: "Security group created for the connector Lambda. Use this as the SOURCE in your cluster's inbound rule."
+    Value: !Ref ConnectorSecurityGroup
+  RequiredClusterSecurityGroupRule:
+    Condition: CreateConnectorSecurityGroup
+    Description: "MANUAL STEP: the inbound rule to add to your Timestream for InfluxDB cluster's security group after this stack finishes deploying."
+    Value: !Sub "Add an INBOUND rule to your cluster's security group -> Type: Custom TCP, Port: ${InfluxDBPort}, Source: ${ConnectorSecurityGroup} (this connector's security group). If your cluster is publicly accessible and the Lambda subnets egress via a NAT gateway, instead allow the NAT gateway's Elastic IP as a /32 CIDR on TCP ${InfluxDBPort}. Also, if the Lambda reaches Secrets Manager/Athena via interface VPC endpoints whose security group restricts inbound, allow TCP 443 from ${ConnectorSecurityGroup} on that endpoints' security group."
+  VpcEgressRequirement:
+    Condition: HasVpcConfig
+    Description: "VPC egress requirement for the connector Lambda."
+    Value: "The connector Lambda runs inside your VPC and must reach Secrets Manager, S3, and Athena. Ensure the chosen subnets have the needed VPC endpoints (interface endpoints for secretsmanager and athena; a gateway endpoint for s3) or a NAT gateway with a route to the internet."

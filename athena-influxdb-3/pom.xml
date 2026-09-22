@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>aws-athena-query-federation</artifactId>
+        <groupId>com.amazonaws</groupId>
+        <version>2022.47.1</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>athena-influxdb</artifactId>
+    <version>2022.47.1</version>
+    <properties>
+        <!-- Empty by default. The arrow-unsafe-jdk23plus profile (below) fills this with the
+             sun-misc-unsafe-memory-access=allow option on JDK 23+, where it exists. It stays empty on
+             JDK 17/21 (the CI build JDK), where that option does not exist and would abort the test JVM. -->
+        <influxdbArrowUnsafeArg></influxdbArrowUnsafeArg>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-athena-federation-sdk</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.influxdb</groupId>
+            <artifactId>influxdb3-java</artifactId>
+            <version>1.9.0</version>
+            <exclusions>
+                <!-- Exclude SLF4J — the SDK already bundles it -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j-log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>${slf4j-log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j2Version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-log4j2</artifactId>
+            <version>${aws.lambda-java-log4j2.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j2Version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j2Version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Test -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Arrow's off-heap allocator uses Netty's sun.misc.Unsafe path. JDK 24+ denies
+                         Unsafe memory access by default (JEP 498), so on those JDKs the test fork opts
+                         back in via influxdbArrowUnsafeArg (set by the JDK 23+ profile below), or Arrow
+                         buffer allocation fails with a Netty ClassCastException. The property is empty on
+                         JDK 17/21 (the CI build JDK), where that JVM option does not exist. -->
+                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED ${influxdbArrowUnsafeArg} ${argLine}</argLine>
+                    <environmentVariables>
+                        <AWS_REGION>us-east-1</AWS_REGION>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <!-- Integration tests (*IntegTest) run only when failsafe is invoked explicitly,
+                     and need the same JVM args as surefire above (see the argLine note below). -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <!-- Arrow's off-heap allocator uses Netty's sun.misc.Unsafe path. JDK 24+ denies
+                         Unsafe memory access by default (JEP 498), so on those JDKs the test fork opts
+                         back in via influxdbArrowUnsafeArg (set by the JDK 23+ profile below), or Arrow
+                         buffer allocation fails with a Netty ClassCastException. The property is empty on
+                         JDK 17/21 (the CI build JDK), where that JVM option does not exist. -->
+                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED ${influxdbArrowUnsafeArg} ${argLine}</argLine>
+                    <environmentVariables>
+                        <AWS_REGION>us-east-1</AWS_REGION>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <configuration>
+                    <skip>false</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${mvn.shade.plugin.version}</version>
+                <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                    <transformers>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                        <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
+                        </transformer>
+                    </transformers>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.github.edwgiz</groupId>
+                        <artifactId>maven-shade-plugin.log4j2-cachefile-transformer</artifactId>
+                        <version>${log4j2.cachefile.transformer.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    <profiles>
+        <!-- Only JDK 23+ understands the sun-misc-unsafe-memory-access option. Enable it there so
+             Arrow's Netty off-heap allocator can use sun.misc.Unsafe in the test fork (JDK 24+ denies it
+             by default, JEP 498). On JDK 17/21, including the CI build, the property stays empty so the
+             option is never passed to a JVM that would reject it and fail to start. -->
+        <profile>
+            <id>arrow-unsafe-jdk23plus</id>
+            <activation>
+                <jdk>[23,)</jdk>
+            </activation>
+            <properties>
+                <influxdbArrowUnsafeArg>--sun-misc-unsafe-memory-access=allow</influxdbArrowUnsafeArg>
+            </properties>
+        </profile>
+    </profiles>
+</project>
