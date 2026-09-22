@@ -75,8 +75,8 @@ public class Db2QueryStringBuilder extends JdbcSplitQueryBuilder
         String column = split.getProperty(Db2MetadataHandler.PARTITIONING_COLUMN);
         if (column != null) {
             LOGGER.debug("Fetching data using Partition");
-            //example query: select * from EMP_TABLE WHERE DATAPARTITIONNUM(EMP_NO) = 0
-            return Collections.singletonList(" DATAPARTITIONNUM(" + column + ") = " + split.getProperty(PARTITION_NUMBER));
+            //example query: select * from EMP_TABLE WHERE DATAPARTITIONNUM("EMP_NO") = 0
+            return Collections.singletonList(" DATAPARTITIONNUM(" + quote(column) + ") = " + split.getProperty(PARTITION_NUMBER));
         }
         else {
             LOGGER.debug("Fetching data without Partition");
