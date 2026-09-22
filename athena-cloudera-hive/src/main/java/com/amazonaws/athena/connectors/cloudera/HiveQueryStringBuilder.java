@@ -26,6 +26,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
 import com.google.common.base.Strings;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.calcite.sql.SqlDialect;
 
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +36,18 @@ public class HiveQueryStringBuilder extends JdbcSplitQueryBuilder
     public HiveQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
         super(quoteCharacters, federationExpressionParser);
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return HiveDialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilter)
+    {
+        return new HiveDialect(catalogCasingFilter);
     }
 
     @Override
