@@ -134,6 +134,37 @@ public class InfluxDBConnectionFactory
     }
 
     /**
+     * Applies the {@code influxdb_database} access boundary and returns the canonical database name to
+     * use when talking to InfluxDB.
+     *
+     * When the connector is scoped to a single database ({@code influxdb_database} is set), that
+     * database is the only permissible target: the operator-configured, case-sensitive name is always
+     * returned, and a request for any other database is rejected. Requests are matched
+     * case-insensitively because Athena lowercases identifiers, but the returned name preserves the
+     * configured case so a request differing only in case cannot be redirected to a distinct,
+     * case-sensitive sibling database. When no scope is configured, the requested name is returned
+     * unchanged (an empty request stays empty for the caller to handle).
+     *
+     * This is the single boundary check shared by {@link #getClient} and {@link #resolveDatabase};
+     * {@code influxdb_database} is an enforced access boundary, not merely a discovery filter.
+     *
+     * @throws IllegalArgumentException if a database outside the configured scope is requested
+     */
+    private String enforceDatabaseScope(final String requested)
+    {
+        final String configuredDb = configOptions.getOrDefault("influxdb_database", "");
+        final String req = (requested == null) ? "" : requested;
+        if (configuredDb.isEmpty()) {
+            return req;
+        }
+        if (req.isEmpty() || configuredDb.equalsIgnoreCase(req)) {
+            return configuredDb;
+        }
+        throw new IllegalArgumentException(
+            "Access to database '" + req + "' is denied; this connector is scoped to '" + configuredDb + "'");
+    }
+
+    /**
      * Creates an InfluxDBClient for the given database.
      *
      * @param database
@@ -148,14 +179,9 @@ public class InfluxDBConnectionFactory
 
         final String token = resolveToken();
 
-        final String configuredDb = configOptions.getOrDefault("influxdb_database", "");
-        String db = (database == null || database.isEmpty()) ? configuredDb : database;
+        final String db = enforceDatabaseScope(database);
         if (db.isEmpty()) {
             throw new IllegalArgumentException("No database specified and no influxdb_database default is configured");
-        }
-
-        if (!configuredDb.isEmpty() && !configuredDb.equalsIgnoreCase(db)) {
-            throw new IllegalArgumentException("Access to database '" + db + "' is denied; this connector is scoped to '" + configuredDb + "'");
         }
 
         final InfluxDBClient cachedInfluxDbClient = influxDbClients.getIfPresent(db);
@@ -317,19 +343,23 @@ public class InfluxDBConnectionFactory
     /**
      * Resolves a lowercased schema name back to the original database name. Athena lowercases all identifiers, but InfluxDB is case-sensitive.
      *
-     * Fails closed: if no configured default matches and the schema is not among the databases discoverable on the
-     * server, throws instead of returning the requested name unchanged. Returning the unverified name would let a
+     * When scoped to a single database via {@code influxdb_database}, that database is the only
+     * permissible target: any other schema is rejected outright (see {@link #enforceDatabaseScope})
+     * rather than being resolved against the full set of token-reachable databases.
+     *
+     * Otherwise fails closed: if the schema is not among the databases discoverable on the server, throws
+     * instead of returning the requested name unchanged. Returning the unverified name would let a
      * caller-supplied schema masquerade as a real database and defer a guaranteed failure to a later stage.
      *
-     * @throws IllegalArgumentException if the schema does not resolve to an existing database
+     * @throws IllegalArgumentException if the schema is outside the configured scope or does not resolve to an existing database
      * @throws InterruptedException
      * @throws IOException
      */
     public String resolveDatabase(final String schemaName) throws IOException, InterruptedException
     {
         final String configuredDb = this.configOptions.getOrDefault("influxdb_database", "");
-        if (!configuredDb.isEmpty() && configuredDb.equalsIgnoreCase(schemaName)) {
-            return configuredDb;
+        if (!configuredDb.isEmpty()) {
+            return enforceDatabaseScope(schemaName);
         }
         return listDatabases().stream().map(db -> db != null ? db.name : null)
                 .filter(name -> name != null && name.equalsIgnoreCase(schemaName)).findFirst()

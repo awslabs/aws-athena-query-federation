@@ -413,6 +413,42 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
+    public void testGetClientNormalizesCaseVariantToConfiguredDatabase() throws Exception
+    {
+        final Map<String, String> config = baseConfig();
+        config.put("influxdb_database", "MyDb");
+        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
+        doReturn(List.of(new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).listDatabases();
+
+        final InfluxDBClient canonical = factory.getClient("MyDb");
+        // A case-variant request must resolve to the same canonical client, never mint one bound to a
+        // distinct, case-sensitive sibling database ("MYDB"/"mydb").
+        assertSame(canonical, factory.getClient("MYDB"));
+        assertSame(canonical, factory.getClient("mydb"));
+        // Only the configured database was ever verified/minted.
+        verify(factory, times(1)).listDatabases();
+        factory.closeAllClients();
+    }
+
+    @Test
+    public void testResolveDatabaseRejectsSchemaOutsideConfiguredScope() throws Exception
+    {
+        final Map<String, String> config = baseConfig();
+        config.put("influxdb_database", "MyDb");
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
+        try {
+            factory.resolveDatabase("otherdb");
+            fail("expected a schema outside the configured scope to be rejected");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("scoped to 'MyDb'"));
+        }
+        // When scoped, enforcement happens without enumerating the server's databases (no fall-through).
+        verify(factory, never()).listDatabases();
+    }
+
+    @Test
     public void testGetClientWithoutDatabaseOrDefaultThrows()
     {
         when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
