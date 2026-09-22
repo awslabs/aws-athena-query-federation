@@ -95,7 +95,7 @@ public class InfluxDBRecordHandler
         final String resolvedDB;
         final String sql;
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
-            // Query passthrough: run the caller's native SQL verbatim against the supplied database.
+            queryPassthrough.assertEnabled(configOptions);
             final Map<String, String> qptArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
             queryPassthrough.verify(qptArgs);
             resolvedDB = qptArgs.get(InfluxDBQueryPassthrough.DATABASE);

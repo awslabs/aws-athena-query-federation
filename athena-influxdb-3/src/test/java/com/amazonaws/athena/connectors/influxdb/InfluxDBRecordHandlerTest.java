@@ -64,6 +64,7 @@ import java.util.stream.Stream;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -377,6 +378,51 @@ public class InfluxDBRecordHandlerTest
         usageReader.setPosition(1);
         assertEquals("server02", hostReader.readText().toString());
         assertEquals(42.5, usageReader.readDouble(), 0.0001);
+    }
+
+    @Test
+    public void testReadWithConstraintRejectsPassthroughWhenDisabled() throws Exception
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put("spill_bucket", "test-bucket");
+        config.put("spill_prefix", "test-prefix");
+        config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
+        config.put("INFLUXDB3_AUTH_TOKEN", "test-token");
+        config.put("enable_query_passthrough", "false");
+        final InfluxDBRecordHandler disabledHandler = new InfluxDBRecordHandler(
+                mock(software.amazon.awssdk.services.s3.S3Client.class),
+                mock(software.amazon.awssdk.services.secretsmanager.SecretsManagerClient.class),
+                mock(software.amazon.awssdk.services.athena.AthenaClient.class),
+                mockFactory,
+                config);
+
+        final Schema schema = projectionSchema();
+        final Map<String, String> qpt = new HashMap<>();
+        qpt.put("schemaFunctionName", "SYSTEM.QUERY");
+        qpt.put(InfluxDBQueryPassthrough.DATABASE, "mydb");
+        qpt.put(InfluxDBQueryPassthrough.QUERY, "SELECT * FROM cpu");
+        final Constraints constraints = new Constraints(new HashMap<>(), Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, qpt, null);
+        final Split split = mock(Split.class);
+        when(split.getProperty(anyString())).thenReturn(null);
+        final ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, "catalog", "queryId",
+                new TableName("system", "query"), schema, split, constraints, 100_000, 100_000);
+
+        final QueryStatusChecker checker = mock(QueryStatusChecker.class);
+        when(checker.isQueryRunning()).thenReturn(true);
+        final Block block = blockAllocator.createBlock(schema);
+        block.constrain(ConstraintEvaluator.emptyEvaluator());
+        final BlockSpiller spiller = spillerWritingTo(block, new AtomicInteger());
+
+        try {
+            disabledHandler.readWithConstraint(spiller, request, checker);
+            fail("expected passthrough to be rejected when enable_query_passthrough=false");
+        }
+        catch (final UnsupportedOperationException expected) {
+            // ok
+        }
+        // The native SQL must never reach InfluxDB.
+        verify(mockClient, never()).queryBatches(anyString());
     }
 
     @Test
