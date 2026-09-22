@@ -245,10 +245,9 @@ public class InfluxDBRecordHandlerTest
     }
 
     /**
-     * Security regression for Talos finding 03363fd2: the read path must derive its physical target
-     * from the authorized TableName via the trusted resolution path, and must ignore the request's
-     * schema custom metadata. A forged request whose metadata points at a different database/table
-     * must still read only the authorized target.
+     * The read path must derive its physical target from the authorized TableName via the trusted
+     * resolution path, and must ignore the request's schema custom metadata. A forged request whose
+     * metadata points at a different database/table must still read only the authorized target.
      */
     @Test
     public void testReadWithConstraintIgnoresForgedSchemaMetadata() throws Exception
