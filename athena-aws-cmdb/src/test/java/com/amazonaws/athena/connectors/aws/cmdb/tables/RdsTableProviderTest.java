@@ -19,17 +19,29 @@
  */
 package com.amazonaws.athena.connectors.aws.cmdb.tables;
 
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import org.apache.arrow.vector.complex.reader.FieldReader;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.junit.runner.RunWith;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.mockito.stubbing.Answer;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.awssdk.services.rds.model.DBInstanceStatusInfo;
@@ -44,23 +56,35 @@ import software.amazon.awssdk.services.rds.model.Subnet;
 import software.amazon.awssdk.services.rds.model.Tag;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@RunWith(MockitoJUnitRunner.class)
 public class RdsTableProviderTest
         extends AbstractTableProviderTest
 {
-    private static final Logger logger = LoggerFactory.getLogger(RdsTableProviderTest.class);
-
     @Mock
     private RdsClient mockRds;
 
@@ -112,62 +136,6 @@ public class RdsTableProviderTest
                     }
                     return resultBuilder.build();
                 });
-    }
-
-    protected void validateRow(Block block, int pos)
-    {
-        for (FieldReader fieldReader : block.getFieldReaders()) {
-            fieldReader.setPosition(pos);
-            Field field = fieldReader.getField();
-
-            if (field.getName().equals(getIdField())) {
-                assertEquals(getIdValue(), fieldReader.readText().toString());
-            }
-            else {
-                validate(fieldReader);
-            }
-        }
-    }
-
-    private void validate(FieldReader fieldReader)
-    {
-        try {
-            logger.info("validate: {} {}", fieldReader.getField().getName(), fieldReader.getMinorType());
-            Field field = fieldReader.getField();
-            Types.MinorType type = Types.getMinorTypeForArrowType(field.getType());
-            switch (type) {
-                case VARCHAR:
-                    if (field.getName().equals("$data$")) {
-                        assertNotNull(fieldReader.readText().toString());
-                    }
-                    else {
-                        assertEquals(field.getName(), fieldReader.readText().toString());
-                    }
-                    break;
-                case DATEMILLI:
-                    assertEquals(100_000, fieldReader.readLocalDateTime().atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
-                    break;
-                case BIT:
-                    assertTrue(fieldReader.readBoolean());
-                    break;
-                case INT:
-                    assertTrue(fieldReader.readInteger() > 0);
-                    break;
-                case STRUCT:
-                    for (Field child : field.getChildren()) {
-                        validate(fieldReader.reader(child.getName()));
-                    }
-                    break;
-                case LIST:
-                    validate(fieldReader.reader());
-                    break;
-                default:
-                    throw new RuntimeException("No validation configured for field " + field.getName() + ":" + type + " " + field.getChildren());
-            }
-        }
-        catch (RuntimeException ex) {
-            throw new RuntimeException("Error validating field " + fieldReader.getField().getName(), ex);
-        }
     }
 
     private DBInstance makeValue(String id)
@@ -228,5 +196,398 @@ public class RdsTableProviderTest
                 .publiclyAccessible(true)
                 .tagList(Tag.builder().key("key").value("value").build())
                 .build();
+    }
+
+    @Test
+    public void readWithConstraint_whenNoInstanceIdConstraint_doesNotSetDbInstanceIdentifier()
+    {
+        reset(mockRds);
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            RdsTableProvider provider = (RdsTableProvider) setUpSource();
+            when(mockRds.describeDBInstances(any(DescribeDbInstancesRequest.class)))
+                    .thenReturn(DescribeDbInstancesResponse.builder().dbInstances(Collections.emptyList()).build());
+
+            ReadRecordsRequest request = createReadRecordsRequest(allocator, provider, Collections.emptyMap());
+
+            BlockSpiller mockSpiller = mock(BlockSpiller.class);
+            QueryStatusChecker mockChecker = mock(QueryStatusChecker.class);
+            lenient().when(mockChecker.isQueryRunning()).thenReturn(true);
+
+            provider.readWithConstraint(mockSpiller, request, mockChecker);
+
+            ArgumentCaptor<DescribeDbInstancesRequest> captor = ArgumentCaptor.forClass(DescribeDbInstancesRequest.class);
+            verify(mockRds).describeDBInstances(captor.capture());
+            assertNull("dbInstanceIdentifier should not be set when no instance_id constraint",
+                    captor.getValue().dbInstanceIdentifier());
+        }
+    }
+
+    @Test
+    public void readWithConstraint_whenInstanceIdMultiValue_doesNotSetDbInstanceIdentifier()
+    {
+        reset(mockRds);
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            RdsTableProvider provider = (RdsTableProvider) setUpSource();
+            when(mockRds.describeDBInstances(any(DescribeDbInstancesRequest.class)))
+                    .thenReturn(DescribeDbInstancesResponse.builder().dbInstances(Collections.emptyList()).build());
+
+            Map<String, ValueSet> constraintsMap = new HashMap<>();
+            constraintsMap.put("instance_id",
+                    EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                            .add("id1").add("id2").build());
+
+            ReadRecordsRequest request = createReadRecordsRequest(allocator, provider, constraintsMap);
+
+            BlockSpiller mockSpiller = mock(BlockSpiller.class);
+            QueryStatusChecker mockChecker = mock(QueryStatusChecker.class);
+            lenient().when(mockChecker.isQueryRunning()).thenReturn(true);
+
+            provider.readWithConstraint(mockSpiller, request, mockChecker);
+
+            ArgumentCaptor<DescribeDbInstancesRequest> captor = ArgumentCaptor.forClass(DescribeDbInstancesRequest.class);
+            verify(mockRds).describeDBInstances(captor.capture());
+            assertNull("dbInstanceIdentifier should not be set when instance_id has multiple values",
+                    captor.getValue().dbInstanceIdentifier());
+        }
+    }
+
+    @Test
+    public void readWithConstraint_whenPaginationAndQueryNotRunning_exitsLoopWithoutSecondPage()
+    {
+        reset(mockRds);
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            RdsTableProvider provider = (RdsTableProvider) setUpSource();
+            AtomicInteger callCount = new AtomicInteger(0);
+            when(mockRds.describeDBInstances(any(DescribeDbInstancesRequest.class)))
+                    .thenAnswer((Answer<DescribeDbInstancesResponse>) invocation -> {
+                        int count = callCount.incrementAndGet();
+                        List<DBInstance> instances = Collections.singletonList(makeValue("id1"));
+                        DescribeDbInstancesResponse.Builder builder = DescribeDbInstancesResponse.builder().dbInstances(instances);
+                        if (count == 1) {
+                            builder.marker("next-page");
+                        }
+                        return builder.build();
+                    });
+
+            QueryStatusChecker mockChecker = mock(QueryStatusChecker.class);
+            when(mockChecker.isQueryRunning()).thenReturn(false);
+
+            Map<String, ValueSet> constraintsMap = new HashMap<>();
+            constraintsMap.put("instance_id",
+                    EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false).add("id1").build());
+
+            ReadRecordsRequest request = createReadRecordsRequest(allocator, provider, constraintsMap);
+
+            BlockSpiller mockSpiller = mock(BlockSpiller.class);
+            provider.readWithConstraint(mockSpiller, request, mockChecker);
+
+            assertEquals("describeDBInstances should be called once; loop exits when isQueryRunning returns false",
+                    1, callCount.get());
+        }
+    }
+
+    @Test
+    public void readWithConstraint_whenBlockInvokesResolverWithUnexpectedField_throwsRuntimeException() throws Exception {
+        reset(mockRds);
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            RdsTableProvider provider = (RdsTableProvider) setUpSource();
+            when(mockRds.describeDBInstances(any(DescribeDbInstancesRequest.class)))
+                    .thenReturn(DescribeDbInstancesResponse.builder()
+                            .dbInstances(Collections.singletonList(makeValue("id")))
+                            .build());
+
+            try (Block mockBlock = mock(Block.class);
+                    QueryStatusChecker mockChecker = mock(QueryStatusChecker.class)) {
+                when(mockBlock.offerValue(anyString(), anyInt(), nullable(Object.class))).thenReturn(true);
+                when(mockBlock.offerComplexValue(anyString(), anyInt(), any(FieldResolver.class), nullable(Object.class)))
+                        .thenAnswer(invocation -> {
+                            FieldResolver resolver = invocation.getArgument(2);
+                            Object value = invocation.getArgument(3);
+                            Field unexpectedField = mock(Field.class);
+                            when(unexpectedField.getName()).thenReturn("unexpected_field");
+                            resolver.getFieldValue(unexpectedField, value);
+                            return true;
+                        });
+
+                BlockSpiller mockSpiller = mock(BlockSpiller.class);
+                doAnswer(invocation -> {
+                    BlockWriter.RowWriter rowWriter = invocation.getArgument(0);
+                    rowWriter.writeRows(mockBlock, 0);
+                    return null;
+                }).when(mockSpiller).writeRows(any(BlockWriter.RowWriter.class));
+
+                Map<String, ValueSet> constraintsMap = new HashMap<>();
+                constraintsMap.put("instance_id",
+                        EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false).add("id").build());
+
+                ReadRecordsRequest request = createReadRecordsRequest(allocator, provider, constraintsMap);
+
+                lenient().when(mockChecker.isQueryRunning()).thenReturn(true);
+
+                RuntimeException ex = assertThrows(RuntimeException.class, () ->
+                        provider.readWithConstraint(mockSpiller, request, mockChecker));
+                assertTrue("Exception message should contain Unexpected field",
+                        ex.getMessage() != null && ex.getMessage().contains("Unexpected field"));
+            }
+        }
+    }
+
+    @Test
+    public void readWithConstraint_whenBlockInvokesSubnetGroupResolverWithDescription_returnsDescription() throws Exception {
+        reset(mockRds);
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            DBSubnetGroup subnetGroup = DBSubnetGroup.builder()
+                    .dbSubnetGroupDescription("test-description")
+                    .dbSubnetGroupName("name")
+                    .subnetGroupStatus("status")
+                    .vpcId("vpc")
+                    .subnets(Subnet.builder().subnetIdentifier("subnet").build())
+                    .build();
+            DBInstance instanceWithDescription = makeValue("id").toBuilder()
+                    .dbSubnetGroup(subnetGroup)
+                    .build();
+
+            RdsTableProvider provider = (RdsTableProvider) setUpSource();
+            when(mockRds.describeDBInstances(any(DescribeDbInstancesRequest.class)))
+                    .thenReturn(DescribeDbInstancesResponse.builder()
+                            .dbInstances(Collections.singletonList(instanceWithDescription))
+                            .build());
+
+            final AtomicInteger callCount = new AtomicInteger(0);
+            try (Block mockBlock = mock(Block.class);
+                    QueryStatusChecker mockChecker = mock(QueryStatusChecker.class)) {
+                when(mockBlock.offerValue(anyString(), anyInt(), nullable(Object.class))).thenReturn(true);
+                when(mockBlock.offerComplexValue(anyString(), anyInt(), any(FieldResolver.class), nullable(Object.class)))
+                        .thenAnswer(invocation -> {
+                            String fieldName = invocation.getArgument(0);
+                            FieldResolver resolver = invocation.getArgument(2);
+                            Object value = invocation.getArgument(3);
+                            if ("subnet_group".equals(fieldName) && value instanceof DBSubnetGroup) {
+                                Field descField = mock(Field.class);
+                                when(descField.getName()).thenReturn("description");
+                                Object result = resolver.getFieldValue(descField, value);
+                                assertNotNull("Description should be resolved", result);
+                                assertEquals("test-description", result);
+                            }
+                            callCount.incrementAndGet();
+                            return true;
+                        });
+
+                BlockSpiller mockSpiller = mock(BlockSpiller.class);
+                doAnswer(invocation -> {
+                    BlockWriter.RowWriter rowWriter = invocation.getArgument(0);
+                    rowWriter.writeRows(mockBlock, 0);
+                    return null;
+                }).when(mockSpiller).writeRows(any(BlockWriter.RowWriter.class));
+
+                Map<String, ValueSet> constraintsMap = new HashMap<>();
+                constraintsMap.put("instance_id",
+                        EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false).add("id").build());
+
+                ReadRecordsRequest request = createReadRecordsRequest(allocator, provider, constraintsMap);
+
+                lenient().when(mockChecker.isQueryRunning()).thenReturn(true);
+
+                provider.readWithConstraint(mockSpiller, request, mockChecker);
+
+                assertTrue("subnet_group resolver should have been invoked", callCount.get() > 0);
+            }
+        }
+    }
+
+    @Test
+    public void readWithConstraint_whenBlockInvokesSubnetGroupResolverWithSubnetValue_returnsSubnetIdentifier() throws Exception {
+        reset(mockRds);
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            Subnet subnet = Subnet.builder().subnetIdentifier("subnet-123").build();
+            DBSubnetGroup subnetGroup = DBSubnetGroup.builder()
+                    .dbSubnetGroupName("name")
+                    .subnetGroupStatus("status")
+                    .vpcId("vpc")
+                    .subnets(subnet)
+                    .build();
+            DBInstance instanceWithSubnet = makeValue("id").toBuilder()
+                    .dbSubnetGroup(subnetGroup)
+                    .build();
+
+            RdsTableProvider provider = (RdsTableProvider) setUpSource();
+            when(mockRds.describeDBInstances(any(DescribeDbInstancesRequest.class)))
+                    .thenReturn(DescribeDbInstancesResponse.builder()
+                            .dbInstances(Collections.singletonList(instanceWithSubnet))
+                            .build());
+
+            final AtomicInteger callCount = new AtomicInteger(0);
+            try (Block mockBlock = mock(Block.class);
+                    QueryStatusChecker mockChecker = mock(QueryStatusChecker.class)) {
+                when(mockBlock.offerValue(anyString(), anyInt(), nullable(Object.class))).thenReturn(true);
+                when(mockBlock.offerComplexValue(anyString(), anyInt(), any(FieldResolver.class), nullable(Object.class)))
+                        .thenAnswer(invocation -> {
+                            String fieldName = invocation.getArgument(0);
+                            FieldResolver resolver = invocation.getArgument(2);
+                            Object value = invocation.getArgument(3);
+                        if ("subnet_group".equals(fieldName) && value instanceof DBSubnetGroup) {
+                            DBSubnetGroup group = (DBSubnetGroup) value;
+                            if (!group.subnets().isEmpty()) {
+                                Field subnetField = mock(Field.class);
+                                when(subnetField.getName()).thenReturn("subnet_item");
+                                Object result = resolver.getFieldValue(subnetField, group.subnets().get(0));
+                                    assertNotNull("Subnet identifier should be resolved", result);
+                                    assertEquals("subnet-123", result.toString());
+                                }
+                            }
+                            callCount.incrementAndGet();
+                            return true;
+                        });
+
+                BlockSpiller mockSpiller = mock(BlockSpiller.class);
+                doAnswer(invocation -> {
+                    BlockWriter.RowWriter rowWriter = invocation.getArgument(0);
+                    rowWriter.writeRows(mockBlock, 0);
+                    return null;
+                }).when(mockSpiller).writeRows(any(BlockWriter.RowWriter.class));
+
+                Map<String, ValueSet> constraintsMap = new HashMap<>();
+                constraintsMap.put("instance_id",
+                        EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false).add("id").build());
+
+                ReadRecordsRequest request = createReadRecordsRequest(allocator, provider, constraintsMap);
+
+                lenient().when(mockChecker.isQueryRunning()).thenReturn(true);
+
+                provider.readWithConstraint(mockSpiller, request, mockChecker);
+
+                assertTrue("subnet_group resolver should have been invoked", callCount.get() > 0);
+            }
+        }
+    }
+
+    @Test
+    public void readWithConstraint_whenBlockInvokesParamGroupsResolverWithUnexpectedField_throwsRuntimeException() throws Exception
+    {
+        runRdsThrowTestForTrigger("param_groups");
+    }
+
+    @Test
+    public void readWithConstraint_whenBlockInvokesDbSecurityGroupsResolverWithUnexpectedField_throwsRuntimeException() throws Exception
+    {
+        runRdsThrowTestForTrigger("db_security_groups");
+    }
+
+    @Test
+    public void readWithConstraint_whenBlockInvokesSubnetGroupResolverWithUnexpectedField_throwsRuntimeException() throws Exception
+    {
+        runRdsThrowTestForTrigger("subnet_group");
+    }
+
+    @Test
+    public void readWithConstraint_whenBlockInvokesEndpointResolverWithUnexpectedField_throwsRuntimeException() throws Exception
+    {
+        runRdsThrowTestForTrigger("endpoint");
+    }
+
+    @Test
+    public void readWithConstraint_whenBlockInvokesStatusInfosResolverWithUnexpectedField_throwsRuntimeException() throws Exception
+    {
+        runRdsThrowTestForTrigger("status_infos");
+    }
+
+    @Test
+    public void readWithConstraint_whenBlockInvokesTagsResolverWithUnexpectedField_throwsRuntimeException() throws Exception
+    {
+        runRdsThrowTestForTrigger("tags");
+    }
+
+    private ReadRecordsRequest createReadRecordsRequest(BlockAllocatorImpl allocator, RdsTableProvider provider,
+                                                        java.util.Map<String, com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet> constraintsMap)
+    {
+        return new ReadRecordsRequest(
+                new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap()),
+                "catalog", "queryId", new TableName("rds", "rds_instances"),
+                provider.getTable(allocator, new GetTableRequest(
+                        new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap()),
+                        "queryId", "catalog", new TableName("rds", "rds_instances"), Collections.emptyMap())).getSchema(),
+                Split.newBuilder(
+                        S3SpillLocation.newBuilder().withBucket("b").withPrefix("p").withSplitId("s").withQueryId("q").withIsDirectory(true).build(),
+                        new LocalKeyFactory().create()).build(),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000, 100_000);
+    }
+
+    private static final Map<String, List<String>> RDS_SUCCESS_FIELDS = new HashMap<>();
+    static {
+        RDS_SUCCESS_FIELDS.put("domains", Arrays.asList("domain", "fqdn", "iam_role", "status"));
+        RDS_SUCCESS_FIELDS.put("param_groups", Arrays.asList("name", "status"));
+        RDS_SUCCESS_FIELDS.put("db_security_groups", Arrays.asList("name", "status"));
+        RDS_SUCCESS_FIELDS.put("subnet_group", Arrays.asList("description", "name", "status", "vpc", "subnets"));
+        RDS_SUCCESS_FIELDS.put("endpoint", Arrays.asList("address", "port", "zone"));
+        RDS_SUCCESS_FIELDS.put("status_infos", Arrays.asList("message", "is_normal", "status", "type"));
+        RDS_SUCCESS_FIELDS.put("tags", Arrays.asList("key", "value"));
+    }
+
+    private void invokeResolverSuccess(FieldResolver resolver, Object value, String fieldName)
+    {
+        List<String> names = RDS_SUCCESS_FIELDS.get(fieldName);
+        if (names == null) {
+            return;
+        }
+        Object elem = value;
+        if (value instanceof List && !((List<?>) value).isEmpty()) {
+            elem = ((List<?>) value).get(0);
+        }
+        for (String n : names) {
+            Field f = mock(Field.class);
+            when(f.getName()).thenReturn(n);
+            resolver.getFieldValue(f, elem);
+        }
+    }
+
+    private void runRdsThrowTestForTrigger(String triggerFieldName) throws Exception
+    {
+        reset(mockRds);
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            RdsTableProvider provider = (RdsTableProvider) setUpSource();
+            when(mockRds.describeDBInstances(any(DescribeDbInstancesRequest.class)))
+                    .thenReturn(DescribeDbInstancesResponse.builder()
+                            .dbInstances(Collections.singletonList(makeValue("id")))
+                            .build());
+
+            try (Block mockBlock = mock(Block.class);
+                    QueryStatusChecker mockChecker = mock(QueryStatusChecker.class)) {
+                when(mockBlock.offerValue(anyString(), anyInt(), nullable(Object.class))).thenReturn(true);
+                when(mockBlock.offerComplexValue(anyString(), anyInt(), any(FieldResolver.class), nullable(Object.class)))
+                        .thenAnswer(invocation -> {
+                            String fieldName = invocation.getArgument(0);
+                            FieldResolver resolver = invocation.getArgument(2);
+                            Object value = invocation.getArgument(3);
+                            if (fieldName.equals(triggerFieldName)) {
+                                Field unexpectedField = mock(Field.class);
+                                when(unexpectedField.getName()).thenReturn("unexpected_field");
+                                resolver.getFieldValue(unexpectedField, value);
+                                return true;
+                            }
+                            invokeResolverSuccess(resolver, value, fieldName);
+                            return true;
+                        });
+
+                BlockSpiller mockSpiller = mock(BlockSpiller.class);
+                doAnswer(invocation -> {
+                    BlockWriter.RowWriter rowWriter = invocation.getArgument(0);
+                    rowWriter.writeRows(mockBlock, 0);
+                    return null;
+                }).when(mockSpiller).writeRows(any(BlockWriter.RowWriter.class));
+
+                Map<String, ValueSet> constraintsMap = new HashMap<>();
+                constraintsMap.put("instance_id",
+                        EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false).add("id").build());
+                ReadRecordsRequest request = createReadRecordsRequest(allocator, provider, constraintsMap);
+
+                lenient().when(mockChecker.isQueryRunning()).thenReturn(true);
+
+                RuntimeException ex = assertThrows(RuntimeException.class, () ->
+                        provider.readWithConstraint(mockSpiller, request, mockChecker));
+                assertTrue("Exception message should contain Unexpected field",
+                        ex.getMessage() != null && ex.getMessage().contains("Unexpected field"));
+            }
+        }
     }
 }
