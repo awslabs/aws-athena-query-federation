@@ -30,10 +30,12 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -44,11 +46,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.ALL_PARTITIONS;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PARTITION_BUCKET_TEMPLATE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SnowflakeQueryStringBuilderTest
@@ -62,6 +69,27 @@ public class SnowflakeQueryStringBuilderTest
     {
         SnowflakeFederationExpressionParser expressionParser = new SnowflakeFederationExpressionParser(QUOTE_CHARACTER);
         queryBuilder = new SnowflakeQueryStringBuilder(QUOTE_CHARACTER, expressionParser);
+    }
+
+    private static Split partitionSplit(String partitionVal)
+    {
+        return Split.newBuilder(
+                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
+                null
+        ).add(BLOCK_PARTITION_COLUMN_NAME, partitionVal).build();
+    }
+
+    /** Builds a split carrying the hash bucket partition value SnowflakeMetadataHandler produces. */
+    private static Split bucketSplit(int bucket, int bucketCount, String quotedKey)
+    {
+        return partitionSplit(String.format(PARTITION_BUCKET_TEMPLATE, bucket, bucketCount, quotedKey));
+    }
+
+    private static String capturePreparedSql(Connection mockConnection) throws SQLException
+    {
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockConnection).prepareStatement(sqlCaptor.capture());
+        return sqlCaptor.getValue();
     }
 
     @Test
@@ -115,10 +143,7 @@ public class SnowflakeQueryStringBuilderTest
 
         Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null);
 
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "partition-primary-col1-limit-1000-offset-0").build();
+        Split split = bucketSplit(0, 4, "\"col1\"");
 
         PreparedStatement result = queryBuilder.buildSql(
                 mockConnection,
@@ -131,6 +156,11 @@ public class SnowflakeQueryStringBuilderTest
         );
 
         assertNotNull(result);
+        // The split's bucket predicate must survive alongside the pushed down filter, otherwise every split
+        // would read the whole table.
+        String sql = capturePreparedSql(mockConnection);
+        assertTrue(sql, sql.contains("MOD(ABS(HASH(\"col1\")), 4) = 0"));
+        assertTrue(sql, sql.contains("\"col2\""));
     }
 
     @Test
@@ -152,10 +182,7 @@ public class SnowflakeQueryStringBuilderTest
 
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), orderByFields, -1L, Collections.emptyMap(), null);
 
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "partition-primary-col1-limit-1000-offset-0").build();
+        Split split = bucketSplit(1, 4, "\"col1\"");
 
         PreparedStatement result = queryBuilder.buildSql(
                 mockConnection,
@@ -184,10 +211,7 @@ public class SnowflakeQueryStringBuilderTest
 
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 100L, Collections.emptyMap(), null);
 
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "test-partition").build();
+        Split split = bucketSplit(2, 4, "\"col1\"");
 
         PreparedStatement result = queryBuilder.buildSql(
                 mockConnection,
@@ -200,6 +224,10 @@ public class SnowflakeQueryStringBuilderTest
         );
 
         assertNotNull(result);
+        // A pushed down LIMIT must not cost the split its scoping: it is a WHERE clause, so both apply.
+        String sql = capturePreparedSql(mockConnection);
+        assertTrue(sql, sql.contains("MOD(ABS(HASH(\"col1\")), 4) = 2"));
+        assertTrue(sql, sql.contains("LIMIT 100"));
     }
 
     @Test
@@ -216,12 +244,7 @@ public class SnowflakeQueryStringBuilderTest
 
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null);
 
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        )
-        .add("partition", "partition-primary--limit-1000-offset-0")
-        .build();
+        Split split = bucketSplit(3, 4, "\"col1\"");
 
         PreparedStatement result = queryBuilder.buildSql(
                 mockConnection,
@@ -352,12 +375,7 @@ public class SnowflakeQueryStringBuilderTest
 
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), -1L, Collections.emptyMap(), null);
 
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        )
-        .add("partition", "partition-primary-\"id\",\"name\"-limit-5000-offset-10000")
-        .build();
+        Split split = bucketSplit(7, 50, "\"id\",\"name\"");
 
         PreparedStatement result = queryBuilder.buildSql(
                 mockConnection,
@@ -370,6 +388,8 @@ public class SnowflakeQueryStringBuilderTest
         );
 
         assertNotNull(result);
+        String sql = capturePreparedSql(mockConnection);
+        assertTrue(sql, sql.contains("MOD(ABS(HASH(\"id\",\"name\")), 50) = 7"));
     }
 
     @Test
@@ -390,7 +410,7 @@ public class SnowflakeQueryStringBuilderTest
                 S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
                 null
         )
-        .add("partition", "*") // All partitions
+        .add("partition", ALL_PARTITIONS) // All partitions
         .build();
 
         PreparedStatement result = queryBuilder.buildSql(
@@ -404,116 +424,95 @@ public class SnowflakeQueryStringBuilderTest
         );
 
         assertNotNull(result);
+        // A single partition read has nothing to scope to, so no bucket predicate should appear.
+        String sql = capturePreparedSql(mockConnection);
+        assertTrue(sql, !sql.contains("HASH("));
     }
 
     @Test
-    public void testAppendLimitOffsetWithNullSplit()
+    public void testGetPartitionWhereClausesWithNullSplit()
     {
-        String result = queryBuilder.appendLimitOffset(null);
-        assertEquals("", result);
+        assertEquals(Collections.emptyList(), queryBuilder.getPartitionWhereClauses(null));
     }
 
     @Test
-    public void testAppendLimitOffsetWithEmptySplit()
+    public void testGetPartitionWhereClausesWithNoPartitionProperty()
     {
+        // The S3 export and query passthrough paths both pass splits without a partition property.
         Split split = Split.newBuilder(
                 S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
                 null
         ).build();
 
-        String result = queryBuilder.appendLimitOffset(split);
-        assertEquals("", result);
+        assertEquals(Collections.emptyList(), queryBuilder.getPartitionWhereClauses(split));
     }
 
     @Test
-    public void testAppendLimitOffsetWithMissingMarkers()
+    public void testGetPartitionWhereClausesWithAllPartitions()
     {
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "some-random-value").build();
-
-        String result = queryBuilder.appendLimitOffset(split);
-        assertEquals("", result);
+        assertEquals(Collections.emptyList(), queryBuilder.getPartitionWhereClauses(partitionSplit(ALL_PARTITIONS)));
     }
 
     @Test
-    public void testAppendLimitOffsetWithMalformedPartition()
+    public void testGetPartitionWhereClausesWithSingleKey()
     {
-        // Markers in wrong order: offset before limit
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "partition-offset-0-limit-100-primary-col1").build();
-
-        String result = queryBuilder.appendLimitOffset(split);
-        assertEquals("", result);
+        assertEquals(
+                Collections.singletonList("MOD(ABS(HASH(\"id\")), 50) = 12"),
+                queryBuilder.getPartitionWhereClauses(bucketSplit(12, 50, "\"id\"")));
     }
 
     @Test
-    public void testAppendLimitOffsetWithEmptyPrimaryKey()
+    public void testGetPartitionWhereClausesWithCompositeKey()
     {
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "partition-primary--limit-1000-offset-0").build();
-
-        String result = queryBuilder.appendLimitOffset(split);
-        assertEquals("", result);
+        assertEquals(
+                Collections.singletonList("MOD(ABS(HASH(\"col1\",\"col2\")), 4) = 0"),
+                queryBuilder.getPartitionWhereClauses(bucketSplit(0, 4, "\"col1\",\"col2\"")));
     }
 
     @Test
-    public void testAppendLimitOffsetWithNonNumericLimit()
+    public void testGetPartitionWhereClausesWithEmbeddedDashInKey()
     {
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "partition-primary-col1-limit-abc-offset-0").build();
-
-        String result = queryBuilder.appendLimitOffset(split);
-        assertEquals("", result);
+        // The key is the last field in the encoding precisely so that dashes in column names survive it.
+        assertEquals(
+                Collections.singletonList("MOD(ABS(HASH(\"my-key-col\")), 8) = 3"),
+                queryBuilder.getPartitionWhereClauses(bucketSplit(3, 8, "\"my-key-col\"")));
     }
 
     @Test
-    public void testAppendLimitOffsetWithNonNumericOffset()
+    public void testGetPartitionWhereClausesWithEmbeddedQuoteInKey()
     {
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "partition-primary-col1-limit-1000-offset-xyz").build();
-
-        String result = queryBuilder.appendLimitOffset(split);
-        assertEquals("", result);
+        assertEquals(
+                Collections.singletonList("MOD(ABS(HASH(\"we\"\"ird\")), 8) = 3"),
+                queryBuilder.getPartitionWhereClauses(bucketSplit(3, 8, "\"we\"\"ird\"")));
     }
 
     @Test
-    public void testAppendLimitOffsetWithValidPartition()
+    public void testGetPartitionWhereClausesRejectsUnrecognizedPartition()
     {
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "partition-primary-\"id\"-limit-1000-offset-500").build();
-
-        String result = queryBuilder.appendLimitOffset(split);
-        assertTrue(result.contains("ORDER BY"));
-        assertTrue(result.contains("\"id\""));
-        assertTrue(result.contains("LIMIT"));
-        assertTrue(result.contains("OFFSET"));
+        // Returning no predicate would silently duplicate the table once per split, so this must fail loudly.
+        assertThrows(AthenaConnectorException.class,
+                () -> queryBuilder.getPartitionWhereClauses(partitionSplit("some-random-value")));
     }
 
     @Test
-    public void testAppendLimitOffsetWithCompositePrimaryKey()
+    public void testGetPartitionWhereClausesRejectsLegacyLimitOffsetPartition()
     {
-        Split split = Split.newBuilder(
-                S3SpillLocation.newBuilder().withBucket("test").withPrefix("test").build(),
-                null
-        ).add("partition", "partition-primary-\"col1\",\"col2\"-limit-5000-offset-10000").build();
+        assertThrows(AthenaConnectorException.class,
+                () -> queryBuilder.getPartitionWhereClauses(partitionSplit("partition-primary-\"id\"-limit-1000-offset-500")));
+    }
 
-        String result = queryBuilder.appendLimitOffset(split);
-        assertTrue(result.contains("ORDER BY"));
-        assertTrue(result.contains("\"col1\",\"col2\""));
-        assertTrue(result.contains("LIMIT"));
-        assertTrue(result.contains("OFFSET"));
+    @Test
+    public void testGetPartitionWhereClausesRejectsUnquotedKey()
+    {
+        assertThrows(AthenaConnectorException.class,
+                () -> queryBuilder.getPartitionWhereClauses(bucketSplit(0, 4, "id")));
+    }
+
+    @Test
+    public void testGetPartitionWhereClausesRejectsInjectedKey()
+    {
+        assertThrows(AthenaConnectorException.class,
+                () -> queryBuilder.getPartitionWhereClauses(bucketSplit(0, 4, "\"id\") OR 1=1 OR MOD(ABS(HASH(\"id\"")));
     }
 
     @Test

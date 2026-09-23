@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
@@ -33,6 +34,8 @@ import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.dialect.SnowflakeSqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -41,10 +44,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.ALL_PARTITIONS;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PARTITION_BUCKET_PATTERN;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.QUOTED_IDENTIFIER_LIST_PATTERN;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_QUOTE_CHAR;
 
 /**
@@ -73,10 +80,50 @@ public class SnowflakeQueryStringBuilder
         return String.format(" FROM %s ", tableName);
     }
 
+    /**
+     * Turns the split's partition value back into a WHERE predicate so the split only reads its own share of
+     * the table. This is the one split hook honored on every SQL generation path, including the Substrait /
+     * Calcite path and queries with a pushed down LIMIT, which is why the scoping lives here rather than in
+     * {@link #appendLimitOffset(Split)}.
+     */
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        return Collections.emptyList();
+        String partitionVal = split == null ? null : split.getProperty(BLOCK_PARTITION_COLUMN_NAME);
+        // Nothing to scope to: single partition tables and views, plus the S3 export and query passthrough
+        // paths, all read the table in one piece.
+        if (partitionVal == null || ALL_PARTITIONS.equals(partitionVal)) {
+            LOGGER.info("Split execution: partitionScope=WHOLE_TABLE, partitionValue={} (no partition predicate added, "
+                    + "this split reads the table in one piece)", partitionVal);
+            return Collections.emptyList();
+        }
+
+        Matcher matcher = PARTITION_BUCKET_PATTERN.matcher(partitionVal);
+        if (!matcher.matches()) {
+            // Returning no predicate here would give every split the whole table and duplicate the result
+            // set once per split, so fail the query instead of silently returning wrong data.
+            throw new AthenaConnectorException("Unrecognized Snowflake partition value: " + partitionVal,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+
+        String bucket = matcher.group(1);
+        String bucketCount = matcher.group(2);
+        String partitionKey = matcher.group(3);
+        // The key is interpolated into SQL, so confirm it is the quoted identifier list getPrimaryKey produces.
+        if (!QUOTED_IDENTIFIER_LIST_PATTERN.matcher(partitionKey).matches()) {
+            throw new AthenaConnectorException("Snowflake partition key is not a quoted identifier list: " + partitionKey,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+
+        // HASH is deterministic and defined for every input in Snowflake, NULLs included, so each row lands in
+        // exactly one bucket. The buckets therefore cover the table without relying on a row order or count.
+        String predicate = String.format("MOD(ABS(HASH(%s)), %s) = %s", partitionKey, bucketCount, bucket);
+        // One line per split showing which slice of the table this invocation reads. Across the concurrent
+        // split invocations these lines show the buckets 0..n-1 being read in parallel, and a missing bucket
+        // points at the split that failed. Only the hash key column names appear, never row values.
+        LOGGER.info("Split execution: partitionScope=HASH_BUCKET, bucket={}, ofBuckets={}, hashKey={}, predicate={}",
+                bucket, bucketCount, partitionKey, predicate);
+        return Collections.singletonList(predicate);
     }
 
     public String getBaseExportSQLString(
@@ -171,48 +218,6 @@ public class SnowflakeQueryStringBuilder
     {
         name = name.replace(SINGLE_QUOTE_CHAR, SINGLE_QUOTE_CHAR + SINGLE_QUOTE_CHAR);
         return SINGLE_QUOTE_CHAR + name + SINGLE_QUOTE_CHAR;
-    }
-
-    @Override
-    protected String appendLimitOffset(Split split)
-    {
-        if (split == null || split.getProperties().isEmpty()) {
-            return "";
-        }
-        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next());
-        // Expected format: partition-primary-<PRIMARYKEY>-limit-<LIMIT>-offset-<OFFSET>
-        // Use marker-based parsing to handle primary keys that may contain dashes
-        if (partitionVal == null || !partitionVal.contains("-primary-") || !partitionVal.contains("-limit-") || !partitionVal.contains("-offset-")) {
-            return "";
-        }
-
-        int primaryStart = partitionVal.indexOf("-primary-") + "-primary-".length();
-        int limitMarker = partitionVal.lastIndexOf("-limit-");
-        int offsetMarker = partitionVal.lastIndexOf("-offset-");
-
-        if (primaryStart > limitMarker || limitMarker > offsetMarker) {
-            LOGGER.warn("Malformed partition value: {}", partitionVal);
-            return "";
-        }
-
-        String primaryKey = partitionVal.substring(primaryStart, limitMarker);
-        String xLimit = partitionVal.substring(limitMarker + "-limit-".length(), offsetMarker);
-        String xOffset = partitionVal.substring(offsetMarker + "-offset-".length());
-
-        // if no primary key, single split only
-        if (primaryKey.isEmpty()) {
-            return "";
-        }
-
-        // Validate limit and offset are numeric to prevent injection
-        if (!xLimit.matches("\\d+") || !xOffset.matches("\\d+")) {
-            LOGGER.warn("Non-numeric limit/offset in partition value: limit={}, offset={}", xLimit, xOffset);
-            return "";
-        }
-
-        // Primary key is already quoted from getPrimaryKey() (e.g., "\"col1\",\"col2\"")
-        // so it is safe to use directly in ORDER BY
-        return "ORDER BY " + primaryKey + " " + appendLimitOffsetWithValue(xLimit, xOffset);
     }
 
     @Override

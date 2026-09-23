@@ -49,6 +49,9 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.ALL_PARTITIONS;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PARTITION_BUCKET_TEMPLATE;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -281,6 +284,125 @@ class SnowflakeSubstraitQueryBuilderTest {
             assertTrue(capturedSql.contains("SELECT"), "SQL should contain SELECT");
             assertTrue(capturedSql.contains("FROM"), "SQL should contain FROM");
             assertFalse(capturedSql.contains("WHERE"), "SQL should not contain WHERE clause");
+        }
+    }
+
+    /**
+     * The Substrait path short-circuits before appendLimitOffset, so the split's scoping has to arrive as a
+     * WHERE clause. Without it every split on this path would read the whole table and Athena would return
+     * the result set once per split.
+     */
+    @Test
+    void testBuildSplitSql_WithQueryPlan_AppliesSplitBucketPredicate() throws SQLException {
+        // Arrange
+        when(mockQueryPlan.getSubstraitPlan()).thenReturn(base64Plan);
+        when(mockConstraints.getQueryPlan()).thenReturn(mockQueryPlan);
+        when(mockSplit.getProperty(BLOCK_PARTITION_COLUMN_NAME))
+                .thenReturn(String.format(PARTITION_BUCKET_TEMPLATE, 3, 8, "\"id\""));
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+
+        String planSql = "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\" WHERE \"id\" > 10";
+        when(mockSqlSelect.getWhere()).thenReturn(mockWhereClause);
+        when(mockSqlSelect.getOrderList()).thenReturn(null);
+        when(mockSqlSelect.getFetch()).thenReturn(null);
+        when(mockSqlSelect.getOffset()).thenReturn(null);
+        when(mockSqlSelect.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, planSql));
+        when(mockWhereClause.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, "\"id\" > 10"));
+
+        try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SNOWFLAKE_DIALECT)))
+                    .thenReturn(mockSqlSelect);
+
+            // Act
+            PreparedStatement result = queryBuilder.buildSql(
+                    mockConnection, CATALOG, SCHEMA_NAME, TABLE, mockSchema, mockConstraints, mockSplit);
+
+            // Assert
+            assertNotNull(result);
+
+            ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+            verify(mockConnection).prepareStatement(sqlCaptor.capture());
+            String capturedSql = sqlCaptor.getValue();
+            // The bucket predicate joins the plan's own filter rather than replacing it.
+            assertTrue(capturedSql.contains("MOD(ABS(HASH(\"id\")), 8) = 3"),
+                    "SQL should scope the split to its hash bucket: " + capturedSql);
+            assertTrue(capturedSql.contains("\"id\" > 10"),
+                    "SQL should keep the plan's filter predicate: " + capturedSql);
+        }
+    }
+
+    /**
+     * When the Substrait plan has no filter of its own, the split's bucket predicate has to introduce the
+     * WHERE clause instead of being appended after a nonexistent one.
+     */
+    @Test
+    void testBuildSplitSql_WithQueryPlan_NoWhereClause_AddsSplitBucketPredicate() throws SQLException {
+        // Arrange
+        when(mockQueryPlan.getSubstraitPlan()).thenReturn(base64Plan);
+        when(mockConstraints.getQueryPlan()).thenReturn(mockQueryPlan);
+        when(mockSplit.getProperty(BLOCK_PARTITION_COLUMN_NAME))
+                .thenReturn(String.format(PARTITION_BUCKET_TEMPLATE, 0, 2, "\"id\",\"name\""));
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+
+        when(mockSqlSelect.getWhere()).thenReturn(null);
+        when(mockSqlSelect.getOrderList()).thenReturn(null);
+        when(mockSqlSelect.getFetch()).thenReturn(null);
+        when(mockSqlSelect.getOffset()).thenReturn(null);
+        when(mockSqlSelect.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, "SELECT \"id\", \"name\" FROM \"test_schema\".\"test_table\""));
+
+        try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SNOWFLAKE_DIALECT)))
+                    .thenReturn(mockSqlSelect);
+
+            // Act
+            PreparedStatement result = queryBuilder.buildSql(
+                    mockConnection, CATALOG, SCHEMA_NAME, TABLE, mockSchema, mockConstraints, mockSplit);
+
+            // Assert
+            assertNotNull(result);
+
+            ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+            verify(mockConnection).prepareStatement(sqlCaptor.capture());
+            String capturedSql = sqlCaptor.getValue();
+            assertTrue(capturedSql.contains("WHERE MOD(ABS(HASH(\"id\",\"name\")), 2) = 0"),
+                    "SQL should introduce a WHERE clause for the split's bucket: " + capturedSql);
+        }
+    }
+
+    /**
+     * The single-partition value carries no predicate, so a view or small table read over the Substrait path
+     * must produce the plan's SQL untouched.
+     */
+    @Test
+    void testBuildSplitSql_WithQueryPlan_AllPartitionsAddsNoPredicate() throws SQLException {
+        // Arrange
+        when(mockQueryPlan.getSubstraitPlan()).thenReturn(base64Plan);
+        when(mockConstraints.getQueryPlan()).thenReturn(mockQueryPlan);
+        when(mockSplit.getProperty(BLOCK_PARTITION_COLUMN_NAME)).thenReturn(ALL_PARTITIONS);
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+
+        String planSql = "SELECT \"id\", \"name\" FROM \"test_schema\".\"test_table\"";
+        when(mockSqlSelect.getWhere()).thenReturn(null);
+        when(mockSqlSelect.getOrderList()).thenReturn(null);
+        when(mockSqlSelect.getFetch()).thenReturn(null);
+        when(mockSqlSelect.getOffset()).thenReturn(null);
+        when(mockSqlSelect.toSqlString(eq(SNOWFLAKE_DIALECT)))
+                .thenReturn(new SqlString(SNOWFLAKE_DIALECT, planSql));
+
+        try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SNOWFLAKE_DIALECT)))
+                    .thenReturn(mockSqlSelect);
+
+            // Act
+            queryBuilder.buildSql(mockConnection, CATALOG, SCHEMA_NAME, TABLE, mockSchema, mockConstraints, mockSplit);
+
+            // Assert
+            ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+            verify(mockConnection).prepareStatement(sqlCaptor.capture());
+            assertEquals(planSql, sqlCaptor.getValue());
         }
     }
 }

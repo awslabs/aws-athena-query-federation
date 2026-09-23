@@ -65,6 +65,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -95,7 +96,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.ALL_PARTITIONS;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PARTITION_BUCKET_TEMPLATE;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_EXPORT_BUCKET;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_OBJECT_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_QUERY_ID;
@@ -441,7 +444,7 @@ public class SnowflakeRecordHandlerTest
                 .build();
             
             Split split = Split.newBuilder(splitLoc, keyFactory.create())
-                .add("partition", "partition-primary--limit-1000-offset-0")
+                .add("partition", ALL_PARTITIONS)
                 .build();
             
             ReadRecordsRequest request = new ReadRecordsRequest(
@@ -489,7 +492,7 @@ public class SnowflakeRecordHandlerTest
             .build();
         
         Split split = Split.newBuilder(splitLoc, keyFactory.create())
-            .add("partition", "partition-primary-id-limit-1000-offset-0")
+            .add("partition", String.format(PARTITION_BUCKET_TEMPLATE, 1, 4, "\"id\""))
             .build();
         
         Constraints constraints = new Constraints(
@@ -498,12 +501,16 @@ public class SnowflakeRecordHandlerTest
         
         PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
         when(connection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-        
+
         java.sql.PreparedStatement preparedStatement = handler.buildSplitSql(
             connection, "testCatalog", TABLE_NAME, schema, constraints, split);
-        
+
         assertNotNull(preparedStatement);
-        verify(connection).prepareStatement(anyString());
+        // The split's bucket must reach the SQL the record handler actually executes, otherwise every split
+        // reads the full table and the result set is duplicated once per split.
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(connection).prepareStatement(sqlCaptor.capture());
+        assertTrue(sqlCaptor.getValue().contains("MOD(ABS(HASH(\"id\")), 4) = 1"), sqlCaptor.getValue());
     }
 
     @Test
@@ -678,7 +685,7 @@ public class SnowflakeRecordHandlerTest
                 .build();
             
             Split split = Split.newBuilder(splitLoc, keyFactory.create())
-                .add("partition", "partition-primary--limit-1000-offset-0")
+                .add("partition", ALL_PARTITIONS)
                 .build();
             
             ReadRecordsRequest request = new ReadRecordsRequest(
@@ -792,7 +799,7 @@ public class SnowflakeRecordHandlerTest
             .build();
         
         Split split = Split.newBuilder(splitLoc, keyFactory.create())
-            .add("partition", "partition-primary--limit-1000-offset-0")
+            .add("partition", ALL_PARTITIONS)
             .build();
         
         ReadRecordsRequest request = new ReadRecordsRequest(
@@ -864,7 +871,7 @@ public class SnowflakeRecordHandlerTest
             .build();
         
         Split split = Split.newBuilder(splitLoc, keyFactory.create())
-            .add("partition", "partition-primary-id-limit-1000-offset-0")
+            .add("partition", String.format(PARTITION_BUCKET_TEMPLATE, 1, 4, "\"id\""))
             .build();
         
         Constraints constraints = new Constraints(

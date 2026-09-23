@@ -23,6 +23,7 @@ package com.amazonaws.athena.connectors.snowflake;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public final class SnowflakeConstants
 {
@@ -39,7 +40,8 @@ public final class SnowflakeConstants
      */
     public static final int MAX_PARTITION_COUNT = 50;
     /**
-     * This constant limits the number of records to be returned in a single split.
+     * Target number of records per split. Tables at or below this size are read as a single split, and
+     * larger tables are divided into enough hash buckets to keep roughly this many records per bucket.
      */
     public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
     /**
@@ -61,6 +63,24 @@ public final class SnowflakeConstants
      */
     public static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
     public static final String S3_ENHANCED_PARTITION_COLUMN_NAME = "s3_column_name_list";
+
+    /**
+     * Partition value used when a table is read as a single split: a view, a table small enough that
+     * splitting would not pay for itself, or a table with no primary key to hash on. Carries no predicate.
+     */
+    public static final String ALL_PARTITIONS = "*";
+    /**
+     * Encoding of a hash bucket partition, shared by SnowflakeMetadataHandler which produces it and
+     * SnowflakeQueryStringBuilder which turns it back into a WHERE predicate. Arguments are the bucket
+     * index, the total bucket count, and the comma separated, double quoted partition key columns.
+     * The key comes last because column names may themselves contain '-'.
+     */
+    public static final String PARTITION_BUCKET_TEMPLATE = BLOCK_PARTITION_COLUMN_NAME + "-bucket-%d-of-%d-key-%s";
+    public static final Pattern PARTITION_BUCKET_PATTERN =
+            Pattern.compile(BLOCK_PARTITION_COLUMN_NAME + "-bucket-(\\d+)-of-(\\d+)-key-(.+)");
+    /** A comma separated list of double quoted Snowflake identifiers, e.g. {@code "ID","REGION"}. */
+    public static final Pattern QUOTED_IDENTIFIER_LIST_PATTERN =
+            Pattern.compile("\"(?:[^\"]|\"\")+\"(?:,\"(?:[^\"]|\"\")+\")*");
 
     /**
      * A ssl file location constant to store the SSL certificate
