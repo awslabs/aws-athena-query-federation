@@ -150,7 +150,13 @@ public class StorageMetadata
 
         Map<Boolean, List<Map<String, String>>> results = StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
                 .filter(blob -> isBlobFile(blob))
-                .map(blob -> blob.getName().replaceFirst("^" + path, ""))
+                .map(blob -> {
+                    String name = blob.getName();
+                    if (!path.isEmpty() && name.startsWith(path)) {
+                        return name.substring(path.length());
+                    }
+                    return name;
+                })
                 // get partition folder path from complete file location
                 .map(name -> name.substring(0, name.lastIndexOf("/") + 1).trim())
                 .distinct()
