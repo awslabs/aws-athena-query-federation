@@ -25,6 +25,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -33,7 +34,6 @@ import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -54,12 +54,23 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
 import static com.amazonaws.athena.connectors.hortonworks.HiveConstants.HIVE_QUOTE_CHARACTER;
-import static org.mockito.ArgumentMatchers.any;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.NAME;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.SCHEMA_NAME;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class HiveRecordHandlerTest
 {
+    private static final String CATALOG_NAME = "testCatalog";
+    private static final String TEST_SCHEMA = "testSchema";
+    private static final String TEST_TABLE = "testTable";
+    private static final String PARTITION_PROPERTY = "partition";
+    private static final String PARTITION_VALUE = "p0";
+
     private HiveRecordHandler hiveRecordHandler;
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
@@ -80,7 +91,7 @@ public class HiveRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
-        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,
+        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(CATALOG_NAME, HiveConstants.HIVE_NAME,
                 "hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;UID=hive;PWD=hive");
 
         this.hiveRecordHandler = new HiveRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
@@ -97,22 +108,22 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql()
+    public void buildSplitSql_whenDateConstraint_returnsPreparedStatement()
             throws SQLException
     {
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.INT.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol2", Types.MinorType.DATEDAY.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol3", Types.MinorType.DATEMILLI.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol4", Types.MinorType.VARBINARY.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition", Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_PROPERTY, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
+        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap(PARTITION_PROPERTY, PARTITION_VALUE));
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_PROPERTY))).thenReturn(PARTITION_VALUE);
 
         Range range1a = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range1a.isSingleValue()).thenReturn(true);
@@ -130,11 +141,45 @@ public class HiveRecordHandlerTest
                 .build());
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
-        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, CATALOG_NAME, tableName, schema, constraints, split);
+        assertEquals(expectedPreparedStatement, preparedStatement);
         Date expectedDate = new Date(120, 0, 5);
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))
                 .setDate(1, expectedDate);
+    }
+
+    @Test
+    public void buildSplitSql_whenQueryPassthroughEnabled_usesPassthroughQuery()
+            throws SQLException
+    {
+        String passthroughQuery = "SELECT * FROM testSchema.testTable WHERE testCol1 = 1";
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_PROPERTY, Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.INT.getType()).build());
+
+        Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
+                .put(QUERY, passthroughQuery)
+                .put(SCHEMA_FUNCTION_NAME, "system.query")
+                .put(ENABLE_QUERY_PASSTHROUGH, "true")
+                .put("name", NAME)
+                .put("schema", SCHEMA_NAME)
+                .build();
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, queryPassthroughArgs, null);
+
+        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(passthroughQuery)).thenReturn(expectedPreparedStatement);
+        
+        Split split = Mockito.mock(Split.class);
+        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap(PARTITION_PROPERTY, PARTITION_VALUE));
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_PROPERTY))).thenReturn(PARTITION_VALUE);
+        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, CATALOG_NAME, tableName,
+                schemaBuilder.build(), constraints, split);
+
+        Mockito.verify(this.connection).prepareStatement(passthroughQuery);
+        Mockito.verify(expectedPreparedStatement).setFetchSize(HiveConstants.FETCH_SIZE);
+        assertEquals(expectedPreparedStatement, preparedStatement);
     }
 }

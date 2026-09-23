@@ -20,13 +20,16 @@
 package com.amazonaws.athena.connectors.hortonworks;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import java.util.Collections;
+
 import static com.amazonaws.athena.connectors.hortonworks.HiveConstants.HIVE_QUOTE_CHARACTER;
+import static org.junit.Assert.assertEquals;
 
 @SuppressWarnings("deprecation")
 @RunWith(MockitoJUnitRunner.class)
@@ -37,15 +40,30 @@ public class HiveQueryStringBuilderTest
 	Split split;
 	
 	@Test
-	public void testQueryBuilder()
+	public void getFromClauseWithSplit_whenCatalogSchemaTableProvided_returnsFromClause()
 	{
 	    String expectedFrom1 = " FROM default.schema.table ";
 	    String expectedFrom2 = " FROM default.table ";
 		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
 		String fromResult1 = builder.getFromClauseWithSplit("default", "schema", "table", split);
 		String fromResult2 = builder.getFromClauseWithSplit("default", "", "table", split);
-		Assert.assertEquals(expectedFrom1, fromResult1);
-		Assert.assertEquals(expectedFrom2, fromResult2);
+		assertEquals(expectedFrom1, fromResult1);
+		assertEquals(expectedFrom2, fromResult2);
 	}
 
+	@Test
+	public void getPartitionWhereClauses_whenAllPartitions_returnsEmptyList()
+	{
+		Mockito.when(split.getProperty(HiveConstants.BLOCK_PARTITION_COLUMN_NAME)).thenReturn("*");
+		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
+		assertEquals(Collections.emptyList(), builder.getPartitionWhereClauses(split));
+	}
+
+	@Test
+	public void getPartitionWhereClauses_whenPartitionPredicatePresent_returnsPredicate()
+	{
+		Mockito.when(split.getProperty(HiveConstants.BLOCK_PARTITION_COLUMN_NAME)).thenReturn(" year=2020");
+		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
+		assertEquals(Collections.singletonList(" year=2020"), builder.getPartitionWhereClauses(split));
+	}
 }
