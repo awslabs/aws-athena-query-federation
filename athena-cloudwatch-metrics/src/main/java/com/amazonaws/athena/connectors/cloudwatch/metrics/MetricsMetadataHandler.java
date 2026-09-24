@@ -46,6 +46,7 @@ import com.google.common.collect.Lists;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
@@ -224,10 +225,14 @@ public class MetricsMetadataHandler
     {
         validateTable(getSplitsRequest.getTableName());
 
+        // Managed-connector (Athena federation) path: apply the customer FAS credentials from configOptions to
+        // Cloudwatch calls and encrypt spill with the customer KMS key. Null (no-op) on the AppFlow/DNA path.
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(getSplitsRequest.getIdentity().getConfigOptions());
+
         //Handle requests for the METRIC_TABLE which requires only 1 split to list available metrics.
         if (METRIC_TABLE_NAME.equals(getSplitsRequest.getTableName().getTableName())) {
             //The request is just for meta-data about what metrics exist.
-            Split metricsSplit = Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey()).build();
+            Split metricsSplit = Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey(overrideConfig)).build();
             return new GetSplitsResponse(getSplitsRequest.getCatalogName(), metricsSplit);
         }
 
@@ -238,6 +243,7 @@ public class MetricsMetadataHandler
             ListMetricsRequest.Builder listMetricsRequestBuilder = ListMetricsRequest.builder();
             MetricUtils.pushDownPredicate(getSplitsRequest.getConstraints(), listMetricsRequestBuilder);
             listMetricsRequestBuilder.nextToken(getSplitsRequest.getContinuationToken());
+            listMetricsRequestBuilder.overrideConfiguration(overrideConfig);
 
             String period = getPeriodFromConstraint(getSplitsRequest.getConstraints());
             Set<Split> splits = new HashSet<>();
@@ -285,7 +291,7 @@ public class MetricsMetadataHandler
             List<List<MetricDataQuery>> partitions = Lists.partition(metricDataQueries, calculateSplitSize(metricDataQueries.size()));
             for (List<MetricDataQuery> partition : partitions) {
                 String serializedMetricDataQueries = MetricDataQuerySerDe.serialize(partition);
-                splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
+                splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey(overrideConfig))
                         .add(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME, serializedMetricDataQueries)
                         .build());
             }
