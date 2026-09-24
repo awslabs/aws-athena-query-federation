@@ -145,9 +145,21 @@ public class DatabaseConnectionConfigBuilder
         Validate.isTrue(dbType.equals(this.engine), "JDBC Connection string must be prepended by correct database type.");
 
         final Optional<String> optionalSecretName = extractSecretName(jdbcConnectionString);
+        final RdsIamConnectionStringParser.ParsedJdbcConnection parsedJdbcConnection =
+                RdsIamConnectionStringParser.parse(jdbcConnectionString);
 
-        return optionalSecretName.map(s -> new DatabaseConnectionConfig(catalogName, this.engine, jdbcConnectionString, s))
-                .orElseGet(() -> new DatabaseConnectionConfig(catalogName, this.engine, jdbcConnectionString));
+        final String resolvedJdbcConnectionString = parsedJdbcConnection.getJdbcConnectionString();
+        if (parsedJdbcConnection.isIamAuthEnabled()) {
+            if (optionalSecretName.isPresent()) {
+                throw new AthenaConnectorException("Cannot combine Secrets Manager credentials with RDS IAM authentication",
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+            }
+            return new DatabaseConnectionConfig(catalogName, this.engine, resolvedJdbcConnectionString,
+                    parsedJdbcConnection.getIamAuthConfiguration());
+        }
+
+        return optionalSecretName.map(s -> new DatabaseConnectionConfig(catalogName, this.engine, resolvedJdbcConnectionString, s))
+                .orElseGet(() -> new DatabaseConnectionConfig(catalogName, this.engine, resolvedJdbcConnectionString));
     }
 
     private Optional<String> extractSecretName(final String jdbcConnectionString)
