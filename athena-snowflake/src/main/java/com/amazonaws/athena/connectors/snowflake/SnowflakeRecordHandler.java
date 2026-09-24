@@ -199,21 +199,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     private void handleDirectRead(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        // Each split is read by its own Lambda invocation, so these two lines bracket one partition's share of
-        // the table. Comparing the durations across a query's invocations is how partition skew shows up.
-        String partitionVal = recordsRequest.getSplit().getProperty(BLOCK_PARTITION_COLUMN_NAME);
-        long readStartMillis = System.currentTimeMillis();
-        LOGGER.info("Split read start: queryId={}, table={}.{}, partitionValue={}",
-                recordsRequest.getQueryId(), recordsRequest.getTableName().getSchemaName(),
-                recordsRequest.getTableName().getTableName(), partitionVal);
-        try {
-            super.readWithConstraint(spiller, recordsRequest, queryStatusChecker);
-        }
-        finally {
-            LOGGER.info("Split read end: queryId={}, table={}.{}, partitionValue={}, readMillis={}",
-                    recordsRequest.getQueryId(), recordsRequest.getTableName().getSchemaName(),
-                    recordsRequest.getTableName().getTableName(), partitionVal, System.currentTimeMillis() - readStartMillis);
-        }
+      super.readWithConstraint(spiller, recordsRequest, queryStatusChecker);
     }
 
     @VisibleForTesting

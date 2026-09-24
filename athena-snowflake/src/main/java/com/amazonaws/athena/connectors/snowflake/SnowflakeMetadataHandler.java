@@ -104,7 +104,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.ALL_PARTITIONS;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COPY_INTO_QUERY_TEMPLATE;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COUNT_RECORDS_QUERY;
@@ -114,7 +113,6 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.JDBC_
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.LARGE_TABLE_THRESHOLD;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.LIST_PAGINATED_TABLES_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PARTITION_BUCKET_TEMPLATE;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SHOW_PRIMARY_KEYS_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT;
@@ -143,6 +141,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     private static final String COUNTS_COLUMN_NAME = "COUNTS";
     private static final String PRIMARY_KEY_COLUMN_NAME = "column_name";
     private static final String EMPTY_STRING = StringUtils.EMPTY;
+    private static final String ALL_PARTITIONS = "*";
 
     private S3Client amazonS3;
     private SnowflakeQueryStringBuilder snowflakeQueryStringBuilder = new SnowflakeQueryStringBuilder(DOUBLE_QUOTE_CHAR, new SnowflakeFederationExpressionParser(DOUBLE_QUOTE_CHAR));
@@ -280,13 +279,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.debug("getPartitions: {}: Schema {}, table {}", queryID, tableName.getSchemaName(),
                 tableName.getTableName());
-        long planningStartMillis = System.currentTimeMillis();
 
         // if we are using export method, we don't need to calculate partition
         if (SnowflakeConstants.isS3ExportEnabled(configOptions)) {
-            LOGGER.info("Partition planning: queryId={}, table={}.{}, strategy=S3_EXPORT, partitions=1 "
-                            + "(the COPY INTO export decides its own parallelism, so no partitions are planned here)",
-                    queryID, tableName.getSchemaName(), tableName.getTableName());
             blockWriter.writeRows((Block block, int rowNum) -> {
                 block.setValue(S3_ENHANCED_PARTITION_COLUMN_NAME,
                         rowNum,
@@ -297,13 +292,18 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         }
 
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
+            /**
+             * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
+             * this is to handle timeout issues because of huge partitions
+             */
+            LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
             boolean viewFlag = checkForView(tableName, connection);
             //if the input table is a view , there will be single split
             if (viewFlag) {
-                LOGGER.info("Partition planning: queryId={}, table={}.{}, strategy=SINGLE_PARTITION, partitions=1, "
-                                + "reason=VIEW, planningMillis={}",
-                        queryID, tableName.getSchemaName(), tableName.getTableName(), System.currentTimeMillis() - planningStartMillis);
-                writePartition(blockWriter, ALL_PARTITIONS);
+                blockWriter.writeRows((Block block, int rowNum) -> {
+                    block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);
+                    return 1;
+                });
                 return;
             }
 
@@ -330,71 +330,32 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                         primaryKey = getPrimaryKey(tableName, connection);
                     }
 
-                    int partitionCount = writePartitions(blockWriter, tableName, queryID, totalRecordCount, primaryKey);
-                    LOGGER.info("Partition planning complete: queryId={}, table={}.{}, partitions={}, rows={}, planningMillis={}",
-                            queryID, tableName.getSchemaName(), tableName.getTableName(), partitionCount,
-                            (long) totalRecordCount, System.currentTimeMillis() - planningStartMillis);
+                    long recordsInPartition = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
+                    long partitionRecordCount = (totalRecordCount <= SINGLE_SPLIT_LIMIT_COUNT || !primaryKey.isPresent()) ? (long) totalRecordCount : recordsInPartition;
+                    LOGGER.info(" Total Page Count: " + partitionRecordCount);
+                    double numberOfPartitions = (int) Math.ceil(totalRecordCount / partitionRecordCount);
+                    long offset = 0;
+                    /**
+                     * Custom pagination based partition logic will be applied with limit and offset clauses.
+                     * It will have maximum 50 partitions and number of records in each partition is decided by dividing total number of records by 50
+                     * the partition values we are setting the limit and offset values like p-limit-3000-offset-0
+                     */
+                    for (int i = 1; i <= numberOfPartitions; i++) {
+                        final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-primary-" + primaryKey.orElse("") + "-limit-" + partitionRecordCount + "-offset-" + offset;
+                        LOGGER.info("partitionVal {} ", partitionVal);
+                        blockWriter.writeRows((Block block, int rowNum) ->
+                        {
+                            block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
+                            return 1;
+                        });
+                        offset = offset + partitionRecordCount;
+                    }
                 }
                 else {
                     LOGGER.info("No Records Found for table {}", tableName);
-                    LOGGER.info("Partition planning: queryId={}, table={}.{}, strategy=NO_PARTITIONS, partitions=0, "
-                                    + "reason=EMPTY_TABLE_STATISTIC, planningMillis={}",
-                            queryID, tableName.getSchemaName(), tableName.getTableName(), System.currentTimeMillis() - planningStartMillis);
                 }
             }
         }
-    }
-
-    /**
-     * Divides the table into partitions that each split can scope its own SQL to. Partitions are hash
-     * buckets over the primary key, so every row belongs to exactly one bucket regardless of the order the
-     * rows come back in, and the splits can be read concurrently without overlapping or dropping rows.
-     *
-     * @param blockWriter      Used to write the partitions into the Apache Arrow response.
-     * @param tableName        The table being planned, logged so the partition layout can be traced per table.
-     * @param queryID          The Athena query id, logged so planning and the resulting splits can be correlated.
-     * @param totalRecordCount Row count from {@code information_schema.tables}, a cached statistic. It only
-     *                         decides how many buckets to create, so a stale value costs parallelism, never
-     *                         correctness.
-     * @param primaryKey       The comma separated, double quoted key columns to hash, if the table has a
-     *                         usable primary key.
-     * @return The number of partitions written, which is the upper bound on this query's read parallelism.
-     */
-    private int writePartitions(BlockWriter blockWriter, TableName tableName, String queryID, double totalRecordCount, Optional<String> primaryKey)
-    {
-        if (primaryKey.isEmpty() || totalRecordCount <= SINGLE_SPLIT_LIMIT_COUNT) {
-            LOGGER.info("Partition planning: queryId={}, table={}.{}, strategy=SINGLE_PARTITION, partitions=1, rows={}, "
-                            + "reason={}, rowsPerSplitTarget={}",
-                    queryID, tableName.getSchemaName(), tableName.getTableName(), (long) totalRecordCount,
-                    primaryKey.isEmpty() ? "NO_USABLE_PRIMARY_KEY" : "TABLE_BELOW_SPLIT_THRESHOLD", SINGLE_SPLIT_LIMIT_COUNT);
-            writePartition(blockWriter, ALL_PARTITIONS);
-            return 1;
-        }
-
-        // Each split scans the table and keeps only its own bucket, so size the bucket count to the work
-        // rather than always using MAX_PARTITION_COUNT: aim for SINGLE_SPLIT_LIMIT_COUNT rows per split.
-        int bucketCount = (int) Math.min(MAX_PARTITION_COUNT, Math.ceil(totalRecordCount / SINGLE_SPLIT_LIMIT_COUNT));
-        // Log the key columns and the sizing inputs, so an operator can tell a skewed or capped plan from a
-        // healthy one without needing the table. Column names only, never row values.
-        LOGGER.info("Partition planning: queryId={}, table={}.{}, strategy=HASH_BUCKET, partitions={}, rows={}, "
-                        + "hashKey={}, estimatedRowsPerPartition={}, rowsPerSplitTarget={}, partitionCap={}, cappedByLimit={}",
-                queryID, tableName.getSchemaName(), tableName.getTableName(), bucketCount, (long) totalRecordCount,
-                primaryKey.get(), (long) Math.ceil(totalRecordCount / bucketCount), SINGLE_SPLIT_LIMIT_COUNT,
-                MAX_PARTITION_COUNT, bucketCount == MAX_PARTITION_COUNT);
-        for (int bucket = 0; bucket < bucketCount; bucket++) {
-            String partitionVal = String.format(PARTITION_BUCKET_TEMPLATE, bucket, bucketCount, primaryKey.get());
-            LOGGER.debug("Partition planning: queryId={}, partitionValue={}", queryID, partitionVal);
-            writePartition(blockWriter, partitionVal);
-        }
-        return bucketCount;
-    }
-
-    private void writePartition(BlockWriter blockWriter, String partitionVal)
-    {
-        blockWriter.writeRows((Block block, int rowNum) -> {
-            block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
-            return 1;
-        });
     }
 
     private String buildQueryPassthroughSql(Constraints constraints)
@@ -424,11 +385,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         Set<Split> splits = new HashSet<>();
         Block partitions = getSplitsRequest.getPartitions();
-        // Each split is read by its own Lambda invocation, so the split count is the read parallelism Athena
-        // can actually use for this table.
-        LOGGER.info("Split planning: queryId={}, table={}.{}, partitionsAvailable={}, startingAtPartition={}, splitsPerResponseCap={}",
-                getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(),
-                getSplitsRequest.getTableName().getTableName(), partitions.getRowCount(), partitionContd, MAX_SPLITS_PER_REQUEST);
         // TODO consider splitting further depending on #rows or data size. Could use Hash key for splitting if no partitions.
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
             FieldReader locationReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
@@ -444,13 +400,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             splits.add(splitBuilder.build());
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
-                LOGGER.info("Split planning: queryId={}, splitsReturned={}, moreSplitsPending=true, nextPartition={}",
-                        getSplitsRequest.getQueryId(), splits.size(), curPartition + 1);
                 return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, encodeContinuationToken(curPartition + 1));
             }
         }
-        LOGGER.info("Split planning complete: queryId={}, splitsReturned={}, moreSplitsPending=false",
-                getSplitsRequest.getQueryId(), splits.size());
         return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
     }
 

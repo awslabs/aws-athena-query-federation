@@ -52,8 +52,6 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -79,7 +77,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -91,9 +88,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.ALL_PARTITIONS;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PARTITION_BUCKET_TEMPLATE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -1094,7 +1089,7 @@ public class SnowflakeMetadataHandlerTest
 
         Block partitions = allocator.createBlock(schema);
         partitions.getFieldVector("partition").allocateNew();
-        BlockUtils.setValue(partitions.getFieldVector("partition"), 0, String.format(PARTITION_BUCKET_TEMPLATE, 0, 4, "\"id\""));
+        BlockUtils.setValue(partitions.getFieldVector("partition"), 0, "partition-primary-\"id\"-limit-100-offset-0");
         partitions.setRowCount(1);
 
         // Set up federated identity with CATALOG_CASING_FILTER
@@ -1130,7 +1125,7 @@ public class SnowflakeMetadataHandlerTest
 
         Block partitions = allocator.createBlock(schema);
         partitions.getFieldVector("partition").allocateNew();
-        BlockUtils.setValue(partitions.getFieldVector("partition"), 0, String.format(PARTITION_BUCKET_TEMPLATE, 0, 4, "\"id\""));
+        BlockUtils.setValue(partitions.getFieldVector("partition"), 0, "partition-primary-\"id\"-limit-100-offset-0");
         partitions.setRowCount(1);
 
         // Set up federated identity without CATALOG_CASING_FILTER
@@ -1389,163 +1384,6 @@ public class SnowflakeMetadataHandlerTest
 
         assertNotNull(res.getPartitions());
         assertEquals(1, res.getPartitions().getRowCount());
-    }
-
-    /**
-     * Runs getPartitions against a non-view table with the given cached row count and, if
-     * {@code primaryKeyColumns} is non-empty, a primary key that passes the uniqueness check.
-     *
-     * @return the partition values in the order they were written.
-     */
-    private List<String> partitionValuesFor(long rowCount, String... primaryKeyColumns) throws Exception
-    {
-        Set<String> partitionCols = new HashSet<>();
-        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
-
-        ResultSet countResultSet = mockResultSet(
-                new String[]{"row_count"}, new int[]{Types.BIGINT},
-                new Object[][]{{rowCount}}, new AtomicInteger(-1));
-        // Empty view-check result means "not a view".
-        ResultSet viewResultSet = mockResultSet(
-                new String[]{"TABLE_SCHEM", "TABLE_NAME"}, new int[]{Types.VARCHAR, Types.VARCHAR},
-                new Object[][]{}, new AtomicInteger(-1));
-        Object[][] primaryKeyRows = Arrays.stream(primaryKeyColumns).map(col -> new Object[]{col}).toArray(Object[][]::new);
-        ResultSet primaryKeyResultSet = mockResultSet(
-                new String[]{"column_name"}, new int[]{Types.VARCHAR}, primaryKeyRows, new AtomicInteger(-1));
-        // Max rows per key value is 1, so the key is unique and usable for partitioning.
-        ResultSet uniquenessResultSet = mockResultSet(
-                new String[]{"COUNTS"}, new int[]{Types.INTEGER},
-                new Object[][]{{1}}, new AtomicInteger(-1));
-
-        PreparedStatement countStatement = mock(PreparedStatement.class);
-        PreparedStatement viewStatement = mock(PreparedStatement.class);
-        PreparedStatement primaryKeyStatement = mock(PreparedStatement.class);
-        PreparedStatement uniquenessStatement = mock(PreparedStatement.class);
-        // TestBase.mockResultSet does not stub getLong, which getPartitions uses for row_count.
-        when(countResultSet.getLong(1)).thenReturn(rowCount);
-        when(countStatement.executeQuery()).thenReturn(countResultSet);
-        when(viewStatement.executeQuery()).thenReturn(viewResultSet);
-        when(primaryKeyStatement.executeQuery()).thenReturn(primaryKeyResultSet);
-        when(uniquenessStatement.executeQuery()).thenReturn(uniquenessResultSet);
-        when(connection.prepareStatement(any())).thenAnswer(invocation -> {
-            String sql = invocation.getArgument(0);
-            if (sql.startsWith(SnowflakeConstants.SHOW_PRIMARY_KEYS_QUERY)) {
-                return primaryKeyStatement;
-            }
-            if (sql.contains("GROUP BY")) {
-                return uniquenessStatement;
-            }
-            if (sql.contains("information_schema.tables")) {
-                return countStatement;
-            }
-            return viewStatement;
-        });
-
-        ResultSet columnResultSet = mockResultSet(
-                new String[]{"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"},
-                new int[]{Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR},
-                new Object[][]{{"schema1", "table1", "day", "int"}}, new AtomicInteger(-1));
-        when(connection.getMetaData().getColumns(any(), eq("schema1"), eq("table1"), any())).thenReturn(columnResultSet);
-
-        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
-                new TableName("schema1", "table1"), partitionConstraints(), partitionTableSchema(), partitionCols);
-
-        Block partitions = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req).getPartitions();
-        FieldVector vector = partitions.getFieldVector(BLOCK_PARTITION_COLUMN_NAME);
-        List<String> values = new ArrayList<>();
-        for (int row = 0; row < partitions.getRowCount(); row++) {
-            values.add(vector.getObject(row).toString());
-        }
-        return values;
-    }
-
-    /**
-     * A table big enough to be worth splitting is divided into hash buckets over its primary key. The
-     * buckets must be distinct and cover 0..n-1 exactly once, since each split reads only its own bucket
-     * and anything missed or repeated shows up as lost or duplicated rows.
-     */
-    @Test
-    public void getPartitions_largeTableWithPrimaryKey_emitsDistinctHashBuckets() throws Exception
-    {
-        // 1M rows / 10k per split = 100 buckets, capped at MAX_PARTITION_COUNT.
-        List<String> partitionValues = partitionValuesFor(1_000_000L, "id");
-
-        assertEquals(SnowflakeConstants.MAX_PARTITION_COUNT, partitionValues.size());
-        List<String> expected = new ArrayList<>();
-        for (int bucket = 0; bucket < SnowflakeConstants.MAX_PARTITION_COUNT; bucket++) {
-            expected.add(String.format(PARTITION_BUCKET_TEMPLATE, bucket, SnowflakeConstants.MAX_PARTITION_COUNT, "\"id\""));
-        }
-        assertEquals(expected, partitionValues);
-    }
-
-    /**
-     * Every split scans the table and discards the other buckets, so the bucket count is sized to the row
-     * count rather than always being MAX_PARTITION_COUNT.
-     */
-    @Test
-    public void getPartitions_moderateTable_sizesBucketCountToRowCount() throws Exception
-    {
-        // 30k rows / 10k per split = 3 buckets.
-        List<String> partitionValues = partitionValuesFor(30_000L, "id");
-
-        assertEquals(ImmutableList.of(
-                String.format(PARTITION_BUCKET_TEMPLATE, 0, 3, "\"id\""),
-                String.format(PARTITION_BUCKET_TEMPLATE, 1, 3, "\"id\""),
-                String.format(PARTITION_BUCKET_TEMPLATE, 2, 3, "\"id\"")), partitionValues);
-    }
-
-    /** A composite primary key is hashed as a whole, so all of its columns end up in the partition value. */
-    @Test
-    public void getPartitions_compositePrimaryKey_hashesAllKeyColumns() throws Exception
-    {
-        List<String> partitionValues = partitionValuesFor(20_000L, "id", "region");
-
-        assertEquals(ImmutableList.of(
-                String.format(PARTITION_BUCKET_TEMPLATE, 0, 2, "\"id\",\"region\""),
-                String.format(PARTITION_BUCKET_TEMPLATE, 1, 2, "\"id\",\"region\"")), partitionValues);
-    }
-
-    /** A table small enough that splitting would not pay for itself is read in one piece. */
-    @Test
-    public void getPartitions_smallTable_readsAsSinglePartition() throws Exception
-    {
-        assertEquals(ImmutableList.of(ALL_PARTITIONS),
-                partitionValuesFor(SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT, "id"));
-    }
-
-    /**
-     * Without a usable primary key there is nothing to hash on, so the table is read in one piece rather
-     * than being split on something that would not partition it cleanly.
-     */
-    @Test
-    public void getPartitions_noPrimaryKey_readsAsSinglePartition() throws Exception
-    {
-        assertEquals(ImmutableList.of(ALL_PARTITIONS), partitionValuesFor(1_000_000L));
-    }
-
-    /**
-     * The partition values getPartitions emits must be values getPartitionWhereClauses accepts, and each
-     * bucket must produce a different predicate. This is the contract the two halves share.
-     */
-    @Test
-    public void getPartitions_emittedValuesTranslateToDistinctPredicates() throws Exception
-    {
-        SnowflakeQueryStringBuilder queryStringBuilder = new SnowflakeQueryStringBuilder(
-                SnowflakeConstants.DOUBLE_QUOTE_CHAR,
-                new SnowflakeFederationExpressionParser(SnowflakeConstants.DOUBLE_QUOTE_CHAR));
-
-        Set<String> predicates = new HashSet<>();
-        for (String partitionValue : partitionValuesFor(30_000L, "id")) {
-            Split split = Split.newBuilder(null, null).add(BLOCK_PARTITION_COLUMN_NAME, partitionValue).build();
-            List<String> clauses = queryStringBuilder.getPartitionWhereClauses(split);
-            assertEquals(1, clauses.size());
-            predicates.add(clauses.get(0));
-        }
-
-        assertEquals(ImmutableSet.of(
-                "MOD(ABS(HASH(\"id\")), 3) = 0",
-                "MOD(ABS(HASH(\"id\")), 3) = 1",
-                "MOD(ABS(HASH(\"id\")), 3) = 2"), predicates);
     }
 
     /**
