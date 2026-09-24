@@ -159,7 +159,8 @@ public class SnowflakeQueryStringBuilder
         return sql;
     }
 
-    protected String quote(String name)
+    @Override
+    public String quote(String name)
     {
         name = name.replace(DOUBLE_QUOTE_CHAR, DOUBLE_QUOTE_CHAR + DOUBLE_QUOTE_CHAR);
         return DOUBLE_QUOTE_CHAR + name + DOUBLE_QUOTE_CHAR;
