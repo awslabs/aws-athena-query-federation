@@ -211,7 +211,9 @@ public class VerticaMetadataHandlerTest extends TestBase
         allocator.close();
     }
 
-    private static final String VENDED_ACCESS_KEY = "ASIAVENDEDEXAMPLEKEY";
+    // Non-secret placeholders used only to assert the rendered ALTER SESSION SQL. Deliberately not shaped
+    // like a real AWS access key (no AKIA/ASIA + 16-char form) so secret scanners do not flag the fixture.
+    private static final String VENDED_ACCESS_KEY = "vended-access-key-example";
     private static final String VENDED_SECRET_KEY = "vendedSecretExampleKeyValue";
     private static final String VENDED_SESSION_TOKEN = "vendedSessionTokenExampleValue";
     private static final String AWS_REGION_SQL_LITERAL = "ALTER SESSION SET AWSRegion='us-east-1'";
