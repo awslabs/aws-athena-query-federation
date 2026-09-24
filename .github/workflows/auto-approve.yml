@@ -15,12 +15,19 @@ jobs:
         id: dependabot-metadata
         uses: dependabot/fetch-metadata@v3
       - name: Enable auto-merge for Dependabot PRs
-        run: gh pr merge --auto --squash "$PR_URL"
+        # Prefer squash when the branch allows it. If a merge queue owns the strategy,
+        # --squash is rejected — fall back to --auto so the PR still enters the queue.
+        run: |
+          gh pr merge --auto --squash "$PR_URL" || gh pr merge --auto "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Approve patch and minor updates
-        if: ${{ (steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor') &&
+        # Grouped PRs (patch/minor only in dependabot.yml) may not set update-type;
+        # approve those via dependency-group as well. Majors stay ungrouped + unapproved.
+        if: ${{ (steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor' ||
+          (steps.dependabot-metadata.outputs.dependency-group != '' && steps.dependabot-metadata.outputs.update-type != 'version-update:semver-major')) &&
             !contains(steps.dependabot-metadata.outputs.new-version, 'preview') &&
             !contains(steps.dependabot-metadata.outputs.new-version, 'alpha') &&
             !contains(steps.dependabot-metadata.outputs.new-version, 'beta') &&
