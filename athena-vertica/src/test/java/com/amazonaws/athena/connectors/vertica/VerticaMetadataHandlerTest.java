@@ -33,6 +33,12 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
+import org.mockito.InOrder;
+import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
@@ -203,6 +209,111 @@ public class VerticaMetadataHandlerTest extends TestBase
     public void tearDown()
     {
         allocator.close();
+    }
+
+    private static final String VENDED_ACCESS_KEY = "ASIAVENDEDEXAMPLEKEY";
+    private static final String VENDED_SECRET_KEY = "vendedSecretExampleKeyValue";
+    private static final String VENDED_SESSION_TOKEN = "vendedSessionTokenExampleValue";
+    private static final String AWS_REGION_SQL_LITERAL = "ALTER SESSION SET AWSRegion='us-east-1'";
+    private static final String EXPORT_PARQUET_SQL = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/queryId') AS SELECT id FROM t";
+    private static final String EXPECTED_AWS_AUTH_SQL = "ALTER SESSION SET AWSAuth='" + VENDED_ACCESS_KEY + ":" + VENDED_SECRET_KEY + "'";
+    private static final String EXPECTED_AWS_SESSION_TOKEN_SQL = "ALTER SESSION SET AWSSessionToken='" + VENDED_SESSION_TOKEN + "'";
+    private static final String EXPECTED_CLEAR_SQL = "ALTER SESSION CLEAR PARAMETER AWSAuth, AWSSessionToken";
+
+    /**
+     * Hardened Option A: with vended temporary credentials, executeQueriesOnVertica must set
+     * AWSRegion -> AWSAuth -> AWSSessionToken -> EXPORT and then CLEAR the credential parameters,
+     * so the vended credentials never persist on a pooled connection.
+     */
+    @Test
+    public void executeQueriesOnVertica_WithVendedTemporaryCredentials_InjectsThenClears() throws Exception {
+        AwsSessionCredentials vended = AwsSessionCredentials.create(VENDED_ACCESS_KEY, VENDED_SECRET_KEY, VENDED_SESSION_TOKEN);
+        AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(vended)).build();
+        GetSplitsRequest request = Mockito.mock(GetSplitsRequest.class);
+        Mockito.doReturn(overrideConfig).when(verticaMetadataHandlerMocked).getRequestOverrideConfig(Mockito.any(GetSplitsRequest.class));
+
+        Map<String, PreparedStatement> preparedBySql = new LinkedHashMap<>();
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenAnswer(invocation -> {
+            PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+            preparedBySql.put(invocation.getArgument(0), statement);
+            return statement;
+        });
+
+        invokeExecuteQueriesOnVertica(connection, EXPORT_PARQUET_SQL, AWS_REGION_SQL_LITERAL, request);
+
+        assertTrue("AWSAuth carries the vended keys", preparedBySql.containsKey(EXPECTED_AWS_AUTH_SQL));
+        assertTrue("AWSSessionToken carries the vended token", preparedBySql.containsKey(EXPECTED_AWS_SESSION_TOKEN_SQL));
+        assertTrue("credentials are cleared afterward", preparedBySql.containsKey(EXPECTED_CLEAR_SQL));
+        assertTrue("region preserved", preparedBySql.containsKey(AWS_REGION_SQL_LITERAL));
+        assertTrue("export executed", preparedBySql.containsKey(EXPORT_PARQUET_SQL));
+
+        InOrder inOrder = Mockito.inOrder(preparedBySql.get(AWS_REGION_SQL_LITERAL), preparedBySql.get(EXPECTED_AWS_AUTH_SQL),
+                preparedBySql.get(EXPECTED_AWS_SESSION_TOKEN_SQL), preparedBySql.get(EXPORT_PARQUET_SQL), preparedBySql.get(EXPECTED_CLEAR_SQL));
+        inOrder.verify(preparedBySql.get(AWS_REGION_SQL_LITERAL)).execute();
+        inOrder.verify(preparedBySql.get(EXPECTED_AWS_AUTH_SQL)).execute();
+        inOrder.verify(preparedBySql.get(EXPECTED_AWS_SESSION_TOKEN_SQL)).execute();
+        inOrder.verify(preparedBySql.get(EXPORT_PARQUET_SQL)).execute();
+        inOrder.verify(preparedBySql.get(EXPECTED_CLEAR_SQL)).execute();
+    }
+
+    /**
+     * When no vended (FAS) credentials are present, executeQueriesOnVertica must skip credential
+     * injection entirely and run region-only, and must not emit a CLEAR (nothing was injected).
+     */
+    @Test
+    public void executeQueriesOnVertica_WhenFasAbsent_SkipsInjectionAndClear() throws Exception {
+        GetSplitsRequest request = Mockito.mock(GetSplitsRequest.class);
+        Mockito.doReturn(null).when(verticaMetadataHandlerMocked).getRequestOverrideConfig(Mockito.any(GetSplitsRequest.class));
+
+        Map<String, PreparedStatement> preparedBySql = new LinkedHashMap<>();
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenAnswer(invocation -> {
+            PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+            preparedBySql.put(invocation.getArgument(0), statement);
+            return statement;
+        });
+
+        invokeExecuteQueriesOnVertica(connection, EXPORT_PARQUET_SQL, AWS_REGION_SQL_LITERAL, request);
+
+        assertEquals("Only region + export expected. Prepared: " + preparedBySql.keySet(), 2, preparedBySql.size());
+        for (String sql : preparedBySql.keySet()) {
+            assertFalse("No credential SQL when FAS absent: " + sql, sql.contains("AWSAuth") || sql.contains("AWSSessionToken"));
+        }
+    }
+
+    private void invokeExecuteQueriesOnVertica(Connection conn, String exportSql, String awsRegionSql, GetSplitsRequest request) throws Exception {
+        Method method = VerticaMetadataHandler.class.getDeclaredMethod(
+                "executeQueriesOnVertica", Connection.class, String.class, String.class, GetSplitsRequest.class);
+        method.setAccessible(true);
+        method.invoke(verticaMetadataHandlerMocked, conn, exportSql, awsRegionSql, request);
+    }
+
+    /** getlistExportedObjects lists via the override-built (vended) S3 client when a FAS override is present. */
+    @Test
+    public void getlistExportedObjects_WithVendedOverride_UsesOverrideBuiltClient() throws Exception {
+        AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsSessionCredentials.create(VENDED_ACCESS_KEY, VENDED_SECRET_KEY, VENDED_SESSION_TOKEN))).build();
+        S3Client overrideClient = Mockito.mock(S3Client.class);
+        GetSplitsRequest request = Mockito.mock(GetSplitsRequest.class);
+        Mockito.doReturn(overrideConfig).when(verticaMetadataHandlerMocked).getRequestOverrideConfig(Mockito.any(GetSplitsRequest.class));
+        Mockito.doReturn(overrideClient).when(verticaMetadataHandlerMocked).getS3Client(Mockito.eq(overrideConfig), Mockito.any(S3Client.class));
+        Mockito.when(overrideClient.listObjects(Mockito.any(ListObjectsRequest.class)))
+                .thenReturn(ListObjectsResponse.builder().contents(S3Object.builder().key("123/part1.parquet").build()).build());
+
+        List<S3Object> result = invokeGetlistExportedObjects(TEST_S3_BUCKET, "123", request);
+
+        assertEquals(1, result.size());
+        Mockito.verify(overrideClient).listObjects(Mockito.any(ListObjectsRequest.class));
+        Mockito.verify(amazonS3, Mockito.never()).listObjects(Mockito.any(ListObjectsRequest.class));
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<S3Object> invokeGetlistExportedObjects(String bucket, String prefix, GetSplitsRequest request) throws Exception {
+        Method method = VerticaMetadataHandler.class.getDeclaredMethod(
+                "getlistExportedObjects", String.class, String.class, GetSplitsRequest.class);
+        method.setAccessible(true);
+        return (List<S3Object>) method.invoke(verticaMetadataHandlerMocked, bucket, prefix, request);
     }
 
     @Test
