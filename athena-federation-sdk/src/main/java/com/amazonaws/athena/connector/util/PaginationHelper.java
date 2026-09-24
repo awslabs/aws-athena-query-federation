@@ -21,11 +21,13 @@ package com.amazonaws.athena.connector.util;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
@@ -98,6 +100,43 @@ public class PaginationHelper
         }
 
         return new ListTablesResponse(catalogName, sortedTables.subList(startToken, endToken), nextToken);
+    }
+
+    /**
+     * Performs a manual or "fake" pagination for schema names. Takes a list of all schemas retrieved and returns a
+     * subset based off of startToken and pageSize.
+     *
+     * @param allSchemas all schema names retrieved from the data source
+     * @param token the start position in the subset
+     * @param pageSize the number of schemas to retrieve
+     * @param catalogName required to return in ListSchemasResponse
+     * @return ListSchemasResponse with subset of schemas
+     */
+    public static ListSchemasResponse manualSchemasPagination(Collection<String> allSchemas, String token, int pageSize, String catalogName)
+    {
+        int startToken = validateAndParsePaginationArguments(token, pageSize);
+
+        List<String> sortedSchemas = new ArrayList<>(allSchemas);
+        sortedSchemas.sort(Comparator.naturalOrder());
+
+        if (startToken >= sortedSchemas.size()) {
+            return new ListSchemasResponse(catalogName, List.of(), null);
+        }
+
+        int endToken = Math.min(startToken + pageSize, sortedSchemas.size());
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            endToken = sortedSchemas.size();
+        }
+
+        String nextToken;
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE || endToken == sortedSchemas.size()) {
+            nextToken = null;
+        }
+        else {
+            nextToken = Long.toString((long) startToken + pageSize);
+        }
+
+        return new ListSchemasResponse(catalogName, sortedSchemas.subList(startToken, endToken), nextToken);
     }
 
     /**
