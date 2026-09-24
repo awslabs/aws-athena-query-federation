@@ -81,6 +81,8 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.sql.PreparedStatement;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -507,14 +509,20 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testGetCredentialProvider() {
+    public void testGetCredentialProvider()
+    {
         final DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig(
             "testCatalog", SnowflakeConstants.SNOWFLAKE_NAME,
             "snowflake://jdbc:snowflake://hostname/", "testSecret");
-        
+
+        when(secretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+                .thenReturn(GetSecretValueResponse.builder()
+                        .secretString("{\"username\":\"user\",\"password\":\"pass\"}")
+                        .build());
+
         SnowflakeRecordHandler handler = new SnowflakeRecordHandler(
-            configWithSecret, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, Collections.emptyMap());
-        
+                configWithSecret, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, Collections.emptyMap());
+
         CredentialsProvider provider = handler.getCredentialProvider();
         assertNotNull(provider);
     }
