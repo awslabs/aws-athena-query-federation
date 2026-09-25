@@ -443,8 +443,7 @@ class LarkBaseTypeUtilsTest {
     // - matches the crawler's Glue type for the same field: UITypeEnum.LOOKUP wraps the target's own
     // "array<...>" Glue type in another array ("array<array<struct<...>>>" for Lookup<User>), since a
     // LOOKUP aggregates one target-shaped value per linked record and the target itself is already a
-    // list. Before this fix, only scalar LOOKUP targets were handled - a Lookup<User> silently collapsed
-    // to a flat List<Utf8> instead of List<List<Struct<...>>>, discarding the target's real shape.
+    // list. A Lookup<User> must therefore be List<List<Struct<...>>>, not a flat List<Utf8>.
     @Test
     void testGetLarkListChildField_LookupWithUserTarget_doublyNestsListOfUserStruct() {
         AthenaFieldLarkBaseMapping field = new AthenaFieldLarkBaseMapping(
@@ -751,7 +750,7 @@ class LarkBaseTypeUtilsTest {
 
     @Test
     void testLarkFieldToArrowField_ComplexTypeAsJsonStringFalse_ListFieldStaysList() {
-        // Regression guard: the flag must be opt-in - default (false) behavior is unaffected.
+        // The flag is opt-in: with it off (default), a List field stays a List.
         AthenaFieldLarkBaseMapping field = new AthenaFieldLarkBaseMapping(
                 "tags", "Tags", new NestedUIType(UITypeEnum.MULTI_SELECT, UITypeEnum.UNKNOWN));
 

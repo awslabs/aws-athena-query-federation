@@ -374,9 +374,8 @@ public class ExperimentalMetadataProviderTest {
         Optional<TableSchemaResult> result = metadataProvider.getTableSchema(request);
 
         // The only field is a LOOKUP whose type resolution throws, so it is skipped (see the catch+continue in
-        // getTableSchema). With no fields left, the schema is empty, not the pre-fix behavior of silently
-        // including it with an unresolved type - that only "worked" because getLookupType was never actually
-        // reached due to the (now fixed) dead-code bug in the LOOKUP-vs-FORMULA branch condition.
+        // getTableSchema). With no fields left, the schema is empty rather than including the field with an
+        // unresolved type.
         assertFalse(result.isPresent());
         verify(larkBaseService).getLookupType("base1", "tblxxxx", "fldxxxx");
     }

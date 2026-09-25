@@ -557,14 +557,8 @@ public class BaseMetadataHandler
             }
         }
 
-        // Was previously gated on isActivateLarkBaseSource() - the wrong flag, copy-pasted from the
-        // block above instead of matching doGetTable's equivalent gate (isActivateExperimentalFeatures(),
-        // BaseMetadataHandler.java's doGetTable method). That mismatch meant disabling
-        // ACTIVATE_EXPERIMENTAL_FEATURES_ENV_VAR didn't actually stop this method from running the
-        // experimental provider - and its expensive, often-wasted Lark API round-trip - whenever Lark
-        // Base source was on; and conversely, a deployment with experimental features on but Lark Base
-        // source off would resolve a table's schema in doGetTable but then find no partition info here,
-        // since this provider was skipped entirely.
+        // Gated on the experimental-features flag, matching doGetTable's gate for the same provider, so
+        // that the schema and the partition info are always resolved by the same set of providers.
         if (envVarService.isActivateExperimentalFeatures()) {
             logger.info("getPartitions: Attempting to get partition info from experimental path.");
             Optional<PartitionInfoResult> experimentalPartitionInfo = experimentalMetadataProvider.getPartitionInfo(tableName, request);
@@ -919,13 +913,10 @@ public class BaseMetadataHandler
                 BlockUtils.setValue(block.getFieldVector(SORT_EXPRESSION_PROPERTY), rowNum, "");
                 BlockUtils.setValue(block.getFieldVector(PAGE_SIZE_PROPERTY), rowNum, PAGE_SIZE);
                 BlockUtils.setValue(block.getFieldVector(EXPECTED_ROW_COUNT_PROPERTY), rowNum, currentSplitRowCount);
-                // -1 sentinel: this path's own totalRowCount (above) is deliberately UNFILTERED (positional
-                // range planning needs the whole table's key range, not the filtered match count - see this
-                // method's class-level comment), so it has the wrong semantics to reuse as
-                // RAW_TOTAL_ROW_COUNT_PROPERTY, which must be the FILTERED count. doGetSplits's ORDER BY
-                // branch checks IS_PARALLEL_SPLIT_PROPERTY before trusting this property and falls back to
-                // fetching a fresh (correctly filtered) count whenever it's true, so this sentinel is never
-                // actually read as a row count.
+                // -1 sentinel: totalRowCount above is deliberately unfiltered (positional range planning
+                // needs the whole key range), so it cannot be used as RAW_TOTAL_ROW_COUNT_PROPERTY, which
+                // must be the filtered count. doGetSplits checks IS_PARALLEL_SPLIT_PROPERTY first and
+                // fetches a fresh filtered count in that case, so this value is never read as a row count.
                 BlockUtils.setValue(block.getFieldVector(RAW_TOTAL_ROW_COUNT_PROPERTY), rowNum, -1);
                 BlockUtils.setValue(block.getFieldVector(IS_PARALLEL_SPLIT_PROPERTY), rowNum, true);
                 BlockUtils.setValue(block.getFieldVector(SPLIT_START_INDEX_PROPERTY), rowNum, startIndex);

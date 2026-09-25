@@ -955,12 +955,9 @@ public class RegistererExtractorTest {
 
     @Test
     public void testVarCharExtractor_withFormulaNullFirstElement_leavesSqlNullNotStringNull() throws Exception {
-        // Regression test: unwrapFormula returns valueList.get(0) unchecked for a scalar-typed FORMULA
-        // (e.g. Formula<SingleSelect>) - a genuine "blank for this row" formula result (like
-        // IF(cond, value, BLANK())) can have a null first element. Before this fix, none of the
-        // instanceof branches matched null, so it fell through to String.valueOf(unwrappedValue),
-        // which returns the literal 4-character string "null" (not a null reference) - silently
-        // writing that text into the column instead of leaving it as SQL NULL.
+        // unwrapFormula returns valueList.get(0) for a scalar-typed FORMULA (e.g. Formula<SingleSelect>),
+        // which can be null for a formula that is blank for this row. That must leave the column as SQL
+        // NULL rather than writing the literal string "null" (String.valueOf(null)).
         larkFieldTypeMapping.put("test_field", new NestedUIType(UITypeEnum.FORMULA, UITypeEnum.SINGLE_SELECT));
         registererExtractor = new RegistererExtractor(larkFieldTypeMapping);
         when(mockRowWriterBuilder.withExtractor(any(String.class), any())).thenReturn(mockRowWriterBuilder);
@@ -1362,15 +1359,11 @@ public class RegistererExtractorTest {
 
     @Test
     public void testListFieldWriterFactory_withFormulaNullFirstElement_writesNullNotNpe() throws Exception {
-        // Regression test: unwrapFormula returns valueList.get(0) unchecked for a FORMULA whose
-        // childType does NOT map to LIST/TEXT (e.g. NUMBER) - a genuine "blank for this row" formula
-        // result can have a null first element, and unwrapFormula returns that null as-is. Before this
-        // fix, the catch-all "else" branch below called unwrappedValue.getClass() on that null, throwing
-        // an NPE that propagated out of this row writer and (per BaseRecordHandler's per-row try/catch)
-        // silently dropped the ENTIRE row, not just this column. (A List-shaped childType like USER
-        // doesn't exercise this: unwrapFormula's own minorType check returns the whole valueList, e.g.
-        // [null], for those - never a bare null - so this test deliberately uses a non-LIST childType to
-        // reach the specific branch that can.)
+        // For a FORMULA whose childType does not map to LIST/TEXT (e.g. NUMBER), unwrapFormula returns
+        // valueList.get(0), which can be null for a blank formula. The list writer must write a null
+        // value for it instead of throwing, which would drop the whole row. A List-shaped childType
+        // (e.g. USER) does not reach this branch because unwrapFormula returns the whole list for it,
+        // so this test deliberately uses a non-LIST childType.
         larkFieldTypeMapping.put("list_field", new NestedUIType(UITypeEnum.FORMULA, UITypeEnum.NUMBER));
         registererExtractor = new RegistererExtractor(larkFieldTypeMapping);
         when(mockRowWriterBuilder.withFieldWriterFactory(any(String.class), any())).thenReturn(mockRowWriterBuilder);
@@ -1404,14 +1397,10 @@ public class RegistererExtractorTest {
 
     @Test
     public void testListFieldWriterFactory_withLookupTextTransformation_handlesMultiSegmentText() throws Exception {
-        // Regression test: Lark represents a Text cell as either a single segment Map ({"text": "..."})
-        // or, when the cell mixes plain text with @mentions/links, a List of several segment Maps that
-        // must be concatenated - the identical shape and reasoning already handled for a direct TEXT
-        // field in the VarChar extractor (see testVarCharExtractor tests covering multi-segment text).
-        // Before this fix, the LOOKUP<Text> transform only handled the single-Map shape
-        // ("element instanceof Map"), so a linked record whose target Text field contained mentions
-        // would fail that filter and be silently dropped from the resulting array entirely - no error,
-        // no log, just a shorter-than-expected array.
+        // Lark represents a Text cell as either a single segment Map ({"text": "..."}) or, when the cell
+        // mixes plain text with @mentions/links, a List of segment Maps that must be concatenated (the same
+        // handling as a direct TEXT field in the VarChar extractor). A LOOKUP<Text> must accept both shapes
+        // so that no linked record is dropped from the resulting array.
         larkFieldTypeMapping.put("lookup_field", new NestedUIType(UITypeEnum.LOOKUP, UITypeEnum.TEXT));
         registererExtractor = new RegistererExtractor(larkFieldTypeMapping);
         when(mockRowWriterBuilder.withFieldWriterFactory(any(String.class), any())).thenReturn(mockRowWriterBuilder);
@@ -1712,15 +1701,10 @@ public class RegistererExtractorTest {
 
     @Test
     public void testStructFieldWriterFactory_withFormulaNullFirstElement_writesNullNotNpe() throws Exception {
-        // Regression test: unwrapFormula returns valueList.get(0) unchecked for a FORMULA whose
-        // childType maps to STRUCT (URL, LOCATION, SINGLE_LINK, DUPLEX_LINK - none of which are
-        // LIST-mapped, so unwrapFormula's minorType check falls through to valueList.get(0) rather than
-        // returning the whole list) - a genuine "blank for this row" formula result (e.g.
-        // IF(cond, linked_record, BLANK()) typed as a Link result) can have a null first element. Before
-        // this fix, "!(unwrappedValue instanceof Map)" was true for null, and the very next statement
-        // called unwrappedValue.getClass() on that null reference, throwing an NPE that propagated out
-        // of this row writer and (per BaseRecordHandler's per-row try/catch) silently dropped the ENTIRE
-        // row, not just this column.
+        // For a FORMULA whose childType maps to STRUCT (URL, LOCATION, SINGLE_LINK, DUPLEX_LINK),
+        // unwrapFormula returns valueList.get(0), which can be null for a formula that is blank for this
+        // row. The struct writer must write a null value for it instead of throwing, which would drop
+        // the whole row.
         larkFieldTypeMapping.put("struct_field", new NestedUIType(UITypeEnum.FORMULA, UITypeEnum.URL));
         registererExtractor = new RegistererExtractor(larkFieldTypeMapping);
         when(mockRowWriterBuilder.withFieldWriterFactory(any(String.class), any())).thenReturn(mockRowWriterBuilder);

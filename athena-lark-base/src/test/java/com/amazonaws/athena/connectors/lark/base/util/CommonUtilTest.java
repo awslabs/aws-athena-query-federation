@@ -622,7 +622,7 @@ class CommonUtilTest {
 
     @Test
     void testBuildSchemaFromLarkFields_complexTypeAsJsonStringFalse_listStructColumnsUnaffected() {
-        // Regression guard: default (false) behavior is unaffected by the flag's existence.
+        // With the flag off (default), List/Struct columns keep their native types.
         AthenaFieldLarkBaseMapping multiSelectField = new AthenaFieldLarkBaseMapping(
                 "field_tags", "Field Tags", new NestedUIType(UITypeEnum.MULTI_SELECT, null));
 

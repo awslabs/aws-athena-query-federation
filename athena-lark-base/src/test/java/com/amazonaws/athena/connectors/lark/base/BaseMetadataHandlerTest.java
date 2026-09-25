@@ -179,11 +179,8 @@ public class BaseMetadataHandlerTest {
 
     @Test
     public void testDoGetTable_GlueHasTable_SkipsLarkSourceAndExperimentalProviders() {
-        // Regression test: doGetTable previously tried the Lark Base source and experimental providers
-        // BEFORE falling back to Glue, so every query against a crawler-populated table paid for two
-        // guaranteed-to-fail (or, for the experimental path, expensive false-positive) metadata
-        // resolution attempts - the exact class of problem already fixed for resolvePartitionInfo (see
-        // tryResolveFromCrawledSchemaMetadata) but left unaddressed here, where it actually first occurs.
+        // doGetTable tries Glue first, so a crawler-populated table does not pay for the Lark Base source
+        // and experimental metadata resolution attempts, which would fail or be wasted for it.
         // Deliberately NOT stubbing isActivateLarkBaseSource/isActivateLarkDriveSource/
         // isActivateExperimentalFeatures: the whole point of this test is that the Glue-first shortcut
         // returns before those flags are ever even checked. Mockito's strict stubbing would flag them
@@ -585,10 +582,9 @@ public class BaseMetadataHandlerTest {
 
     @Test
     public void testCalculateOrderBySplitSizing_limitZero_requestsOneRowNotWholeTable() {
-        // Regression test: a bare `limit > 0` check used to treat LIMIT 0 (SELECT ... ORDER BY x LIMIT 0
-        // - a valid, if unusual, query) the same as "no LIMIT at all", fetching and sorting the entire
-        // table via Lark's Search API for zero requested rows. Requesting 1 row (not 0 - BaseRecordHandler's
-        // own row-count cap checks treat 0 as "unbounded" too) caps the real fetch to a single small page.
+        // LIMIT 0 (a valid query, e.g. a BI tool probing column types) must not be treated as "no LIMIT".
+        // One row is requested rather than zero, because BaseRecordHandler's row-count cap treats 0 as
+        // unbounded; this caps the fetch to a single small page.
         software.amazon.awssdk.utils.Pair<Integer, Integer> sizing = handler.calculateOrderBySplitSizing(0, 550);
 
         assertEquals(1, sizing.left().intValue());

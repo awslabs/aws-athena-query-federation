@@ -226,10 +226,9 @@ class ListFieldResponseTest {
 
     @Test
     void testGetFormulaGlueCatalogUITypeEnum_FormulaWithoutUITypeButWithDataTypeUser() {
-        // Arrange & Act - regression test for a FORMULA field whose Lark metadata omits "ui_type"
-        // entirely (e.g. a formula that's a bare reference to another field, "$field[fldXXX]") and
-        // gives only the numeric "data_type" code. Before the fix, this always fell back to TEXT,
-        // corrupting a Formula<User> into a flattened string instead of resolving to USER.
+        // Arrange & Act - a FORMULA field whose Lark metadata omits "ui_type" entirely (e.g. a formula
+        // that's a bare reference to another field, "$field[fldXXX]") and gives only the numeric
+        // "data_type" code must resolve from that code (here USER) rather than fall back to TEXT.
         ListFieldResponse.FieldItem item = ListFieldResponse.FieldItem.builder()
                 .fieldId("fld1")
                 .fieldName("Formula Field")
@@ -313,7 +312,7 @@ class ListFieldResponseTest {
         // This test verifies the behavior when not a lookup field
         try {
             Pair<String, String> result = item.getTargetFieldAndTableForLookup();
-            // If we get here, the method was fixed to handle nulls differently
+            // Implementations that return nulls instead of throwing are also acceptable
             assertThat(result.left()).isNull();
             assertThat(result.right()).isNull();
         } catch (NullPointerException e) {

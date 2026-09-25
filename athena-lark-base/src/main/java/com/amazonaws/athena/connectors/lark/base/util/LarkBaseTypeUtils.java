@@ -221,11 +221,8 @@ public final class LarkBaseTypeUtils
             case RATING -> Types.MinorType.TINYINT.getType();
             case CHECKBOX -> ArrowType.Bool.INSTANCE;
             // Matches the top-level DATE_TIME/CREATED_TIME/MODIFIED_TIME mapping in larkFieldToArrowField
-            // (DATEMILLI, i.e. Arrow Date(MILLISECOND)) rather than a Timestamp - this used to diverge from
-            // it, and from the Glue-crawler path's "array<timestamp>" column (which the SDK's own
-            // Glue-type parser also resolves to DATEMILLI/Date, not Timestamp), so the same Lark field
-            // reported a different Arrow type for its LOOKUP-wrapped list child depending on which
-            // metadata-resolution path served the request.
+            // (DATEMILLI, i.e. Arrow Date(MILLISECOND)) and the SDK's Glue "array<timestamp>" resolution,
+            // so a LOOKUP-wrapped list child has the same Arrow type whichever metadata path serves it.
             case DATE_TIME, CREATED_TIME, MODIFIED_TIME -> Types.MinorType.DATEMILLI.getType();
             // TEXT, BARCODE, SINGLE_SELECT, PHONE, AUTO_NUMBER, EMAIL, and any type not yet supported as a
             // LOOKUP target (MULTI_SELECT, USER, ATTACHMENT, URL, LOCATION, LINK, UNKNOWN, ...) fall back to a

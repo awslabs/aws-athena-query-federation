@@ -127,11 +127,8 @@ public class ExperimentalMetadataProvider
                         }
 
                         NestedUIType nestedUIType = new NestedUIType(field.getUIType(), childUIType);
-                        // The athenaName was previously (incorrectly) set to the table name itself for
-                        // every field, collapsing all fields into one in the built schema. It went
-                        // unnoticed because buildSchemaFromLarkFields used to ignore athenaName and
-                        // re-sanitize the raw field name instead - it now trusts athenaName as-is, so this
-                        // must be the real sanitized (and deduplicated) field name.
+                        // buildSchemaFromLarkFields uses athenaName as-is, so it must be the sanitized and
+                        // deduplicated field name (not the table name).
                         String prestoFieldName = CommonUtil.sanitizeGlueRelatedNameWithDedup(larkFieldName, field.getFieldId(), seenFieldNames);
                         fieldMappings.add(new AthenaFieldLarkBaseMapping(prestoFieldName, larkFieldName, nestedUIType));
                     }

@@ -202,13 +202,10 @@ public class LarkBaseTableResolverTest {
 
     @Test
     public void testDiscoverTableFields_LookupResolutionFailure_skipsOnlyThatFieldNotWholeTable() throws Exception {
-        // Regression test: getTargetFieldAndTableForLookup() returns Pair.of(null, null) - not a thrown
-        // exception - for a LOOKUP field whose target is malformed or permission-restricted (a realistic
-        // case, not contrived). That null tableId/fieldId then makes the getLookupType(...) call below
-        // fail against Lark's API. Before this fix, that exception wasn't caught per-field - it escaped
-        // the whole for-loop into discoverTableFields's outer catch, which returns whatever fieldMappings
-        // had been collected BEFORE the failure, silently dropping every field that came after the broken
-        // one in Lark's response, not just that one column.
+        // getTargetFieldAndTableForLookup() returns Pair.of(null, null), not an exception, for a LOOKUP
+        // field whose target is malformed or permission-restricted. The null ids make the getLookupType(...)
+        // call below fail. That failure must be isolated to the one field: the fields that follow it in
+        // Lark's response must still be discovered.
         when(mockEnvVarService.isActivateLarkBaseSource()).thenReturn(true);
         when(mockEnvVarService.getLarkBaseSources()).thenReturn("base1:table1");
         when(mockLarkBaseService.getDatabaseRecords(anyString(), anyString())).thenReturn(Collections.singletonList(new LarkDatabaseRecord("db1", "base1")));

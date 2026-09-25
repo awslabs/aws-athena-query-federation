@@ -53,7 +53,7 @@ public class SearchApiFilterTranslatorTest {
     }
 
     // Note: Cannot test constraint creation in unit tests as AllOrNoneValueSet constructors are not public
-    // Integration tests (regression tests) cover the actual filter translation
+    // Integration tests cover the actual filter translation
 
     @Test
     public void testToSortJson_nullOrderByFields_returnsEmptyString() {
@@ -338,11 +338,9 @@ public class SearchApiFilterTranslatorTest {
 
         String filterJson = SearchApiFilterTranslator.toFilterJson(constraints, mappings);
 
-        // Regression test: CHECKBOX has no separate empty state in Lark - every row is genuinely true
-        // or false - so "IS NOT NULL" is a tautology that matches every row, not "equals true". This
-        // used to push `is true`, which silently excluded every `false` row from the result. No
-        // condition should be pushed at all; Athena's own engine applies the (always-true) check
-        // itself against the real materialized value.
+        // CHECKBOX has no separate empty state in Lark: every row is either true or false, so
+        // "IS NOT NULL" matches every row rather than meaning "equals true". No condition should be
+        // pushed; Athena applies the check itself against the materialized value.
         assertEquals("", filterJson);
     }
 
@@ -566,9 +564,9 @@ public class SearchApiFilterTranslatorTest {
     public void testToFilterJson_withSortedRangeSet_multiRangeUnion_pushedDownAsOrGroup() throws Exception {
         // WHERE field_number < 5 OR field_number > 100 - Presto/Trino models this as a single SortedRangeSet
         // with two disjoint, single-bounded ranges (per the SDK's own definition of SortedRangeSet: "col
-        // between 10 and 30, or col between 40 and 60, ..."). Flattening both ranges' conditions into the
-        // same top-level AND list (the pre-fix behavior) would produce "field_number < 5 AND field_number >
-        // 100", which can never match anything. It must instead become an OR-group.
+        // between 10 and 30, or col between 40 and 60, ..."). Flattening both ranges' conditions into one
+        // top-level AND list would produce "field_number < 5 AND field_number > 100", which can never
+        // match anything, so the ranges must become an OR-group.
         SortedRangeSet valueSet = mock(SortedRangeSet.class);
         when(valueSet.isSingleValue()).thenReturn(false);
         when(valueSet.isNullAllowed()).thenReturn(true);
