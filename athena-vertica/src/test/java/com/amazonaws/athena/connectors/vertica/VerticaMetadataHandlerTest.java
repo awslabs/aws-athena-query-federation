@@ -85,6 +85,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Types;
+import java.sql.SQLException;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -280,6 +282,96 @@ public class VerticaMetadataHandlerTest extends TestBase
         assertEquals("Only region + export expected. Prepared: " + preparedBySql.keySet(), 2, preparedBySql.size());
         for (String sql : preparedBySql.keySet()) {
             assertFalse("No credential SQL when FAS absent: " + sql, sql.contains("AWSAuth") || sql.contains("AWSSessionToken"));
+        }
+    }
+
+    /**
+     * If setting the vended AWSAuth fails, executeQueriesOnVertica must rethrow with only the
+     * SQLState/errorCode and never the failing statement text (which carries the secret).
+     */
+    @Test
+    public void executeQueriesOnVertica_WhenSetAwsAuthFails_RethrowsWithoutSecret() throws Exception {
+        AwsSessionCredentials vended = AwsSessionCredentials.create(VENDED_ACCESS_KEY, VENDED_SECRET_KEY, VENDED_SESSION_TOKEN);
+        AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(vended)).build();
+        GetSplitsRequest request = Mockito.mock(GetSplitsRequest.class);
+        Mockito.doReturn(overrideConfig).when(verticaMetadataHandlerMocked).getRequestOverrideConfig(Mockito.any(GetSplitsRequest.class));
+
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenAnswer(invocation -> {
+            String sql = invocation.getArgument(0);
+            PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+            if (sql.equals(EXPECTED_AWS_AUTH_SQL)) {
+                Mockito.when(statement.execute()).thenThrow(new SQLException("statement text carries the secret", "28000", 42));
+            }
+            return statement;
+        });
+
+        try {
+            invokeExecuteQueriesOnVertica(connection, EXPORT_PARQUET_SQL, AWS_REGION_SQL_LITERAL, request);
+            fail("Expected the credential-set failure to propagate");
+        }
+        catch (Exception invocationException) {
+            Throwable cause = invocationException.getCause();
+            assertNotNull(cause);
+            String message = cause.getMessage();
+            assertTrue("carries SQLState", message.contains("SQLState=28000"));
+            assertTrue("carries errorCode", message.contains("errorCode=42"));
+            assertFalse("must not leak the secret key", message.contains(VENDED_SECRET_KEY));
+            assertFalse("must not leak the vended access key", message.contains(VENDED_ACCESS_KEY));
+        }
+    }
+
+    /**
+     * A failure clearing the session credentials in the finally block must be swallowed (logged) and
+     * must not mask a successful export.
+     */
+    @Test
+    public void executeQueriesOnVertica_WhenClearFails_DoesNotMaskResult() throws Exception {
+        AwsSessionCredentials vended = AwsSessionCredentials.create(VENDED_ACCESS_KEY, VENDED_SECRET_KEY, VENDED_SESSION_TOKEN);
+        AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(vended)).build();
+        GetSplitsRequest request = Mockito.mock(GetSplitsRequest.class);
+        Mockito.doReturn(overrideConfig).when(verticaMetadataHandlerMocked).getRequestOverrideConfig(Mockito.any(GetSplitsRequest.class));
+
+        Map<String, PreparedStatement> preparedBySql = new LinkedHashMap<>();
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenAnswer(invocation -> {
+            String sql = invocation.getArgument(0);
+            PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+            if (sql.equals(EXPECTED_CLEAR_SQL)) {
+                Mockito.when(statement.execute()).thenThrow(new SQLException("clear failed", "57014", 7));
+            }
+            preparedBySql.put(sql, statement);
+            return statement;
+        });
+
+        // Must not throw even though the clear failed.
+        invokeExecuteQueriesOnVertica(connection, EXPORT_PARQUET_SQL, AWS_REGION_SQL_LITERAL, request);
+
+        assertTrue("export still executed", preparedBySql.containsKey(EXPORT_PARQUET_SQL));
+        assertTrue("clear was attempted", preparedBySql.containsKey(EXPECTED_CLEAR_SQL));
+    }
+
+    /** getlistExportedObjects wraps an SDK client failure in a RuntimeException. */
+    @Test
+    public void getlistExportedObjects_WhenSdkError_ThrowsRuntime() throws Exception {
+        AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsSessionCredentials.create(VENDED_ACCESS_KEY, VENDED_SECRET_KEY, VENDED_SESSION_TOKEN))).build();
+        S3Client overrideClient = Mockito.mock(S3Client.class);
+        GetSplitsRequest request = Mockito.mock(GetSplitsRequest.class);
+        Mockito.doReturn(overrideConfig).when(verticaMetadataHandlerMocked).getRequestOverrideConfig(Mockito.any(GetSplitsRequest.class));
+        Mockito.doReturn(overrideClient).when(verticaMetadataHandlerMocked).getS3Client(Mockito.eq(overrideConfig), Mockito.any(S3Client.class));
+        Mockito.when(overrideClient.listObjects(Mockito.any(ListObjectsRequest.class)))
+                .thenThrow(SdkClientException.create("network down"));
+
+        try {
+            invokeGetlistExportedObjects(TEST_S3_BUCKET, "123", request);
+            fail("Expected the SDK failure to be wrapped");
+        }
+        catch (Exception invocationException) {
+            Throwable cause = invocationException.getCause();
+            assertNotNull(cause);
+            assertTrue(cause.getMessage().contains("Exception listing the exported objects"));
         }
     }
 
