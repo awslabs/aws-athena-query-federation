@@ -91,10 +91,16 @@ public class ClickHouseRecordHandler
     public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
             throws SQLException
     {
-        PreparedStatement preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+        PreparedStatement preparedStatement;
 
-        // Disable fetching all rows.
-        preparedStatement.setFetchSize(Integer.MIN_VALUE);
+        if (constraints.isQueryPassThrough()) {
+            preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+        }
+        else {
+            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+        }
+        // Set fetch size to a reasonable value for ClickHouse JDBC driver.
+        preparedStatement.setFetchSize(ClickHouseConstants.FETCH_SIZE);
 
         return preparedStatement;
     }

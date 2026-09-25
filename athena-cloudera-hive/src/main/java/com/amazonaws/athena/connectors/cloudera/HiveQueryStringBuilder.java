@@ -42,12 +42,12 @@ public class HiveQueryStringBuilder extends JdbcSplitQueryBuilder
     {
         StringBuilder tableName = new StringBuilder();
         if (!Strings.isNullOrEmpty(catalogName)) {
-            tableName.append(catalogName).append('.');
+            tableName.append(HiveUtils.quoteIdentifier(catalogName)).append('.');
         }
         if (!Strings.isNullOrEmpty(schema)) {
-            tableName.append(schema).append('.');
+            tableName.append(HiveUtils.quoteIdentifier(schema)).append('.');
         }
-        tableName.append(table);
+        tableName.append(HiveUtils.quoteIdentifier(table));
         return String.format(" FROM %s ", tableName);
     }
 

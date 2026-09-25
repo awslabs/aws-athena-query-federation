@@ -113,7 +113,7 @@ public class AwsRestHighLevelClientFactory
         if (useAwsCredentials) {
             logger.debug("Creating Client using Aws Credentials.");
             return new AwsRestHighLevelClient.Builder(endpoint)
-                    .withCredentials(DefaultCredentialsProvider.create()).build();
+                    .withCredentials(DefaultCredentialsProvider.builder().build()).build();
         }
         else {
             Matcher credentials = credentialsPattern.matcher(endpoint);

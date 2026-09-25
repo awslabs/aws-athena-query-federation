@@ -9,7 +9,7 @@ test_template() ::= <%
  *@return A query that be used to describe a TimeStream table.
  */
 describe_table(builder) ::= <%
-    DESCRIBE "<builder.databaseName>"."<builder.tableName>"
+    DESCRIBE <builder.quotedDatabaseName>.<builder.quotedTableName>
 %>
 
 select_query(builder) ::= <%
@@ -21,7 +21,7 @@ select_query(builder) ::= <%
         <first(builder.projection): {next_col | <next_col>}>
         <rest(builder.projection): {next_col | , <next_col>}><\ >
     <\n>FROM<\ ><\n>
-        <if(builder.viewText)>t1<else>"<builder.databaseName>"."<builder.tableName>"<endif><\ ><\n>
+        <if(builder.viewText)>t1<else><builder.quotedDatabaseName>.<builder.quotedTableName><endif><\ ><\n>
     <if(builder.conjucts)>
     WHERE<\ >
         <first(builder.conjucts): {next_conjuct | <next_conjuct>}>

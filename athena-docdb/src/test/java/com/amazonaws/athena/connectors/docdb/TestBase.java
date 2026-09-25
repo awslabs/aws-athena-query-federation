@@ -33,4 +33,6 @@ public class TestBase {
     protected static final String DEFAULT_SCHEMA = "default";
     protected static final String CONNECTION_STRING = "connectionString";
     protected static final TableName TABLE_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE);
+    protected static final String SPILL_BUCKET = "spill-bucket";
+    protected static final String SPILL_PREFIX = "spill-prefix";
 }

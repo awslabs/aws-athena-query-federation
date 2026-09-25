@@ -66,7 +66,7 @@ public class SelectQueryBuilderTest
     {
         logger.info("build: enter");
 
-        String expected = "SELECT col1, col2, col3, col4 FROM \"myDatabase\".\"myTable\" WHERE (\"col4\" IN ('val1','val2')) AND ((\"col2\" < 1)) AND (\"col3\" IN (20000,10000)) AND ((\"col1\" > 1))";
+        String expected = "SELECT \"col1\", \"col2\", \"col3\", \"col4\" FROM \"myDatabase\".\"myTable\" WHERE (\"col4\" IN ('val1','val2')) AND ((\"col2\" < 1)) AND (\"col3\" IN (20000,10000)) AND ((\"col1\" > 1))";
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("col1", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
@@ -107,7 +107,7 @@ public class SelectQueryBuilderTest
     public void buildWithTime() {
         logger.info("build: enter");
 
-        String expected = "SELECT val FROM \"myDatabase\".\"myTable\" WHERE ((\"time1\" > '2024-04-05 09:31:12.000000000')) AND ((\"time0\" > '2024-04-05 09:31:12.142000000'))";
+        String expected = "SELECT \"val\" FROM \"myDatabase\".\"myTable\" WHERE ((\"time1\" > '2024-04-05 09:31:12.000000000')) AND ((\"time0\" > '2024-04-05 09:31:12.142000000'))";
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("time0", SortedRangeSet.copyOf(Types.MinorType.DATEMILLI.getType(),
@@ -139,7 +139,7 @@ public class SelectQueryBuilderTest
     {
         logger.info("build: buildWithView");
 
-        String expected = "WITH t1 AS ( SELECT col1 from test_table )  SELECT col1, col2, col3, col4 FROM t1 WHERE ((\"col2\" < 1)) AND ((\"col1\" > 1))";
+        String expected = "WITH t1 AS ( SELECT col1 from test_table )  SELECT \"col1\", \"col2\", \"col3\", \"col4\" FROM t1 WHERE ((\"col2\" < 1)) AND ((\"col1\" > 1))";
 
         Schema schema = SchemaBuilder.newBuilder()
                 //types shouldn't matter

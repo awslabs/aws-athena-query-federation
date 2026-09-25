@@ -25,6 +25,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -112,5 +113,17 @@ public class PostGreSqlQueryStringBuilder
         }
 
         return Collections.emptyList();
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return PostgresqlSqlDialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new PostgresqlSqlDialect(catalogCasingFilterUpperCase);
     }
 }

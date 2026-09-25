@@ -43,8 +43,8 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -81,18 +81,14 @@ public final class CustomSchemaRowWriter
                             logger.debug("writeRowTemplate BIT*" + field.getName() + "*" + minorType + "*"
                                     + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
 
-                            if (fieldValue.getClass().equals(Boolean.class)) {
-                                Boolean booleanValue = Boolean.parseBoolean(fieldValue.toString());
+                            if (fieldValue == null) {
+                                return;
+                            }
+                            List<Object> objValues = FieldValueNormalizer.toValueList(fieldValue);
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                                Boolean booleanValue = Boolean.parseBoolean(objValues.get(0).toString());
                                 value.value = booleanValue ? 1 : 0;
                                 value.isSet = 1;
-                            }
-                            else if (fieldValue instanceof ArrayList) {
-                                ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
-                                if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
-                                    Boolean booleanValue = Boolean.parseBoolean(objValues.get(0).toString());
-                                    value.value = booleanValue ? 1 : 0;
-                                    value.isSet = 1;
-                                }
                             }
                         });
                 break;
@@ -118,26 +114,16 @@ public final class CustomSchemaRowWriter
                                         + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
 
                                 if (fieldValue != null) {
-                                    if (fieldValue.getClass().equals(String.class)) {
-                                        value.value = fieldValue.toString();
-                                        value.isSet = 1;
-                                    }
-                                    else if (fieldValue instanceof ArrayList) {
-                                        ArrayList<Object> objValues = (ArrayList) fieldValue;
-                                        if (objValues != null && objValues.get(0) != null) {
-                                            if (objValues.size() > 1) {
-                                                value.value = String.join(";", objValues.stream()
-                                                        .map(Object::toString)
-                                                        .collect(Collectors.toList()));
-                                            }
-                                            else {
-                                                value.value = objValues.get(0).toString();
-                                            }
-                                            value.isSet = 1;
+                                    List<Object> objValues = FieldValueNormalizer.toValueList(fieldValue);
+                                    if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null) {
+                                        if (objValues.size() > 1) {
+                                            value.value = String.join(";", objValues.stream()
+                                                    .map(o -> o == null ? "" : o.toString())
+                                                    .collect(Collectors.toList()));
                                         }
-                                    }
-                                    else {
-                                        value.value = "" + fieldValue;
+                                        else {
+                                            value.value = objValues.get(0).toString();
+                                        }
                                         value.isSet = 1;
                                     }
                                 }
@@ -155,14 +141,18 @@ public final class CustomSchemaRowWriter
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate DATEMILLI*" + field.getName() + "*" + minorType + "*"
                                     + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
-                            if (fieldValue.getClass().equals(Date.class)) {
-                                value.value = ((Date) fieldValue).getTime();
-                                value.isSet = 1;
+                            if (fieldValue == null) {
+                                return;
                             }
-                            else if (fieldValue instanceof ArrayList) {
-                                ArrayList<Object> objValues = (ArrayList) fieldValue;
-                                if (objValues != null && (objValues.get(0) != null) && !(objValues.get(0).toString().trim().isEmpty())) {
-                                    value.value = ((Date) objValues.get(0)).getTime();
+                            List<Object> objValues = FieldValueNormalizer.toValueList(fieldValue);
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                                Object first = objValues.get(0);
+                                if (first instanceof Date) {
+                                    value.value = ((Date) first).getTime();
+                                    value.isSet = 1;
+                                }
+                                else {
+                                    value.value = Long.parseLong(first.toString());
                                     value.isSet = 1;
                                 }
                             }
@@ -179,16 +169,13 @@ public final class CustomSchemaRowWriter
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate INT*" + field.getName() + "*" + minorType + "*"
                                     + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
-                            if (fieldValue.getClass().equals(Integer.class)) {
-                                value.value = Integer.parseInt(fieldValue.toString());
-                                value.isSet = 1;
+                            if (fieldValue == null) {
+                                return;
                             }
-                            else if (fieldValue instanceof ArrayList) {
-                                ArrayList<Object> objValues = (ArrayList) fieldValue;
-                                if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
-                                    value.value = Integer.parseInt(objValues.get(0).toString());
-                                    value.isSet = 1;
-                                }
+                            List<Object> objValues = FieldValueNormalizer.toValueList(fieldValue);
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                                value.value = Integer.parseInt(objValues.get(0).toString());
+                                value.isSet = 1;
                             }
                         });
                 break;
@@ -203,16 +190,13 @@ public final class CustomSchemaRowWriter
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate BIGINT*" + field.getName() + "*" + minorType + "*"
                                     + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
-                            if (fieldValue.getClass().equals(Long.class)) {
-                                value.value = Long.parseLong(fieldValue.toString());
-                                value.isSet = 1;
+                            if (fieldValue == null) {
+                                return;
                             }
-                            else if (fieldValue instanceof ArrayList) {
-                                ArrayList<Object> objValues = (ArrayList) fieldValue;
-                                if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
-                                    value.value = Long.parseLong(objValues.get(0).toString());
-                                    value.isSet = 1;
-                                }
+                            List<Object> objValues = FieldValueNormalizer.toValueList(fieldValue);
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                                value.value = Long.parseLong(objValues.get(0).toString());
+                                value.isSet = 1;
                             }
                         });
                 break;
@@ -227,16 +211,13 @@ public final class CustomSchemaRowWriter
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate FLOAT4*" + field.getName() + "*" + minorType + "*"
                                     + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
-                            if (fieldValue.getClass().equals(Float.class)) {
-                                value.value = Float.parseFloat(fieldValue.toString());
-                                value.isSet = 1;
+                            if (fieldValue == null) {
+                                return;
                             }
-                            else if (fieldValue instanceof ArrayList) {
-                                ArrayList<Object> objValues = (ArrayList) fieldValue;
-                                if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
-                                    value.value = Float.parseFloat(objValues.get(0).toString());
-                                    value.isSet = 1;
-                                }
+                            List<Object> objValues = FieldValueNormalizer.toValueList(fieldValue);
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                                value.value = Float.parseFloat(objValues.get(0).toString());
+                                value.isSet = 1;
                             }
                         });
                 break;
@@ -251,16 +232,13 @@ public final class CustomSchemaRowWriter
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate FLOAT8*" + field.getName() + "*" + minorType + "*"
                                     + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
-                            if (fieldValue.getClass().equals(Double.class)) {
-                                value.value = Double.parseDouble(fieldValue.toString());
-                                value.isSet = 1;
+                            if (fieldValue == null) {
+                                return;
                             }
-                            else if (fieldValue instanceof ArrayList) {
-                                ArrayList<Object> objValues = (ArrayList) fieldValue;
-                                if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
-                                    value.value = Double.parseDouble(objValues.get(0).toString());
-                                    value.isSet = 1;
-                                }
+                            List<Object> objValues = FieldValueNormalizer.toValueList(fieldValue);
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                                value.value = Double.parseDouble(objValues.get(0).toString());
+                                value.isSet = 1;
                             }
                         });
 

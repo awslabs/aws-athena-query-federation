@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudera;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -43,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Lim
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
@@ -55,11 +57,11 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -82,7 +84,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
     }
     public ImpalaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, ImpalaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(ImpalaConstants.IMPALA_DRIVER_CLASS, ImpalaConstants.IMPALA_DEFAULT_PORT)), configOptions);
+        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, ImpalaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(ImpalaConstants.IMPALA_DRIVER_CLASS, ImpalaConstants.IMPALA_DEFAULT_PORT)), configOptions);
     }
 
     @VisibleForTesting
@@ -149,13 +151,13 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
+        String qualifiedTable = ImpalaUtils.qualifiedTableForMetadataSql(getTableLayoutRequest.getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-             Statement stmt = connection.createStatement();
-             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase())) {
-            Map<String, String> columnHashMap = getMetadataForGivenTable(psmt);
+             Statement stmt = connection.createStatement()) {
+            Map<String, String> columnHashMap = getMetadataForGivenTable(stmt, GET_METADATA_QUERY + qualifiedTable);
             String tableType = columnHashMap.get("TableType");
             if (tableType == null) {
-                ResultSet partitionRs = stmt.executeQuery("show files in " + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase());
+                ResultSet partitionRs = stmt.executeQuery("show files in " + qualifiedTable);
                 Set<String> partition = new HashSet<>();
                 while (partitionRs != null && partitionRs.next()) {
                     String partitionString = partitionRs.getString("Partition");
@@ -287,14 +289,14 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
      * @throws Exception An Exception should be thrown for database connection failures , query syntax errors and so on.
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema) throws Exception
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration) throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement psmt = connection.prepareStatement(
-                GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
-                Map<String, String> hashMap = getMetadataForGivenTable(psmt);
+            try (Statement stmt = connection.createStatement()) {
+                Map<String, String> hashMap = getMetadataForGivenTable(stmt,
+                        GET_METADATA_QUERY + ImpalaUtils.qualifiedTableForMetadataSql(tableName));
                 while (resultSet.next()) {
                     Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
                             resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"), configOptions);
@@ -359,14 +361,15 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
 
     /**
      *  used to get column names and associated data types for column names.
-     * @param statement A PreparedStatement holds query to get metadata for a table.
+     * @param statement JDBC statement used to run the metadata query
+     * @param sql fully formed SQL with quoted table identifiers (not JDBC {@code ?} parameters)
      * @return Map of column name and associated data type for column.
      * @throws SQLException A SQLException should be thrown for database connection failures , query syntax errors and so on.
      */
-    private Map<String, String> getMetadataForGivenTable(PreparedStatement statement) throws SQLException
+    private Map<String, String> getMetadataForGivenTable(Statement statement, String sql) throws SQLException
     {
         Map<String, String> columnHashMap = new HashMap<>();
-        try (ResultSet rs = statement.executeQuery()) {
+        try (ResultSet rs = statement.executeQuery(sql)) {
             while (rs.next()) {
                 String dataType = rs.getString(ImpalaConstants.METADATA_COLUMN_TYPE);
                 if (dataType != null && !dataType.isEmpty() && dataType.toUpperCase().contains("VIEW")) {
@@ -379,5 +382,11 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
             }
         }
         return columnHashMap;
+    }
+
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return new ImpalaCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
     }
 }

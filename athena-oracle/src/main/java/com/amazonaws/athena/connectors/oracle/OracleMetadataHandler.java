@@ -20,7 +20,9 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -45,6 +47,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Fil
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
@@ -62,6 +65,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -94,7 +98,7 @@ public class OracleMetadataHandler
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     private static final String COLUMN_NAME = "COLUMN_NAME";
 
-    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT TABLE_NAME as \"TABLE_NAME\", OWNER as \"TABLE_SCHEM\" FROM all_tables WHERE owner = ? ORDER BY TABLE_NAME OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT * FROM ( SELECT table_name AS \"TABLE_NAME\", owner AS \"TABLE_SCHEM\" FROM all_tables WHERE owner = ? UNION ALL SELECT view_name AS \"TABLE_NAME\", owner AS \"TABLE_SCHEM\" FROM all_views WHERE owner = ? ) t ORDER BY \"TABLE_NAME\" OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -111,7 +115,7 @@ public class OracleMetadataHandler
      */
     public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new OracleJdbcConnectionFactory(databaseConnectionConfig, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT), configOptions), configOptions);
     }
 
     public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
@@ -152,7 +156,7 @@ public class OracleMetadataHandler
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             TableName casedTableName = getTableLayoutRequest.getTableName();
             LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), casedTableName.getSchemaName(),
                 casedTableName.getTableName());
@@ -210,15 +214,27 @@ public class OracleMetadataHandler
 
         // TODO consider splitting further depending on #rows or data size. Could use Hash key for splitting if no partitions.
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
-            FieldReader locationReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
-            locationReader.setPosition(curPartition);
-
+            String partitionValue;
+            if (partitions.getFields().stream().anyMatch(field -> field.getName().equals(BLOCK_PARTITION_COLUMN_NAME))) {
+                FieldReader locationReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
+                locationReader.setPosition(curPartition);
+                partitionValue = String.valueOf(locationReader.readText());
+            }
+            else {
+                LOGGER.warn("Partition Name doesn't exist");
+                partitionValue = ALL_PARTITIONS;
+            }
             SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 
-            LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), locationReader.readText());
+            LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), partitionValue);
 
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
+            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
+                    .add(BLOCK_PARTITION_COLUMN_NAME, partitionValue);
+
+            if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+            }
 
             splits.add(splitBuilder.build());
 
@@ -236,8 +252,9 @@ public class OracleMetadataHandler
     {
         PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
         preparedStatement.setString(1, databaseName);
-        preparedStatement.setInt(2, token);
-        preparedStatement.setInt(3, limit);
+        preparedStatement.setString(2, databaseName);
+        preparedStatement.setInt(3, token);
+        preparedStatement.setInt(4, limit);
         LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
@@ -284,7 +301,7 @@ public class OracleMetadataHandler
         capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
                 TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
-        
+
         jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
@@ -312,7 +329,7 @@ public class OracleMetadataHandler
      * @throws Exception
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -327,13 +344,9 @@ public class OracleMetadataHandler
 
                 String columnName = resultSet.getString(COLUMN_NAME);
                 int jdbcColumnType = resultSet.getInt("DATA_TYPE");
-                int precision = resultSet.getInt("COLUMN_SIZE");
-                int scale = resultSet.getInt("DECIMAL_DIGITS");
-
+                
                 LOGGER.debug("columnName: {}", columnName);
                 LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
-                LOGGER.debug("precision: {}", precision);
-                LOGGER.debug("scale: {}", scale);
                 LOGGER.debug("arrowColumnType: {}", arrowColumnType);
 
                 /**
@@ -350,16 +363,16 @@ public class OracleMetadataHandler
                 }
 
                 /**
-                 * Converting an Oracle date data type into DATEDAY MinorType
+                 * Converting an Oracle Date, TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType.
+                 * <p>
+                 * Oracle DATE columns store both date and time (to second precision), but the Oracle JDBC driver
+                 * reports them using timestamp-style JDBC type codes (OracleTypes.TIMESTAMP), not a calendar-day-only
+                 * type. If we mapped that to Arrow DATEDAY, the JDBC record path would read values with
+                 * ResultSet.getDate(), which truncates to the calendar day and loses time-of-day in Athena.
                  */
-                if (jdbcColumnType == java.sql.Types.TIMESTAMP && precision == 7) {
-                    arrowColumnType = Optional.of(Types.MinorType.DATEDAY.getType());
-                }
-
-                /**
-                 * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
-                 */
-                if (jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
+                if (jdbcColumnType == OracleTypes.TIMESTAMP
+                        || jdbcColumnType == OracleTypes.TIMESTAMPLTZ
+                        || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
                     arrowColumnType = Optional.of(Types.MinorType.DATEMILLI.getType());
                 }
 
@@ -381,5 +394,13 @@ public class OracleMetadataHandler
             LOGGER.debug("Oracle Table Schema" + schemaBuilder.toString());
             return schemaBuilder.build();
         }
+    }
+
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return new OracleCredentialsProvider(
+                getSecret(secretName, requestOverrideConfiguration),
+                getDatabaseConnectionConfig().getJdbcConnectionString());
     }
 }

@@ -111,8 +111,7 @@ public class SqlServerQueryStringBuilderTest
     {
         Split split = Mockito.mock(Split.class);
         SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getLimit()).thenReturn(5L);
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 5L, Collections.emptyMap(), null);
         Assert.assertEquals("", builder.appendLimitOffset(split, constraints));
     }
 

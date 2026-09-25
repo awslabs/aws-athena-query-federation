@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.postgresql;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -48,6 +49,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
+import com.amazonaws.athena.connectors.jdbc.splits.SplitterFactory;
 import com.amazonaws.athena.connectors.postgresql.resolver.PostGreSqlJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -56,6 +59,7 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.postgresql.core.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -70,6 +74,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRESQL_DEFAULT_PORT;
@@ -102,6 +107,11 @@ public class PostGreSqlMetadataHandler
 
     //Session Property Flag that hints to the engine that the data source is using none default collation
     protected static final String NON_DEFAULT_COLLATE = "non_default_collate";
+    private static final String GET_DATA_TYPE_QUERY = "SELECT data_type FROM information_schema.columns " +
+            "WHERE table_schema = ? AND table_name = ? AND column_name = ?";
+    protected final SplitterFactory splitterFactory = new SplitterFactory();
+    protected static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s";
+    protected static final int DEFAULT_NUM_SPLITS = 20;
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -116,7 +126,7 @@ public class PostGreSqlMetadataHandler
     public PostGreSqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         super(databaseConnectionConfig,
-                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT)),
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT), configOptions),
                 configOptions,
                 new PostGreSqlJDBCCaseResolver(POSTGRES_NAME));
     }
@@ -191,7 +201,7 @@ public class PostGreSqlMetadataHandler
     {
         LOGGER.info("{}: Catalog {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(),
                     getTableLayoutRequest.getTableName().getTableName());
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
@@ -246,13 +256,18 @@ public class PostGreSqlMetadataHandler
             partitionsFieldReader.setPosition(0);
 
             if (ALL_PARTITIONS.equals(partitionsSchemaFieldReader.readText().toString()) && ALL_PARTITIONS.equals(partitionsFieldReader.readText().toString())) {
-                for (String splitClause : getSplitClauses(getSplitsRequest.getTableName())) {
+                for (String splitClause : getSplitClauses(getSplitsRequest.getTableName(), getSplitsRequest)) {
                     //Every split must have a unique location if we wish to spill to avoid failures
                     SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 
-                    Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                    Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                             .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
                             .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(splitClause));
+
+                    if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                        LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                        splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                    }
 
                     splits.add(splitBuilder.build());
 
@@ -276,9 +291,14 @@ public class PostGreSqlMetadataHandler
                 SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 
                 LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), String.valueOf(partitionsFieldReader.readText()));
-                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
                         .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(partitionsFieldReader.readText()));
+
+                if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                    LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                    splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                }
 
                 splits.add(splitBuilder.build());
 
@@ -421,8 +441,171 @@ public class PostGreSqlMetadataHandler
         return charColumns;
     }
 
+    /**
+     * This method automatically detects and skips UUID columns to prevent flooding PostgreSQL logs
+     * with "function min(uuid) does not exist" errors.
+     *
+     * @param tableName The table to generate split clauses for
+     * @return List of split clauses, empty if splits cannot be generated or if disabled
+     */
+
+    protected List<String> getSplitClauses(final TableName tableName, final GetSplitsRequest getSplitsRequest)
+    {
+        List<String> splitClauses = new ArrayList<>();
+
+        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(
+                getCredentialProvider(getSplitsRequest != null ? getRequestOverrideConfig(getSplitsRequest) : null));
+             ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
+            String primaryKeyColumn = null;
+            if (resultSet.next()) {
+                primaryKeyColumn = resultSet.getString("COLUMN_NAME");
+            }
+
+            if (primaryKeyColumn != null) {
+                if (!isValidSplitColumn(primaryKeyColumn)) {
+                    LOGGER.warn("Primary key column name is not a valid split identifier for table {}.{}. Skipping split generation.",
+                            tableName.getSchemaName(), tableName.getTableName());
+                    return splitClauses;
+                }
+                // Check if the primary key column is UUID type
+                if (isUuidColumn(jdbcConnection, tableName, primaryKeyColumn)) {
+                    LOGGER.info("Primary key '{}' is UUID type. Skipping split generation for table: {}.{} " +
+                                    "(UUID columns do not support MIN/MAX functions in PostgreSQL)",
+                            primaryKeyColumn, tableName.getSchemaName(), tableName.getTableName());
+                    return splitClauses;
+                }
+                else {
+                    // Quote and escape the column name so it is interpreted strictly as a SQL identifier.
+                    // This value is interpolated into the min/max bounds query below AND, via the Splitter,
+                    // into the partition WHERE-clause that is later appended to the record-read query
+                    // (see IntegerSplitter#nextRangeClause and JdbcSplitQueryBuilder#getPartitionWhereClauses).
+                    // Both places must use the quoted form to prevent SQL injection (CWE-89).
+                    String quotedPrimaryKeyColumn = wrapNameWithEscapedCharacter(primaryKeyColumn);
+                    // Use a PreparedStatement (extended query protocol) rather than a plain Statement.
+                    // The bounds query has no bind parameters -- an identifier can never be a '?' parameter --
+                    // but the extended protocol rejects multiple commands in one statement, so a stacked
+                    // payload (e.g. "; GRANT ...") fails loudly instead of executing. This is an independent
+                    // second layer on top of the identifier quoting above.
+                    try (PreparedStatement statement = jdbcConnection.prepareStatement(String.format(SQL_SPLITS_STRING, quotedPrimaryKeyColumn, quotedPrimaryKeyColumn,
+                                 wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())));
+                         ResultSet minMaxResultSet = statement.executeQuery()) {
+                        minMaxResultSet.next(); // expecting one result row
+                        long min = minMaxResultSet.getLong(1);
+                        long max = minMaxResultSet.getLong(2);
+                        Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(quotedPrimaryKeyColumn, minMaxResultSet, DEFAULT_NUM_SPLITS);
+
+                        if (optionalSplitter.isPresent()) {
+                            if (max - min < DEFAULT_NUM_SPLITS) {
+                                LOGGER.info("Range too small for splitting (min={}, max={}), skipping", min, max);
+                                return splitClauses;
+                            }
+
+                            Splitter splitter = optionalSplitter.get();
+                            while (splitter.hasNext()) {
+                                String splitClause = splitter.nextRangeClause();
+                                LOGGER.debug("Split generated {}", splitClause);
+                                splitClauses.add(splitClause);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex) {
+            LOGGER.warn("Unable to split data.", ex);
+        }
+        return splitClauses;
+    }
+
+    /**
+     * Checks if a column is of UUID type in PostgreSQL.
+     *
+     * @param connection JDBC connection
+     * @param tableName Table containing the column
+     * @param columnName Column to check
+     * @return true if column is UUID type, false otherwise
+     */
+    private boolean isUuidColumn(Connection connection, TableName tableName, String columnName)
+    {
+        try (PreparedStatement stmt = connection.prepareStatement(GET_DATA_TYPE_QUERY)) {
+            stmt.setString(1, tableName.getSchemaName());
+            stmt.setString(2, tableName.getTableName());
+            stmt.setString(3, columnName);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String dataType = rs.getString("data_type");
+                    LOGGER.debug("Data type for Column: {}.{}.{} is: {}",
+                            tableName.getSchemaName(), tableName.getTableName(), columnName, dataType);
+                    return "uuid".equalsIgnoreCase(dataType);
+                }
+            }
+        }
+        catch (SQLException ex) {
+            LOGGER.warn("Error checking if column {} is UUID type for table {}.{}: {}",
+                    columnName, tableName.getSchemaName(), tableName.getTableName(), ex.getMessage());
+        }
+
+        return false;
+    }
+
     protected String wrapNameWithEscapedCharacter(String input)
     {
-        return "\"" + input + "\"";
+        // Delegate identifier quoting to the PostgreSQL driver's own escaper (org.postgresql.core.Utils)
+        // rather than hand-rolling it. This is the exact routine PGConnection#escapeIdentifier uses: it
+        // wraps the value in double quotes and doubles any embedded double quote, and it throws if the
+        // value contains a NUL (the only character PostgreSQL forbids in an identifier). Using the
+        // driver's implementation removes any doubt about the escaping being correct (CWE-89). The
+        // Redshift connector inherits this method; its driver is a pgjdbc fork with identical identifier
+        // rules, so the same escaping applies.
+        try {
+            return Utils.escapeIdentifier(null, input).toString();
+        }
+        catch (SQLException ex) {
+            // Only thrown for a NUL byte, which isValidSplitColumn already rejects before we get here.
+            throw new RuntimeException("Unable to escape SQL identifier", ex);
+        }
+    }
+
+    /**
+     * Defense-in-depth validation for a primary-key column name before it is used to generate splits.
+     * The name originates from database metadata that a low-privilege user can influence, so it is
+     * treated as untrusted. Quoting/escaping via {@link #wrapNameWithEscapedCharacter(String)} is the
+     * primary SQL-injection control; this method is a secondary filter that rejects values which are
+     * either impossible for a real identifier (null or empty) or undesirable to propagate (control
+     * characters -- rejected for log-injection safety rather than because SQL quoting cannot handle
+     * them). Rejection is non-fatal: the caller simply skips split generation and the query still runs,
+     * just without primary-key-based parallelism.
+     *
+     * @param columnName primary-key column name reported by the JDBC driver
+     * @return true if the name is safe to use for split generation, false otherwise
+     */
+    protected boolean isValidSplitColumn(String columnName)
+    {
+        if (columnName == null || columnName.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < columnName.length(); i++) {
+            // Reject control characters. The two engines that share this method differ:
+            //  - PostgreSQL forbids only NUL (code zero) in an identifier; other control characters
+            //    (tab, CR, LF, ...) are technically legal inside a quoted identifier. See
+            //    https://www.postgresql.org/docs/current/sql-syntax-lexical.html#SQL-SYNTAX-IDENTIFIERS
+            //    ("Quoted identifiers can contain any character, except the character with code zero").
+            //  - Redshift is stricter: identifiers "must consist of only UTF-8 printable characters", so
+            //    control characters are not valid in a Redshift identifier at all. See
+            //    https://docs.aws.amazon.com/redshift/latest/dg/r_names.html
+            // Rejecting all control characters therefore enforces Redshift's rule outright and, for
+            // PostgreSQL, is defense-in-depth: CR/LF enable log injection (the name is logged and SQL
+            // quoting does not sanitize the log sink) and control chars never appear in legitimate
+            // schemas. Worst case for a PostgreSQL name that is pathological-but-legal is that we skip
+            // split generation -- the query still runs correctly, just without primary-key-based
+            // parallelism. Spaces and other printable characters (including SQL metacharacters like ; " )
+            // are intentionally allowed: both engines permit them in a quoted identifier and they are
+            // fully neutralized by wrapNameWithEscapedCharacter().
+            if (Character.isISOControl(columnName.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 }

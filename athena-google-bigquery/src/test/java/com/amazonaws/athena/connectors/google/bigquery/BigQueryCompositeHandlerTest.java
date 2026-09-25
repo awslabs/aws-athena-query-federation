@@ -19,7 +19,11 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQuerySQLException;
+import com.google.cloud.bigquery.JobException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,14 +33,17 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.Arrays;
-
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 
 
@@ -93,5 +100,76 @@ public class BigQueryCompositeHandlerTest
         Mockito.when(ServiceAccountCredentials.fromStream(any())).thenReturn(serviceAccountCredentials);
         bigQueryCompositeHandler = new BigQueryCompositeHandler();
         assertTrue(bigQueryCompositeHandler instanceof BigQueryCompositeHandler);
+    }
+
+    /**
+     * BigQueryException with various HTTP error codes
+     */
+    @Test
+    public void testBigQueryExceptionHttpCodeMapping() {
+        BigQueryException exception = new BigQueryException(400, "Invalid query");
+        Exception result = BigQueryCompositeHandler.handleBigQueryException(exception);
+
+        assertTrue(result instanceof AthenaConnectorException);
+        AthenaConnectorException athenaException = (AthenaConnectorException) result;
+        assertEquals(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString(),
+                athenaException.getErrorDetails().errorCode());
+        assertEquals("Invalid query", athenaException.getMessage());
+    }
+
+    // JobException Tests
+    @Test
+    public void testHandleJobException_NoHttpCode()
+    {
+        JobException exception = mock(JobException.class);
+        Exception result = BigQueryCompositeHandler.handleBigQueryException(exception);
+
+        assertTrue(result instanceof AthenaConnectorException);
+        AthenaConnectorException athenaException = (AthenaConnectorException) result;
+        assertEquals(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString(),
+                athenaException.getErrorDetails().errorCode());
+    }
+
+    // BigQuerySQLException Tests
+    @Test
+    public void testHandleBigQuerySQLException()
+    {
+        BigQuerySQLException exception = new BigQuerySQLException("SQL syntax error");
+        Exception result = BigQueryCompositeHandler.handleBigQueryException(exception);
+
+        assertTrue(result instanceof AthenaConnectorException);
+        AthenaConnectorException athenaException = (AthenaConnectorException) result;
+        assertEquals(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString(),
+                athenaException.getErrorDetails().errorCode());
+        assertEquals("SQL syntax error", athenaException.getMessage());
+    }
+
+    // Non-BigQuery Exception Tests
+    @Test
+    public void testHandleNonBigQueryException_RuntimeException()
+    {
+        RuntimeException exception = new RuntimeException("Some other error");
+        Exception result = BigQueryCompositeHandler.handleBigQueryException(exception);
+        assertSame(exception, result);
+    }
+
+    @Test
+    public void testHandleNonBigQueryException_SQLException()
+    {
+        SQLException exception = new SQLException("Generic SQL error");
+        Exception result = BigQueryCompositeHandler.handleBigQueryException(exception);
+        assertSame(exception, result);
+    }
+
+    @Test
+    public void testHandleBigQueryException_NullMessage()
+    {
+        BigQueryException exception = new BigQueryException(403, null);
+        Exception result = BigQueryCompositeHandler.handleBigQueryException(exception);
+
+        assertTrue(result instanceof AthenaConnectorException);
+        AthenaConnectorException athenaException = (AthenaConnectorException) result;
+        assertEquals(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString(),
+                athenaException.getErrorDetails().errorCode());
     }
 }

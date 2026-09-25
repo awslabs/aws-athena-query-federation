@@ -46,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
@@ -67,15 +68,19 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
+import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.getEnvBigQueryCredsSmId;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.translateToArrowType;
 import static com.google.cloud.bigquery.JobStatistics.QueryStatistics.StatementType.SELECT;
 
@@ -88,9 +93,20 @@ public class BigQueryMetadataHandler
 
     private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
 
-    BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
+    public BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(BigQueryConstants.SOURCE_TYPE, configOptions);
+    }
+
+    public BigQueryMetadataHandler(EncryptionKeyFactory encryptionKeyFactory,
+                                   SecretsManagerClient secretsManager,
+                                   AthenaClient athena,
+                                   String sourceType,
+                                   String spillBucket,
+                                   String spillPrefix,
+                                   Map<String, String> configOptions)
+    {
+        super(encryptionKeyFactory, secretsManager, athena, sourceType, spillBucket, spillPrefix, configOptions);
     }
 
     @Override
@@ -123,7 +139,7 @@ public class BigQueryMetadataHandler
         logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
 
         final List<String> schemas = new ArrayList<>();
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
         Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
         if (response == null) {
             logger.info("Dataset does not contain any models");
@@ -134,7 +150,7 @@ public class BigQueryMetadataHandler
                     if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
                         throw new BigQueryExceptions.TooManyTablesException();
                     }
-                    schemas.add(dataset.getDatasetId().getDataset().toLowerCase());
+                    schemas.add(dataset.getDatasetId().getDataset());
                     logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
                 }
             } while (response.hasNextPage());
@@ -152,7 +168,7 @@ public class BigQueryMetadataHandler
                 listTablesRequest.getSchemaName());
         //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
         String nextToken = null;
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
         final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
         final DatasetId datasetId = DatasetId.of(projectName, datasetName);
         List<TableName> tables = new ArrayList<>();
@@ -205,9 +221,8 @@ public class BigQueryMetadataHandler
         }
         com.google.cloud.bigquery.Schema bigQuerySchema = statistics.getSchema();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        List<String> timeStampColsList = new ArrayList<>();
 
-        convertBigQuerySchema(bigQuerySchema, timeStampColsList, schemaBuilder);
+        convertBigQuerySchema(bigQuerySchema, schemaBuilder);
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), schemaBuilder.build());
     }
 
@@ -237,7 +252,7 @@ public class BigQueryMetadataHandler
         SpillLocation spillLocation = makeSpillLocation(request);
 
         return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
-                makeEncryptionKey()).build());
+                makeEncryptionKey(getRequestOverrideConfig(request))).build());
     }
 
     /**
@@ -249,7 +264,7 @@ public class BigQueryMetadataHandler
      */
     private Schema getSchema(String datasetName, String tableName) throws java.io.IOException
     {
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions)));
         datasetName = fixCaseForDatasetName(projectName, datasetName, bigQuery);
         tableName = fixCaseForTableName(projectName, datasetName, tableName, bigQuery);
 
@@ -257,10 +272,7 @@ public class BigQueryMetadataHandler
         Table response = bigQuery.getTable(tableId);
         TableDefinition tableDefinition = response.getDefinition();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        List<String> timeStampColsList = new ArrayList<>();
-
-        convertBigQuerySchema(tableDefinition.getSchema(), timeStampColsList, schemaBuilder);
-        schemaBuilder.addMetadata("timeStampCols", timeStampColsList.toString());
+        convertBigQuerySchema(tableDefinition.getSchema(), schemaBuilder);
         logger.debug("BigQuery table schema {}", schemaBuilder.toString());
         return schemaBuilder.build();
     }
@@ -268,15 +280,11 @@ public class BigQueryMetadataHandler
     /**
      * Responsible for converting BigQuery Schema to schema builder
      * @param bigQuerySchema
-     * @param timeStampColsList
      * @param schemaBuilder
      */
-    private void convertBigQuerySchema(com.google.cloud.bigquery.Schema bigQuerySchema, List<String> timeStampColsList, SchemaBuilder schemaBuilder)
+    private void convertBigQuerySchema(com.google.cloud.bigquery.Schema bigQuerySchema,  SchemaBuilder schemaBuilder)
     {
         for (Field field : bigQuerySchema.getFields()) {
-            if (field.getType().getStandardType().toString().equals("TIMESTAMP")) {
-                timeStampColsList.add(field.getName());
-            }
             if (null != field.getMode() && field.getMode().name().equals("REPEATED")) {
                 if (field.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
                     schemaBuilder.addField(field.getName(), Types.MinorType.LIST.getType(), ImmutableList.of(new org.apache.arrow.vector.types.pojo.Field(field.getName(), FieldType.nullable(Types.MinorType.STRUCT.getType()), BigQueryUtils.getChildFieldList(field))));

@@ -26,7 +26,7 @@ import java.sql.Connection;
 /**
  * Factory abstracts creation of JDBC connection to database.
  */
-public interface JdbcConnectionFactory
+public interface JdbcConnectionFactory extends AutoCloseable
 {
     /**
      * Retrieves database connection for a database type.
@@ -35,4 +35,10 @@ public interface JdbcConnectionFactory
      * @return JDBC connection. See {@link Connection}.
      */
     Connection getConnection(CredentialsProvider credentialsProvider) throws Exception;
+
+    @Override
+    default void close() throws Exception 
+    {
+        // no-op by default for backward compat
+    }
 }

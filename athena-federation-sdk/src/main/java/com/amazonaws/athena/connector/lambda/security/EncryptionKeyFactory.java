@@ -20,6 +20,8 @@ package com.amazonaws.athena.connector.lambda.security;
  * #L%
  */
 
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
+
 /**
  * Defines a factory that can be used to create AES-GCM compatible encryption keys.
  */
@@ -29,4 +31,9 @@ public interface EncryptionKeyFactory
      * @return A key that satisfies the specification defined in BlockCrypto
      */
     EncryptionKey create();
+
+    default EncryptionKey create(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
+    {
+        return create();
+    }
 }

@@ -1,0 +1,13 @@
+{
+  "table_setup": {
+    "primary_key": "cc_call_center_sk",
+    "primary_type": "int",
+    "sort_key": "cc_open_date_sk",
+    "sort_key_type": "int"
+  },
+  "predicate": {
+    "primary_key_predicate": "cc_call_center_sk = 1",
+    "sort_key_predicate": "cc_open_date_sk = 2450806",
+    "complex_key_predicate": "(cc_call_center_sk + 10) > 20"
+  }
+}

@@ -30,18 +30,12 @@ import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.Validate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
 public class PredicateBuilder {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(PredicateBuilder.class);
-    private final String quoteCharacters = "\"";
 
     private PredicateBuilder() {}
 
@@ -72,16 +66,16 @@ public class PredicateBuilder {
 
         if (valueSet instanceof SortedRangeSet){
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return String.format("(%s IS NULL)", columnName);
+                return String.format("(%s IS NULL)", quote(columnName));
             }
 
             if (valueSet.isNullAllowed()) {
-                disjuncts.add(String.format("(%s IS NULL)", columnName));
+                disjuncts.add(String.format("(%s IS NULL)", quote(columnName)));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return String.format("(%s IS NOT NULL)", columnName);
+                return String.format("(%s IS NOT NULL)", quote(columnName));
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -127,10 +121,14 @@ public class PredicateBuilder {
             if (singleValues.size() == 1) {
                 disjuncts.add(toPredicate(columnName, "=", Iterables.getOnlyElement(singleValues), type, accumulator));
             } else if (singleValues.size() > 1) {
-                for (Object value : singleValues) {
-                    accumulator.put(columnName, new PredicateBuilder.TypeAndValue(type, value));
+                // Create unique placeholders for each value to avoid overwriting in accumulator
+                List<String> placeholders = new ArrayList<>();
+                for (int i = 0; i < singleValues.size(); i++) {
+                    String indexedKey = columnName + "_" + i;
+                    accumulator.put(indexedKey, new PredicateBuilder.TypeAndValue(type, singleValues.get(i)));
+                    placeholders.add("<" + indexedKey + ">");
                 }
-                String values = Joiner.on(",").join(Collections.nCopies(singleValues.size(), "<"+columnName+">"));
+                String values = Joiner.on(",").join(placeholders);
                 disjuncts.add(quote(columnName) + " IN (" + values + ")");
             }
         }
@@ -147,8 +145,16 @@ public class PredicateBuilder {
             operator = "\\" + operator;
         }
 
-        accumulator.put(columnName, new PredicateBuilder.TypeAndValue(type, value));
-        return quote(columnName) + " " + operator + " <" + columnName + "> ";
+        String key;
+        // Check if this column name is already in use - if so, create unique key
+        if (accumulator.containsKey(columnName)) {
+            key = columnName + "Pred" + accumulator.size();
+        } else {
+            key = columnName;
+        }
+
+        accumulator.put(key, new PredicateBuilder.TypeAndValue(type, value));
+        return quote(columnName) + " " + operator + " <" + key + "> ";
     }
     protected static String quote(String name)
     {
@@ -187,7 +193,7 @@ public class PredicateBuilder {
         }
     }
 
-    protected static String getFromClauseWithSplit(String schema, String table)
+    public static String getFromClauseWithSplit(String schema, String table)
     {
         StringBuilder tableName = new StringBuilder();
         if (!Strings.isNullOrEmpty(schema))

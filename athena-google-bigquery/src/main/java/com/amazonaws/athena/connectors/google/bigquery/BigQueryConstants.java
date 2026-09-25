@@ -49,6 +49,17 @@ public class BigQueryConstants
 
     public static final String TMP_SERVICE_ACCOUNT_JSON = "/tmp/service-account.json";
 
+    /**
+     * Environment variable key for configuring identifier casing behavior.
+     */
+    public static final String CATALOG_CASING_FILTER = "CATALOG_CASING_FILTER";
+
+    /**
+     * Casing filter values for CATALOG_CASING_FILTER configuration.
+     */
+    public static final String CASING_UPPERCASE_ONLY = "UPPERCASE_ONLY";
+    public static final String CASING_LOWERCASE_ONLY = "LOWERCASE_ONLY";
+
     private BigQueryConstants()
     {
     }

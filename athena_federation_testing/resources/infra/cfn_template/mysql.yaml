@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: MySQL RDS - Single AZ with manual password and custom networking
+
+Parameters:
+  DBUsername:
+    Type: String
+    Description: Master username for the RDS instance
+
+  DBpwd:
+    Type: String
+    NoEcho: true
+    Description: Master password for the RDS instance
+
+Resources:
+  MySQLDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: athenafederationintegmysql
+      DBInstanceClass: db.r6g.2xlarge
+      Engine: mysql
+      EngineVersion: 8.0
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBpwd
+      AllocatedStorage: 100
+      StorageEncrypted: false
+      BackupRetentionPeriod: 0  # disables automated backups
+      MultiAZ: false
+      PubliclyAccessible: false
+      VPCSecurityGroups:
+        - Fn::ImportValue: AthenaFederationIntegOpenSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DeletionProtection: false
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for AthenaFederationIntegMySQL
+      SubnetIds:
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet1
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet2
+      DBSubnetGroupName: AthenaFederationIntegMySQLSubnetGroup
+
+Outputs:
+  DBEndpoint:
+    Description: RDS endpoint
+    Value: !GetAtt MySQLDBInstance.Endpoint.Address

@@ -52,7 +52,7 @@ public class TeradataRecordHandler extends JdbcRecordHandler
     }
     public TeradataRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS, TeradataConstants.TERADATA_DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS, TeradataConstants.TERADATA_DEFAULT_PORT), configOptions), configOptions);
     }
 
     public TeradataRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)

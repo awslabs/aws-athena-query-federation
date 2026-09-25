@@ -143,16 +143,35 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void testVerifyWithInvalidTraverseSyntax_ShouldThrowException() {
+    public void verify_withProjectByValues_shouldNotThrowException() {
+        baseArguments.put(TRAVERSE, "g.V().hasLabel('airport').project('name').by(values('name'))");
+
+        try {
+            queryPassthrough.verify(baseArguments);
+        } catch (Exception e) {
+            fail("Should not throw any exception");
+        }
+    }
+
+    @Test
+    public void verify_withElementMap_shouldNotThrowException() {
+        baseArguments.put(TRAVERSE, "g.V().hasLabel('airport').elementMap()");
+
+        try {
+            queryPassthrough.verify(baseArguments);
+        } catch (Exception e) {
+            fail("Should not throw any exception");
+        }
+    }
+
+    @Test
+    public void verify_withTraverseWithoutValueMapSubstring_shouldNotThrowException() {
         baseArguments.put(TRAVERSE, "g.V().hasLabel('airport')");
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected AthenaConnectorException");
-        } catch (AthenaConnectorException e) {
-            assertEquals("Unsupported gremlin query format: We are currently supporting only valueMap gremlin queries. " +
-                    "Please make sure you are using valueMap gremlin query. " +
-                    "Example for valueMap query is g.V().hasLabel(\\\"airport\\\").valueMap().limit(5)", e.getMessage());
+        } catch (Exception e) {
+            fail("Should not throw any exception");
         }
     }
 }

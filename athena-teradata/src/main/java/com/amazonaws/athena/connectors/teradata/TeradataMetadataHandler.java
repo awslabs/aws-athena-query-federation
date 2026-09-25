@@ -60,6 +60,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -109,7 +110,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
             new GenericJdbcConnectionFactory(databaseConnectionConfig,
             null,
             new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS,
-            TeradataConstants.TERADATA_DEFAULT_PORT)),
+            TeradataConstants.TERADATA_DEFAULT_PORT), configOptions),
             configOptions);
     }
 
@@ -187,7 +188,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
         boolean viewFlag = false;
         //Check if input table is a view
         List<String> viewparameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(viewparameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
@@ -220,7 +221,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
             }
             else {
                 List<String> parameters = Arrays.asList(Integer.toString(1));
-                try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+                try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
                     getPartitionDetails(blockWriter, getPartitionsQuery, parameters, connection);
                 }
             }
@@ -244,7 +245,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
         int  partitionCount = 0;
         boolean nonPartitionApproach = false;
         List<String> params = Arrays.asList(Integer.toString(1));
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(getPartitionsCountQuery).withParameters(params).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
@@ -325,7 +326,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
 
             LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), locationReader.readText());
 
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                     .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
 
             splits.add(splitBuilder.build());
@@ -363,7 +364,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      * @throws SQLException
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws SQLException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -425,13 +426,20 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
     }
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {
-        ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
-                new JdbcFieldInfo(jdbcType, precision, scale),
-                null);
-        if (arrowType instanceof ArrowType.Date) {
-            // Convert from DateMilli to DateDay
-            return new ArrowType.Date(DateUnit.DAY);
+        try {
+            ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
+                    new JdbcFieldInfo(jdbcType, precision, scale),
+                    null);
+            if (arrowType instanceof ArrowType.Date) {
+                // Convert from DateMilli to DateDay
+                return new ArrowType.Date(DateUnit.DAY);
+            }
+            return arrowType;
         }
-        return arrowType;
+        catch (UnsupportedOperationException e) {
+            LOGGER.debug("JdbcToArrowUtils could not map JDBC type {} (precision={}, scale={}): {}",
+                    jdbcType, precision, scale, e.getMessage());
+            return null;
+        }
     }
 }

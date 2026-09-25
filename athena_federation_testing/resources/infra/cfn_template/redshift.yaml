@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Redshift Cluster - Single Node with manual password and custom networking
+
+Parameters:
+  DBUsername:
+    Type: String
+    Description: Master username for the Redshift cluster
+
+  DBpwd:
+    Type: String
+    NoEcho: true
+    Description: Master password for the Redshift cluster
+
+
+
+Resources:
+  RedshiftCluster:
+    Type: AWS::Redshift::Cluster
+    Properties:
+      ClusterIdentifier: athenafederationintegredshift
+      NodeType: ra3.large
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBpwd
+      DBName: tpcds
+      ClusterType: single-node
+      PubliclyAccessible: false
+      VpcSecurityGroupIds:
+        - Fn::ImportValue: AthenaFederationIntegOpenSecurityGroup
+      ClusterSubnetGroupName: !Ref RedshiftSubnetGroup
+      AutomatedSnapshotRetentionPeriod: 1 #required
+      EnhancedVpcRouting: true
+      Encrypted: true
+
+  RedshiftSubnetGroup:
+    Type: AWS::Redshift::ClusterSubnetGroup
+    Properties:
+      Description: Subnet group for AthenaFederationIntegRedshift
+      SubnetIds:
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet1
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet2
+      ClusterSubnetGroupName: AthenaFederationIntegRedshiftSubnetGroup
+
+Outputs:
+  ClusterEndpoint:
+    Description: Redshift cluster endpoint
+    Value: !GetAtt RedshiftCluster.Endpoint.Address

@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Microsoft SQL Server RDS - Single AZ with manual password and custom networking
+
+Parameters:
+  DBUsername:
+    Type: String
+    Description: Master username for the RDS SQL Server instance
+
+  DBpwd:
+    Type: String
+    NoEcho: true
+    Description: Master password for the RDS SQL Server instance
+
+Resources:
+  SqlServerDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: athenafederationintegsqlserver
+      DBInstanceClass: db.m5.large  # SQL Server supports different instance classes
+      Engine: sqlserver-se  # Options: sqlserver-ex, sqlserver-web, sqlserver-se, sqlserver-ee
+      EngineVersion: 15.00.4073.23.v1  # Update to latest supported version
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBpwd
+      AllocatedStorage: 100
+      StorageType: gp2
+      MultiAZ: false
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 0  # disables automated backups
+      VPCSecurityGroups:
+        - Fn::ImportValue: AthenaFederationIntegOpenSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      LicenseModel: license-included  # Use 'bring-your-own-license' if applicable
+      DeletionProtection: false
+      StorageEncrypted: false
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for AthenaFederationIntegSQLServer
+      SubnetIds:
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet1
+        - Fn::ImportValue: AthenaFederationIntegPublicSubnet2
+      DBSubnetGroupName: AthenaFederationIntegSQLServerSubnetGroup
+
+Outputs:
+  DBEndpoint:
+    Description: RDS SQL Server endpoint
+    Value: !GetAtt SqlServerDBInstance.Endpoint.Address

@@ -92,7 +92,6 @@ Resources:
       Description: "Enables Amazon Athena to communicate with PostgreSQL using JDBC"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
       VpcConfig:
         SecurityGroupIds: !Ref SecurityGroupIds
@@ -102,6 +101,7 @@ Resources:
     Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
     Properties:
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:

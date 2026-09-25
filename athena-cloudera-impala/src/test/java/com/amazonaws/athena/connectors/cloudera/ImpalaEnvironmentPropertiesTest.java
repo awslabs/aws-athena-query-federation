@@ -32,14 +32,16 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
 import static org.junit.Assert.assertEquals;
 
-public class ImpalaEnvironmentPropertiesTest {
+public class ImpalaEnvironmentPropertiesTest
+{
     Map<String, String> connectionProperties;
     ImpalaEnvironmentProperties impalaEnvironmentProperties;
 
     @Before
-    public void setUp() {
+    public void setUp()
+    {
         connectionProperties = new HashMap<>();
-        connectionProperties.put(HOST, "50.100.00.10");
+        connectionProperties.put(HOST, "localhost");
         connectionProperties.put(DATABASE, "default");
         connectionProperties.put(SECRET_NAME, "testSecret");
         connectionProperties.put(PORT, "49172");
@@ -47,11 +49,10 @@ public class ImpalaEnvironmentPropertiesTest {
     }
 
     @Test
-    public void impalaConnectionPropertiesTest() {
-
+    public void testImpalaConnectionProperties()
+    {
         Map<String, String> impalaConnectionProperties = impalaEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-
-        String expectedConnectionString = "impala://jdbc:impala://50.100.00.10:49172/default;${testSecret}";
+        String expectedConnectionString = "impala://jdbc:impala://localhost:49172/default;${testSecret}";
         assertEquals(expectedConnectionString, impalaConnectionProperties.get(DEFAULT));
     }
 }

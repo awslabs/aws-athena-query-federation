@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.dynamodb.util;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.google.common.collect.ImmutableList;
@@ -28,6 +29,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -36,12 +38,18 @@ import software.amazon.awssdk.services.dynamodb.model.GlobalSecondaryIndexDescri
 import software.amazon.awssdk.services.dynamodb.model.IndexStatus;
 import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
+import software.amazon.awssdk.services.dynamodb.model.LimitExceededException;
 import software.amazon.awssdk.services.dynamodb.model.LocalSecondaryIndexDescription;
 import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
 import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughputDescription;
+import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughputExceededException;
+import software.amazon.awssdk.services.dynamodb.model.RequestLimitExceededException;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.TableDescription;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.List;
 import java.util.Map;
@@ -196,6 +204,49 @@ public final class DDBTableUtils
                 .distinct()
                 .forEach(schemaBuilder::addField);
         return schemaBuilder;
+    }
+
+    /**
+     * Maps a RuntimeException from DynamoDB operations to an {@link AthenaConnectorException} with the appropriate
+     * {@link FederationSourceErrorCode}. If the exception cannot be mapped to a known error code, the original
+     * exception is returned as-is.
+     *
+     * @param ex the RuntimeException thrown by DynamoDB SDK
+     * @return an AthenaConnectorException with FederationSourceErrorCode
+     */
+    public static RuntimeException handleDynamoDBException(RuntimeException ex)
+    {
+        if (ex instanceof AwsServiceException) {
+            AwsServiceException awsEx = (AwsServiceException) ex;
+            int statusCode = awsEx.statusCode();
+
+            if (statusCode == 403
+                    || (awsEx.getMessage() != null && awsEx.getMessage().contains("is not authorized to perform"))
+                    || (awsEx.awsErrorDetails() != null && "AccessDeniedException".equals(awsEx.awsErrorDetails().errorCode()))) {
+                return new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder()
+                        .errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString())
+                        .errorMessage(ex.getMessage()).build());
+            }
+            if (ex instanceof ResourceNotFoundException) {
+                return new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder()
+                        .errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString())
+                        .errorMessage(ex.getMessage()).build());
+            }
+            if (ex instanceof ProvisionedThroughputExceededException
+                    || ex instanceof RequestLimitExceededException
+                    || ex instanceof LimitExceededException) {
+                return new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder()
+                        .errorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION.toString())
+                        .errorMessage(ex.getMessage()).build());
+            }
+            if (statusCode == 400) {
+                return new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder()
+                        .errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString())
+                        .errorMessage(ex.getMessage()).build());
+            }
+        }
+
+        return ex;
     }
 
     /**

@@ -23,6 +23,7 @@ package com.amazonaws.athena.connectors.sqlserver;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -65,6 +66,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -141,7 +143,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      */
     public SqlServerMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(SqlServerConstants.DRIVER_CLASS, SqlServerConstants.DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(SqlServerConstants.DRIVER_CLASS, SqlServerConstants.DEFAULT_PORT), configOptions), configOptions);
     }
 
     public SqlServerMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
@@ -239,7 +241,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
 
         //check whether the input table is a view or not
         boolean viewFlag = false;
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(params).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
@@ -248,7 +250,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             LOGGER.info("viewFlag: {}", viewFlag);
         }
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)))) {
             List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName() + "." +
                     getTableLayoutRequest.getTableName().getTableName());
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
@@ -269,7 +271,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 else {
                     LOGGER.debug("Getting data with diff Partitions: ");
                     // get partition details from sql server meta data tables
-                    List<String> partitionDetails = getPartitionDetails(params);
+                    List<String> partitionDetails = getPartitionDetails(params, getRequestOverrideConfig(getTableLayoutRequest));
                     String partitionInfo = (!partitionDetails.isEmpty() && partitionDetails.size() == 2) ?
                             ":::" + partitionDetails.get(0) + ":::" + partitionDetails.get(1) : "";
 
@@ -296,9 +298,12 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 }
             }
             catch (SQLServerException e) {
-                // for permission denied sqlServer exception retuning single partition
-                if (e.getMessage().contains("VIEW DATABASE STATE permission denied")) {
-                    LOGGER.warn("Permission denied to view database state for {}", e.getMessage());
+                // For permission denied SQL Server exception, return single partition
+                // SQL Server 2022 and later: "VIEW DATABASE PERFORMANCE STATE permission denied"
+                String message = e.getMessage();
+                if (message != null && (message.contains("VIEW DATABASE STATE permission denied")
+                        || message.contains("VIEW DATABASE PERFORMANCE STATE permission denied"))) {
+                    LOGGER.warn("Permission denied while accessing partition metadata: {}", message);
                     handleSinglePartition(blockWriter);
                 }
                 else {
@@ -347,15 +352,21 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             // Included partition information to split if the table is partitioned
             if (partInfo.contains(":::")) {
                 String[] partInfoAr = partInfo.split(":::");
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfoAr[0])
                         .add(PARTITION_FUNCTION, partInfoAr[1])
                         .add(PARTITIONING_COLUMN, partInfoAr[2]);
             }
             else {
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfo);
             }
+
+            if (getSplitsRequest.getIdentity().getConfigOptions() != null && getSplitsRequest.getIdentity().getConfigOptions().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                LOGGER.info("Catalog Casing Filter found: {}", getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, getSplitsRequest.getIdentity().getConfigOptions().get(EnvironmentConstants.CATALOG_CASING_FILTER));
+            }
+
             splits.add(splitBuilder.build());
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
@@ -385,10 +396,10 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @param parameters
      * @throws SQLException
      */
-    private List<String> getPartitionDetails(List<String> parameters) throws Exception
+    private List<String> getPartitionDetails(List<String> parameters, AwsRequestOverrideConfiguration requestOverrideConfig) throws Exception
     {
         List<String> partitionDetails = new ArrayList<>();
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfig));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITION_DETAILS_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
@@ -422,7 +433,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @throws Exception
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
@@ -438,7 +449,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
@@ -508,14 +519,15 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             return schemaNames.build();
         }
     }
-
+    
     @Override
-    protected CredentialsProvider getCredentialProvider()
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         return CredentialsProviderFactory.createCredentialProvider(
                 getDatabaseConnectionConfig().getSecret(),
                 getCachableSecretsManager(),
-                new SqlServerOAuthCredentialsProvider()
+                new SqlServerOAuthCredentialsProvider(),
+                requestOverrideConfiguration
         );
     }
 }

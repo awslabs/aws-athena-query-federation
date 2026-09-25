@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.datalakegen2;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -58,6 +59,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -190,8 +192,17 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         }
         // Always create single split
         Set<Split> splits = new HashSet<>();
-        splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
-                .add(PARTITION_NUMBER, "0").build());
+        Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
+                .add(PARTITION_NUMBER, "0");
+
+        Map<String, String> identityConfigOptions = getSplitsRequest.getIdentity().getConfigOptions();
+        if (identityConfigOptions != null && identityConfigOptions.containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+            String catalogCasingFilter = identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER);
+            LOGGER.info("Catalog Casing Filter found: {}", catalogCasingFilter);
+            splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, catalogCasingFilter);
+        }
+
+        splits.add(splitBuilder.build());
         return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
     }
 
@@ -216,7 +227,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
      * @throws Exception
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         LOGGER.info("Inside getSchema");
@@ -251,7 +262,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         }
 
         String environment = DataLakeGen2Util.checkEnvironment(jdbcConnection.getMetaData().getURL());
-        
+
         if (DataLakeGen2Constants.SQL_POOL.equalsIgnoreCase(environment)) {
             // getColumns() method from SQL Server driver is causing an exception in case of Azure Serverless environment.
             // so doing explicit data type conversion
@@ -372,14 +383,15 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         }
         return schemaBuilder;
     }
-
+    
     @Override
-    protected CredentialsProvider getCredentialProvider()
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         return CredentialsProviderFactory.createCredentialProvider(
                 getDatabaseConnectionConfig().getSecret(),
                 getCachableSecretsManager(),
-                new DataLakeGen2OAuthCredentialsProvider()
+                new DataLakeGen2OAuthCredentialsProvider(),
+                requestOverrideConfiguration
         );
     }
 }

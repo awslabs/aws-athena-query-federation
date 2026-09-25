@@ -180,4 +180,69 @@ public class MySqlRecordHandlerTest
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;
     }
+
+    // Substrait plan: SELECT col1, col2, col3 FROM test_schema.test_table LIMIT 10
+    private static final String SUBSTRAIT_PLAN_FETCH =
+            "GlsSWQpXGlUKAgoAEksKSQoCCgASKAoEY29sMQoEY29sMgoEY29sMxIUCgRiAhABCgQqAhABCgRiAhABGAI6GQoLdGVzdF9zY2hlbWEKCnRlc3RfdGFibGUYACAK";
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithLowercaseCasingFilter_GeneratesValidLimit() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql("LOWERCASE_ONLY", "SELECT *\nFROM `test_schema`.`test_table`\nLIMIT 10");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithUppercaseCasingFilter_GeneratesValidLimit() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql("UPPERCASE_ONLY", "SELECT *\nFROM `TEST_SCHEMA`.`TEST_TABLE`\nLIMIT 10");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithoutCasingFilter_GeneratesValidLimit() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql(null, "SELECT *\nFROM `test_schema`.`test_table`\nLIMIT 10");
+    }
+
+    private void assertSubstraitPlanGeneratesExpectedSql(String casingFilter, String expectedSql) throws SQLException
+    {
+        TableName tableName = new TableName("test_schema", "test_table");
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("col1", Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("col2", Types.MinorType.INT.getType()).build())
+                .addField(FieldBuilder.newBuilder("col3", Types.MinorType.VARCHAR.getType()).build())
+                .build();
+
+        Split split = Mockito.mock(Split.class);
+        java.util.Map<String, String> splitProperties = new java.util.HashMap<>();
+        splitProperties.put("partition_name", "0");
+        if (casingFilter != null) {
+            splitProperties.put("CATALOG_CASING_FILTER", casingFilter);
+        }
+        Mockito.when(split.getProperties()).thenReturn(splitProperties);
+        Mockito.when(split.getProperty(Mockito.eq("partition_name"))).thenReturn("0");
+        Mockito.when(split.getProperty(Mockito.eq("CATALOG_CASING_FILTER"))).thenReturn(casingFilter);
+
+        com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan queryPlan =
+                new com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan("", SUBSTRAIT_PLAN_FETCH);
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                -1L,
+                Collections.emptyMap(),
+                queryPlan
+        );
+
+        PreparedStatement mockStmt = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Mockito.anyString())).thenReturn(mockStmt);
+        Mockito.when(mockStmt.getParameterMetaData()).thenReturn(null);
+
+        this.mySqlRecordHandler.buildSplitSql(
+                this.connection, "testCatalog", tableName, schema, constraints, split);
+
+        org.mockito.ArgumentCaptor<String> sqlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        Mockito.verify(this.connection).prepareStatement(sqlCaptor.capture());
+
+        Assert.assertEquals(expectedSql, sqlCaptor.getValue());
+    }
 }

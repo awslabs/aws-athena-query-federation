@@ -25,22 +25,17 @@
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib</artifactId>
-                <version>2.2.20</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jetbrains.kotlin</groupId>
-                <artifactId>kotlin-stdlib-common</artifactId>
-                <version>2.0.21</version>
+                <version>2.4.10</version>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib-jdk8</artifactId>
-                <version>2.2.20</version>
+                <version>2.4.10</version>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-reflect</artifactId>
-                <version>2.2.20</version>
+                <version>2.4.10</version>
                 <scope>runtime</scope>
             </dependency>
             <dependency>
@@ -61,12 +56,12 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
-            <version>4.1.0</version>
+            <version>4.3.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
-            <version>1.12.0</version>
+            <version>1.12.1</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
@@ -82,12 +77,12 @@
         <dependency>
             <groupId>software.amazon.glue</groupId>
             <artifactId>schema-registry-serde</artifactId>
-            <version>1.1.25</version>
+            <version>1.1.27</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.jackson.version}</version>
+            <version>${fasterxml.jackson.annotations.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -174,7 +169,7 @@
         <dependency>
             <groupId>org.junit.support</groupId>
             <artifactId>testng-engine</artifactId>
-            <version>1.0.6</version>
+            <version>1.1.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -229,7 +224,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.13</version>
+                <version>0.8.15</version>
                 <configuration>
                     <excludes>
                         <exclude>com/athena/connectors/msk/dto/*.*</exclude>
