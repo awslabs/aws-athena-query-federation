@@ -51,6 +51,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -90,6 +91,9 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_EXPORT_BUCKET;
@@ -228,6 +232,78 @@ public class VerticaRecordHandlerTest
         }
 
         logger.info("doReadRecordsNoSpill: exit");
+    }
+
+    @Test
+    public void doReadRecordsWithFasCredentialsDownloadsExportObject()
+            throws Exception
+    {
+        logger.info("doReadRecordsWithFasCredentialsDownloadsExportObject: enter");
+
+        // Seed one object so the FAS download path (downloadExportObject -> getObject) has content to copy.
+        ByteHolder exportBytes = new ByteHolder();
+        exportBytes.setBytes("vertica-export-parquet".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        synchronized (mockS3Storage) {
+            mockS3Storage.add(exportBytes);
+        }
+
+        VectorSchemaRoot schemaRoot = createRoot();
+        ArrowReader mockReader = mock(ArrowReader.class);
+        when(mockReader.loadNextBatch()).thenReturn(true, false);
+        when(mockReader.getVectorSchemaRoot()).thenReturn(schemaRoot);
+
+        VerticaRecordHandler handlerSpy = spy(handler);
+        doReturn(mockReader).when(handlerSpy).constructArrowReader(any());
+
+        // Force the LakeFormation-vended (FAS) branch: an override that carries credentials, plus a
+        // deterministic S3 client (getS3Client would otherwise build a real client from the creds).
+        AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create("vended-access-key-example", "vended-secret-example")))
+                .build();
+        doReturn(overrideConfig).when(handlerSpy).getRequestOverrideConfig(any(ReadRecordsRequest.class));
+        doReturn(mockS3).when(handlerSpy).getS3Client(any(), any());
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("time", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
+                ImmutableList.of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 100L)), false));
+
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create())
+                .add(VERTICA_SPLIT_QUERY_ID, "query_id")
+                .add(VERTICA_SPLIT_EXPORT_BUCKET, "export_bucket")
+                .add(VERTICA_SPLIT_OBJECT_KEY, "s3_object_key");
+
+        ReadRecordsRequest request = new ReadRecordsRequest(identity,
+                DEFAULT_CATALOG,
+                QUERY_ID,
+                TABLE_NAME,
+                schemaRoot.getSchema(),
+                splitBuilder.build(),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L,
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handlerSpy.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        assertTrue(response.getRecords().getRowCount() == 2);
+
+        // The FAS branch resolved the S3 client via getS3Client and downloaded the export object to a
+        // local temp file, which is then read via a file:// URI (not the in-place s3:// path).
+        Mockito.verify(handlerSpy, Mockito.atLeastOnce()).getS3Client(any(), any());
+        ArgumentCaptor<String> uriCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(handlerSpy).constructArrowReader(uriCaptor.capture());
+        assertTrue(uriCaptor.getValue().startsWith("file:"));
+
+        logger.info("doReadRecordsWithFasCredentialsDownloadsExportObject: exit");
     }
 
     @Test
