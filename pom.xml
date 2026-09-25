@@ -157,6 +157,7 @@
         <module>athena-kafka</module>
         <module>athena-gcs</module>
         <module>athena-clickhouse</module>
+        <module>athena-lark-base</module>
     </modules>
     <dependencies>
          <dependency>
