@@ -127,6 +127,7 @@ public class CloudwatchMetadataHandler
     private final ThrottlingInvoker invoker;
     private final CloudwatchTableResolver tableResolver;
     private final CloudwatchQueryPassthrough queryPassthrough = new CloudwatchQueryPassthrough();
+    private final CloudwatchFederatedNameEncoder nameEncoder;
 
     public CloudwatchMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -134,6 +135,7 @@ public class CloudwatchMetadataHandler
         this.awsLogs = CloudWatchLogsClient.create();
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.tableResolver =  new CloudwatchTableResolver(this.invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
+        this.nameEncoder = new CloudwatchFederatedNameEncoder(configOptions);
     }
 
     @VisibleForTesting
@@ -150,6 +152,7 @@ public class CloudwatchMetadataHandler
         this.awsLogs = awsLogs;
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.tableResolver = new CloudwatchTableResolver(this.invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
+        this.nameEncoder = new CloudwatchFederatedNameEncoder(configOptions);
     }
 
     /**
@@ -171,7 +174,7 @@ public class CloudwatchMetadataHandler
                 throw new RuntimeException("Too many log groups, exceeded max metadata results for schema count.");
             }
             response = invoker.invoke(() -> awsLogs.describeLogGroups(requestBuilder.build()));
-            response.logGroups().forEach(next -> schemas.add(next.logGroupName()));
+            response.logGroups().forEach(next -> schemas.add(nameEncoder.encode(next.logGroupName())));
             requestBuilder.nextToken(response.nextToken());
             logger.info("doListSchemaNames: Listing log groups {} {}", response.nextToken(), schemas.size());
         }
@@ -191,7 +194,7 @@ public class CloudwatchMetadataHandler
     {
         String nextToken = null;
         AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(listTablesRequest.getIdentity().getConfigOptions());
-        String logGroupName = tableResolver.validateSchema(listTablesRequest.getSchemaName(), overrideConfig);
+        String logGroupName = tableResolver.validateSchema(nameEncoder.decode(listTablesRequest.getSchemaName()), overrideConfig);
         DescribeLogStreamsRequest.Builder requestBuilder = DescribeLogStreamsRequest.builder().logGroupName(logGroupName)
                 .overrideConfiguration(overrideConfig);
         DescribeLogStreamsResponse response;
@@ -237,11 +240,14 @@ public class CloudwatchMetadataHandler
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
-        TableName tableName = getTableRequest.getTableName();
+        TableName tableName = decodeTableName(getTableRequest.getTableName());
         AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(getTableRequest.getIdentity().getConfigOptions());
         CloudwatchTableName cwTableName = tableResolver.validateTable(tableName, overrideConfig);
+        TableName encodedTableName = new TableName(
+                nameEncoder.encode(cwTableName.getLogGroupName()),
+                nameEncoder.encode(cwTableName.getLogStreamName()));
         return new GetTableResponse(getTableRequest.getCatalogName(),
-                cwTableName.toTableName(),
+                encodedTableName,
                 CLOUDWATCH_SCHEMA,
                 Collections.singleton(LOG_STREAM_FIELD));
     }
@@ -280,7 +286,7 @@ public class CloudwatchMetadataHandler
         }
 
         AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(request.getIdentity().getConfigOptions());
-        CloudwatchTableName cwTableName = tableResolver.validateTable(request.getTableName(), overrideConfig);
+        CloudwatchTableName cwTableName = tableResolver.validateTable(decodeTableName(request.getTableName()), overrideConfig);
 
         DescribeLogStreamsRequest.Builder cwRequestBuilder = DescribeLogStreamsRequest.builder().logGroupName(cwTableName.getLogGroupName())
                 .overrideConfiguration(overrideConfig);
@@ -425,8 +431,18 @@ public class CloudwatchMetadataHandler
      * @param logStream The LogStream to turn into a table.
      * @return A TableName with both the schema (LogGroup) and the table (LogStream) lowercased.
      */
+    /**
+     * Decodes an inbound TableName (both schema and table) from its catalog-facing form back to the actual
+     * CloudWatch log group and log stream names before the name is resolved against CloudWatch. A no-op when
+     * encoding is disabled or the names are not encoded.
+     */
+    private TableName decodeTableName(TableName tableName)
+    {
+        return new TableName(nameEncoder.decode(tableName.getSchemaName()), nameEncoder.decode(tableName.getTableName()));
+    }
+
     private TableName toTableName(ListTablesRequest request, LogStream logStream)
     {
-        return new TableName(request.getSchemaName(), logStream.logStreamName());
+        return new TableName(request.getSchemaName(), nameEncoder.encode(logStream.logStreamName()));
     }
 }
