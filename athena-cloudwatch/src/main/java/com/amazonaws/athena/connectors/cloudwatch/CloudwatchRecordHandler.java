@@ -26,15 +26,23 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.SubstraitFunctionParser;
+import com.amazonaws.athena.connector.substrait.SubstraitMetadataParser;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.amazonaws.athena.connectors.cloudwatch.qpt.CloudwatchQueryPassthrough;
+import io.substrait.proto.Plan;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest;
@@ -104,8 +112,12 @@ public class CloudwatchRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws TimeoutException, InterruptedException
     {
+        // Managed-connector (Athena federation) path: apply the customer FAS credentials carried in
+        // configOptions to every Cloudwatch data-plane call. Null (no-op) on the AppFlow/DNA path,
+        // where the injected client already holds the customer credentials.
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(recordsRequest.getIdentity().getConfigOptions());
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
-            getQueryPassthreoughResults(spiller, recordsRequest);
+            getQueryPassthreoughResults(spiller, recordsRequest, overrideConfig);
         }
         else {
             String continuationToken = null;
@@ -123,6 +135,7 @@ public class CloudwatchRecordHandler
                                         .nextToken(actualContinuationToken)
                                         // must be set to use nextToken correctly
                                         .startFromHead(true)
+                                        .overrideConfiguration(overrideConfig)
                                         .build()
                         )));
 
@@ -151,11 +164,12 @@ public class CloudwatchRecordHandler
         }
     }
 
-    private void getQueryPassthreoughResults(BlockSpiller spiller, ReadRecordsRequest recordsRequest) throws TimeoutException, InterruptedException
+    private void getQueryPassthreoughResults(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
+            AwsRequestOverrideConfiguration awsRequestOverrideConfiguration) throws TimeoutException, InterruptedException
     {
         Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
         queryPassthrough.verify(qptArguments);
-        GetQueryResultsResponse getQueryResultsResponse = getResult(invoker, awsLogs, qptArguments, Integer.parseInt(qptArguments.get(CloudwatchQueryPassthrough.LIMIT)));
+        GetQueryResultsResponse getQueryResultsResponse = getResult(invoker, awsLogs, qptArguments, Integer.parseInt(qptArguments.get(CloudwatchQueryPassthrough.LIMIT)), awsRequestOverrideConfiguration);
 
         for (List<ResultField> resultList : getQueryResultsResponse.results()) {
             spiller.writeRows((Block block, int rowNum) -> {
@@ -182,6 +196,17 @@ public class CloudwatchRecordHandler
     private GetLogEventsRequest pushDownConstraints(Constraints constraints, GetLogEventsRequest request)
     {
         GetLogEventsRequest.Builder requestBuilder = request.toBuilder();
+
+        // Managed-connector (Athena federation) path: predicates arrive as a Substrait query plan rather
+        // than in the Constraints summary. We push ONLY the log time range (>=, <=, =, between) down to
+        // Cloudwatch as startTime/endTime. Any other predicate (message/log_stream filters, etc.) has no
+        // GetLogEvents equivalent and is safely left for the engine to apply. If the plan cannot be
+        // parsed or contains operators we do not understand, we push nothing and let the engine filter.
+        if (constraints.getQueryPlan() != null) {
+            applySubstraitTimeRange(constraints, requestBuilder);
+            return requestBuilder.build();
+        }
+
         ValueSet timeConstraint = constraints.getSummary().get(LOG_TIME_FIELD);
         if (timeConstraint instanceof SortedRangeSet && !timeConstraint.isNullAllowed()) {
             //SortedRangeSet is how >, <, between is represented which are easiest and most common when
@@ -203,5 +228,62 @@ public class CloudwatchRecordHandler
         }
 
         return requestBuilder.build();
+    }
+
+    /**
+     * Extracts predicates on the log {@code time} column from the Substrait query plan and pushes them to
+     * Cloudwatch as {@code startTime}/{@code endTime}. This is a best-effort optimization: it never throws.
+     * Unsupported operators or plan shapes result in no pushdown, leaving all predicates for the engine to
+     * apply (federation permits returning a superset).
+     *
+     * @param constraints the read constraints, expected to carry a non-null Substrait query plan.
+     * @param requestBuilder the Cloudwatch GetLogEvents request builder to decorate with time bounds.
+     */
+    private void applySubstraitTimeRange(Constraints constraints, GetLogEventsRequest.Builder requestBuilder)
+    {
+        QueryPlan queryPlan = constraints.getQueryPlan();
+        if (queryPlan == null || queryPlan.getSubstraitPlan() == null) {
+            return;
+        }
+        try {
+            Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+            SubstraitRelModel relModel = SubstraitRelModel.buildSubstraitRelModel(plan.getRelations(0).getRoot().getInput());
+            if (relModel.getFilterRel() == null) {
+                return;
+            }
+            List<String> tableColumns = SubstraitMetadataParser.getTableColumns(relModel);
+            Map<String, List<ColumnPredicate>> predicatesByColumn = SubstraitFunctionParser.getColumnPredicatesMap(
+                    plan.getExtensionsList(), relModel.getFilterRel().getCondition(), tableColumns);
+
+            for (ColumnPredicate predicate : predicatesByColumn.getOrDefault(LOG_TIME_FIELD, List.of())) {
+                Object value = predicate.getValue();
+                if (!(value instanceof Number)) {
+                    continue;
+                }
+                long epochMillis = ((Number) value).longValue();
+                switch (predicate.getOperator()) {
+                    case GREATER_THAN:
+                    case GREATER_THAN_OR_EQUAL_TO:
+                        requestBuilder.startTime(epochMillis);
+                        break;
+                    case LESS_THAN:
+                    case LESS_THAN_OR_EQUAL_TO:
+                        requestBuilder.endTime(epochMillis);
+                        break;
+                    case EQUAL:
+                        requestBuilder.startTime(epochMillis);
+                        requestBuilder.endTime(epochMillis);
+                        break;
+                    default:
+                        // No GetLogEvents equivalent (e.g. NOT_EQUAL / IS_NULL); leave to the engine.
+                        break;
+                }
+            }
+        }
+        catch (Exception e) {
+            // Best-effort pushdown only: never fail the query. If the plan contains operators or shapes
+            // we do not understand, skip pushdown and let the engine apply all predicates.
+            logger.warn("Unable to push Substrait time-range predicate to Cloudwatch; leaving predicates to the engine.", e);
+        }
     }
 }
