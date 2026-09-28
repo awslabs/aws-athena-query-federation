@@ -255,6 +255,11 @@ public class MetricsMetadataHandler
             List<String> accounts = result.owningAccounts();
 
             // There is a 1:1 mapping between each metric that is returned and the ID of the owning account.
+            // A single metric can expand into multiple MetricDataQuery entries (one per matching statistic),
+            // so the MetricDataQuery id must be unique per query rather than per metric. CloudWatch
+            // GetMetricData rejects a request whose MetricDataQuery ids are not unique, so we assign the id
+            // from a per-query counter instead of the metric index.
+            int queryId = 0;
             for (int i = 0; i < metrics.size(); i++) {
                 Metric metric = metrics.get(i);
                 for (String nextStatistic : STATISTICS) {
@@ -269,7 +274,7 @@ public class MetricsMetadataHandler
                                     .period(Integer.valueOf(period))
                                     .stat(nextStatistic)
                                     .build())
-                                .id("m" + (i + 1))
+                                .id("m" + (++queryId))
                                 .accountId(accounts.isEmpty() ? null : accounts.get(i))
                                 .build()
                         );
