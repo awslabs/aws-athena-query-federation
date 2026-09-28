@@ -59,13 +59,16 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
 import software.amazon.awssdk.services.cloudwatch.model.ListMetricsResponse;
 import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricDataQuery;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
@@ -343,6 +346,68 @@ public class MetricsMetadataHandlerTest
         assertNull(continuationToken);
 
         logger.info("doGetMetricSamplesSplits: exit");
+    }
+
+    @Test
+    public void doGetMetricSamplesSplitsUniqueMetricDataQueryIds()
+            throws Exception
+    {
+        logger.info("doGetMetricSamplesSplitsUniqueMetricDataQueryIds: enter");
+
+        String namespace = "MyNamespace";
+        int numMetrics = 4;
+
+        when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            List<Metric> metrics = new ArrayList<>();
+            for (int i = 0; i < numMetrics; i++) {
+                metrics.add(Metric.builder()
+                        .namespace(namespace)
+                        .metricName("metric-" + i)
+                        .build());
+            }
+            return ListMetricsResponse.builder().nextToken(null).metrics(metrics).build();
+        });
+
+        Schema schema = SchemaBuilder.newBuilder().addIntField("partitionId").build();
+        Block partitions = allocator.createBlock(schema);
+        BlockUtils.setValue(partitions.getFieldVector("partitionId"), 1, 1);
+        partitions.setRowCount(1);
+
+        // Constrain only the namespace. With no statistic predicate every statistic in STATISTICS matches
+        // each metric, so a single metric expands into multiple MetricDataQuery entries. Their ids must all
+        // be unique or CloudWatch GetMetricData rejects the request.
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put(NAMESPACE_FIELD,
+                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                        .add(namespace).build());
+
+        GetSplitsRequest req = new GetSplitsRequest(identity,
+                "queryId",
+                "catalog_name",
+                new TableName(defaultSchema, "metric_samples"),
+                partitions,
+                Collections.singletonList("partitionId"),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                null);
+
+        GetSplitsResponse response = (GetSplitsResponse) handler.doGetSplits(allocator, req);
+
+        Set<String> allIds = new HashSet<>();
+        int totalQueries = 0;
+        for (Split nextSplit : response.getSplits()) {
+            String serialized = nextSplit.getProperty(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME);
+            assertNotNull(serialized);
+            for (MetricDataQuery query : MetricDataQuerySerDe.deserialize(serialized)) {
+                totalQueries++;
+                assertTrue("Duplicate MetricDataQuery id across the request: " + query.id(), allIds.add(query.id()));
+            }
+        }
+
+        //Each metric expands into one MetricDataQuery per statistic; all ids across all splits must be unique.
+        assertEquals(numMetrics * MetricsMetadataHandler.STATISTICS.size(), totalQueries);
+        assertEquals(totalQueries, allIds.size());
+
+        logger.info("doGetMetricSamplesSplitsUniqueMetricDataQueryIds: exit");
     }
 
     @Test

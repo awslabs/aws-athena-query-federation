@@ -22,11 +22,18 @@ package com.amazonaws.athena.connectors.cloudwatch.metrics;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.SubstraitFunctionParser;
+import com.amazonaws.athena.connector.substrait.SubstraitMetadataParser;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.google.common.annotations.VisibleForTesting;
+import io.substrait.proto.Plan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
@@ -36,6 +43,7 @@ import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
 import software.amazon.awssdk.services.cloudwatch.model.Metric;
 import software.amazon.awssdk.services.cloudwatch.model.MetricDataQuery;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -165,6 +173,15 @@ public class MetricUtils
 
         dataRequestBuilder.metricDataQueries(metricDataQueries);
 
+        // Managed-connector (Athena federation) path: predicates arrive as a Substrait query plan rather than in
+        // the Constraints summary. Push only the timestamp range down to Cloudwatch as startTime/endTime; any
+        // other predicate is left for the engine to apply.
+        QueryPlan queryPlan = readRecordsRequest.getConstraints().getQueryPlan();
+        if (queryPlan != null && queryPlan.getSubstraitPlan() != null && !queryPlan.getSubstraitPlan().isEmpty()) {
+            applySubstraitTimeRange(readRecordsRequest.getConstraints(), dataRequestBuilder);
+            return dataRequestBuilder.build();
+        }
+
         ValueSet timeConstraint = readRecordsRequest.getConstraints().getSummary().get(TIMESTAMP_FIELD);
         if (timeConstraint instanceof SortedRangeSet && !timeConstraint.isNullAllowed()) {
             //SortedRangeSet is how >, <, between is represented which are easiest and most common when
@@ -203,5 +220,59 @@ public class MetricUtils
         }
 
         return dataRequestBuilder.build();
+    }
+
+    /**
+     * Extracts predicates on the {@code timestamp} column from the Substrait query plan and pushes them to
+     * Cloudwatch Metrics as {@code startTime}/{@code endTime}. GetMetricData requires both bounds, so this
+     * defaults to the full window and narrows it from the plan. Best-effort: unsupported operators or plan
+     * shapes leave the bounds at their defaults and let the engine apply all predicates.
+     */
+    private static void applySubstraitTimeRange(Constraints constraints, GetMetricDataRequest.Builder dataRequestBuilder)
+    {
+        dataRequestBuilder.startTime(Instant.EPOCH);
+        dataRequestBuilder.endTime(Instant.now());
+
+        QueryPlan queryPlan = constraints.getQueryPlan();
+        if (queryPlan == null || queryPlan.getSubstraitPlan() == null) {
+            return;
+        }
+        try {
+            Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+            SubstraitRelModel relModel = SubstraitRelModel.buildSubstraitRelModel(plan.getRelations(0).getRoot().getInput());
+            if (relModel.getFilterRel() == null) {
+                return;
+            }
+            List<String> tableColumns = SubstraitMetadataParser.getTableColumns(relModel);
+            Map<String, List<ColumnPredicate>> predicatesByColumn = SubstraitFunctionParser.getColumnPredicatesMap(
+                    plan.getExtensionsList(), relModel.getFilterRel().getCondition(), tableColumns);
+
+            for (ColumnPredicate predicate : predicatesByColumn.getOrDefault(TIMESTAMP_FIELD, List.of())) {
+                Object value = predicate.getValue();
+                if (!(value instanceof Number)) {
+                    continue;
+                }
+                Instant instant = Instant.ofEpochSecond(((Number) value).longValue());
+                switch (predicate.getOperator()) {
+                    case GREATER_THAN:
+                    case GREATER_THAN_OR_EQUAL_TO:
+                        dataRequestBuilder.startTime(instant);
+                        break;
+                    case LESS_THAN:
+                    case LESS_THAN_OR_EQUAL_TO:
+                        dataRequestBuilder.endTime(instant);
+                        break;
+                    case EQUAL:
+                        dataRequestBuilder.startTime(instant);
+                        dataRequestBuilder.endTime(instant);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        catch (Exception e) {
+            logger.warn("Unable to push Substrait timestamp range to Cloudwatch Metrics; leaving predicates to the engine.", e);
+        }
     }
 }
