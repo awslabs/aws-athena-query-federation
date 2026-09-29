@@ -34,7 +34,8 @@ public final class InfluxDBConstants
     public static final String ENABLE_QUERY_PARALLELISM = "enable_query_parallelism";
     public static final String QUERY_PARALLELISM_COUNT = "query_parallelism_count";
     public static final String TOKEN_REFRESH_MAX_RETRIES = "token_refresh_max_retries";
-    public static final int DEFAULT_TOKEN_REFRESH_MAX_RETRIES = 3;
+    public static final int DEFAULT_TOKEN_REFRESH_MAX_RETRIES = 1;
+    public static final int MAX_TOKEN_REFRESH_RETRIES = 3;
     public static final String PART_TIME_UPPER = "time_upper";
     public static final String PART_TIME_LOWER = "time_lower";
     public static final String DEFAULT_TIME_COLUMN = "time";

@@ -89,7 +89,7 @@ If InfluxDB signals throttling — a Flight `RESOURCE_EXHAUSTED`, or an HTTP `42
 
 The InfluxDB token is provided via the `INFLUXDB3_AUTH_TOKEN` env var, which may be either a literal token or a Secrets Manager reference using the SDK's `${secret_name}` pattern. Secret values may be a plain string (the whole value is the token) or JSON (the token is read from a configurable key, default `token`, via `INFLUXDB3_AUTH_TOKEN_KEY`).
 
-The resolved token and the per-database clients are cached for the Lambda container's lifetime. On an auth failure (Flight `UNAUTHENTICATED`/`UNAUTHORIZED` or HTTP `401`/`403`) the connector invalidates the cached token and clients, re-resolves the token (picking up a rotated secret), and retries — bounded by `token_refresh_max_retries` (default 3) so a genuinely invalid token fails fast instead of looping.
+The resolved token is cached for the Lambda container's lifetime. Per-database clients are cached in a bounded cache: at most 100 clients, each evicted (and closed) after 30 minutes without use, and a client is only created after the connector confirms the database exists on the server. A caller therefore cannot create clients for arbitrary database names. On an authentication failure (Flight `UNAUTHENTICATED` or HTTP `401`) the connector invalidates the cached token and clients, re-resolves the token (picking up a rotated secret), waits a short exponential backoff (100 ms, doubling, capped at 1 s), and retries, up to `token_refresh_max_retries` times (default 1, capped at 3). Each operation has a single retry budget, so the database-existence check made while creating a client never adds a second, nested retry loop. An authorization denial (Flight `UNAUTHORIZED` or HTTP `403`) means the token is valid but lacks permission, so it is returned to the caller immediately: no retry, no token invalidation, and no cache flush.
 
 ## Deployment
 
@@ -179,14 +179,15 @@ Create a Secrets Manager secret holding the InfluxDB token and pass its name/ARN
 |---|---|
 | `AthenaCatalogName` | Lambda function name and Athena catalog name. |
 | `SpillBucket` / `SpillPrefix` | S3 location for spilled results. |
-| `INFLUXDB3_HOST_URL` (`InfluxDBHost`) | InfluxDB 3 host URL, e.g. `https://<endpoint>:8181`. |
+| `INFLUXDB3_HOST_URL` (`InfluxDBHost`) | InfluxDB 3 host URL, e.g. `https://<endpoint>:8181`. Must be an absolute `https://` URL; the connector rejects any other scheme (including a missing scheme) before the token is read, because the token is sent on every request. |
+| `ALLOW_INSECURE_TRANSPORT` | Set to `true` to also accept a plain `http://` host. Intended only for local testing against a server without TLS; the token is then sent in cleartext. Not exposed by the SAM template (default `false`). |
 | `INFLUXDB3_AUTH_TOKEN` (`InfluxDBSecretId`) | Token, or `${secret_name}` Secrets Manager reference. |
 | `INFLUXDB3_AUTH_TOKEN_KEY` (`InfluxDBTokenKey`) | Key to read from a JSON secret (default `token`). |
 | `influxdb_database` (`InfluxDBDatabase`) | Optional single-database scope. When empty, all databases the token can reach are exposed. When set, it is an **enforced access boundary**: the connector only ever connects to that database — every metadata, record, and query-passthrough request for any other database is rejected, and a request differing only in case is normalized to the configured database rather than reaching a case-sensitive sibling. This is a connector-side guardrail; the token still governs what is ultimately reachable, so for defense in depth scope permissions at the token level as well. |
 | `enable_query_parallelism` | `true` to enable time-based split parallelism (default `false`). |
 | `query_parallelism_count` | Number of time buckets/splits when parallelism is enabled (default `8`, clamped). |
 | `enable_query_passthrough` | `true` (default) to expose the `system.query` passthrough table function. |
-| `token_refresh_max_retries` | Max token-refresh retries on auth failure (default `3`). |
+| `token_refresh_max_retries` | Max token-refresh retries on an authentication failure (HTTP `401`); default `1`, capped at `3`. Authorization denials (HTTP `403`) are never retried. |
 | `SubnetIds` / `SecurityGroupIds` | VPC config (required for Timestream for InfluxDB). |
 | `VpcId` | If set (with `SubnetIds`), the template **creates a dedicated security group** for the Lambda in this VPC and outputs the exact cluster ingress rule to add. If empty, `SecurityGroupIds` is used as-is. |
 | `InfluxDBPort` | Cluster port (default `8181`); used to render the required ingress rule in the stack Outputs. |
