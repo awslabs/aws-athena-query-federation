@@ -214,17 +214,19 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
-    public void testIsAuthErrorFlightUnauthenticatedAndUnauthorized()
+    public void testIsAuthErrorOnlyForFlightUnauthenticated()
     {
         assertTrue(InfluxDBConnectionFactory.isAuthError(CallStatus.UNAUTHENTICATED.toRuntimeException()));
-        assertTrue(InfluxDBConnectionFactory.isAuthError(CallStatus.UNAUTHORIZED.toRuntimeException()));
+        // UNAUTHORIZED (gRPC PERMISSION_DENIED) is an authorization denial, not a token problem.
+        assertFalse(InfluxDBConnectionFactory.isAuthError(CallStatus.UNAUTHORIZED.toRuntimeException()));
     }
 
     @Test
-    public void testIsAuthErrorHttp401And403()
+    public void testIsAuthErrorOnlyForHttp401()
     {
         assertTrue(InfluxDBConnectionFactory.isAuthError(new InfluxDBApiHttpException("unauthorized", null, 401)));
-        assertTrue(InfluxDBConnectionFactory.isAuthError(new InfluxDBApiHttpException("forbidden", null, 403)));
+        // 403 is an authorization denial that recurs identically on retry.
+        assertFalse(InfluxDBConnectionFactory.isAuthError(new InfluxDBApiHttpException("forbidden", null, 403)));
     }
 
     @Test
@@ -327,7 +329,7 @@ public class InfluxDBConnectionFactoryTest
         try {
             factory.executeWithTokenRetry("db", client -> {
                 calls.incrementAndGet();
-                throw CallStatus.UNAUTHORIZED.toRuntimeException();
+                throw CallStatus.UNAUTHENTICATED.toRuntimeException();
             });
             fail("expected the auth error to propagate after exhausting retries");
         }
@@ -376,7 +378,7 @@ public class InfluxDBConnectionFactoryTest
         config.put("influxdb_database", "MyDb");
         when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
-        doReturn(List.of(new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).listDatabases();
+        doReturn(List.of(new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).fetchDatabases();
 
         // null and empty fall back to the configured default database.
         final InfluxDBClient first = factory.getClient(null);
@@ -384,14 +386,14 @@ public class InfluxDBConnectionFactoryTest
         assertSame(first, factory.getClient(""));
         assertSame(first, factory.getClient("MyDb"));
         // Existence is only verified when a client is minted, not on cache hits.
-        verify(factory, times(1)).listDatabases();
+        verify(factory, times(1)).fetchDatabases();
 
         // Closing evicts the cached client; the next call mints (and re-verifies) a new one.
         factory.closeAllClients();
         final InfluxDBClient second = factory.getClient("MyDb");
         assertNotNull(second);
         assertNotSame(first, second);
-        verify(factory, times(2)).listDatabases();
+        verify(factory, times(2)).fetchDatabases();
         factory.closeAllClients();
     }
 
@@ -409,7 +411,7 @@ public class InfluxDBConnectionFactoryTest
         catch (final IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("scoped to 'MyDb'"));
         }
-        verify(factory, never()).listDatabases();
+        verify(factory, never()).fetchDatabases();
     }
 
     @Test
@@ -419,7 +421,7 @@ public class InfluxDBConnectionFactoryTest
         config.put("influxdb_database", "MyDb");
         when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
-        doReturn(List.of(new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).listDatabases();
+        doReturn(List.of(new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).fetchDatabases();
 
         final InfluxDBClient canonical = factory.getClient("MyDb");
         // A case-variant request must resolve to the same canonical client, never mint one bound to a
@@ -427,7 +429,7 @@ public class InfluxDBConnectionFactoryTest
         assertSame(canonical, factory.getClient("MYDB"));
         assertSame(canonical, factory.getClient("mydb"));
         // Only the configured database was ever verified/minted.
-        verify(factory, times(1)).listDatabases();
+        verify(factory, times(1)).fetchDatabases();
         factory.closeAllClients();
     }
 
@@ -467,7 +469,7 @@ public class InfluxDBConnectionFactoryTest
     {
         when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
-        doReturn(Arrays.asList(new InfluxDBConnectionFactory.DatabaseInfo("Other"), null)).when(factory).listDatabases();
+        doReturn(Arrays.asList(new InfluxDBConnectionFactory.DatabaseInfo("Other"), null)).when(factory).fetchDatabases();
         try {
             factory.getClient("MyDb");
             fail("expected a non-existent database to be rejected");
@@ -483,7 +485,7 @@ public class InfluxDBConnectionFactoryTest
         when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
 
-        doThrow(new IOException("io")).when(factory).listDatabases();
+        doThrow(new IOException("io")).when(factory).fetchDatabases();
         try {
             factory.getClient("MyDb");
             fail("expected IOException to be wrapped");
@@ -493,7 +495,7 @@ public class InfluxDBConnectionFactoryTest
             assertTrue(e.getCause() instanceof IOException);
         }
 
-        doThrow(new InterruptedException("interrupted")).when(factory).listDatabases();
+        doThrow(new InterruptedException("interrupted")).when(factory).fetchDatabases();
         try {
             factory.getClient("MyDb");
             fail("expected InterruptedException to be wrapped");
@@ -571,6 +573,114 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
+    public void testValidatedHostAcceptsHttpsAndCanonicalizesScheme()
+    {
+        final Map<String, String> config = baseConfig();
+        assertEquals("https://localhost:8086", new InfluxDBConnectionFactory(config, mockHandler).validatedHost());
+
+        // An uppercase scheme would make the InfluxDB client fall back to plaintext Flight, so it is
+        // normalized to lowercase rather than passed through.
+        config.put("INFLUXDB3_HOST_URL", "  HTTPS://Example.com:8181/path ");
+        assertEquals("https://Example.com:8181/path",
+                new InfluxDBConnectionFactory(config, mockHandler).validatedHost());
+    }
+
+    @Test
+    public void testValidatedHostRejectsNonHttpsSchemes()
+    {
+        for (final String host : Arrays.asList(
+                "http://localhost:8086", "HTTP://localhost:8086", "grpc://localhost:8086",
+                "grpc+tcp://localhost:8086", "ftp://localhost:8086")) {
+            final Map<String, String> config = baseConfig();
+            config.put("INFLUXDB3_HOST_URL", host);
+            try {
+                new InfluxDBConnectionFactory(config, mockHandler).validatedHost();
+                fail("expected host to be rejected: " + host);
+            }
+            catch (final IllegalArgumentException e) {
+                assertTrue(e.getMessage().contains("Host must use HTTPS"));
+            }
+        }
+    }
+
+    @Test
+    public void testValidatedHostRejectsMalformedOrRelativeHosts()
+    {
+        for (final String host : Arrays.asList("localhost:8086", "localhost", "https://", "https://bad host", "   ")) {
+            final Map<String, String> config = baseConfig();
+            config.put("INFLUXDB3_HOST_URL", host);
+            try {
+                new InfluxDBConnectionFactory(config, mockHandler).validatedHost();
+                fail("expected host to be rejected: '" + host + "'");
+            }
+            catch (final IllegalArgumentException e) {
+                // expected
+            }
+        }
+    }
+
+    @Test
+    public void testValidatedHostAllowsHttpOnlyWhenInsecureTransportEnabled()
+    {
+        final Map<String, String> config = baseConfig();
+        config.put("INFLUXDB3_HOST_URL", "HTTP://localhost:8086");
+        config.put("ALLOW_INSECURE_TRANSPORT", "true");
+        assertEquals("http://localhost:8086", new InfluxDBConnectionFactory(config, mockHandler).validatedHost());
+
+        // The escape hatch covers plain HTTP only; it never admits other plaintext schemes.
+        config.put("INFLUXDB3_HOST_URL", "grpc://localhost:8086");
+        try {
+            new InfluxDBConnectionFactory(config, mockHandler).validatedHost();
+            fail("expected a non-HTTP scheme to be rejected even with insecure transport allowed");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("Host must use HTTPS"));
+        }
+    }
+
+    @Test
+    public void testGetClientRejectsInsecureHostBeforeResolvingToken() throws Exception
+    {
+        final Map<String, String> config = baseConfig();
+        config.put("INFLUXDB3_HOST_URL", "HTTP://localhost:8086");
+        config.put("influxdb_database", "MyDb");
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
+        try {
+            factory.getClient("MyDb");
+            fail("expected an insecure host to be rejected");
+        }
+        catch (final IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("Host must use HTTPS"));
+        }
+        // Fails closed before the token is read or any request is sent.
+        verify(mockHandler, never()).resolveSecrets(anyString());
+        verify(factory, never()).fetchDatabases();
+    }
+
+    @Test
+    public void testClientCacheIsBoundedToCapacity() throws Exception
+    {
+        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        final int databaseCount = InfluxDBConnectionFactory.INFLUXDB_CLIENT_CACHE_CAPACITY + 20;
+        final List<InfluxDBConnectionFactory.DatabaseInfo> databases = new ArrayList<>();
+        for (int i = 0; i < databaseCount; i++) {
+            databases.add(new InfluxDBConnectionFactory.DatabaseInfo("db" + i));
+        }
+        doReturn(databases).when(factory).fetchDatabases();
+        try {
+            for (int i = 0; i < databaseCount; i++) {
+                assertNotNull(factory.getClient("db" + i));
+            }
+            assertTrue(factory.cachedClientCount() <= InfluxDBConnectionFactory.INFLUXDB_CLIENT_CACHE_CAPACITY);
+        }
+        finally {
+            factory.closeAllClients();
+        }
+        assertEquals(0, factory.cachedClientCount());
+    }
+
+    @Test
     public void testListDatabasesParsesResponse() throws Exception
     {
         final List<Integer> statuses = new ArrayList<>();
@@ -629,7 +739,7 @@ public class InfluxDBConnectionFactoryTest
         final AtomicInteger requests = new AtomicInteger();
         try (LocalInfluxServer server = new LocalInfluxServer(exchange -> {
             requests.incrementAndGet();
-            return new String[] {"403", "forbidden"};
+            return new String[] {"401", "unauthorized"};
         })) {
             final Map<String, String> config = server.config();
             config.put("token_refresh_max_retries", "1");
@@ -640,11 +750,135 @@ public class InfluxDBConnectionFactoryTest
                 fail("expected a persistent auth failure to propagate");
             }
             catch (final RuntimeException e) {
-                assertTrue(e.getMessage().contains("status code: 403"));
+                assertTrue(e.getMessage().contains("status code: 401"));
             }
             // 1 initial attempt + 1 refresh retry.
             assertEquals(2, requests.get());
         }
+    }
+
+    @Test
+    public void testListDatabasesDoesNotRetryOrInvalidateOn403() throws Exception
+    {
+        final AtomicInteger requests = new AtomicInteger();
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> {
+            requests.incrementAndGet();
+            return new String[] {"403", "forbidden"};
+        })) {
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(server.config(), mockHandler));
+            try {
+                factory.listDatabases();
+                fail("expected the authorization denial to propagate");
+            }
+            catch (final InfluxDBApiHttpException e) {
+                assertEquals(403, e.statusCode());
+            }
+            assertEquals(1, requests.get());
+            verify(factory, never()).invalidateToken();
+            verify(mockHandler, times(1)).resolveSecrets("my-plain-token");
+        }
+    }
+
+    @Test
+    public void testExecuteWithTokenRetryDoesNotRetryAuthorizationDenial() throws Exception
+    {
+        for (final RuntimeException denial : Arrays.asList(
+                CallStatus.UNAUTHORIZED.toRuntimeException(), new InfluxDBApiHttpException("forbidden", null, 403))) {
+            final InfluxDBConnectionFactory factory = spyFactoryReturningClient(baseConfig());
+            final AtomicInteger calls = new AtomicInteger();
+            try {
+                factory.executeWithTokenRetry("db", client -> {
+                    calls.incrementAndGet();
+                    throw denial;
+                });
+                fail("expected the authorization denial to propagate");
+            }
+            catch (final Exception e) {
+                assertSame(denial, e);
+            }
+            assertEquals(1, calls.get());
+            verify(factory, times(1)).getClient("db");
+            verify(factory, never()).invalidateToken();
+        }
+    }
+
+    @Test
+    public void testExecuteWithTokenRetry403FromExistenceCheckMakesOneRequest() throws Exception
+    {
+        final AtomicInteger requests = new AtomicInteger();
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> {
+            requests.incrementAndGet();
+            return new String[] {"403", "forbidden"};
+        })) {
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(server.config(), mockHandler));
+            try {
+                factory.executeWithTokenRetry("db", client -> "unreachable");
+                fail("expected the authorization denial to propagate");
+            }
+            catch (final InfluxDBApiHttpException e) {
+                assertEquals(403, e.statusCode());
+            }
+            assertEquals(1, requests.get());
+            verify(factory, never()).invalidateToken();
+            verify(mockHandler, times(1)).resolveSecrets("my-plain-token");
+        }
+    }
+
+    @Test
+    public void testExecuteWithTokenRetryDoesNotNestDatabaseListRetries() throws Exception
+    {
+        final AtomicInteger requests = new AtomicInteger();
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> {
+            requests.incrementAndGet();
+            return new String[] {"401", "unauthorized"};
+        })) {
+            final Map<String, String> config = server.config();
+            config.put("token_refresh_max_retries", "2");
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
+            try {
+                factory.executeWithTokenRetry("db", client -> "unreachable");
+                fail("expected a persistent auth failure to propagate");
+            }
+            catch (final Exception e) {
+                assertTrue(InfluxDBConnectionFactory.isAuthError(e));
+            }
+            // One shared budget: 1 initial attempt + 2 retries, each making one existence-check request.
+            // Nested loops would have made (1 + 2) * (1 + 2) = 9 requests.
+            assertEquals(3, requests.get());
+        }
+    }
+
+    @Test
+    public void testMaxRetriesConfigIsClamped() throws Exception
+    {
+        final Map<String, String> config = baseConfig();
+        config.put("token_refresh_max_retries", "50");
+        final InfluxDBConnectionFactory factory = spyFactoryReturningClient(config);
+        final AtomicInteger calls = new AtomicInteger();
+        try {
+            factory.executeWithTokenRetry("db", client -> {
+                calls.incrementAndGet();
+                throw CallStatus.UNAUTHENTICATED.toRuntimeException();
+            });
+            fail("expected the auth error to propagate after exhausting retries");
+        }
+        catch (final Exception e) {
+            assertTrue(InfluxDBConnectionFactory.isAuthError(e));
+        }
+        assertEquals(1 + InfluxDBConstants.MAX_TOKEN_REFRESH_RETRIES, calls.get());
+    }
+
+    @Test
+    public void testBackoffIsExponentialAndBounded()
+    {
+        assertEquals(100L, InfluxDBConnectionFactory.backoffMillis(1));
+        assertEquals(200L, InfluxDBConnectionFactory.backoffMillis(2));
+        assertEquals(400L, InfluxDBConnectionFactory.backoffMillis(3));
+        assertEquals(InfluxDBConnectionFactory.BACKOFF_MAX_MILLIS, InfluxDBConnectionFactory.backoffMillis(10));
+        assertEquals(InfluxDBConnectionFactory.BACKOFF_MAX_MILLIS, InfluxDBConnectionFactory.backoffMillis(Integer.MAX_VALUE));
     }
 
     @Test

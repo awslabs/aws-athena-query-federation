@@ -41,6 +41,7 @@ import javax.naming.ConfigurationException;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -59,6 +60,7 @@ import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INF
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_TOKEN;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_TOKEN_KEY;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MAX_EXCEPTION_CAUSE_SEARCH_DEPTH;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MAX_TOKEN_REFRESH_RETRIES;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.TOKEN_REFRESH_MAX_RETRIES;
 /**
  * Creates InfluxDB client connections, resolving the auth token from Secrets Manager.
@@ -73,7 +75,9 @@ public class InfluxDBConnectionFactory
     private static final Logger logger = LoggerFactory.getLogger(InfluxDBConnectionFactory.class);
     private static final Gson GSON = new Gson();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
-    private static final int INFLUXDB_CLIENT_CACHE_CAPACITY = 100;
+    static final int INFLUXDB_CLIENT_CACHE_CAPACITY = 100;
+    static final long BACKOFF_BASE_MILLIS = 100L;
+    static final long BACKOFF_MAX_MILLIS = 1_000L;
     private static final int INFLUXDB_CLIENT_CACHE_MINUTES_TO_LIVE = 30;
 
     private volatile String resolvedToken;
@@ -115,7 +119,8 @@ public class InfluxDBConnectionFactory
             return DEFAULT_TOKEN_REFRESH_MAX_RETRIES;
         }
         try {
-            return Math.max(0, Integer.parseInt(configured.trim()));
+            // Clamped so a misconfiguration cannot turn one failing request into an unbounded burst.
+            return Math.max(0, Math.min(Integer.parseInt(configured.trim()), MAX_TOKEN_REFRESH_RETRIES));
         }
         catch (final NumberFormatException e) {
             logger.warn("Invalid {} value '{}'; using default {}",
@@ -131,6 +136,48 @@ public class InfluxDBConnectionFactory
     public void setHandler(final FederationRequestHandler handler)
     {
         this.handler = handler;
+    }
+
+    /**
+     * Validates the configured InfluxDB host and returns it with a canonical, lowercase scheme.
+     *
+     * The bearer token is sent on every request, so the host must use HTTPS. Validation parses the
+     * URL instead of matching a string prefix, because the InfluxDB client enables TLS for Flight
+     * only when the scheme is exactly {@code https}; any other value (for example {@code HTTPS://},
+     * {@code grpc://}, or a host with no scheme) makes the client connect in plaintext. Returning the
+     * lowercased scheme guarantees the client sees {@code https} whenever this check passes.
+     *
+     * Plain {@code http} is accepted only when {@code ALLOW_INSECURE_TRANSPORT=true}, which is
+     * intended for local testing against a server without TLS.
+     *
+     * @throws IllegalArgumentException if the host is missing, is not an absolute URL, or does not
+     *             use HTTPS (or HTTP with insecure transport explicitly allowed)
+     */
+    String validatedHost()
+    {
+        final String configured = configOptions.get(ENV_INFLUXDB_HOST);
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalArgumentException("Missing required env var: " + ENV_INFLUXDB_HOST);
+        }
+        final String host = configured.trim();
+        final URI uri;
+        try {
+            uri = new URI(host);
+        }
+        catch (final URISyntaxException e) {
+            throw new IllegalArgumentException("Invalid host: '" + host + "'. Host must be a valid URL", e);
+        }
+        if (uri.getScheme() == null || uri.getHost() == null) {
+            throw new IllegalArgumentException(
+                "Invalid host: '" + host + "'. Host must be an absolute URL such as https://<endpoint>:8181");
+        }
+        final String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
+        final boolean allowInsecureTransport =
+            Boolean.parseBoolean(configOptions.getOrDefault(ENV_ALLOW_INSECURE_TRANSPORT, "false"));
+        if (!"https".equals(scheme) && !("http".equals(scheme) && allowInsecureTransport)) {
+            throw new IllegalArgumentException("Invalid host: '" + host + "'. Host must use HTTPS");
+        }
+        return scheme + host.substring(uri.getScheme().length());
     }
 
     /**
@@ -172,10 +219,9 @@ public class InfluxDBConnectionFactory
      */
     public InfluxDBClient getClient(final String database)
     {
-        final String host = configOptions.get(ENV_INFLUXDB_HOST);
-        if (host == null || host.isEmpty()) {
-            throw new IllegalArgumentException("Missing required env var: " + ENV_INFLUXDB_HOST);
-        }
+        // Validate transport security before resolving the token so a misconfigured host fails
+        // closed without the token ever being read or sent.
+        final String host = validatedHost();
 
         final String token = resolveToken();
 
@@ -215,7 +261,9 @@ public class InfluxDBConnectionFactory
         }
         final boolean exists;
         try {
-            exists = listDatabases().stream()
+            // Single request: this runs inside a retrying operation (a getClient cache miss under
+            // withCredentialRefresh), so it must not start its own retry loop.
+            exists = fetchDatabases().stream()
                 .anyMatch(db -> db != null && database.equals(db.name));
         }
         catch (final IOException e) {
@@ -242,36 +290,72 @@ public class InfluxDBConnectionFactory
     }
 
     /**
-     * Runs {@code query} against a client for {@code database}. If it fails with an auth error (e.g., the cached token
-     * was rotated out from under us), invalidates the cached token + clients, rebuilds with a freshly resolved token,
-     * and retries — up to {@link #maxTokenRefreshRetries} times. Non-auth errors, and auth errors past the retry cap
-     * (e.g., a genuinely invalid token), propagate.
+     * One attempt of an operation that may fail with an authentication error.
+     */
+    @FunctionalInterface
+    interface Attempt<T>
+    {
+        T run() throws Exception;
+    }
+
+    /**
+     * Runs {@code query} against a client for {@code database}, under {@link #withCredentialRefresh}.
+     *
+     * Client creation happens inside the attempt, so the database-existence check that a cache miss
+     * triggers (see {@link #assertDatabaseExists}) shares this operation's single retry budget. It never
+     * starts a second, nested retry loop.
      *
      * Auth errors occur at Flight stream initiation, before any rows are emitted, so retrying a query that streams into
      * a spiller does not risk duplicate output.
      */
     public <T> T executeWithTokenRetry(final String database, final InfluxDBQuery<T> query) throws Exception
     {
+        return withCredentialRefresh(() -> query.run(getClient(database)));
+    }
+
+    /**
+     * Runs {@code attempt}. If it fails with an authentication error (HTTP 401 or Flight
+     * {@code UNAUTHENTICATED}; see {@link #isAuthError}), for example because the cached token was
+     * rotated, invalidates the cached token and clients, waits a bounded exponential backoff, and
+     * retries, up to {@link #maxTokenRefreshRetries} times. Every other failure, including an
+     * authorization denial (HTTP 403 or Flight {@code UNAUTHORIZED}), propagates immediately with no
+     * retry and no invalidation.
+     *
+     * This is the only retry loop in the connection factory. Operations inside an attempt must use
+     * non-retrying calls (such as {@link #fetchDatabases}) so retry budgets never multiply.
+     */
+    <T> T withCredentialRefresh(final Attempt<T> attempt) throws Exception
+    {
         int refreshes = 0;
         while (true) {
-            final InfluxDBClient client = getClient(database);
             try {
-                return query.run(client);
+                return attempt.run();
             }
             catch (final Exception e) {
                 if (isAuthError(e) && refreshes < maxTokenRefreshRetries) {
                     refreshes++;
-                    logger.warn("Auth error from InfluxDB; invalidating token and retrying (attempt {} of {})",
+                    logger.warn("Authentication error from InfluxDB; invalidating token and retrying (attempt {} of {})",
                             refreshes, maxTokenRefreshRetries);
                     invalidateToken();
+                    Thread.sleep(backoffMillis(refreshes));
                     continue;
                 }
-                if (isThrottle(e)) {
+                if (isThrottle(e) && !(e instanceof FederationThrottleException)) {
                     throw new FederationThrottleException("InfluxDB throttled the request", e);
                 }
                 throw e;
             }
         }
+    }
+
+    /**
+     * Delay before the given retry (1-based): {@link #BACKOFF_BASE_MILLIS} doubled for each earlier
+     * retry, capped at {@link #BACKOFF_MAX_MILLIS}.
+     */
+    static long backoffMillis(final int retry)
+    {
+        final int doublings = Math.max(0, Math.min(retry - 1, 20));
+        return Math.min(BACKOFF_MAX_MILLIS, BACKOFF_BASE_MILLIS << doublings);
     }
 
     /**
@@ -317,24 +401,35 @@ public class InfluxDBConnectionFactory
     }
 
     /**
-     * True if the throwable (or anything in its cause chain) is an InfluxDB auth failure: a Flight
-     * {@code UNAUTHENTICATED}/{@code UNAUTHORIZED} (raised by {@code query}/{@code queryBatches}) or an HTTP 401/403.
+     * Number of live cached clients, after running pending evictions.
+     */
+    long cachedClientCount()
+    {
+        influxDbClients.cleanUp();
+        return influxDbClients.size();
+    }
+
+    /**
+     * True if the throwable (or anything in its cause chain) is an authentication failure, meaning the
+     * token was rejected and a freshly resolved (possibly rotated) token may succeed: a Flight
+     * {@code UNAUTHENTICATED} or an HTTP 401.
+     *
+     * Authorization denials are deliberately excluded: a Flight {@code UNAUTHORIZED} (gRPC
+     * {@code PERMISSION_DENIED}) or an HTTP 403 means the token was accepted but lacks permission for the
+     * request. Retrying with the same or a refreshed token returns the same denial, so these are
+     * terminal and must not invalidate the token or the client cache.
      */
     static boolean isAuthError(final Throwable throwable)
     {
         Throwable cause = throwable;
         for (int depth = 0; cause != null && depth < MAX_EXCEPTION_CAUSE_SEARCH_DEPTH; cause = cause.getCause(), depth++) {
-            if (cause instanceof FlightRuntimeException) {
-                final FlightStatusCode code = ((FlightRuntimeException) cause).status().code();
-                if (code == FlightStatusCode.UNAUTHENTICATED || code == FlightStatusCode.UNAUTHORIZED) {
-                    return true;
-                }
+            if (cause instanceof FlightRuntimeException
+                    && ((FlightRuntimeException) cause).status().code() == FlightStatusCode.UNAUTHENTICATED) {
+                return true;
             }
-            if (cause instanceof InfluxDBApiHttpException) {
-                final int statusCode = ((InfluxDBApiHttpException) cause).statusCode();
-                if (statusCode == 401 || statusCode == 403) {
-                    return true;
-                }
+            if (cause instanceof InfluxDBApiHttpException
+                    && ((InfluxDBApiHttpException) cause).statusCode() == 401) {
+                return true;
             }
         }
         return false;
@@ -385,49 +480,60 @@ public class InfluxDBConnectionFactory
         });
     }
 
+    /**
+     * Lists the databases on the server. A top-level operation: an expired or rotated token (HTTP 401)
+     * is refreshed and retried under {@link #withCredentialRefresh}; any other failure, including an
+     * authorization denial (HTTP 403), propagates after a single request.
+     */
     List<DatabaseInfo> listDatabases() throws IOException, InterruptedException
     {
-        final String host = configOptions.get(ENV_INFLUXDB_HOST);
-        final boolean allowInsecureTransport = Boolean.parseBoolean(configOptions.getOrDefault(ENV_ALLOW_INSECURE_TRANSPORT, "false"));
-        if (host == null || host.isEmpty()) {
-            throw new IllegalArgumentException("Missing required env var: " + ENV_INFLUXDB_HOST);
+        try {
+            return withCredentialRefresh(this::fetchDatabases);
         }
-        if (host.startsWith("http://") && !allowInsecureTransport) {
-            throw new IllegalArgumentException("Invalid host: '" + host + "'. Host must use HTTPS");
+        catch (final IOException | InterruptedException | RuntimeException e) {
+            throw e;
         }
-        int refreshes = 0;
-        while (true) {
-            final String token = resolveToken();
-            final HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(host).resolve("/api/v3/configure/database?format=json"))
-                    .timeout(Duration.ofMinutes(2))
-                    .header("Authorization", "Bearer " + token)
-                    .header("Accept", "application/json")
-                    .GET()
-                    .build();
-            final HttpResponse<String> httpResponse = HTTP.send(httpRequest, BodyHandlers.ofString());
-            final int statusCode = httpResponse.statusCode();
-            if (statusCode == 200) {
-                final List<DatabaseInfo> parsedJson = GSON.fromJson(httpResponse.body(),
-                        new TypeToken<List<DatabaseInfo>>() {
-                        }.getType());
-                return parsedJson != null ? parsedJson : List.of();
-            }
-            // On an auth failure, invalidate the (possibly rotated) token and retry, up to the cap.
-            if ((statusCode == 401 || statusCode == 403) && refreshes < maxTokenRefreshRetries) {
-                refreshes++;
-                logger.warn("Auth error ({}) listing databases; invalidating token and retrying (attempt {} of {})",
-                        statusCode, refreshes, maxTokenRefreshRetries);
-                invalidateToken();
-                continue;
-            }
-            if (statusCode == 429) {
-                throw new FederationThrottleException(
-                        "InfluxDB throttled the request listing databases in host " + host);
-            }
-            throw new RuntimeException(
-                    "Failed to list databases in host " + host + ": status code: " + statusCode);
+        catch (final Exception e) {
+            // fetchDatabases throws only the exceptions handled above.
+            throw new IllegalStateException(e);
         }
+    }
+
+    /**
+     * Sends exactly one request to list the databases on the server, with no retry. Callers that run
+     * inside a retrying operation (see {@link #assertDatabaseExists}) use this so their attempts count
+     * against that operation's single retry budget instead of starting a nested retry loop.
+     *
+     * @throws InfluxDBApiHttpException for a non-200, non-429 status, so {@link #isAuthError} and the
+     *             caller's retry logic can classify it by status code
+     * @throws FederationThrottleException for HTTP 429
+     */
+    List<DatabaseInfo> fetchDatabases() throws IOException, InterruptedException
+    {
+        final String host = validatedHost();
+        final String token = resolveToken();
+        final HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(host).resolve("/api/v3/configure/database?format=json"))
+                .timeout(Duration.ofMinutes(2))
+                .header("Authorization", "Bearer " + token)
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+        final HttpResponse<String> httpResponse = HTTP.send(httpRequest, BodyHandlers.ofString());
+        final int statusCode = httpResponse.statusCode();
+        if (statusCode == 200) {
+            final List<DatabaseInfo> parsedJson = GSON.fromJson(httpResponse.body(),
+                    new TypeToken<List<DatabaseInfo>>() {
+                    }.getType());
+            return parsedJson != null ? parsedJson : List.of();
+        }
+        if (statusCode == 429) {
+            throw new FederationThrottleException(
+                    "InfluxDB throttled the request listing databases in host " + host);
+        }
+        throw new InfluxDBApiHttpException(
+                "Failed to list databases in host " + host + ": status code: " + statusCode,
+                httpResponse.headers(), statusCode);
     }
 
     /**
