@@ -65,7 +65,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_StringType()
+    public void getSchemaFromResults_withStringType_returnsStringSchema()
     {
         logger.info("Testing String type schema inference");
         testDataMap.put("stringField", "test string");
@@ -80,7 +80,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_IntegerType()
+    public void getSchemaFromResults_withIntegerType_returnsIntSchema()
     {
         logger.info("Testing Integer type schema inference");
         testDataMap.put("intField", 42);
@@ -96,7 +96,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_BigIntegerType()
+    public void getSchemaFromResults_withBigIntegerType_returnsBigIntSchema()
     {
         logger.info("Testing BigInteger type schema inference");
         testDataMap.put("bigIntField", new BigInteger("12345678901234567890"));
@@ -110,7 +110,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_LongType()
+    public void getSchemaFromResults_withLongType_returnsBigIntSchema()
     {
         logger.info("Testing Long type schema inference");
         testDataMap.put("longField", 9223372036854775807L);
@@ -124,7 +124,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_BooleanType()
+    public void getSchemaFromResults_withBooleanType_returnsBoolSchema()
     {
         logger.info("Testing Boolean type schema inference");
         testDataMap.put("trueField", true);
@@ -138,7 +138,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_FloatType()
+    public void getSchemaFromResults_withFloatType_returnsFloatSchema()
     {
         logger.info("Testing Float type schema inference");
         testDataMap.put("floatField", 3.14f);
@@ -154,7 +154,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_DoubleType()
+    public void getSchemaFromResults_withDoubleType_returnsDoubleSchema()
     {
         logger.info("Testing Double type schema inference");
         testDataMap.put("doubleField", 3.14159265359);
@@ -170,7 +170,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_DateType()
+    public void getSchemaFromResults_withDateType_returnsDateMilliSchema()
     {
         logger.info("Testing Date type schema inference");
         Date currentDate = new Date();
@@ -187,7 +187,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_ListType()
+    public void getSchemaFromResults_withListType_returnsSchemaFromFirstElement()
     {
         logger.info("Testing List type schema inference");
         List<String> stringList = new ArrayList<>();
@@ -211,9 +211,9 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_EmptyList()
+    public void getSchemaFromResults_withListContainingUnknownElement_defaultsToVarchar()
     {
-        logger.info("Testing Empty List type schema inference");
+        logger.info("Testing list with unknown element defaults to varchar");
         List<Object> emptyList = new ArrayList<>();
         emptyList.add(new Object());
         testDataMap.put("List", emptyList);
@@ -226,7 +226,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_NullValue()
+    public void getSchemaFromResults_withNullValue_defaultsToVarchar()
     {
         logger.info("Testing null value schema inference");
         testDataMap.put("nullField", null);
@@ -239,7 +239,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_UnknownType()
+    public void getSchemaFromResults_withUnknownType_defaultsToVarchar()
     {
         logger.info("Testing unknown type schema inference");
         Object unknownObject = new Object();
@@ -253,7 +253,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_MixedTypes()
+    public void getSchemaFromResults_withMixedTypes_returnsCorrectTypes()
     {
         logger.info("Testing mixed types schema inference");
         testDataMap.put("stringField", "test");
@@ -275,7 +275,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_EdgeComponentType()
+    public void getSchemaFromResults_withEdgeComponentType_returnsSchemaWithMetadata()
     {
         logger.info("Testing edge component type");
         testDataMap.put("edgeField", "edge value");
@@ -287,7 +287,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_EmptyMap()
+    public void getSchemaFromResults_withEmptyMap_returnsEmptySchema()
     {
         logger.info("Testing empty map");
         Map<String, Object> emptyMap = new HashMap<>();
@@ -299,7 +299,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_UnmodifiableMap()
+    public void getSchemaFromResults_withUnmodifiableMap_returnsCorrectSchema()
     {
         logger.info("Testing unmodifiable map");
         testDataMap.put("field1", "value1");
@@ -315,7 +315,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_SpecialCharactersInFieldNames()
+    public void getSchemaFromResults_withSpecialCharactersInFieldNames_returnsCorrectSchema()
     {
         logger.info("Testing special characters in field names");
         testDataMap.put("field_with_underscore", "value1");
@@ -333,7 +333,7 @@ public class NeptuneSchemaUtilsTest
     }
 
     @Test
-    public void testGetSchemaFromResults_LargeNumbers()
+    public void getSchemaFromResults_withLargeNumbers_returnsCorrectTypes()
     {
         logger.info("Testing large numbers");
         testDataMap.put("maxInt", Integer.MAX_VALUE);
@@ -350,6 +350,26 @@ public class NeptuneSchemaUtilsTest
         assertEquals(EXPECTED_BIGINT_TYPE, schema.findField("maxLong").getType().toString());
         assertEquals(EXPECTED_BIGINT_TYPE, schema.findField("minLong").getType().toString());
         assertEquals(EXPECTED_BIGINT_TYPE, schema.findField("largeBigInt").getType().toString());
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void getSchemaFromResults_withNullMap_throwsNullPointerException()
+    {
+        NeptuneSchemaUtils.getSchemaFromResults(null, COMPONENT_TYPE_VERTEX, TABLE_NAME);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void getSchemaFromResults_withNullComponentType_throwsNullPointerException()
+    {
+        testDataMap.put("field1", "value1");
+        NeptuneSchemaUtils.getSchemaFromResults(testDataMap, null, TABLE_NAME);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void getSchemaFromResults_withNullTableName_throwsNullPointerException()
+    {
+        testDataMap.put("field1", "value1");
+        NeptuneSchemaUtils.getSchemaFromResults(testDataMap, COMPONENT_TYPE_VERTEX, null);
     }
 
     private void verifySchemaMetadata(String expectedComponentType)
