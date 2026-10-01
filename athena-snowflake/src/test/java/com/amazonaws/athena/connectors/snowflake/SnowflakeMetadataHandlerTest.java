@@ -34,8 +34,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -51,8 +49,6 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.google.common.collect.ImmutableList;
-import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
@@ -88,6 +84,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COUNT_RECORDS_QUERY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MATERIALIZED_VIEW_CHECK_QUERY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.VIEW_CHECK_QUERY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -484,8 +483,7 @@ public class SnowflakeMetadataHandlerTest
         assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
         GetSplitsResponse response = (GetSplitsResponse) rawResponse;
-        String continuationToken = response.getContinuationToken();
-
+        
         assertEquals(num_partitions, response.getSplits().size());
         
         for (Split nextSplit : response.getSplits()) {
@@ -646,6 +644,99 @@ public class SnowflakeMetadataHandlerTest
         Block partitions = res.getPartitions();
         assertEquals(1, partitions.getRowCount());
         assertEquals("*", partitions.getFieldVector(BLOCK_PARTITION_COLUMN_NAME).getObject(0).toString());
+    }
+
+    @Test
+    public void testGetPartitionsForMaterializedView() throws Exception
+    {
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("col1")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+
+        // Snowflake does not list materialized views in information_schema.views.
+        ResultSet emptyViewResultSet = mockResultSet(
+                new String[]{"TABLE_SCHEMA", "TABLE_NAME"},
+                new Object[][]{},
+                new AtomicInteger(-1));
+        PreparedStatement viewStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(VIEW_CHECK_QUERY)).thenReturn(viewStmt);
+        when(viewStmt.executeQuery()).thenReturn(emptyViewResultSet);
+
+        ResultSet materializedViewResultSet = mockResultSet(
+                new String[]{"TABLE_NAME"},
+                new Object[][]{{"testMv"}},
+                new AtomicInteger(-1));
+        PreparedStatement materializedViewStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(MATERIALIZED_VIEW_CHECK_QUERY)).thenReturn(materializedViewStmt);
+        when(materializedViewStmt.executeQuery()).thenReturn(materializedViewResultSet);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("testSchema", "testMv"),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                tableSchema,
+                partitionCols);
+
+        BlockAllocator allocator = new BlockAllocatorImpl();
+        GetTableLayoutResponse res = snowflakeMetadataHandler.doGetTableLayout(allocator, req);
+
+        assertNotNull(res);
+        Block partitions = res.getPartitions();
+        assertEquals(1, partitions.getRowCount());
+        assertEquals("*", partitions.getFieldVector(BLOCK_PARTITION_COLUMN_NAME).getObject(0).toString());
+        verify(connection, never()).prepareStatement(COUNT_RECORDS_QUERY);
+    }
+
+    @Test
+    public void testGetPartitionsForBaseTableIsNotMaterializedView() throws Exception
+    {
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("col1")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+
+        ResultSet emptyViewResultSet = mockResultSet(
+                new String[]{"TABLE_SCHEMA", "TABLE_NAME"},
+                new Object[][]{},
+                new AtomicInteger(-1));
+        PreparedStatement viewStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(VIEW_CHECK_QUERY)).thenReturn(viewStmt);
+        when(viewStmt.executeQuery()).thenReturn(emptyViewResultSet);
+
+        ResultSet emptyMaterializedViewResultSet = mockResultSet(
+                new String[]{"TABLE_NAME"},
+                new Object[][]{},
+                new AtomicInteger(-1));
+        PreparedStatement materializedViewStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(MATERIALIZED_VIEW_CHECK_QUERY)).thenReturn(materializedViewStmt);
+        when(materializedViewStmt.executeQuery()).thenReturn(emptyMaterializedViewResultSet);
+
+        ResultSet emptyCountResultSet = mockResultSet(
+                new String[]{"row_count"},
+                new Object[][]{},
+                new AtomicInteger(-1));
+        PreparedStatement countStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(COUNT_RECORDS_QUERY)).thenReturn(countStmt);
+        when(countStmt.executeQuery()).thenReturn(emptyCountResultSet);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("testSchema", "testTable"),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                tableSchema,
+                partitionCols);
+
+        BlockAllocator allocator = new BlockAllocatorImpl();
+        GetTableLayoutResponse res = snowflakeMetadataHandler.doGetTableLayout(allocator, req);
+
+        assertNotNull(res);
+        assertEquals(0, res.getPartitions().getRowCount());
+        verify(connection).prepareStatement(COUNT_RECORDS_QUERY);
     }
 
     @Test
