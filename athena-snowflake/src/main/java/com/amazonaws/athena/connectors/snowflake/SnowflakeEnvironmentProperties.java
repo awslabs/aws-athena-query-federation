@@ -178,7 +178,7 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
             parameters.put(WAREHOUSE_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(warehouse));
         }
         else if (warehouse != null) {
-            logger.warn("Ignoring unusable warehouse value '{}'; the session will fall back to the user's default warehouse", warehouse);
+            logger.warn("Ignoring unusable warehouse value; the session will fall back to the user's default warehouse");
         }
 
         String database = connectionProperties.get(DATABASE);
@@ -186,7 +186,7 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
             parameters.put(DB_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(database));
         }
         else if (database != null) {
-            logger.warn("Ignoring unusable database value '{}'", database);
+            logger.warn("Ignoring unusable database value; the session will fall back to the user's default database");
         }
 
         if (connectionProperties.containsKey(SCHEMA)) {
@@ -196,7 +196,7 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
                 parameters.put(SCHEMA_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(schema));
             }
             else if (schema != null) {
-                logger.warn("Ignoring unusable schema value '{}'", schema);
+                logger.warn("Ignoring unusable schema value; the session will fall back to the user's default schema");
             }
         }
 

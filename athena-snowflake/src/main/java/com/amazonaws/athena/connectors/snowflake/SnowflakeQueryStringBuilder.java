@@ -176,10 +176,15 @@ public class SnowflakeQueryStringBuilder
     @Override
     protected String appendLimitOffset(Split split)
     {
-        if (split == null || split.getProperties().isEmpty()) {
+        if (split == null) {
             return "";
         }
-        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next());
+        // Read the partition value by its known key rather than an arbitrary map entry.
+        // The split may carry additional properties (e.g. CATALOG_CASING_FILTER), and Split
+        // backs its properties with a HashMap, so keySet().iterator().next() is not guaranteed
+        // to return the partition entry. Selecting the wrong value would fail the format check
+        // below, drop the ORDER BY/LIMIT/OFFSET scoping, and duplicate the result set per split.
+        String partitionVal = split.getProperty(BLOCK_PARTITION_COLUMN_NAME);
         // Expected format: partition-primary-<PRIMARYKEY>-limit-<LIMIT>-offset-<OFFSET>
         // Use marker-based parsing to handle primary keys that may contain dashes
         if (partitionVal == null || !partitionVal.contains("-primary-") || !partitionVal.contains("-limit-") || !partitionVal.contains("-offset-")) {

@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.snowflake;
 
 import com.google.common.collect.ImmutableMap;
 
+import java.util.Locale;
 import java.util.Map;
 
 public final class SnowflakeConstants
@@ -100,8 +101,8 @@ public final class SnowflakeConstants
      */
     public static final String USERNAME = "username";
     public static final String PASSWORD = "password";
-    public static final String USERNAME_UPPERCASE = "USERNAME";
-    public static final String PASSWORD_UPPERCASE = "PASSWORD";
+    public static final String USERNAME_UPPERCASE = USERNAME.toUpperCase(Locale.ROOT);
+    public static final String PASSWORD_UPPERCASE = PASSWORD.toUpperCase(Locale.ROOT);
     public static final String USER = "user";
 
     /**
