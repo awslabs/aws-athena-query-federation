@@ -19,12 +19,16 @@
  */
 package com.amazonaws.athena.connector.substrait;
 
+import io.substrait.proto.Expression;
 import io.substrait.proto.FetchRel;
 import io.substrait.proto.FilterRel;
+import io.substrait.proto.FunctionArgument;
 import io.substrait.proto.Plan;
+import io.substrait.proto.PlanRel;
 import io.substrait.proto.ProjectRel;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
+import io.substrait.proto.RelRoot;
 import io.substrait.proto.SortRel;
 import org.junit.jupiter.api.Test;
 
@@ -238,5 +242,28 @@ class SubstraitRelUtilsTest
         ReadRel result = SubstraitRelUtils.getReadRel(fetchRel);
         
         assertEquals(expectedRead, result);
+    }
+
+    @Test
+    void testDeserializeSubstraitPlanWithDeepNesting()
+    {
+        Expression condition = Expression.newBuilder().build();
+        for (int i = 0; i < 200; i++) {
+            condition = Expression.newBuilder()
+                    .setScalarFunction(Expression.ScalarFunction.newBuilder()
+                            .addArguments(FunctionArgument.newBuilder().setValue(condition)))
+                    .build();
+        }
+        Plan plan = Plan.newBuilder()
+                .addRelations(PlanRel.newBuilder()
+                        .setRoot(RelRoot.newBuilder()
+                                .setInput(Rel.newBuilder()
+                                        .setFilter(FilterRel.newBuilder().setCondition(condition)))))
+                .build();
+        String encodedPlan = Base64.getEncoder().encodeToString(plan.toByteArray());
+
+        Plan result = SubstraitRelUtils.deserializeSubstraitPlan(encodedPlan);
+
+        assertNotNull(result);
     }
 }
