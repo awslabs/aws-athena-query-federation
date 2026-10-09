@@ -389,6 +389,110 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
+    public void getPartitionsHybridTableSingleSplit() throws Exception {
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("day")
+                .addIntField("month")
+                .addIntField("year")
+                .addStringField("preparedStmt")
+                .addStringField("queryId")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+
+        ResultSet viewResultSet = mock(ResultSet.class);
+        when(viewResultSet.next()).thenReturn(false);
+        PreparedStatement viewStatement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(SnowflakeConstants.VIEW_CHECK_QUERY)).thenReturn(viewStatement);
+        when(viewStatement.executeQuery()).thenReturn(viewResultSet);
+
+        ResultSet hybridResultSet = mock(ResultSet.class);
+        when(hybridResultSet.next()).thenReturn(true);
+        when(hybridResultSet.getString(1)).thenReturn("Y");
+        PreparedStatement hybridStatement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(SnowflakeConstants.HYBRID_TABLE_CHECK_QUERY)).thenReturn(hybridStatement);
+        when(hybridStatement.executeQuery()).thenReturn(hybridResultSet);
+
+        System.setProperty("aws_region", "us-east-1");
+        System.setProperty("s3_export_enabled", "false");
+
+        String[] columnSchema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
+        Object[][] columnValues = {{"schema1", "table1", "day", "int"}};
+        int[] columnTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        ResultSet columnResultSet = mockResultSet(columnSchema, columnTypes, columnValues, new AtomicInteger(-1));
+        when(connection.getMetaData().getColumns(any(), eq("schema1"), eq("table1"), any())).thenReturn(columnResultSet);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("schema1", "table1"),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Map.of(), null),
+                tableSchema,
+                partitionCols);
+
+        GetTableLayoutResponse res = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req);
+        Block partitions = res.getPartitions();
+
+        assertNotNull(partitions);
+        assertEquals(1, partitions.getRowCount());
+    }
+
+    @Test
+    public void getPartitionsNonHybridTableUsesStatistics() throws Exception {
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("day")
+                .addIntField("month")
+                .addIntField("year")
+                .addStringField("preparedStmt")
+                .addStringField("queryId")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+
+        ResultSet viewResultSet = mock(ResultSet.class);
+        when(viewResultSet.next()).thenReturn(false);
+        PreparedStatement viewStatement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(SnowflakeConstants.VIEW_CHECK_QUERY)).thenReturn(viewStatement);
+        when(viewStatement.executeQuery()).thenReturn(viewResultSet);
+
+        ResultSet hybridResultSet = mock(ResultSet.class);
+        when(hybridResultSet.next()).thenReturn(false);
+        PreparedStatement hybridStatement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(SnowflakeConstants.HYBRID_TABLE_CHECK_QUERY)).thenReturn(hybridStatement);
+        when(hybridStatement.executeQuery()).thenReturn(hybridResultSet);
+
+        ResultSet countResultSet = mock(ResultSet.class);
+        when(countResultSet.next()).thenReturn(true).thenReturn(false);
+        when(countResultSet.getLong(1)).thenReturn(0L);
+        PreparedStatement countStatement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(SnowflakeConstants.COUNT_RECORDS_QUERY)).thenReturn(countStatement);
+        when(countStatement.executeQuery()).thenReturn(countResultSet);
+
+        System.setProperty("aws_region", "us-east-1");
+        System.setProperty("s3_export_enabled", "false");
+
+        String[] columnSchema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
+        Object[][] columnValues = {{"schema1", "table1", "day", "int"}};
+        int[] columnTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        ResultSet columnResultSet = mockResultSet(columnSchema, columnTypes, columnValues, new AtomicInteger(-1));
+        when(connection.getMetaData().getColumns(any(), eq("schema1"), eq("table1"), any())).thenReturn(columnResultSet);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("schema1", "table1"),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Map.of(), null),
+                tableSchema,
+                partitionCols);
+
+        GetTableLayoutResponse res = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req);
+        Block partitions = res.getPartitions();
+
+        assertNotNull(partitions);
+        assertEquals(0, partitions.getRowCount());
+    }
+
+    @Test
     public void doGetSplits() throws Exception {
         Schema schema = SchemaBuilder.newBuilder()
                 .addIntField("day")
