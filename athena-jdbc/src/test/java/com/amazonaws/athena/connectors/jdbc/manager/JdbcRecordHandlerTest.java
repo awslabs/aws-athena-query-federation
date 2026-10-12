@@ -42,7 +42,6 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateDayExtr
 
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
-import java.util.HashMap;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
@@ -64,6 +63,7 @@ import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.NullableSmallIntHolder;
 import org.apache.arrow.vector.holders.NullableTinyIntHolder;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -88,12 +88,15 @@ import java.sql.DatabaseMetaData;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -562,5 +565,333 @@ public class JdbcRecordHandlerTest
         Connection mockConnection = Mockito.mock(Connection.class);
         boolean result = jdbcRecordHandler.disableCaseSensitivelyLookUpSession(mockConnection);
         Assert.assertFalse(result); // Default implementation returns false
+    }
+
+    @Test
+    public void readWithConstraint_problemRowLoggingDisabled_omitsBadValueFromError()
+            throws Exception
+    {
+        ResultSet resultSet = failingTimestampResultSet();
+        Exception thrown = readFailingTimestampRow(this.jdbcRecordHandler, resultSet);
+
+        Assert.assertFalse(thrown.getMessage().contains("created_at"));
+        Assert.assertFalse(thrown.getMessage().contains("2018-00-15 04:59:59"));
+        Mockito.verify(resultSet, Mockito.never()).getString(anyString());
+    }
+
+    @Test
+    public void readWithConstraint_problemRowLoggingEnabled_capturesColumnValueAndPrimaryKey()
+            throws Exception
+    {
+        ResultSet resultSet = failingTimestampResultSet();
+        when(resultSet.getString("created_at")).thenReturn("2018-00-15 04:59:59");
+        when(resultSet.getString("id")).thenReturn("2");
+        stubPrimaryKey("id");
+
+        CapturedProblemRow captured = new CapturedProblemRow();
+        Exception thrown = readFailingTimestampRow(handlerWithProblemRowLogging(captured), resultSet);
+
+        Assert.assertEquals("created_at", captured.columnName);
+        Assert.assertEquals("2018-00-15 04:59:59", captured.value);
+        Assert.assertEquals("id=2", captured.primaryKey);
+        Assert.assertFalse(thrown.getMessage().contains("2018-00-15 04:59:59"));
+    }
+
+    @Test
+    public void readWithConstraint_problemRowLoggingEnabled_truncatesLongColumnValue()
+            throws Exception
+    {
+        String longValue = "2018-00-15 04:59:59 " + "x".repeat(300);
+        ResultSet resultSet = failingTimestampResultSet();
+        when(resultSet.getString("created_at")).thenReturn(longValue);
+        when(resultSet.getRow()).thenReturn(12);
+
+        CapturedProblemRow captured = new CapturedProblemRow();
+        Exception thrown = readFailingTimestampRow(handlerWithProblemRowLogging(captured), resultSet);
+
+        Assert.assertEquals("created_at", captured.columnName);
+        Assert.assertEquals(longValue.substring(0, 256) + "...", captured.value);
+        Assert.assertEquals("unavailable(row=12)", captured.primaryKey);
+        Assert.assertFalse(thrown.getMessage().contains(longValue));
+    }
+
+    @Test
+    public void readWithConstraint_primaryKeyNotProjectedAndGetRowFails_usesCountedRowNumber()
+            throws Exception
+    {
+        ResultSet resultSet = failingTimestampResultSet();
+        when(resultSet.getString("created_at")).thenReturn("2018-00-15 04:59:59");
+        when(resultSet.getRow()).thenThrow(new SQLException("Operation not allowed for a result set of type ResultSet.TYPE_FORWARD_ONLY."));
+        when(this.connection.getMetaData().getDatabaseProductName()).thenReturn("MySQL");
+        stubPrimaryKey("unprojected_id");
+
+        CapturedProblemRow captured = new CapturedProblemRow();
+        readFailingTimestampRow(handlerWithProblemRowLogging(captured), resultSet);
+
+        Assert.assertEquals("unprojected_id=not-in-projection(row=1)", captured.primaryKey);
+        Mockito.verify(resultSet, Mockito.never()).getString("unprojected_id");
+    }
+
+    @Test
+    public void lookupPrimaryKeyColumns_metadataFails_returnsEmptyList()
+            throws Exception
+    {
+        when(this.connection.getCatalog()).thenReturn(TEST_CATALOG);
+        when(this.connection.getMetaData().getPrimaryKeys(TEST_CATALOG, TEST_SCHEMA, TEST_TABLE))
+                .thenThrow(new SQLException("pk metadata unavailable"));
+
+        List<String> keys = handlerWithProblemRowLogging(new CapturedProblemRow())
+                .lookupPrimaryKeyColumns(this.connection, new TableName(TEST_SCHEMA, TEST_TABLE));
+
+        Assert.assertTrue(keys.isEmpty());
+    }
+
+    @Test
+    public void readWithConstraint_nullCellAndRowNumberUnavailable_logsNullValueAndUnreadableRow()
+            throws Exception
+    {
+        ResultSet resultSet = failingTimestampResultSet();
+        when(resultSet.getString("created_at")).thenReturn(null);
+        when(resultSet.getRow()).thenReturn(0);
+
+        CapturedProblemRow captured = new CapturedProblemRow();
+        readFailingTimestampRow(handlerWithProblemRowLogging(captured), resultSet);
+
+        Assert.assertEquals("created_at", captured.columnName);
+        Assert.assertEquals("null", captured.value);
+        Assert.assertEquals("unavailable(row=<unreadable>)", captured.primaryKey);
+    }
+
+    @Test
+    public void readWithConstraint_problemRowLoggingEnabled_reportsFailuresForAllScalarTypes()
+            throws Exception
+    {
+        // DATEMILLI + INT are already covered above; exercise remaining wrapExtractor cases once each.
+        assertFailingColumnLogged("bit_col", org.apache.arrow.vector.types.Types.MinorType.BIT.getType(),
+                rs -> when(rs.getBoolean("bit_col")).thenThrow(new SQLException("bad bit")));
+        assertFailingColumnLogged("tiny_col", org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType(),
+                rs -> when(rs.getByte("tiny_col")).thenThrow(new SQLException("bad tiny")));
+        assertFailingColumnLogged("small_col", org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType(),
+                rs -> when(rs.getShort("small_col")).thenThrow(new SQLException("bad small")));
+        assertFailingColumnLogged("big_col", org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType(),
+                rs -> when(rs.getLong("big_col")).thenThrow(new SQLException("bad big")));
+        assertFailingColumnLogged("float4_col", org.apache.arrow.vector.types.Types.MinorType.FLOAT4.getType(),
+                rs -> when(rs.getFloat("float4_col")).thenThrow(new SQLException("bad float4")));
+        assertFailingColumnLogged("float8_col", org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType(),
+                rs -> when(rs.getDouble("float8_col")).thenThrow(new SQLException("bad float8")));
+        assertFailingColumnLogged("decimal_col", new ArrowType.Decimal(10, 2, 128),
+                rs -> when(rs.getBigDecimal("decimal_col")).thenThrow(new SQLException("bad decimal")));
+        assertFailingColumnLogged("dateday_col", org.apache.arrow.vector.types.Types.MinorType.DATEDAY.getType(),
+                rs -> when(rs.getDate("dateday_col")).thenThrow(new SQLException("bad date")));
+        assertFailingColumnLogged("varchar_col", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(),
+                rs -> when(rs.getString("varchar_col")).thenThrow(new SQLException("bad varchar")));
+        assertFailingColumnLogged("varbinary_col", org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType(),
+                rs -> when(rs.getBytes("varbinary_col")).thenThrow(new SQLException("bad bytes")));
+    }
+
+    @Test
+    public void readWithConstraint_arrayColumnFails_logsProblemRowForListField()
+            throws Exception
+    {
+        Field listField = FieldBuilder.newBuilder("arr_col", org.apache.arrow.vector.types.Types.MinorType.LIST.getType())
+                .addField(FieldBuilder.newBuilder("element", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .build();
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.findColumn(anyString())).thenReturn(1);
+        when(resultSet.getRow()).thenReturn(1);
+        when(resultSet.getArray("arr_col")).thenThrow(new SQLException("bad array"));
+        ResultSetMetaData metadata = Mockito.mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(1);
+        when(metadata.getColumnLabel(1)).thenReturn("arr_col");
+        when(metadata.getColumnName(1)).thenReturn("arr_col");
+        when(resultSet.getMetaData()).thenReturn(metadata);
+
+        CapturedProblemRow captured = new CapturedProblemRow();
+        readFailingRow(handlerWithProblemRowLogging(captured), resultSet, SchemaBuilder.newBuilder().addField(listField).build());
+
+        Assert.assertEquals("arr_col", captured.columnName);
+        Assert.assertEquals("unavailable(row=1)", captured.primaryKey);
+    }
+
+    @Test
+    public void readWithConstraint_problemRowLoggerThrows_preservesOriginalException()
+            throws Exception
+    {
+        ResultSet resultSet = failingTimestampResultSet();
+        when(resultSet.getString("created_at")).thenReturn("bad-ts");
+        when(resultSet.getRow()).thenReturn(1);
+
+        Map<String, String> config = Collections.singletonMap(JdbcRecordHandler.ENABLE_PROBLEM_ROW_LOGGING, "true");
+        JdbcRecordHandler handler = new JdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena,
+                new DatabaseConnectionConfig(TEST_CATALOG, "fakedatabase", CONNECTION_STRING, TEST_SECRET),
+                this.jdbcConnectionFactory, config)
+        {
+            @Override
+            public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
+                    throws SQLException
+            {
+                return jdbcConnection.prepareStatement(TEST_SQL);
+            }
+
+            @Override
+            protected void reportProblemRow(String columnName, String stringValue, String primaryKey, Exception error)
+            {
+                throw new RuntimeException("logging failed");
+            }
+        };
+
+        Exception thrown = readFailingTimestampRow(handler, resultSet);
+        Assert.assertFalse(thrown.getMessage().contains("logging failed"));
+    }
+
+    @Test
+    public void readWithConstraint_columnMetadataUnavailable_treatsPrimaryKeyAsUnprojected()
+            throws Exception
+    {
+        ResultSet resultSet = failingTimestampResultSet();
+        when(resultSet.getString("created_at")).thenReturn("bad-ts");
+        when(resultSet.getMetaData()).thenThrow(new SQLException("metadata failed"));
+        stubPrimaryKey("id");
+
+        CapturedProblemRow captured = new CapturedProblemRow();
+        readFailingTimestampRow(handlerWithProblemRowLogging(captured), resultSet);
+
+        Assert.assertTrue(captured.primaryKey.startsWith("id=not-in-projection"));
+    }
+
+    private void assertFailingColumnLogged(String columnName, ArrowType arrowType, ResultSetStubber stubber)
+            throws Exception
+    {
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.findColumn(anyString())).thenReturn(1);
+        when(resultSet.getRow()).thenReturn(1);
+        ResultSetMetaData metadata = Mockito.mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(1);
+        when(metadata.getColumnLabel(1)).thenReturn(columnName);
+        when(metadata.getColumnName(1)).thenReturn(columnName);
+        when(resultSet.getMetaData()).thenReturn(metadata);
+        stubber.stub(resultSet);
+
+        CapturedProblemRow captured = new CapturedProblemRow();
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder(columnName, arrowType).build())
+                .build();
+        readFailingRow(handlerWithProblemRowLogging(captured), resultSet, schema);
+
+        Assert.assertEquals(columnName, captured.columnName);
+        Assert.assertEquals("unavailable(row=1)", captured.primaryKey);
+    }
+
+    @FunctionalInterface
+    private interface ResultSetStubber
+    {
+        void stub(ResultSet resultSet) throws Exception;
+    }
+
+    private JdbcRecordHandler handlerWithProblemRowLogging(CapturedProblemRow captured)
+    {
+        Map<String, String> config = Collections.singletonMap(JdbcRecordHandler.ENABLE_PROBLEM_ROW_LOGGING, "true");
+        return new JdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena,
+                new DatabaseConnectionConfig(TEST_CATALOG, "fakedatabase", CONNECTION_STRING, TEST_SECRET),
+                this.jdbcConnectionFactory, config)
+        {
+            
+            @Override
+            public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
+                    throws SQLException
+            {
+                return jdbcConnection.prepareStatement(TEST_SQL);
+            }
+            @Override
+            protected void reportProblemRow(String columnName, String stringValue, String primaryKey, Exception error)
+            {
+                captured.columnName = columnName;
+                captured.value = stringValue;
+                captured.primaryKey = primaryKey;
+                // Also hit JdbcRecordHandler.reportProblemRow (LOGGER.warn path).
+                super.reportProblemRow(columnName, stringValue, primaryKey, error);
+            }
+        };
+    }
+
+    private void stubPrimaryKey(String columnName)
+            throws SQLException
+    {
+        ResultSet primaryKeys = Mockito.mock(ResultSet.class);
+        when(primaryKeys.next()).thenReturn(true, false);
+        when(primaryKeys.getShort("KEY_SEQ")).thenReturn((short) 1);
+        when(primaryKeys.getString("COLUMN_NAME")).thenReturn(columnName);
+        when(this.connection.getCatalog()).thenReturn(TEST_CATALOG);
+        when(this.connection.getMetaData().getPrimaryKeys(TEST_CATALOG, TEST_SCHEMA, TEST_TABLE)).thenReturn(primaryKeys);
+    }
+
+    private ResultSet failingTimestampResultSet()
+            throws SQLException
+    {
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.findColumn(anyString())).thenReturn(1);
+        when(resultSet.getInt("id")).thenReturn(2);
+        when(resultSet.wasNull()).thenReturn(false);
+        when(resultSet.getTimestamp("created_at")).thenThrow(new SQLException("MONTH"));
+        ResultSetMetaData metadata = Mockito.mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(2);
+        when(metadata.getColumnLabel(1)).thenReturn("id");
+        when(metadata.getColumnLabel(2)).thenReturn("created_at");
+        when(metadata.getColumnName(1)).thenReturn("id");
+        when(metadata.getColumnName(2)).thenReturn("created_at");
+        when(resultSet.getMetaData()).thenReturn(metadata);
+        return resultSet;
+    }
+
+    private static final class CapturedProblemRow
+    {
+        private String columnName;
+        private String value;
+        private String primaryKey;
+    }
+
+    private Exception readFailingTimestampRow(JdbcRecordHandler handler, ResultSet resultSet)
+            throws Exception
+    {
+        Schema fieldSchema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("id", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build())
+                .addField(FieldBuilder.newBuilder("created_at", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build())
+                .build();
+        return readFailingRow(handler, resultSet, fieldSchema);
+    }
+
+    private Exception readFailingRow(JdbcRecordHandler handler, ResultSet resultSet, Schema fieldSchema)
+            throws Exception
+    {
+        when(this.preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        ConstraintEvaluator constraintEvaluator = Mockito.mock(ConstraintEvaluator.class);
+        when(constraintEvaluator.apply(nullable(String.class), any())).thenReturn(true);
+        S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder().withIsDirectory(true).build();
+        SpillConfig spillConfig = Mockito.mock(SpillConfig.class);
+        when(spillConfig.getSpillLocation()).thenReturn(s3SpillLocation);
+        BlockAllocator allocator = new BlockAllocatorImpl();
+        BlockSpiller spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema, constraintEvaluator, com.google.common.collect.ImmutableMap.of());
+
+        Split split = Split.newBuilder(s3SpillLocation, null).build();
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        ReadRecordsRequest request = new ReadRecordsRequest(this.federatedIdentity, TEST_CATALOG, TEST_QUERY_ID,
+                new TableName(TEST_SCHEMA, TEST_TABLE), fieldSchema, split, constraints, 1024, 1024);
+
+        try {
+            handler.readWithConstraint(spiller, request, this.queryStatusChecker);
+            Assert.fail("Expected conversion of the incompatible row to fail");
+            return null;
+        }
+        catch (Exception ex) {
+            return ex;
+        }
+        finally {
+            allocator.close();
+        }
     }
 }
