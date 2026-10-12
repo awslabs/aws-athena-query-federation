@@ -58,6 +58,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +72,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -587,6 +587,65 @@ public class RedshiftMetadataHandlerTest
     }
 
     /**
+     * Regression test for CWE-89 (SQL injection via primary-key column name).
+     * A malicious PK column name must be quoted and escaped in BOTH sinks:
+     * (A) the min/max bounds query, and (B) the split range clause that is later appended to the
+     * record-read query. The payload must never break out of the identifier.
+     */
+    @Test
+    public void getSplitClauses_MaliciousPrimaryKeyColumnName_IsQuotedAndEscapedInBothSinks() throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        String maliciousColumn = "id\");GRANT rds_superuser TO report_user;--";
+        String wrappedColumn = "\"" + maliciousColumn.replace("\"", "\"\"") + "\"";
+
+        mockPrimaryKeysForSplits(maliciousColumn, true);
+
+        // The bounds query is built with prepareStatement (a PreparedStatement, extended protocol) and
+        // executed with no-arg executeQuery(); capture the SQL text passed to prepareStatement.
+        PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+        ResultSet minMaxResultSet = Mockito.mock(ResultSet.class);
+        ResultSetMetaData minMaxMetadata = Mockito.mock(ResultSetMetaData.class);
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(statement);
+        Mockito.when(statement.executeQuery()).thenReturn(minMaxResultSet);
+        Mockito.when(minMaxResultSet.next()).thenReturn(true);
+        Mockito.when(minMaxResultSet.getMetaData()).thenReturn(minMaxMetadata);
+        Mockito.when(minMaxMetadata.getColumnType(1)).thenReturn(Types.INTEGER);
+        Mockito.when(minMaxResultSet.getLong(1)).thenReturn(1L);
+        Mockito.when(minMaxResultSet.getLong(2)).thenReturn(100L);
+
+        List<String> result = redshiftMetadataHandler.getSplitClauses(tableName, null);
+
+        // Place 1: bounds query must reference the column only in escaped, quoted form. prepareStatement
+        // is also called for other queries, so capture all calls and assert against the bounds query.
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(connection, Mockito.atLeastOnce()).prepareStatement(sqlCaptor.capture());
+        String boundsSql = sqlCaptor.getAllValues().stream()
+                .filter(sql -> sql.contains("min("))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("bounds query was never prepared; calls: " + sqlCaptor.getAllValues()));
+        Assert.assertTrue("Bounds query must use the escaped identifier, was: " + boundsSql,
+                boundsSql.contains("min(" + wrappedColumn + ")"));
+        Assert.assertFalse("Bounds query must not contain an unescaped identifier break-out, was: " + boundsSql,
+                boundsSql.contains("min(id\");"));
+
+        // Place 2: split range clauses (appended to the record-read query) must use the escaped identifier.
+        Assert.assertFalse("Expected splits to be generated", result.isEmpty());
+        for (String clause : result) {
+            Assert.assertTrue("Split range clause must use the escaped identifier: " + clause,
+                    clause.contains(wrappedColumn));
+            Assert.assertFalse("Split range clause must not leak an unescaped break-out: " + clause,
+                    clause.contains("id\") "));
+        }
+    }
+
+    // Note: isValidSplitColumn() and wrapNameWithEscapedCharacter() are declared in
+    // PostGreSqlMetadataHandler (Redshift extends it) and are exercised directly in
+    // PostGreSqlMetadataHandlerTest. They are protected members of a different package, so they
+    // cannot be invoked directly from this test class; the getSplitClauses injection test above
+    // covers their behavior end-to-end for the Redshift path.
+
+    /**
      * Helper method to mock primary keys result set for split tests.
      */
     private void mockPrimaryKeysForSplits(String columnName, boolean hasPrimaryKey) throws SQLException
@@ -609,13 +668,17 @@ public class RedshiftMetadataHandlerTest
      */
     private void mockMinMaxQueryForSplits(String columnName) throws SQLException
     {
-        Statement statement = Mockito.mock(Statement.class);
+        PreparedStatement statement = Mockito.mock(PreparedStatement.class);
         ResultSet minMaxResultSet = Mockito.mock(ResultSet.class);
         ResultSetMetaData minMaxMetadata = Mockito.mock(ResultSetMetaData.class);
 
-        Mockito.when(connection.createStatement()).thenReturn(statement);
-        Mockito.when(statement.executeQuery(Mockito.contains("select min(" + columnName + "), max(" + columnName + ")")))
-                .thenReturn(minMaxResultSet);
+        // The bounds query is now run through a PreparedStatement (extended protocol, blocks stacked
+        // statements) and the split-column identifier is quoted/escaped, so the SQL contains the
+        // wrapped form: min("col"), max("col").
+        String wrappedColumn = "\"" + columnName.replace("\"", "\"\"") + "\"";
+        Mockito.when(connection.prepareStatement(Mockito.contains("select min(" + wrappedColumn + "), max(" + wrappedColumn + ")")))
+                .thenReturn(statement);
+        Mockito.when(statement.executeQuery()).thenReturn(minMaxResultSet);
         Mockito.when(minMaxResultSet.next()).thenReturn(true);
         Mockito.when(minMaxResultSet.getMetaData()).thenReturn(minMaxMetadata);
         Mockito.when(minMaxMetadata.getColumnType(1)).thenReturn(Types.INTEGER);

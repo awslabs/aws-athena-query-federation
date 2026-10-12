@@ -31,6 +31,7 @@ import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
@@ -246,9 +247,19 @@ public class BigQueryRecordHandler
         String secret = getSecret(getEnvBigQueryCredsSmId(configOptions), getRequestOverrideConfig(configOptions));
         boolean catalogCasingFilterUpperCase = isCasingFilterUpperCase();
 
-        // Create BigQueryReadClient with credentials from Secrets Manager
+        // Create BigQueryReadClient with credentials from Secrets Manager.
+        // The BigQuery Storage Read API enables DirectPath by default, which routes the channel
+        // through the google-c2p name resolver and a unix:/// bootstrap address. On Lambda the
+        // shaded gRPC transport has no unix-socket support, so the channel build fails with
+        // "Address types of NameResolver 'unix' ... not supported by transport". Disabling
+        // DirectPath keeps the client on the standard DNS + TCP path regardless of which gRPC
+        // resolver artifacts (grpc-googleapis / grpc-xds) land on the classpath transitively.
+        InstantiatingGrpcChannelProvider channelProvider = BigQueryReadSettings.defaultGrpcTransportProviderBuilder()
+                .setAttemptDirectPath(false)
+                .build();
         BigQueryReadSettings settings = BigQueryReadSettings.newBuilder()
                 .setCredentialsProvider(() -> BigQueryUtils.getCredentialsFromSecret(secret))
+                .setTransportChannelProvider(channelProvider)
                 .build();
 
         try (BigQueryReadClient client = BigQueryReadClient.create(settings)) {
