@@ -67,7 +67,7 @@ public class Db2As400RecordHandlerTest {
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new Db2As400QueryStringBuilder("`");
+        jdbcSplitQueryBuilder = new Db2As400QueryStringBuilder("\"");
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", Db2As400Constants.NAME,
                 "db2as400://jdbc:as400://testhost;user=dummy;password=dummy;");
         this.db2As400RecordHandler = new Db2As400RecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
@@ -104,7 +104,7 @@ public class Db2As400RecordHandlerTest {
                 .put("testCol4", valueSet)
                 .build());
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4` FROM testSchema.testTable  WHERE (`testCol4` = ?)";
+        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\" FROM testSchema.testTable  WHERE (\"testCol4\" = ?)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.db2As400RecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);

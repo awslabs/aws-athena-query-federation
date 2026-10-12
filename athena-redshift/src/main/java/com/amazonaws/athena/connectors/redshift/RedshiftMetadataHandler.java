@@ -50,7 +50,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -143,13 +142,33 @@ public class RedshiftMetadataHandler
                 primaryKeyColumns.add(resultSet.getString("COLUMN_NAME"));
             }
             if (!primaryKeyColumns.isEmpty()) {
-                try (Statement statement = jdbcConnection.createStatement();
-                     ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
-                             wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
+                String primaryKeyColumn = primaryKeyColumns.get(0);
+                // Defense-in-depth: the primary-key column name is attacker-influenced metadata
+                // (a low-privilege DB user with CREATE can name a column arbitrarily). Reject names
+                // that cannot be a legitimate split identifier before it is used anywhere in SQL.
+                if (!isValidSplitColumn(primaryKeyColumn)) {
+                    LOGGER.warn("Primary key column name is not a valid split identifier for table {}.{}. Skipping split generation.",
+                            tableName.getSchemaName(), tableName.getTableName());
+                    return splitClauses;
+                }
+                // Quote and escape the column name so it is interpreted strictly as a SQL identifier.
+                // This value is interpolated into the min/max bounds query below AND, via the Splitter,
+                // into the partition WHERE-clause later appended to the record-read query
+                // (see IntegerSplitter#nextRangeClause and JdbcSplitQueryBuilder#getPartitionWhereClauses).
+                // Both places must use the quoted form to prevent SQL injection (CWE-89).
+                String quotedPrimaryKeyColumn = wrapNameWithEscapedCharacter(primaryKeyColumn);
+                // Use a PreparedStatement (extended query protocol) rather than a plain Statement. The
+                // bounds query has no bind parameters -- an identifier can never be a '?' parameter -- but
+                // the extended protocol rejects multiple commands in one statement, so a stacked payload
+                // (e.g. "; GRANT ...") fails loudly instead of executing. Independent second layer on top
+                // of the identifier quoting above.
+                try (PreparedStatement statement = jdbcConnection.prepareStatement(String.format(SQL_SPLITS_STRING, quotedPrimaryKeyColumn, quotedPrimaryKeyColumn,
+                             wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())));
+                     ResultSet minMaxResultSet = statement.executeQuery()) {
                     minMaxResultSet.next(); // expecting one result row
                     long min = minMaxResultSet.getLong(1);
                     long max = minMaxResultSet.getLong(2);
-                    Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
+                    Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(quotedPrimaryKeyColumn, minMaxResultSet, DEFAULT_NUM_SPLITS);
 
                     if (optionalSplitter.isPresent()) {
                         if (max - min < DEFAULT_NUM_SPLITS) {

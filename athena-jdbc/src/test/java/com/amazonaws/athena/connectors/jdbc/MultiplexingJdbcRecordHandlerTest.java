@@ -171,4 +171,37 @@ public class MultiplexingJdbcRecordHandlerTest
         );
         assertTrue(exception.getMessage().contains("recordHandlerMap must not be empty"));
     }
+
+    @Test
+    public void testCloseClosesDelegatesAndOwnFactory() throws Exception
+    {
+        // Each delegate owns an independent HikariCP pool; all of them must be released.
+        this.jdbcRecordHandler.close();
+
+        Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).close();
+        Mockito.verify(this.jdbcConnectionFactory, Mockito.times(1)).close();
+    }
+
+    @Test
+    public void testCloseClosesRemainingDelegatesWhenOneFails() throws Exception
+    {
+        JdbcRecordHandler failingHandler = Mockito.mock(JdbcRecordHandler.class);
+        JdbcRecordHandler healthyHandler = Mockito.mock(JdbcRecordHandler.class);
+        Mockito.doThrow(new RuntimeException("boom")).when(failingHandler).close();
+
+        Map<String, JdbcRecordHandler> handlerMap = new HashMap<>();
+        handlerMap.put("failing", failingHandler);
+        handlerMap.put("healthy", healthyHandler);
+
+        JdbcConnectionFactory ownFactory = Mockito.mock(JdbcConnectionFactory.class);
+        JdbcRecordHandler handler = new MultiplexingJdbcRecordHandler(
+                this.amazonS3, this.secretsManager, this.athena, ownFactory,
+                this.databaseConnectionConfig, handlerMap, com.google.common.collect.ImmutableMap.of());
+
+        assertThrows(RuntimeException.class, handler::close);
+
+        Mockito.verify(failingHandler, Mockito.times(1)).close();
+        Mockito.verify(healthyHandler, Mockito.times(1)).close();
+        Mockito.verify(ownFactory, Mockito.times(1)).close();
+    }
 }
