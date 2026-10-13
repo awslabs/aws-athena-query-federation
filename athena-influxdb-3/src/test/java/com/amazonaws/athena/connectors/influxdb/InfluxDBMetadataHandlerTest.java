@@ -518,15 +518,10 @@ public class InfluxDBMetadataHandlerTest
     public void testDoGetQueryPassthroughSchemaFailsWhenQueryReturnsNoBatches() throws Exception
     {
         when(mockClient.queryBatches(anyString())).thenReturn(Stream.empty());
-        try {
-            handler.doGetQueryPassthroughSchema(allocator,
-                    new GetTableRequest(IDENTITY, "queryId", "catalog", new TableName("system", "query"),
-                            passthroughArgs("SELECT 1 WHERE false")));
-            fail("expected an empty result to fail schema inference");
-        }
-        catch (final IllegalStateException e) {
-            assertTrue(e.getMessage().contains("returned no result schema"));
-        }
+        final GetTableResponse response = handler.doGetQueryPassthroughSchema(allocator,
+            new GetTableRequest(IDENTITY, "queryId", "catalog", new TableName("system", "query"),
+                passthroughArgs("SELECT 1 WHERE false")));
+        assertTrue(response.getSchema().getFields().isEmpty());
     }
 
     @Test
