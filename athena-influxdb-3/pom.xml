@@ -97,6 +97,11 @@
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>flight-core</artifactId>
+            <version>${apache.arrow.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
