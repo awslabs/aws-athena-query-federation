@@ -65,7 +65,6 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static java.util.Objects.requireNonNull;
 
@@ -82,15 +81,12 @@ public class GcsMetadataHandler
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.locationUri() != null && database.locationUri().contains(GCS_FLAG));
     // used to filter out Glue tables which lack indications of being used for GCS.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.storageDescriptor().location().startsWith(GCS_LOCATION_PREFIX);
-    private final StorageMetadata datasource;
     private final GlueClient glueClient;
     private final BufferAllocator allocator;
 
     public GcsMetadataHandler(BufferAllocator allocator, java.util.Map<String, String> configOptions) throws IOException
     {
         super(SOURCE_TYPE, configOptions);
-        String gcsCredentialsJsonString = this.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
-        this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
         this.allocator = allocator;
@@ -107,8 +103,6 @@ public class GcsMetadataHandler
         java.util.Map<String, String> configOptions) throws IOException
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
-        String gcsCredentialsJsonString = this.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
-        this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
         this.allocator = allocator;
@@ -161,13 +155,14 @@ public class GcsMetadataHandler
         //return if schema present else fetch from files(dataset api)
         if (response != null && response.getSchema() != null && checkGlueSchema(response)) {
             return response;
-        }
+        } 
         else {
             LOGGER.warn("Fetching schema from google cloud storage files");
             //fetch schema from GCS in case user doesn't define it in glue table
             //this will get table(location uri and partition details) without schema metadata
             Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
             //fetch schema from dataset api
+            StorageMetadata datasource = GcsUtil.initDatasource(configOptions, getCachableSecretsManager());
             Schema schema = datasource.buildTableSchema(table, allocator);
             Map<String, String> columnNameMapping = getColumnNameMapping(table);
             List<Column> partitionKeys = table.partitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.partitionKeys();
@@ -192,17 +187,19 @@ public class GcsMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException, IOException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
+        StorageMetadata datasource = GcsUtil.initDatasource(configOptions, getCachableSecretsManager());
         List<Map<String, String>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         for (Map<String, String> folder : partitionFolders) {
             blockWriter.writeRows((Block block, int rowNum) ->
             {
                 for (Map.Entry<String, String> partition : folder.entrySet()) {
-                    block.setValue(partition.getKey(), rowNum, partition.getValue());
+                    // lower-casing partition-key names to match GDC case
+                    block.setValue(partition.getKey().toLowerCase(), rowNum, partition.getValue());
                 }
                 //we wrote 1 row so we return 1
                 return 1;
@@ -228,7 +225,7 @@ public class GcsMetadataHandler
     {
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         int partitionContd = decodeContinuationToken(request);
-
+        
         Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
         String catalogName = request.getCatalogName();
         Set<Split> splits = new HashSet<>();
@@ -238,7 +235,8 @@ public class GcsMetadataHandler
             //getting the partition folder name with bucket and file type
             URI locationUri = PartitionUtil.getPartitionsFolderLocationUri(table, partitions.getFieldVectors(), curPartition);
             LOGGER.info("Partition location {} ", locationUri);
-
+            
+            StorageMetadata datasource = GcsUtil.initDatasource(configOptions, getCachableSecretsManager());
             //getting storage file list
             List<String> fileList = datasource.getStorageSplits(locationUri);
             SpillLocation spillLocation = makeSpillLocation(request);
