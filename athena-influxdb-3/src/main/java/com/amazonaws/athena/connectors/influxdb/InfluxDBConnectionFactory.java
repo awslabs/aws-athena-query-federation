@@ -74,7 +74,7 @@ public class InfluxDBConnectionFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(InfluxDBConnectionFactory.class);
     private static final Gson GSON = new Gson();
-    private static final HttpClient HTTP = HttpClient.newHttpClient();
+    private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     static final int INFLUXDB_CLIENT_CACHE_CAPACITY = 100;
     static final long BACKOFF_BASE_MILLIS = 100L;
     static final long BACKOFF_MAX_MILLIS = 1_000L;
