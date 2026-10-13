@@ -35,6 +35,8 @@ import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWrit
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
@@ -63,10 +65,12 @@ import java.util.Map;
 
 /**
  * This class has interfaces used for document field-values extraction after they are retrieved from an Elasticsearch
- * instance. This includes field extractors and field writer factories using the field extractor framework.
+ * instance. This includes field extractors and field writer factories using the field extractor framework. It also
+ * supports exposing object fields marked with json metadata as VARCHAR values containing serialized JSON.
  */
 class ElasticsearchTypeUtils
 {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchTypeUtils.class);
     private final ElasticsearchFieldResolver fieldResolver;
 
@@ -110,7 +114,8 @@ class ElasticsearchTypeUtils
 
     /**
      * Create a VARCHAR field extractor to extract a string value from a Document. The Document value can be returned
-     * as a String or a List. For the latter, extract the first element only.
+     * as a String, List, or Map. For Maps with json="true" metadata, converts to JSON string. For other Lists and Maps,
+     * uses toString() representation.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -119,9 +124,19 @@ class ElasticsearchTypeUtils
         return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
         {
             Object fieldValue = ((Map) context).get(field.getName());
+            Map<String, String> metadata = field.getMetadata();
             dst.isSet = 1;
             if (fieldValue instanceof String) {
                 dst.value = (String) fieldValue;
+            }
+            else if (fieldValue instanceof Map && metadata != null && "true".equals(metadata.get("json"))) {
+                try {
+                    dst.value = OBJECT_MAPPER.writeValueAsString(fieldValue);
+                }
+                catch (JsonProcessingException e) {
+                    logger.warn("Error serializing object to JSON for field {}: {}", field.getName(), e.getMessage());
+                    dst.isSet = 0;
+                }
             }
             else if (fieldValue instanceof List || fieldValue instanceof Map) {
                 dst.value = fieldValue.toString();
