@@ -28,6 +28,9 @@ import java.io.*;
 
 import static org.apache.commons.lang3.Validate.notNull;
 
+/**
+ * Factory that builds the StringTemplate-backed query builders (e.g. {@link VerticaExportQueryBuilder}) used by the connector.
+ */
 public class QueryFactory {
     private static final Logger logger = LoggerFactory.getLogger(QueryFactory.class);
 
@@ -112,5 +115,10 @@ public class QueryFactory {
     public VerticaExportQueryBuilder createQptVerticaExportQueryBuilder()
     {
         return new VerticaExportQueryBuilder(getQueryTemplate(VerticaExportQueryBuilder.getQptTemplateName()));
+    }
+
+    public VerticaExportQueryBuilder createSubstraitVerticaExportQueryBuilder()
+    {
+        return new VerticaExportQueryBuilder(getQueryTemplate(VerticaExportQueryBuilder.getSubstraitTemplateName()));
     }
 }
