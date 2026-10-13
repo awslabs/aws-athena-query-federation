@@ -39,12 +39,12 @@ public class ImpalaQueryStringBuilder extends JdbcSplitQueryBuilder
     {
         StringBuilder tableName = new StringBuilder();
         if (!Strings.isNullOrEmpty(catalog)) {
-            tableName.append(catalog).append('.');
+            tableName.append(ImpalaUtils.quoteIdentifier(catalog)).append('.');
         }
         if (!Strings.isNullOrEmpty(schema)) {
-            tableName.append(schema).append('.');
+            tableName.append(ImpalaUtils.quoteIdentifier(schema)).append('.');
         }
-        tableName.append(table);
+        tableName.append(ImpalaUtils.quoteIdentifier(table));
         return String.format(" FROM %s ", tableName);
     }
 

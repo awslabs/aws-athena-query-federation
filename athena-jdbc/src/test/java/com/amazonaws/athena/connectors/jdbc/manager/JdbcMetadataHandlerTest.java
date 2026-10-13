@@ -131,6 +131,27 @@ public class JdbcMetadataHandlerTest
     }
 
     @Test
+    public void close_delegatesToJdbcConnectionFactory()
+            throws Exception
+    {
+        this.jdbcMetadataHandler.close();
+        Mockito.verify(this.jdbcConnectionFactory, Mockito.times(1)).close();
+    }
+
+    @Test
+    public void close_withNullFactory_isNoOp()
+            throws Exception
+    {
+        // Simulate the multiplexing-constructor case where the base handler has no factory of its own.
+        // The null-factory branch of close() should be a no-op and MUST NOT throw.
+        java.lang.reflect.Field factoryField = JdbcMetadataHandler.class.getDeclaredField("jdbcConnectionFactory");
+        factoryField.setAccessible(true);
+        factoryField.set(this.jdbcMetadataHandler, null);
+
+        this.jdbcMetadataHandler.close();
+    }
+
+    @Test
     public void doListSchemaNames()
             throws Exception
     {

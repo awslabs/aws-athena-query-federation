@@ -26,6 +26,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
 import com.google.common.base.Strings;
 import org.apache.arrow.vector.types.Types;
+import org.apache.calcite.sql.SqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,5 +108,17 @@ public class SynapseQueryStringBuilder extends JdbcSplitQueryBuilder
     protected String appendLimitOffset(Split split, Constraints constraints)
     {
         return emptyString;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return SynapseDialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new SynapseDialect(catalogCasingFilterUpperCase);
     }
 }

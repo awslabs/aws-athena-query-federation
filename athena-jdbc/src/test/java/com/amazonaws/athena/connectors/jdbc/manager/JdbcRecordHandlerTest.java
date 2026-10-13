@@ -158,6 +158,28 @@ public class JdbcRecordHandlerTest
         };
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
+
+    @Test
+    public void close_delegatesToJdbcConnectionFactory()
+            throws Exception
+    {
+        this.jdbcRecordHandler.close();
+        Mockito.verify(this.jdbcConnectionFactory, Mockito.times(1)).close();
+    }
+
+    @Test
+    public void close_withNullFactory_isNoOp()
+            throws Exception
+    {
+        // Simulate the multiplexing-constructor case where the base handler has no factory of its own.
+        // The null-factory branch of close() should be a no-op and MUST NOT throw.
+        java.lang.reflect.Field factoryField = JdbcRecordHandler.class.getDeclaredField("jdbcConnectionFactory");
+        factoryField.setAccessible(true);
+        factoryField.set(this.jdbcRecordHandler, null);
+
+        this.jdbcRecordHandler.close();
+    }
+
     @Test
     public void readWithConstraint()
             throws Exception

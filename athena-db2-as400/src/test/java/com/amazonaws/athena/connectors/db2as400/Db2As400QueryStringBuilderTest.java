@@ -25,9 +25,11 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.testng.Assert;
 
-import java.util.Arrays;
+import java.util.List;
 
 public class Db2As400QueryStringBuilderTest {
+    private static final String QUOTE_CHARACTER = "\"";
+
     @Mock
     Split split;
 
@@ -35,18 +37,30 @@ public class Db2As400QueryStringBuilderTest {
     public void testQueryBuilder()
     {
         Split split = Mockito.mock(Split.class);
-        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("'");
-        Assert.assertEquals(" FROM 'default'.table ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM 'default'.schema.table ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder(QUOTE_CHARACTER);
+        Assert.assertEquals(" FROM \"default\".table ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM \"default\".schema.table ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test
     public void testGetPartitionWhereClauses()
     {
-        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("'");
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder(QUOTE_CHARACTER);
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(Mockito.eq("partition_number"))).thenReturn("0");
         Mockito.when(split.getProperty(Mockito.eq("PARTITIONING_COLUMN"))).thenReturn("PC");
-        Assert.assertEquals(Arrays.asList(" DATAPARTITIONNUM(PC) = 0"), builder.getPartitionWhereClauses(split));
+        Assert.assertEquals(List.of(" DATAPARTITIONNUM(\"PC\") = 0"), builder.getPartitionWhereClauses(split));
+    }
+
+    @Test
+    public void getPartitionWhereClauses_partitioningColumnWithSpecialCharacters_returnsQuotedIdentifier()
+    {
+        Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder(QUOTE_CHARACTER);
+        Split split = Mockito.mock(Split.class);
+        Mockito.when(split.getProperty(Mockito.eq("partition_number"))).thenReturn("0");
+        Mockito.when(split.getProperty(Mockito.eq("PARTITIONING_COLUMN"))).thenReturn("\"X\") = 0 OR 1=1 --");
+        Assert.assertEquals(
+                List.of(" DATAPARTITIONNUM(\"\"\"X\"\") = 0 OR 1=1 --\") = 0"),
+                builder.getPartitionWhereClauses(split));
     }
 }

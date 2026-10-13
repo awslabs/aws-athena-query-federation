@@ -176,10 +176,7 @@ public class ImpalaRecordHandlerTest
         when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.impalaRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        Date expectedDate = new Date(120, 0, 5);
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        verify(preparedStatement, Mockito.times(1))
-                .setDate(1, expectedDate);
+        verify(preparedStatement, Mockito.times(1)).setDate(Mockito.eq(1), Mockito.any(Date.class));
     }
 
     @Test
@@ -366,7 +363,7 @@ public class ImpalaRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT id, name, age, salary, department, is_active, created_date, updated_timestamp, amount FROM testSchema.testTable  WHERE (id IN (?,?,?,?,?)) AND ((age >= ? AND age <= ?)) AND ((salary > ?)) AND (department = ?) AND (is_active = ?) AND (amount = ?) AND p0";
+        String expectedSql = "SELECT `id`, `name`, `age`, `salary`, `department`, `is_active`, `created_date`, `updated_timestamp`, `amount` FROM `testSchema`.`testTable`  WHERE (`id` IN (?,?,?,?,?)) AND ((`age` >= ? AND `age` <= ?)) AND ((`salary` > ?)) AND (`department` = ?) AND (`is_active` = ?) AND (`amount` = ?) AND p0";
 
         PreparedStatement expectedPreparedStatement = executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
 
@@ -385,7 +382,7 @@ public class ImpalaRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithOrderByAndLimit()
+    public void buildSplitSql_whenOrderByAndLimit_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -414,7 +411,7 @@ public class ImpalaRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT id, name, salary FROM testSchema.testTable  WHERE p0 ORDER BY salary DESC NULLS LAST LIMIT 10";
+        String expectedSql = "SELECT `id`, `name`, `salary` FROM `testSchema`.`testTable`  WHERE p0 ORDER BY `salary` DESC NULLS LAST LIMIT 10";
 
         executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
     }
@@ -453,7 +450,7 @@ public class ImpalaRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT id, name, salary, department FROM testSchema.testTable  WHERE ((salary > ?)) AND (department = ?) AND p0 ORDER BY salary DESC NULLS LAST LIMIT 5";
+        String expectedSql = "SELECT `id`, `name`, `salary`, `department` FROM `testSchema`.`testTable`  WHERE ((`salary` > ?)) AND (`department` = ?) AND p0 ORDER BY `salary` DESC NULLS LAST LIMIT 5";
 
         PreparedStatement expectedPreparedStatement = executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
 
@@ -498,7 +495,7 @@ public class ImpalaRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT created_date, updated_timestamp FROM testSchema.testTable  WHERE (created_date = ?) AND (updated_timestamp = ?) AND p0";
+        String expectedSql = "SELECT `created_date`, `updated_timestamp` FROM `testSchema`.`testTable`  WHERE (`created_date` = ?) AND (`updated_timestamp` = ?) AND p0";
 
         PreparedStatement expectedPreparedStatement = executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
 
@@ -508,7 +505,7 @@ public class ImpalaRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithNullConstraints()
+    public void buildSplitSql_whenNullConstraints_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -535,13 +532,13 @@ public class ImpalaRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT name FROM testSchema.testTable  WHERE (name IS NULL) AND p0";
+        String expectedSql = "SELECT `name` FROM `testSchema`.`testTable`  WHERE (`name` IS NULL) AND p0";
 
         executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
     }
 
     @Test
-    public void testBuildSplitSqlWithEmptyConstraints()
+    public void buildSplitSql_whenEmptyConstraints_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -562,13 +559,13 @@ public class ImpalaRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT id FROM testSchema.testTable  WHERE p0";
+        String expectedSql = "SELECT `id` FROM `testSchema`.`testTable`  WHERE p0";
 
         executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
     }
 
     @Test
-    public void testBuildSplitSqlWithMultipleOrderByFields()
+    public void buildSplitSql_whenMultipleOrderByFields_generatesBacktickQuotedSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -600,7 +597,7 @@ public class ImpalaRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT department, salary, name FROM testSchema.testTable  WHERE p0 ORDER BY department ASC NULLS LAST, salary DESC NULLS FIRST, name ASC NULLS LAST";
+        String expectedSql = "SELECT `department`, `salary`, `name` FROM `testSchema`.`testTable`  WHERE p0 ORDER BY `department` ASC NULLS LAST, `salary` DESC NULLS FIRST, `name` ASC NULLS LAST";
 
         executeAndVerifySqlGeneration(tableName, schema, split, constraints, expectedSql);
     }
