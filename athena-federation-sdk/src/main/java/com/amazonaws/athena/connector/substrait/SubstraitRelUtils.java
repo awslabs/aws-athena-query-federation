@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connector.substrait;
 
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.CodedInputStream;
 import io.substrait.proto.FetchRel;
 import io.substrait.proto.FilterRel;
 import io.substrait.proto.Plan;
@@ -27,6 +27,7 @@ import io.substrait.proto.ProjectRel;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.SortRel;
 
+import java.io.IOException;
 import java.util.Base64;
 
 /**
@@ -35,6 +36,10 @@ import java.util.Base64;
  */
 public final class SubstraitRelUtils
 {
+    // Protobuf's default message recursion limit (100) is too low for plans whose pushed-down
+    // predicates nest deeply (for example a dynamic-filter IN-list rendered as a chain of ORs).
+    private static final int PLAN_PARSER_RECURSION_LIMIT = 2000;
+
     private SubstraitRelUtils()
     {
         // Utility class - prevent instantiation
@@ -231,9 +236,13 @@ public final class SubstraitRelUtils
     {
         try {
             byte[] planBytes = Base64.getDecoder().decode(planString);
-            return Plan.parseFrom(planBytes);
+            CodedInputStream codedInput = CodedInputStream.newInstance(planBytes);
+            codedInput.setRecursionLimit(PLAN_PARSER_RECURSION_LIMIT);
+            Plan plan = Plan.parseFrom(codedInput);
+            codedInput.checkLastTagWas(0);
+            return plan;
         }
-        catch (InvalidProtocolBufferException e) {
+        catch (IOException e) {
             throw new RuntimeException("Failed to parse Substrait plan", e);
         }
     }
