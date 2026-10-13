@@ -283,7 +283,7 @@ public class InfluxDBMetadataHandler
         schemaBuilder.addMetadata("caseSensitiveTableName", resolvedTable);
         schemaBuilder.addMetadata("resolvedDatabaseName", resolvedDB);
         final Map<String, Object> parameters = Map.of("table_name", request.getTableName().getTableName().toLowerCase(Locale.ROOT));
-        final String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE lower(table_name) = $table_name";
+        final String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'iox' AND lower(table_name) = $table_name";
         final List<Object[]> columns = connectionFactory.executeWithTokenRetry(resolvedDB, client -> {
             try (Stream<Object[]> stream = client.query(sql, parameters)) {
                 return stream.collect(java.util.stream.Collectors.toList());
