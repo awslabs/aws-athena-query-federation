@@ -162,14 +162,11 @@ public class InfluxDBMetadataHandler
         final Schema schema = connectionFactory.executeWithTokenRetry(database, client -> {
             final SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
             try (Stream<VectorSchemaRoot> batches = client.queryBatches(query)) {
-                final java.util.Optional<VectorSchemaRoot> first = batches.findFirst();
-                if (first.isEmpty()) {
-                    throw new IllegalStateException(
-                            "Query passthrough returned no result schema; cannot infer columns for: " + query);
-                }
-                for (final Field field : first.get().getSchema().getFields()) {
-                    addPassthroughField(schemaBuilder, field);
-                }
+                batches.findFirst().ifPresent(first -> {
+                    for (final Field field : first.getSchema().getFields()) {
+                        addPassthroughField(schemaBuilder, field);
+                    }
+                });
             }
             return schemaBuilder.build();
         });
