@@ -54,10 +54,13 @@ import org.mockito.ArgumentCaptor;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -453,5 +456,37 @@ public class InfluxDBRecordHandlerTest
         assertEquals(expected, InfluxDBRecordHandler.toZonedDateTime(seconds * 1_000L, TimeUnit.MILLISECOND));
         assertEquals(expected, InfluxDBRecordHandler.toZonedDateTime(seconds * 1_000_000L, TimeUnit.MICROSECOND));
         assertEquals(expected, InfluxDBRecordHandler.toZonedDateTime(seconds * 1_000_000_000L, TimeUnit.NANOSECOND));
+    }
+
+    @Test
+    public void testCancelQueryStopsReadingBatches() throws Exception
+    {
+        final Schema schema = projectionSchema();
+        final Block block = blockAllocator.createBlock(schema);
+        block.constrain(ConstraintEvaluator.emptyEvaluator());
+        final AtomicInteger rowsWritten = new AtomicInteger();
+
+        final BlockSpiller spiller = spillerWritingTo(block, rowsWritten);
+        final QueryStatusChecker checker = mock(QueryStatusChecker.class);
+        when(checker.isQueryRunning()).thenReturn(true, false);
+
+        final VectorSchemaRoot batch1 = buildBatch();
+        final VectorSchemaRoot batch2 = buildBatch();
+
+        final List<VectorSchemaRoot> pulled = new ArrayList<>();
+        final AtomicBoolean closed = new AtomicBoolean();
+        // Closing the stream also frees both batches, as the real client's iterator does.
+        when(mockClient.queryBatches(anyString())).thenReturn(
+                Stream.of(batch1, batch2).peek(pulled::add).onClose(() -> {
+                    closed.set(true);
+                    batch1.close();
+                    batch2.close();
+                }));
+
+        handler.readWithConstraint(spiller, readRequest(schema), checker);
+
+        assertEquals(List.of(batch1), pulled); // batch2 is never consumed.
+        assertEquals(2, rowsWritten.get()); // batch1 was written in full before the stop.
+        assertTrue(closed.get()); // Stream closed, the Flight call is cancelled.
     }
 }
