@@ -114,15 +114,11 @@ Resources:
           enable_query_parallelism: !Ref EnableQueryParallelism
           query_parallelism_count: !Ref QueryParallelismCount
           enable_query_passthrough: !Ref EnableQueryPassthrough
-          # Apache Arrow (used by the SDK's BlockAllocator) relies on Netty direct
-          # memory via sun.misc.Unsafe, which is disabled by default on the java25
-          # runtime. These flags re-enable it (mirrors the pom's surefire argLine).
-          JAVA_TOOL_OPTIONS: '--add-opens=java.base/java.nio=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow'
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.influxdb.InfluxDBCompositeHandler"
       CodeUri: "./target/athena-influxdb-2022.47.1.jar"
       Description: "Enables Amazon Athena to query InfluxDB 3 time-series data via Flight SQL."
-      Runtime: java25
+      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]

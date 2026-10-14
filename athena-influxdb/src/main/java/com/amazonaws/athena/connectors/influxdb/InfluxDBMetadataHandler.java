@@ -276,7 +276,8 @@ public class InfluxDBMetadataHandler
         final String resolvedTable = connectionFactory.resolveTableName(resolvedDB, request.getTableName());
         final SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
-        // Store the original case-sensitive table name so the RecordHandler can use it
+        // Informational only: the RecordHandler re-resolves the names from the authorized TableName
+        // and never reads this metadata, so a forged schema cannot redirect a read.
         schemaBuilder.addMetadata("caseSensitiveTableName", resolvedTable);
         schemaBuilder.addMetadata("resolvedDatabaseName", resolvedDB);
         final Map<String, Object> parameters = Map.of("table_name", request.getTableName().getTableName().toLowerCase(Locale.ROOT));

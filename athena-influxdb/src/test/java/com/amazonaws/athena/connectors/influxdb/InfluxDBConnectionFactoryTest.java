@@ -702,6 +702,54 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
+    public void testListDatabasesKeepsHostPathPrefix() throws Exception
+    {
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"200", "[]"})) {
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final Map<String, String> config = server.config();
+            // InfluxDB served under a path prefix, for example behind a reverse proxy.
+            config.put("INFLUXDB3_HOST_URL", config.get("INFLUXDB3_HOST_URL") + "/influx");
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
+            factory.listDatabases();
+            assertEquals("/influx/api/v3/configure/database", server.lastPath());
+        }
+    }
+
+    @Test
+    public void testApiUriKeepsPathPrefixWithOrWithoutTrailingSlash()
+    {
+        final String expected = "https://example.com:8181/influx/api/v3/configure/database?format=json";
+        assertEquals(expected, InfluxDBConnectionFactory.apiUri(
+                "https://example.com:8181/influx", "api/v3/configure/database?format=json").toString());
+        assertEquals(expected, InfluxDBConnectionFactory.apiUri(
+                "https://example.com:8181/influx/", "api/v3/configure/database?format=json").toString());
+        assertEquals("https://example.com:8181/api/v3/configure/database?format=json",
+                InfluxDBConnectionFactory.apiUri(
+                        "https://example.com:8181", "api/v3/configure/database?format=json").toString());
+    }
+
+    @Test
+    public void testShutdownHookClosesClientsOfEveryFactory() throws Exception
+    {
+        try (LocalInfluxServer server = new LocalInfluxServer(
+                exchange -> new String[] {"200", "[{\"iox::database\":\"db1\"},{\"iox::database\":\"db2\"}]"})) {
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory first = new InfluxDBConnectionFactory(server.config(), mockHandler);
+            final InfluxDBConnectionFactory second = new InfluxDBConnectionFactory(server.config(), mockHandler);
+            first.getClient("db1");
+            second.getClient("db2");
+            assertEquals(1, first.cachedClientCount());
+            assertEquals(1, second.cachedClientCount());
+
+            // The single class-level hook runs this; it must reach every factory, not just one.
+            InfluxDBConnectionFactory.closeAllLiveFactories();
+
+            assertEquals(0, first.cachedClientCount());
+            assertEquals(0, second.cachedClientCount());
+        }
+    }
+
+    @Test
     public void testListDatabasesTreatsNullBodyAsEmpty() throws Exception
     {
         try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"200", "null"})) {
