@@ -19,8 +19,7 @@
  */
 package com.amazonaws.athena.connector.substrait;
 
-import io.substrait.extension.DefaultExtensionCatalog;
-import io.substrait.isthmus.ConverterProvider;
+import io.substrait.extension.SimpleExtension;
 import io.substrait.isthmus.SubstraitToCalcite;
 import io.substrait.plan.ProtoPlanConverter;
 import io.substrait.proto.Plan;
@@ -130,10 +129,8 @@ public final class SubstraitSqlUtils
             final io.substrait.plan.Plan substraitPlan = protoPlanConverter.from(protoPlan);
 
             final SubstraitToCalcite substraitToCalcite = new SubstraitToCalcite(
-                    new ConverterProvider(
-                            DefaultExtensionCatalog.DEFAULT_COLLECTION,
-                            new SqlTypeFactoryImpl(sqlDialect.getTypeSystem())
-                    )
+                    SimpleExtension.loadDefaults(),
+                    new SqlTypeFactoryImpl(sqlDialect.getTypeSystem())
             );
 
             return substraitToCalcite.convert(substraitPlan.getRoots().get(0).getInput());

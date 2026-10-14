@@ -50,8 +50,8 @@
         <mvn.source.plugin.version>3.4.0</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.12.0</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.5.1</mvn.jar.plugin.version>
-        <io.substrait.version>0.84.1</io.substrait.version>
-        <org.apache.calcite.version>1.42.0</org.apache.calcite.version>
+        <io.substrait.version>0.65.0</io.substrait.version>
+        <org.apache.calcite.version>1.40.0</org.apache.calcite.version>
         <com.google.protobuf.version>4.35.1</com.google.protobuf.version>
         <doclint>none</doclint>
     </properties>
@@ -109,12 +109,6 @@
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
                 <version>5.6.4</version>
-            </dependency>
-            <!-- Fix for CVE-2026-54399: Override httpcore5 (transitive via calcite-server -> avatica-core); 5.4.3 is the version httpclient5 5.6.3 targets -->
-            <dependency>
-                <groupId>org.apache.httpcomponents.core5</groupId>
-                <artifactId>httpcore5</artifactId>
-                <version>5.4.3</version>
             </dependency>
             <!-- Fix for CVE-2024-57699: Override json-smart version from transitive dependencies -->
             <dependency>
