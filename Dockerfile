@@ -59,7 +59,7 @@ COPY \
   athena-google-bigquery/target/athena-google-bigquery-${JAR_VERSION}.jar \
   athena-hbase/target/athena-hbase-${JAR_VERSION}.jar \
   athena-hortonworks-hive/target/athena-hortonworks-hive-${JAR_VERSION}.jar \
-  athena-influxdb-3/target/athena-influxdb-${JAR_VERSION}.jar \
+  athena-influxdb/target/athena-influxdb-${JAR_VERSION}.jar \
   athena-kafka/target/athena-kafka-${JAR_VERSION}.jar \
   athena-msk/target/athena-msk-${JAR_VERSION}.jar \
   athena-mysql/target/athena-mysql-${JAR_VERSION}.jar \
