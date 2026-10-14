@@ -105,7 +105,7 @@ Prerequisites: JDK 11, Maven, the SAM CLI, and AWS credentials for the target ac
 1. **Build the shaded Lambda jar** (the template's `CodeUri` points at it):
 
    ```bash
-   cd athena-influxdb-3
+   cd athena-influxdb
    mvn clean package
    ```
 
@@ -218,7 +218,7 @@ Create a Secrets Manager secret holding the InfluxDB token and pass its name/ARN
 `InfluxDBLocalIntegrationTest` runs the connector against a local **InfluxDB 3 Core** container, so it exercises the real Flight SQL read/metadata paths end-to-end. It requires a working Docker daemon; no AWS resources or `test-config.json` are needed.
 
 ```bash
-# From the athena-influxdb-3 directory:
+# From the athena-influxdb directory:
 mvn verify                 # runs unit + local integration tests
 mvn test                   # unit tests only
 mvn test jacoco:report     # unit tests + coverage report (target/site/jacoco)
