@@ -25,7 +25,7 @@ InfluxDB 3 speaks SQL natively over Arrow Flight SQL, so this connector construc
 - **Measurements** map to Athena **tables**.
 - **Tags** and **fields** map to columns; every table has a `time` column.
 
-Athena lowercases identifiers, but InfluxDB is case-sensitive; the connector resolves the original case (database via the configure API, table via `information_schema`) and stashes it in the table schema's custom metadata so reads use the correct names.
+Athena lowercases identifiers, but InfluxDB is case-sensitive, so the connector resolves the original case: the database through the configure API, and the table through `information_schema`. The metadata handler records the resolved names in the table schema's custom metadata (`resolvedDatabaseName`, `caseSensitiveTableName`) for information only. Reads do not use that metadata. The record handler resolves the names again from the table that Athena authorized, so a request with altered schema metadata cannot redirect a read to a different database or table.
 
 ## Supported and unsupported data types
 
@@ -93,11 +93,14 @@ The resolved token is cached for the Lambda container's lifetime. Per-database c
 
 ## Deployment
 
-Deploy with the SAM template (`athena-influxdb.yaml`) via the Serverless Application Repository or `sam deploy`.
+The connector has two SAM templates, following the convention of the other connectors:
+
+- `athena-influxdb.yaml` deploys the connector as a container image from the Athena federation ECR repository.
+- `athena-influxdb-package.yaml` deploys the shaded jar that you build locally. The steps below use this template.
 
 ### Build and deploy (SAM CLI)
 
-Prerequisites: JDK 25, Maven, the SAM CLI, and AWS credentials for the target account.
+Prerequisites: JDK 11, Maven, the SAM CLI, and AWS credentials for the target account. The Lambda runs on the `java11` runtime. Build with JDK 11, because building on JDK 17 makes the root pom compile for Java 17, and the `java11` runtime can't load those classes.
 
 1. **Build the shaded Lambda jar** (the template's `CodeUri` points at it):
 
@@ -119,7 +122,7 @@ Prerequisites: JDK 25, Maven, the SAM CLI, and AWS credentials for the target ac
 
    ```bash
    sam deploy \
-     --template-file athena-influxdb.yaml \
+     --template-file athena-influxdb-package.yaml \
      --stack-name athena-influxdb-connector \
      --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
      --resolve-s3 \

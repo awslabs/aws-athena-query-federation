@@ -47,9 +47,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
@@ -80,6 +84,19 @@ public class InfluxDBConnectionFactory
     static final long BACKOFF_MAX_MILLIS = 1_000L;
     private static final int INFLUXDB_CLIENT_CACHE_MINUTES_TO_LIVE = 30;
 
+    // Factories whose cached clients the shutdown hook closes. The set holds weak references, so a
+    // factory that is no longer used can still be garbage-collected.
+    private static final Set<InfluxDBConnectionFactory> LIVE_FACTORIES =
+            Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+
+    static {
+        // The Athena federation SDK exposes no explicit container-teardown callback, so release cached clients
+        // (gRPC channels, threads, allocators) via a JVM shutdown hook when the Lambda environment is torn down.
+        // One hook for the class, not one per instance, so creating factories does not accumulate hooks.
+        Runtime.getRuntime().addShutdownHook(
+                new Thread(InfluxDBConnectionFactory::closeAllLiveFactories, "influxdb-client-cache-shutdown"));
+    }
+
     private volatile String resolvedToken;
     private final Cache<String, InfluxDBClient> influxDbClients;
     private final Map<String, String> configOptions;
@@ -107,9 +124,21 @@ public class InfluxDBConnectionFactory
             .build();
         this.resolvedToken = null;
         this.maxTokenRefreshRetries = parseMaxTokenRefreshRetries(configOptions);
-        // The Athena federation SDK exposes no explicit container-teardown callback, so release cached clients
-        // (gRPC channels, threads, allocators) via a JVM shutdown hook when the Lambda environment is torn down.
-        Runtime.getRuntime().addShutdownHook(new Thread(this::closeAllClients, "influxdb-client-cache-shutdown"));
+        LIVE_FACTORIES.add(this);
+    }
+
+    /**
+     * Closes the cached clients of every factory that is still reachable. Runs from the shutdown hook.
+     */
+    static void closeAllLiveFactories()
+    {
+        final List<InfluxDBConnectionFactory> factories;
+        synchronized (LIVE_FACTORIES) {
+            factories = new ArrayList<>(LIVE_FACTORIES);
+        }
+        for (final InfluxDBConnectionFactory factory : factories) {
+            factory.closeAllClients();
+        }
     }
 
     private static int parseMaxTokenRefreshRetries(final Map<String, String> configOptions)
@@ -500,6 +529,20 @@ public class InfluxDBConnectionFactory
     }
 
     /**
+     * Builds the URI of an InfluxDB HTTP API endpoint under the configured host, keeping any path prefix
+     * on the host URL (for example, a reverse proxy at {@code https://proxy/influx}). Resolving an absolute
+     * path such as {@code /api/v3/...} would replace that prefix. This matches how the influxdb3-java REST
+     * client builds its URLs: it appends a trailing slash to the host and then the relative API path.
+     *
+     * @param host the validated host URL
+     * @param relativePath the API path, without a leading slash
+     */
+    static URI apiUri(final String host, final String relativePath)
+    {
+        return URI.create(host.endsWith("/") ? host : host + "/").resolve(relativePath);
+    }
+
+    /**
      * Sends exactly one request to list the databases on the server, with no retry. Callers that run
      * inside a retrying operation (see {@link #assertDatabaseExists}) use this so their attempts count
      * against that operation's single retry budget instead of starting a nested retry loop.
@@ -513,7 +556,7 @@ public class InfluxDBConnectionFactory
         final String host = validatedHost();
         final String token = resolveToken();
         final HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(host).resolve("/api/v3/configure/database?format=json"))
+                .uri(apiUri(host, "api/v3/configure/database?format=json"))
                 .timeout(Duration.ofMinutes(2))
                 .header("Authorization", "Bearer " + token)
                 .header("Accept", "application/json")

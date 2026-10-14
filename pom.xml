@@ -196,7 +196,7 @@
         <module>athena-kafka</module>
         <module>athena-gcs</module>
         <module>athena-clickhouse</module>
-        <module>athena-influxdb-3</module>
+        <module>athena-influxdb</module>
     </modules>
     <dependencies>
          <dependency>
