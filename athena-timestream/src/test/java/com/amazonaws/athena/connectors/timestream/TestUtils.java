@@ -19,6 +19,9 @@
  */
 package com.amazonaws.athena.connectors.timestream;
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -30,10 +33,14 @@ import software.amazon.awssdk.services.timestreamquery.model.TimeSeriesDataPoint
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -41,6 +48,32 @@ import static org.mockito.Mockito.when;
 public class TestUtils
 {
     private TestUtils() {}
+
+
+    /**
+     * Creates Constraints for tests. Pass {@link Collections#emptyMap()} for summary or extraProperties when not needed.
+     */
+    public static Constraints constraints(Map<String, ValueSet> summary, Map<String, String> extraProperties) {
+        return new Constraints(
+                summary,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                DEFAULT_NO_LIMIT,
+                extraProperties,
+                null);
+    }
+
+    /**
+     * Returns a new S3SpillLocation with random bucket, split ID, and query ID for use in tests.
+     */
+    public static S3SpillLocation newS3SpillLocation() {
+        return S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+    }
 
     static final LocalDateTime startDate = LocalDateTime.now();
 
