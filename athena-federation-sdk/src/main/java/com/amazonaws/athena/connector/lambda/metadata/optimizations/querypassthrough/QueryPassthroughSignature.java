@@ -151,11 +151,12 @@ public interface QueryPassthroughSignature
     }
 
     /**
-     * A method that checks the Lambda's environment variables to see if QPT is disabled/enabled
+     * Checks whether Query Passthrough is enabled from the connector config / Lambda environment.
+     * Used both when advertising capabilities and when executing GetTable / ReadRecords.
      * @param configOptions
      * @return true if enabled; otherwise false
      */
-    default boolean allowQueryPassthrough(Map<String, String> configOptions)
+    static boolean allowQueryPassthrough(Map<String, String> configOptions)
     {
         String enableQueryPassthroughEnvVal = configOptions
                 .getOrDefault(ENABLE_QUERY_PASSTHROUGH, DEFAULT_ENABLE_QUERY_PASSTHROUGH_STATE)

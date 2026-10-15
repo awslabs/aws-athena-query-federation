@@ -49,6 +49,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
@@ -372,6 +373,10 @@ public abstract class MetadataHandler
     {
         logger.info("resolveDoGetTableImplementation: resolving implementation - isQueryPassthrough[{}]", request.isQueryPassthrough());
         if (request.isQueryPassthrough()) {
+            if (!QueryPassthroughSignature.allowQueryPassthrough(configOptions)) {
+                throw new AthenaConnectorException("Query Passthrough is disabled",
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+            }
             return doGetQueryPassthroughSchema(allocator, request);
         }
         return doGetTable(allocator, request);

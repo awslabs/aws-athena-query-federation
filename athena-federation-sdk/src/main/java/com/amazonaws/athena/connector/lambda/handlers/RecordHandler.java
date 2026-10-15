@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordRequest;
@@ -192,6 +193,11 @@ public abstract class RecordHandler
             throws Exception
     {
         logger.info("doReadRecords: {}:{}", request.getSchema(), request.getSplit().getSpillLocation());
+        if (request.getConstraints().isQueryPassThrough()
+                && !QueryPassthroughSignature.allowQueryPassthrough(configOptions)) {
+            throw new AthenaConnectorException("Query Passthrough is disabled",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+        }
         FederatedIdentity federatedIdentity = request.getIdentity();
         AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         SpillConfig spillConfig = getSpillConfig(request);
