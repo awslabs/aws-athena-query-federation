@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
@@ -60,7 +61,9 @@ public class CustomSchemaRowWriterTest
     private static final String TAGS = "tags";
     private static final String ALL_PROPERTIES = "all_properties";
     private static final String ID = "id";
-
+    private static final String ALICE = "alice";
+    private static final String BOB = "bob";
+    
     private BlockAllocatorImpl allocator;
 
     @Before
@@ -85,7 +88,7 @@ public class CustomSchemaRowWriterTest
     private Object writeAndReadOneRow(Schema schema, String fieldName, Map<String, Object> context) throws Exception
     {
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder();
-        for (org.apache.arrow.vector.types.pojo.Field f : schema.getFields()) {
+        for (Field f : schema.getFields()) {
             CustomSchemaRowWriter.writeRowTemplate(builder, f, configOptions());
         }
         GeneratedRowWriter rowWriter = builder.build();
@@ -107,17 +110,17 @@ public class CustomSchemaRowWriterTest
     @Test
     public void writeRowTemplate_varchar_valueMapList_writesFirstElement() throws Exception
     {
-        Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, listWith("alice")));
+        Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, listWith(ALICE)));
         assertNotNull(result);
-        assertEquals("alice", result.toString());
+        assertEquals(ALICE, result.toString());
     }
 
     @Test
     public void writeRowTemplate_varchar_scalarString_writesValue() throws Exception
     {
-        Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, "bob"));
+        Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, BOB));
         assertNotNull(result);
-        assertEquals("bob", result.toString());
+        assertEquals(BOB, result.toString());
     }
 
     @Test
