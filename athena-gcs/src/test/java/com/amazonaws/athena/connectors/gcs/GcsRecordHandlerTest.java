@@ -39,7 +39,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mock;
@@ -58,6 +60,7 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -69,6 +72,12 @@ public class GcsRecordHandlerTest extends GenericGcsTest
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsRecordHandlerTest.class);
 
+    private static final String QUERY_ID = "queryId";
+    private static final String PARQUET = "parquet";
+    private static final String DATASET_NAME = "dataset1";
+    private static final String TABLE_NAME = "table1";
+    private static final String DATA_PARQUET = "[\"data.parquet\"]";
+
     @Mock
     private SecretsManagerClient secretsManager;
 
@@ -79,7 +88,10 @@ public class GcsRecordHandlerTest extends GenericGcsTest
     GoogleCredentials credentials;
 
     private S3BlockSpiller spillWriter;
-
+    private BlockAllocator allocator;
+    private SpillConfig spillConfig;
+    private Schema schemaForRead;
+    private S3Client amazonS3;
 
     private final EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private final EncryptionKey encryptionKey = keyFactory.create();
@@ -103,14 +115,14 @@ public class GcsRecordHandlerTest extends GenericGcsTest
         System.setProperty("aws.region", "us-east-1");
         LOGGER.info("Starting init.");
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
-        BlockAllocator allocator = new BlockAllocatorImpl();
-        S3Client amazonS3 = mock(S3Client.class);
+        allocator = new BlockAllocatorImpl();
+        amazonS3 = mock(S3Client.class);
 
         // Create Spill config
         // This will be enough for a single block
         // This will force the writer to spill.
         // Async Writing.
-        SpillConfig spillConfig = SpillConfig.newBuilder()
+        spillConfig = SpillConfig.newBuilder()
                 .withEncryptionKey(encryptionKey)
                 //This will be enough for a single block
                 .withMaxBlockBytes(100000)
@@ -128,8 +140,7 @@ public class GcsRecordHandlerTest extends GenericGcsTest
         // To mock AmazonAthena via AmazonAthenaClientBuilder
         mockedAthenaClientBuilder.when(AthenaClient::create).thenReturn(athena);
         mockedGoogleCredentials.when(() -> GoogleCredentials.fromStream(any())).thenReturn(credentials);
-        Schema schemaForRead = new Schema(GcsTestUtils.getTestSchemaFieldsArrow());
-        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
+        schemaForRead = new Schema(GcsTestUtils.getTestSchemaFieldsArrow());
 
         // Mocking GcsUtil
         final File parquetFile = new File(GcsRecordHandlerTest.class.getProtectionDomain().getCodeSource().getLocation().getPath());
@@ -143,29 +154,29 @@ public class GcsRecordHandlerTest extends GenericGcsTest
     @AfterAll
     public void closeMockedObjects() {
         super.closeMockedObjects();
+        allocator.close();
+        bufferAllocator.close();
+    }
+
+    @BeforeEach
+    public void resetSpillWriter() {
+        // Reset the spillWriter before each test to ensure isolation
+        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead,
+                ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testReadWithConstraint()
+    public void readWithConstraint_withParquetSplit_returnsTwoRows()
             throws Exception
     {
         // Mocking split
         Split split = mock(Split.class);
-        when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn("[\"data.parquet\"]");
-        when(split.getProperty(FILE_FORMAT)).thenReturn("parquet");
+        when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn(DATA_PARQUET);
+        when(split.getProperty(FILE_FORMAT)).thenReturn(PARQUET);
 
         // Test readWithConstraint
-        try (ReadRecordsRequest request = new ReadRecordsRequest(
-                federatedIdentity,
-                GcsTestUtils.PROJECT_1_NAME,
-                "queryId",
-                new TableName("dataset1", "table1"), // dummy table
-                GcsTestUtils.getDatatypeTestSchema(),
-                split,
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                0, //This is ignored when directly calling readWithConstraints.
-                0)) {  //This is ignored when directly calling readWithConstraints.
+        try (ReadRecordsRequest request = readRecordRequest(split)) {
 
             QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
             // Execute the test
@@ -174,4 +185,95 @@ public class GcsRecordHandlerTest extends GenericGcsTest
         }
     }
 
+    @Test
+    public void readWithConstraint_withPartitionColumns_returnsTwoRows()
+    {
+        try {
+            final String id = "id";
+            final String name = "name";
+            final String idValue = "12345";
+            final String nameValue = "test_partition";
+
+            // Mocking split with partition column properties
+            Split split = mock(Split.class);
+            when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn(DATA_PARQUET);
+            when(split.getProperty(FILE_FORMAT)).thenReturn(PARQUET);
+
+            // Add partition column properties - these should match field names in the schema
+            when(split.getProperty(id)).thenReturn(idValue);
+            when(split.getProperty(name)).thenReturn(nameValue);
+
+            // Mock getProperties to return a map containing the partition properties
+            java.util.Map<String, String> splitProperties = new java.util.HashMap<>();
+            splitProperties.put(STORAGE_SPLIT_JSON, DATA_PARQUET);
+            splitProperties.put(FILE_FORMAT, PARQUET);
+            splitProperties.put(id, idValue);
+            splitProperties.put(name, nameValue);
+            when(split.getProperties()).thenReturn(splitProperties);
+
+            // Test readWithConstraint with partition columns
+            try (ReadRecordsRequest request = readRecordRequest(split)) {
+                QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+
+                gcsRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
+                assertEquals(2, spillWriter.getBlock().getRowCount(), "Total records should be 2");
+            }
+        } catch (Exception e) {
+            Assertions.fail("Unexpected exception in test: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void readWithConstraint_withEmptyFileList_writesNoRows() throws Exception
+    {
+        Split split = mock(Split.class);
+        when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn("[]");
+        when(split.getProperty(FILE_FORMAT)).thenReturn(PARQUET);
+        when(split.getProperties()).thenReturn(Collections.emptyMap());
+
+        try (ReadRecordsRequest request = readRecordRequest(split)) {
+            gcsRecordHandler.readWithConstraint(spillWriter, request, mock(QueryStatusChecker.class));
+            assertEquals(0, spillWriter.getBlock().getRowCount(), "No files means no rows");
+        }
+    }
+
+    @Test
+    public void readWithConstraint_withUnsupportedFormat_throwsIllegalArgumentException() throws Exception
+    {
+        Split split = mock(Split.class);
+        when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn(DATA_PARQUET);
+        when(split.getProperty(FILE_FORMAT)).thenReturn("orc");
+        when(split.getProperties()).thenReturn(Collections.emptyMap());
+
+        try (ReadRecordsRequest request = readRecordRequest(split)) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> gcsRecordHandler.readWithConstraint(spillWriter, request, mock(QueryStatusChecker.class)));
+        }
+    }
+
+    @Test
+    public void readWithConstraint_withInvalidSplitJson_throwsException() throws Exception
+    {
+        Split split = mock(Split.class);
+        when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn("not-valid-json");
+        when(split.getProperty(FILE_FORMAT)).thenReturn(PARQUET);
+
+        try (ReadRecordsRequest request = readRecordRequest(split)) {
+            assertThrows(Exception.class,
+                    () -> gcsRecordHandler.readWithConstraint(spillWriter, request, mock(QueryStatusChecker.class)));
+        }
+    }
+
+    private ReadRecordsRequest readRecordRequest(Split split) {
+        return new ReadRecordsRequest(
+                federatedIdentity,
+                GcsTestUtils.PROJECT_1_NAME,
+                QUERY_ID,
+                new TableName(DATASET_NAME, TABLE_NAME), // dummy table
+                GcsTestUtils.getDatatypeTestSchema(),
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                0, //This is ignored when directly calling readWithConstraints.
+                0);//This is ignored when directly calling readWithConstraints.
+    }
 }
