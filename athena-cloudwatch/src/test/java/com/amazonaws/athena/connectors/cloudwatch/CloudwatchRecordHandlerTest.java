@@ -48,6 +48,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -314,7 +315,7 @@ public class CloudwatchRecordHandlerTest
         
         verify(mockAwsLogs, atLeastOnce()).getLogEvents(argThat((GetLogEventsRequest logRequest) ->
             logRequest.startTime() != null && logRequest.endTime() != null &&
-            logRequest.startTime().equals(1000L) && logRequest.endTime().equals(1000L)
+            logRequest.startTime().equals(1000L) && logRequest.endTime().equals(1001L)
         ));
     }
 
@@ -339,8 +340,40 @@ public class CloudwatchRecordHandlerTest
         
         verify(mockAwsLogs, atLeastOnce()).getLogEvents(argThat((GetLogEventsRequest logRequest) ->
             logRequest.startTime() != null && logRequest.endTime() != null &&
-            logRequest.startTime().equals(1000L) && logRequest.endTime().equals(5000L)
+            logRequest.startTime().equals(1000L) && logRequest.endTime().equals(5001L)
         ));
+    }
+
+    @Test
+    public void pushDownConstraints_withEachBoundaryType_pushesDownConstraint() throws Exception
+    {
+        assertPushedTimeWindow("greater than", SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.BIGINT.getType(), 1000L)), 1001L, null);
+        assertPushedTimeWindow("greater than or equal", SortedRangeSet.of(Range.greaterThanOrEqual(allocator, Types.MinorType.BIGINT.getType(), 1000L)), 1000L, null);
+        assertPushedTimeWindow("less than", SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.BIGINT.getType(), 5000L)), null, 5000L);
+        assertPushedTimeWindow("less than or equal", SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.BIGINT.getType(), 5000L)), null, 5001L);
+        assertPushedTimeWindow("exclusive range", SortedRangeSet.of(Range.range(allocator, Types.MinorType.BIGINT.getType(), 1000L, false, 5000L, false)), 1001L, 5000L);
+        assertPushedTimeWindow("max inclusive upper bound", SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.BIGINT.getType(), Long.MAX_VALUE)), null, null);
+    }
+
+    private void assertPushedTimeWindow(String label, ValueSet timeConstraint, Long expectedStart, Long expectedEnd) throws Exception
+    {
+        Mockito.clearInvocations(mockAwsLogs);
+        Mockito.doAnswer((InvocationOnMock invocationOnMock) -> GetLogEventsResponse.builder()
+                .events(Collections.emptyList())
+                .nextForwardToken(null)
+                .build()).when(mockAwsLogs).getLogEvents(nullable(GetLogEventsRequest.class));
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put(CloudwatchMetadataHandler.LOG_TIME_FIELD, timeConstraint);
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+
+        handler.doReadRecords(allocator, createReadRecordsRequest(constraints, BLOCK_SIZE, 0));
+
+        ArgumentCaptor<GetLogEventsRequest> captor = ArgumentCaptor.forClass(GetLogEventsRequest.class);
+        verify(mockAwsLogs, atLeastOnce()).getLogEvents(captor.capture());
+        GetLogEventsRequest logRequest = captor.getValue();
+        assertEquals(label + " startTime", expectedStart, logRequest.startTime());
+        assertEquals(label + " endTime", expectedEnd, logRequest.endTime());
     }
 
     @Test(expected = NullPointerException.class)
