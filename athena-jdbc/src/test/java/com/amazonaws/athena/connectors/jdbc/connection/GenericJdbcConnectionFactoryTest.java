@@ -21,12 +21,14 @@ package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.DefaultCredentials;
+import com.amazonaws.athena.connectors.jdbc.credentials.RdsIamAuthConfiguration;
 import com.amazonaws.athena.connector.credentials.StaticCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Test;
+import software.amazon.awssdk.regions.Region;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -49,6 +51,18 @@ import static org.mockito.ArgumentMatchers.eq;
 
 public class GenericJdbcConnectionFactoryTest
 {
+    private static final String CATALOG = "default";
+    private static final String ENGINE = "postgres";
+    private static final String HOSTNAME = "localhost";
+    private static final int PORT = 5432;
+    private static final String USERNAME = "test_user";
+    private static final String DRIVER_CLASS = "org.h2.Driver";
+    
+    private static final RdsIamAuthConfiguration IAM_AUTH_CONFIGURATION = new RdsIamAuthConfiguration(
+            HOSTNAME,
+            PORT,
+            USERNAME,
+            Region.US_EAST_1);
     private static final String H2_DRIVER_CLASS = "org.h2.Driver";
     private static final int H2_DEFAULT_PORT = 9092;
     private static final String TEST_CATALOG = "testCatalog";
@@ -73,7 +87,7 @@ public class GenericJdbcConnectionFactoryTest
     }
 
     @Test
-    public void matchSecretNamePattern()
+    public void matchSecretNamePattern_WhenValidSecretPresent_MatchesSecret()
     {
         String jdbcConnectionString = "mysql://jdbc:mysql://mysql.host:3333/default?${secret!@+=_}";
         Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(jdbcConnectionString);
@@ -82,12 +96,51 @@ public class GenericJdbcConnectionFactoryTest
     }
 
     @Test
-    public void matchIncorrectSecretNamePattern()
+    public void matchIncorrectSecretNamePattern_WhenInvalidCharactersPresent_DoesNotMatch()
     {
         String jdbcConnectionString = "mysql://jdbc:mysql://mysql.host:3333/default?${secret!@+=*_}";
         Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(jdbcConnectionString);
 
         Assert.assertFalse(secretMatcher.find());
+    }
+    
+    @Test
+    public void constructor_WhenIamAuthEnabled_LoadsJdbcDriver()
+    {
+        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(
+                CATALOG,
+                ENGINE,
+                uniqueH2Url(),
+                IAM_AUTH_CONFIGURATION);
+
+        GenericJdbcConnectionFactory factory = new GenericJdbcConnectionFactory(
+                databaseConnectionConfig,
+                null,
+                new DatabaseConnectionInfo(DRIVER_CLASS, PORT),
+                null);
+
+        Assert.assertNotNull(factory);
+    }
+
+    @Test
+    public void getConnection_WhenIamAuthEnabled_OpensDirectConnection() throws Exception
+    {
+        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(
+                CATALOG,
+                ENGINE,
+                uniqueH2Url(),
+                IAM_AUTH_CONFIGURATION);
+        GenericJdbcConnectionFactory factory = new GenericJdbcConnectionFactory(
+                databaseConnectionConfig,
+                null,
+                new DatabaseConnectionInfo(DRIVER_CLASS, PORT),
+                null);
+        CredentialsProvider credentialsProvider = () -> new DefaultCredentials(USERNAME, "iam-token");
+
+        try (Connection connection = factory.getConnection(credentialsProvider)) {
+            Assert.assertNotNull(connection);
+            Assert.assertFalse(connection.isClosed());
+        }
     }
 
     @Test
