@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to register an EXISTING Lark Base Lambda Connector with Athena Data Catalog.
+
+Parameters:
+  AthenaCatalogName:
+    Description: 'The desired name for the Athena Data Catalog. Must satisfy the pattern ^[a-zA-Z0-9-_]{1,127}$'
+    Type: String
+    AllowedPattern: '^[a-zA-Z0-9-_]{1,127}$'
+  LambdaConnectorArn:
+    Description: 'The ARN of the existing Lark Base Athena Connector Lambda function to register.'
+    Type: String
+    AllowedPattern: ^arn:(aws|aws-cn|aws-us-gov):lambda:[a-z0-9-]+:\d{12}:function:[a-zA-Z0-9-_]+(:[a-zA-Z0-9-_]+)?$
+
+Resources:
+  DataCatalog:
+    Type: AWS::Athena::DataCatalog
+    Properties:
+      Name: !Ref AthenaCatalogName
+      Type: LAMBDA
+      Description: !Sub 'Athena Data Catalog for existing Lark Base Connector (${LambdaConnectorArn})'
+      Parameters:
+        function: !Ref LambdaConnectorArn
+
+Outputs:
+  AthenaCatalogName:
+    Description: Name of the Athena Data Catalog created/updated.
+    Value: !Ref AthenaCatalogName
