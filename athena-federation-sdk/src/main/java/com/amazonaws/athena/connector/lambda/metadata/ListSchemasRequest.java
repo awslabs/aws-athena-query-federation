@@ -32,18 +32,63 @@ public class ListSchemasRequest
         extends MetadataRequest
 {
     /**
-     * Constructs a new ListSchemasRequest object.
+     * Value used to indicate that the page size is unlimited, and therefore, the request should NOT be paginated.
+     */
+    public static final int UNLIMITED_PAGE_SIZE_VALUE = -1;
+
+    private final String nextToken;
+    private final int pageSize;
+
+    /**
+     * Constructs a new ListSchemasRequest object that returns all schemas (not paginated).
      *
      * @param identity The identity of the caller.
      * @param queryId The ID of the query requesting metadata.
      * @param catalogName The catalog name that schemas should be listed for.
      */
+    public ListSchemasRequest(FederatedIdentity identity, String queryId, String catalogName)
+    {
+        this(identity, queryId, catalogName, null, UNLIMITED_PAGE_SIZE_VALUE);
+    }
+
+    /**
+     * Constructs a new ListSchemasRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param queryId The ID of the query requesting metadata.
+     * @param catalogName The catalog name that schemas should be listed for.
+     * @param nextToken The pagination starting point for the next page (null indicates the first paginated request).
+     * @param pageSize The page size used for pagination (UNLIMITED_PAGE_SIZE_VALUE indicates the request should not be
+     *                 paginated).
+     */
     @JsonCreator
     public ListSchemasRequest(@JsonProperty("identity") FederatedIdentity identity,
             @JsonProperty("queryId") String queryId,
-            @JsonProperty("catalogName") String catalogName)
+            @JsonProperty("catalogName") String catalogName,
+            @JsonProperty("nextToken") String nextToken,
+            @JsonProperty("pageSize") int pageSize)
     {
         super(identity, MetadataRequestType.LIST_SCHEMAS, queryId, catalogName);
+        this.nextToken = nextToken;
+        this.pageSize = pageSize;
+    }
+
+    /**
+     * Gets the pagination starting point for the next page.
+     * @return The pagination starting point for the next page (null indicates the first paginated request).
+     */
+    public String getNextToken()
+    {
+        return nextToken;
+    }
+
+    /**
+     * Gets the page size used for pagination.
+     * @return The page size used for pagination (UNLIMITED_PAGE_SIZE_VALUE indicates the request should not be paginated).
+     */
+    public int getPageSize()
+    {
+        return pageSize;
     }
 
     @Override
@@ -56,7 +101,11 @@ public class ListSchemasRequest
     @Override
     public String toString()
     {
-        return "ListSchemasRequest{" + "queryId=" + getQueryId() + "}";
+        return "ListSchemasRequest{" +
+                "queryId=" + getQueryId() +
+                ", nextToken='" + nextToken + '\'' +
+                ", pageSize=" + pageSize +
+                '}';
     }
 
     @Override
@@ -72,12 +121,14 @@ public class ListSchemasRequest
         ListSchemasRequest that = (ListSchemasRequest) o;
 
         return Objects.equal(this.getRequestType(), that.getRequestType()) &&
-                Objects.equal(this.getCatalogName(), that.getCatalogName());
+                Objects.equal(this.getCatalogName(), that.getCatalogName()) &&
+                Objects.equal(this.getNextToken(), that.getNextToken()) &&
+                Objects.equal(this.getPageSize(), that.getPageSize());
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(getRequestType(), getCatalogName());
+        return Objects.hashCode(getRequestType(), getCatalogName(), getNextToken(), getPageSize());
     }
 }
