@@ -68,7 +68,7 @@ public class MySqlMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint()
+    public void readWithConstraint_withMysqlCatalog_invokesDelegateToWriteRecords()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -79,7 +79,7 @@ public class MySqlMuxJdbcRecordHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void readWithConstraintWithUnsupportedCatalog()
+    public void readWithConstraint_withUnsupportedCatalog_throwsRuntimeException()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -89,7 +89,7 @@ public class MySqlMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql()
+    public void buildSplitSql_withMysqlCatalog_returnsPreparedStatement()
             throws SQLException
     {
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
