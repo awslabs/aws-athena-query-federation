@@ -160,7 +160,10 @@ public class OracleMetadataHandler
             TableName casedTableName = getTableLayoutRequest.getTableName();
             LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), casedTableName.getSchemaName(),
                 casedTableName.getTableName());
-            List<String> parameters = Arrays.asList(OracleJDBCCaseResolver.convertToLiteral(casedTableName.getTableName()));
+            // GET_PARTITIONS_QUERY uses table_name = ?; bind the raw dictionary name.
+            // convertToLiteral() would put extra quotes into the JDBC parameter and
+            // miss USER_TAB_PARTITIONS rows.
+            List<String> parameters = Arrays.asList(casedTableName.getTableName());
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
                 ResultSet resultSet = preparedStatement.executeQuery()) {
                 // Return a single partition if no partitions defined

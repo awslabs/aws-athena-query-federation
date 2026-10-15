@@ -183,7 +183,7 @@ public class OracleRecordHandlerTest
 
         when(constraints.getLimit()).thenReturn(5L);
 
-        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\", \"testCol10\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?) AND (\"testCol10\" = ?) FETCH FIRST 5 ROWS ONLY ";
+        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\", \"testCol10\" FROM \"testSchema\".\"testTable\" PARTITION (\"p0\")  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?) AND (\"testCol10\" = ?) FETCH FIRST 5 ROWS ONLY ";
         PreparedStatement expectedPreparedStatement = mock(PreparedStatement.class);
         when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
@@ -257,7 +257,7 @@ public class OracleRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"col1\", \"col2\", \"col3\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  WHERE ((\"col1\" > ? AND \"col1\" <= ?)) AND ((\"col2\" >= ? AND \"col2\" < ?)) AND ((\"col3\" >= ? AND \"col3\" <= ?))";
+        String expectedSql = "SELECT \"col1\", \"col2\", \"col3\" FROM \"testSchema\".\"testTable\" PARTITION (\"p0\")  WHERE ((\"col1\" > ? AND \"col1\" <= ?)) AND ((\"col2\" >= ? AND \"col2\" < ?)) AND ((\"col3\" >= ? AND \"col3\" <= ?))";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
@@ -280,13 +280,25 @@ public class OracleRecordHandlerTest
         Split split = createMockSplit();
         Constraints constraints = createConstraintsWithLimit(LIMIT_10);
 
-        String expectedSql = "SELECT \"id\", \"value\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  FETCH FIRST " + LIMIT_10 + " ROWS ONLY ";
+        String expectedSql = "SELECT \"id\", \"value\" FROM \"testSchema\".\"testTable\" PARTITION (\"p0\")  FETCH FIRST " + LIMIT_10 + " ROWS ONLY ";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         verifyFetchSize(expectedPreparedStatement);
+    }
+
+    @Test
+    public void getFromClauseWithSplit_withEmbeddedDoubleQuote_escapesByDoubling()
+    {
+        Split split = mock(Split.class);
+        when(split.getProperty(Mockito.eq(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn("p\"x");
+
+        String result = ((OracleQueryStringBuilder) jdbcSplitQueryBuilder)
+                .getFromClauseWithSplit(TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, split);
+
+        Assert.assertEquals(" FROM \"testCatalog\".\"testSchema\".\"testTable\" PARTITION (\"p\"\"x\") ", result);
     }
 
     @Test
@@ -311,7 +323,7 @@ public class OracleRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"id\", \"name\", \"value\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  ORDER BY \"value\" DESC NULLS LAST, \"name\" ASC NULLS LAST";
+        String expectedSql = "SELECT \"id\", \"name\", \"value\" FROM \"testSchema\".\"testTable\" PARTITION (\"p0\")  ORDER BY \"value\" DESC NULLS LAST, \"name\" ASC NULLS LAST";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
@@ -328,7 +340,7 @@ public class OracleRecordHandlerTest
         Split split = createMockSplit();
         Constraints constraints = createConstraintsWithLimit(LIMIT_5);
         
-        String expectedSql = "SELECT \"id\", \"value\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  FETCH FIRST " + LIMIT_5 + " ROWS ONLY ";
+        String expectedSql = "SELECT \"id\", \"value\" FROM \"testSchema\".\"testTable\" PARTITION (\"p0\")  FETCH FIRST " + LIMIT_5 + " ROWS ONLY ";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
@@ -367,7 +379,7 @@ public class OracleRecordHandlerTest
                 Collections.emptyMap(),
                 null);
 
-        String expectedSql = "SELECT \"intCol\", \"doubleCol\", \"stringCol\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  WHERE (\"intCol\" IN (?,?,?)) AND ((\"doubleCol\" >= ? AND \"doubleCol\" < ?)) AND (\"stringCol\" IN (?,?))";
+        String expectedSql = "SELECT \"intCol\", \"doubleCol\", \"stringCol\" FROM \"testSchema\".\"testTable\" PARTITION (\"p0\")  WHERE (\"intCol\" IN (?,?,?)) AND ((\"doubleCol\" >= ? AND \"doubleCol\" < ?)) AND (\"stringCol\" IN (?,?))";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
@@ -413,7 +425,7 @@ public class OracleRecordHandlerTest
                 Collections.emptyMap(),
                 null);
 
-        String expectedSql = "SELECT \"dateCol\", \"timestampCol\", \"decimalCol\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  WHERE ((\"dateCol\" >= ? AND \"dateCol\" <= ?)) AND ((\"decimalCol\" > ? AND \"decimalCol\" < ?))";
+        String expectedSql = "SELECT \"dateCol\", \"timestampCol\", \"decimalCol\" FROM \"testSchema\".\"testTable\" PARTITION (\"p0\")  WHERE ((\"dateCol\" >= ? AND \"dateCol\" <= ?)) AND ((\"decimalCol\" > ? AND \"decimalCol\" < ?))";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
@@ -470,7 +482,7 @@ public class OracleRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"" + COL_ID + "\", \"" + COL_NAME + "\" FROM \"testSchema\".\"testTable\" PARTITION (p0) ";
+        String expectedSql = "SELECT \"" + COL_ID + "\", \"" + COL_NAME + "\" FROM \"testSchema\".\"testTable\" PARTITION (\"p0\") ";
         PreparedStatement preparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement result = this.oracleRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
@@ -498,7 +510,7 @@ public class OracleRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"" + COL_ID + "\", \"" + COL_NAME + "\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  ORDER BY \"" + COL_ID + "\" ASC NULLS LAST, \"" + COL_NAME + "\" DESC NULLS LAST";
+        String expectedSql = "SELECT \"" + COL_ID + "\", \"" + COL_NAME + "\" FROM \"testSchema\".\"testTable\" PARTITION (\"p0\")  ORDER BY \"" + COL_ID + "\" ASC NULLS LAST, \"" + COL_NAME + "\" DESC NULLS LAST";
         PreparedStatement preparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement result = this.oracleRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
