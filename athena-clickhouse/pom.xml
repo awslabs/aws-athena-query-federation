@@ -82,6 +82,10 @@
                                         <!-- This excludes all pom.xml and pom.properties files that may declare vulnerable dependency versions -->
                                         <exclude>META-INF/maven/**/pom.xml</exclude>
                                         <exclude>META-INF/maven/**/pom.properties</exclude>
+                                        <!-- Inspector code scanning CWE-327/328/326/208/1240: aws-cryptographic-material-providers keyring-only primitives (see root pom #16) -->
+                                        <exclude>AesKdfCtr/**</exclude>
+                                        <exclude>Signature/**</exclude>
+                                        <exclude>ECDH/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
