@@ -1,6 +1,11 @@
 name: Java CI Push
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  # Required so merge queue can run status checks on speculative merge commits.
+  merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
