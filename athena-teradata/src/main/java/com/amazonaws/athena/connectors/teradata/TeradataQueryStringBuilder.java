@@ -22,16 +22,26 @@ package com.amazonaws.athena.connectors.teradata;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.apache.calcite.sql.SqlDialect;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class TeradataQueryStringBuilder extends JdbcSplitQueryBuilder
 {
+    /**
+     * Teradata's system-derived PARTITION column always reports a partition number, so a split value
+     * that is not a number cannot have come from the database and is never safe to inline.
+     */
+    private static final Pattern PARTITION_NUMBER = Pattern.compile("^\\d+$");
+
     public TeradataQueryStringBuilder(String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
         super(quoteCharacters, federationExpressionParser);
@@ -55,11 +65,22 @@ public class TeradataQueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        if (!split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
-            return Collections.singletonList(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME + " = " + split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME));
+        String partition = split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
+        if (TeradataMetadataHandler.ALL_PARTITIONS.equals(partition)) {
+            return Collections.emptyList();
         }
 
-        return Collections.emptyList();
+        if (!isValidPartitionNumber(partition)) {
+            throw new AthenaConnectorException("Invalid Teradata partition number (expected non-negative integer): " + partition,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+
+        return Collections.singletonList(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME + " = " + partition);
+    }
+
+    private static boolean isValidPartitionNumber(String partition)
+    {
+        return partition != null && PARTITION_NUMBER.matcher(partition).matches();
     }
 
     //Returning empty string as Teradata does not support LIMIT clause

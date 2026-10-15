@@ -183,8 +183,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
-        final String getPartitionsQuery = "Select DISTINCT partition FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
-                getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
+        final String getPartitionsQuery = "Select DISTINCT partition FROM " + qualifiedTableName(getTableLayoutRequest.getTableName()) + " where 1= ?";
         boolean viewFlag = false;
         //Check if input table is a view
         List<String> viewparameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
@@ -238,8 +237,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      */
     private boolean useNonPartitionApproach(GetTableLayoutRequest getTableLayoutRequest) throws Exception
     {
-        final String getPartitionsCountQuery = "Select  count(distinct partition ) as partition_count FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
-                getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
+        final String getPartitionsCountQuery = "Select  count(distinct partition ) as partition_count FROM " + qualifiedTableName(getTableLayoutRequest.getTableName()) + " where 1= ?";
         String partitioncount = configOptions.containsKey("partition_count") ? configOptions.get("partition_count") : configOptions.getOrDefault("partitioncount", "500");
         int totalPartitionCount = Integer.parseInt(partitioncount);
         int  partitionCount = 0;
@@ -424,6 +422,15 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
             return schemaBuilder.build();
         }
     }
+
+    private static String qualifiedTableName(TableName tableName)
+    {
+        String quote = TeradataConstants.TERADATA_QUOTE_CHARACTER;
+        return quote + tableName.getSchemaName().replace(quote, quote + quote) + quote
+                + "."
+                + quote + tableName.getTableName().replace(quote, quote + quote) + quote;
+    }
+
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {
         try {
