@@ -49,6 +49,7 @@ import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -81,15 +82,50 @@ public class DDBPredicateUtilsTest
         logger.info("aliasColumn_withValidColumnNames_returnsAliasedColumnNames - enter");
 
         assertEquals("Unexpected alias column value!", "#column_1",
-                DDBPredicateUtils.aliasColumn("column_1"));
+                DDBPredicateUtils.aliasColumn("column_1", new HashMap<>()));
         assertEquals("Unexpected alias column value!", "#column__1",
-                DDBPredicateUtils.aliasColumn("column__1"));
+                DDBPredicateUtils.aliasColumn("column__1", new HashMap<>()));
         assertEquals("Unexpected alias column value!", "#column_1",
-                DDBPredicateUtils.aliasColumn("column-1"));
+                DDBPredicateUtils.aliasColumn("column-1", new HashMap<>()));
         assertEquals("Unexpected alias column value!", "#column_1_f3F",
-                DDBPredicateUtils.aliasColumn("column-$1`~!@#$%^&*()-=+[]{}\\|;:'\",.<>/?f3F"));
+                DDBPredicateUtils.aliasColumn("column-$1`~!@#$%^&*()-=+[]{}\\|;:'\",.<>/?f3F", new HashMap<>()));
 
         logger.info("aliasColumn_withValidColumnNames_returnsAliasedColumnNames - exit");
+    }
+
+    @Test
+    public void aliasColumn_withCollidingColumnNames_returnsUniqueAliases()
+    {
+        Map<String, String> columnAliasMap = new HashMap<>();
+        assertEquals("#my_column", DDBPredicateUtils.aliasColumn("my-column", columnAliasMap));
+        assertEquals("#my_column_1", DDBPredicateUtils.aliasColumn("my/column", columnAliasMap));
+        assertEquals("my-column", columnAliasMap.get("#my_column"));
+        assertEquals("my/column", columnAliasMap.get("#my_column_1"));
+        assertEquals("#my_column", DDBPredicateUtils.aliasColumn("my-column", columnAliasMap));
+        // re-lookup both columns
+        assertEquals("#my_column", DDBPredicateUtils.aliasColumn("my-column", columnAliasMap));
+        assertEquals("#my_column_1", DDBPredicateUtils.aliasColumn("my/column", columnAliasMap));
+        // third collision
+        assertEquals("#my_column_2", DDBPredicateUtils.aliasColumn("my_column", columnAliasMap));
+    }
+    
+    @Test
+    public void generateFilterExpression_withCollidingColumnNames_usesUniqueAliases()
+    {
+        Map<String, String> columnAliasMap = new HashMap<>();
+        ValueSet valueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "x"));
+        String result = DDBPredicateUtils.generateFilterExpression(
+                Collections.emptySet(),
+                ImmutableMap.of("my-column", valueSet, "my/column", valueSet),
+                new ArrayList<>(),
+                new IncrementingValueNameProducer(),
+                new DDBRecordMetadata(null),
+                columnAliasMap);
+        assertNotNull(result);
+        assertTrue(result.contains("#my_column"));
+        assertTrue(result.contains("#my_column_1"));
+        assertEquals("my-column", columnAliasMap.get("#my_column"));
+        assertEquals("my/column", columnAliasMap.get("#my_column_1"));
     }
 
     @Test
@@ -222,31 +258,31 @@ public class DDBPredicateUtilsTest
     public void aliasColumn_withEdgeCases_replacesSpecialCharactersWithUnderscores()
     {
         // Test empty string
-        assertEquals("#", DDBPredicateUtils.aliasColumn(""));
-        
+        assertEquals("#", DDBPredicateUtils.aliasColumn("", new HashMap<>()));
+
         // Test single character
-        assertEquals("#a", DDBPredicateUtils.aliasColumn("a"));
-        assertEquals("#_", DDBPredicateUtils.aliasColumn("_"));
-        assertEquals("#1", DDBPredicateUtils.aliasColumn("1"));
-        assertEquals("#_", DDBPredicateUtils.aliasColumn("!"));
-        
+        assertEquals("#a", DDBPredicateUtils.aliasColumn("a", new HashMap<>()));
+        assertEquals("#_", DDBPredicateUtils.aliasColumn("_", new HashMap<>()));
+        assertEquals("#1", DDBPredicateUtils.aliasColumn("1", new HashMap<>()));
+        assertEquals("#_", DDBPredicateUtils.aliasColumn("!", new HashMap<>()));
+
         // Test consecutive special characters
-        assertEquals("#column_name", DDBPredicateUtils.aliasColumn("column---name"));
-        assertEquals("#column_name", DDBPredicateUtils.aliasColumn("column!!!name"));
-        assertEquals("#column_name", DDBPredicateUtils.aliasColumn("column@@@name"));
-        
+        assertEquals("#column_name", DDBPredicateUtils.aliasColumn("column---name", new HashMap<>()));
+        assertEquals("#column_name", DDBPredicateUtils.aliasColumn("column!!!name", new HashMap<>()));
+        assertEquals("#column_name", DDBPredicateUtils.aliasColumn("column@@@name", new HashMap<>()));
+
         // Test leading/trailing special characters
-        assertEquals("#_column", DDBPredicateUtils.aliasColumn("!column"));
-        assertEquals("#column_", DDBPredicateUtils.aliasColumn("column!"));
-        assertEquals("#_column_", DDBPredicateUtils.aliasColumn("!column!"));
-        
+        assertEquals("#_column", DDBPredicateUtils.aliasColumn("!column", new HashMap<>()));
+        assertEquals("#column_", DDBPredicateUtils.aliasColumn("column!", new HashMap<>()));
+        assertEquals("#_column_", DDBPredicateUtils.aliasColumn("!column!", new HashMap<>()));
+
         // Test unicode characters
-        assertEquals("#column_name", DDBPredicateUtils.aliasColumn("column\u00A9name"));
-        
+        assertEquals("#column_name", DDBPredicateUtils.aliasColumn("column\u00A9name", new HashMap<>()));
+
         // Test very long column name
         String longName = "a".repeat(100) + "!" + "b".repeat(100);
         String expectedLongAlias = "#" + "a".repeat(100) + "_" + "b".repeat(100);
-        assertEquals(expectedLongAlias, DDBPredicateUtils.aliasColumn(longName));
+        assertEquals(expectedLongAlias, DDBPredicateUtils.aliasColumn(longName, new HashMap<>()));
     }
 
     @Test
@@ -765,6 +801,60 @@ public class DDBPredicateUtilsTest
     }
 
     @Test
+    public void generateSingleColumnFilter_withNoneValueSet_generatesAttributeNotExistsFilter()
+    {
+        assertEquals("(attribute_not_exists(#col) OR #col = :v0)",
+                filter(SortedRangeSet.none(VARCHAR.getType())));
+    }
+
+    @Test
+    public void generateSingleColumnFilter_withAllValueSet_generatesAttributeExistsFilter()
+    {
+        assertEquals("(attribute_exists(#col) AND #col <> :v0)",
+                filter(SortedRangeSet.all(new BlockAllocatorImpl(), VARCHAR.getType())));
+    }
+
+    @Test
+    public void generateSingleColumnFilter_withLessThanOrEqualRange_generatesLessThanOrEqualFilter()
+    {
+        assertEquals("(#col <= :v0)",
+                filter(SortedRangeSet.of(Range.lessThanOrEqual(new BlockAllocatorImpl(), VARCHAR.getType(), "z"))));
+    }
+
+    @Test
+    public void generateSingleColumnFilter_withGreaterThanOrEqualRange_generatesGreaterThanOrEqualFilter()
+    {
+        assertEquals("(#col >= :v0)",
+                filter(SortedRangeSet.of(Range.greaterThanOrEqual(new BlockAllocatorImpl(), VARCHAR.getType(), "a"))));
+    }
+
+    @Test
+    public void generateSingleColumnFilter_withSingleExcludedValue_generatesNotEqualFilter()
+    {
+        assertEquals("#col <> :v0",
+                filter(EquatableValueSet.newBuilder(new BlockAllocatorImpl(), VARCHAR.getType(), false, false).add("x").build()));
+    }
+
+    @Test
+    public void generateSingleColumnFilter_withNullAllowedValue_includesNullCheck()
+    {
+        assertEquals("(#col = :v0 OR attribute_not_exists(#col) OR #col = :v1)",
+                filter(EquatableValueSet.newBuilder(new BlockAllocatorImpl(), VARCHAR.getType(), true, true).add("x").build()));
+    }
+
+    @Test
+    public void generateSingleColumnFilter_withLessThanOrEqualColumnPredicate_generatesLessThanOrEqualFilter()
+    {
+        assertEquals("(#col <= :v0)", columnPredicateFilter(SubstraitOperator.LESS_THAN_OR_EQUAL_TO));
+    }
+
+    @Test
+    public void generateSingleColumnFilter_withGreaterThanOrEqualColumnPredicate_generatesGreaterThanOrEqualFilter()
+    {
+        assertEquals("(#col >= :v0)", columnPredicateFilter(SubstraitOperator.GREATER_THAN_OR_EQUAL_TO));
+    }
+
+    @Test
     public void generateSingleColumnFilter_withBetweenPredicate_generatesBetweenFilter()
     {
         List<AttributeValue> accumulator = new ArrayList<>();
@@ -904,6 +994,23 @@ public class DDBPredicateUtilsTest
         
         // Verify the bound values
         verifyAccumulatorValues(accumulator);
+    }
+
+    private String filter(ValueSet valueSet)
+    {
+        return DDBPredicateUtils.generateSingleColumnFilter(
+                "col", valueSet, new ArrayList<>(), new IncrementingValueNameProducer(), new DDBRecordMetadata(null), false);
+    }
+
+    private String columnPredicateFilter(SubstraitOperator operator)
+    {
+        return DDBPredicateUtils.generateSingleColumnFilter(
+                "col",
+                ImmutableList.of(new ColumnPredicate("col", operator, "x", new ArrowType.Utf8())),
+                new ArrayList<>(),
+                new IncrementingValueNameProducer(),
+                new DDBRecordMetadata(null),
+                false);
     }
 
     private void verifyAccumulatorValues(List<AttributeValue> accumulator)
