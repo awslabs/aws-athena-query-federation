@@ -81,6 +81,8 @@ public class VerticaSchemaUtils
 
     public static void convertToArrowType(SchemaBuilder tableSchemaBuilder, String colName, String colType) throws SQLException
     {
+        // QPT ResultSetMetaData may return mixed case (e.g. "Float"); normalize for switch matching.
+        colType = (colType == null) ? "" : colType.toUpperCase();
         switch (colType)
         {
             //If Bit
@@ -114,8 +116,10 @@ public class VerticaSchemaUtils
                 tableSchemaBuilder.addFloat4Field(colName);
                 break;
             }
-            //If FLOAT8
+            // Vertica FLOAT/DOUBLE PRECISION/FLOAT8 are all 64-bit IEEE floats.
+            case "FLOAT":
             case "FLOAT8":
+            case "DOUBLE PRECISION":
             {
                 tableSchemaBuilder.addFloat8Field(colName);
                 break;
