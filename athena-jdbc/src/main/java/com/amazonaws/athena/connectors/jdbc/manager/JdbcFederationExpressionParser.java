@@ -45,12 +45,16 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
     public abstract String writeArrayConstructorClause(ArrowType type, List<String> arguments);
 
     /**
-     * JDBC Requires wrapping column names in a specific quote char
+     * JDBC Requires wrapping column names in a specific quote char. The column name is escaped by doubling any
+     * embedded quote character so that a name containing the quote char cannot terminate the identifier early.
+     * JDBC cannot bind identifiers with {@code ?}
      */
     @Override
     public String parseVariableExpression(VariableExpression variableExpression)
     {
-        return quoteChar + variableExpression.getColumnName() + quoteChar;
+        String columnName = variableExpression.getColumnName();
+        columnName = columnName.replace(quoteChar, quoteChar + quoteChar);
+        return quoteChar + columnName + quoteChar;
     }
 
     
