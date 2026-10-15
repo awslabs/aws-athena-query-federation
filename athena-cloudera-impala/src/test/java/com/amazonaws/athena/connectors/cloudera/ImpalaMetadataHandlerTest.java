@@ -179,13 +179,77 @@ public class ImpalaMetadataHandlerTest
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
         assertEquals(2, expectedValues.size());
-        assertEquals("[partition :  case_date=02-01-2000 and case_number=1 and case_instance=89898990 and case_location='Hyderabad']", expectedValues.get(0));
-        assertEquals("[partition :  case_date=01-01-2000 and case_number=0 and case_instance=89898989 and case_location is NULL]", expectedValues.get(1));
+        assertEquals("[partition :  `case_date`='02-01-2000' and `case_number`=1 and `case_instance`=89898990 and `case_location`='Hyderabad']", expectedValues.get(0));
+        assertEquals("[partition :  `case_date`='01-01-2000' and `case_number`=0 and `case_instance`=89898989 and `case_location` is NULL]", expectedValues.get(1));
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
         assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         assertEquals(tempTableName, getTableLayoutResponse.getTableName());
+    }
+
+    @Test
+    public void doGetTableLayout_whenCharPartitionValueContainsOr_quotesValueAsStringLiteral()
+            throws Exception
+    {
+        String[] schema = {"type", "name"};
+        Object[][] values = {{"char(64)", "country"}};
+        ResultSet describeResultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tempTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema(TEST_CATALOG);
+        Set<String> partitionCols = new HashSet<>(Arrays.asList(TEST_PARTITION));
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID,
+                TEST_CATALOG, tempTableName, constraints, partitionSchema, partitionCols);
+        String[] partitionColumns = {"Partition"};
+        int[] partitionTypes = {Types.VARCHAR};
+        Object[][] partitionValues = {{"country=1 OR true --"}};
+        ResultSet showFilesResultSet = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        final String qualifiedTable = ImpalaUtils.qualifiedTableForMetadataSql(tempTableName);
+        final String describeSql = ImpalaMetadataHandler.GET_METADATA_QUERY + qualifiedTable;
+        final String getPartitionDetailsSql = "show files in " + qualifiedTable;
+        Statement statement = Mockito.mock(Statement.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        Mockito.when(statement.executeQuery(describeSql)).thenReturn(describeResultSet);
+        Mockito.when(statement.executeQuery(getPartitionDetailsSql)).thenReturn(showFilesResultSet);
+
+        GetTableLayoutResponse getTableLayoutResponse = this.impalaMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+
+        assertEquals(1, getTableLayoutResponse.getPartitions().getRowCount());
+        assertEquals("[partition :  `country`='1 OR true --']",
+                BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), 0));
+    }
+
+    @Test
+    public void doGetTableLayout_whenBooleanPartition_emitsUnquotedTrueLiteral()
+            throws Exception
+    {
+        String[] schema = {"type", "name"};
+        Object[][] values = {{"boolean", "active"}};
+        ResultSet describeResultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tempTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema(TEST_CATALOG);
+        Set<String> partitionCols = new HashSet<>(Arrays.asList(TEST_PARTITION));
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID,
+                TEST_CATALOG, tempTableName, constraints, partitionSchema, partitionCols);
+        String[] partitionColumns = {"Partition"};
+        int[] partitionTypes = {Types.VARCHAR};
+        Object[][] partitionValues = {{"active=true"}};
+        ResultSet showFilesResultSet = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        final String qualifiedTable = ImpalaUtils.qualifiedTableForMetadataSql(tempTableName);
+        final String describeSql = ImpalaMetadataHandler.GET_METADATA_QUERY + qualifiedTable;
+        final String getPartitionDetailsSql = "show files in " + qualifiedTable;
+        Statement statement = Mockito.mock(Statement.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        Mockito.when(statement.executeQuery(describeSql)).thenReturn(describeResultSet);
+        Mockito.when(statement.executeQuery(getPartitionDetailsSql)).thenReturn(showFilesResultSet);
+
+        GetTableLayoutResponse getTableLayoutResponse = this.impalaMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+
+        assertEquals(1, getTableLayoutResponse.getPartitions().getRowCount());
+        assertEquals("[partition :  `active`=true]",
+                BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), 0));
     }
 
    @Test

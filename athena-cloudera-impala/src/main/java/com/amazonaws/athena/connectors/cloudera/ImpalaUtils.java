@@ -24,8 +24,9 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.IMPALA_QUOTE_CHARACTER;
 
 /**
- * Builds Impala-safe quoted identifiers for dynamic SQL. JDBC {@code ?} placeholders apply to values,
- * not table references, so identifiers must be quoted and escaped explicitly.
+ * Builds Impala-safe quoted identifiers and string literals for dynamic SQL. JDBC {@code ?}
+ * placeholders apply to values, not table references, so identifiers and literals must be
+ * quoted and escaped explicitly.
  */
 public class ImpalaUtils
 {
@@ -40,6 +41,38 @@ public class ImpalaUtils
     {
         String escaped = identifier.replace(IMPALA_QUOTE_CHARACTER, IMPALA_QUOTE_CHARACTER + IMPALA_QUOTE_CHARACTER);
         return IMPALA_QUOTE_CHARACTER + escaped + IMPALA_QUOTE_CHARACTER;
+    }
+
+    /**
+     * Single-quoted Impala string literal. Impala accepts quote-doubling and C-style backslash
+     * escapes, so backslashes are doubled first, then {@code '} is doubled.
+     */
+    public static String quoteStringLiteral(String value)
+    {
+        String escaped = value.replace("\\", "\\\\").replace("'", "''");
+        return "'" + escaped + "'";
+    }
+
+    /**
+     * Right-hand side of a partition equality predicate. Quote STRING, VARCHAR, CHAR, and DATE;
+     * leave INT, BOOLEAN, and other types unquoted. {@code VARCHAR} is covered by {@code contains("CHAR")}.
+     */
+    public static String partitionValueExpression(String columnType, String partitionValue)
+    {
+        if (isQuotedPartitionType(columnType)) {
+            return quoteStringLiteral(partitionValue);
+        }
+        return partitionValue;
+    }
+    
+    private static boolean isQuotedPartitionType(String columnType)
+    {
+        if (columnType == null) {
+            return false;
+        }
+        String type = columnType.toUpperCase();
+        return type.contains("STRING") || type.contains("CHAR")
+                || type.equals("DATE") || type.startsWith("DATE(");
     }
 
     /**
