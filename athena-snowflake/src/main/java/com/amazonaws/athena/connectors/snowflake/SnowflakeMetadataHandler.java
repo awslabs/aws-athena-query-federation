@@ -621,7 +621,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         LOGGER.debug("getPrimaryKey tableName: " + tableName);
         List<String> primaryKeys = new ArrayList<String>();
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
+            try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + qualifiedTableName(tableName));
                  ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
                     // Concatenate multiple primary keys if they exist
@@ -629,7 +629,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 }
             }
 
-            String primaryKeyString = primaryKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
+            String primaryKeyString = primaryKeys.stream().map(s -> snowflakeQueryStringBuilder.quote(s)).collect(Collectors.joining(","));
             if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString)) {
                 return Optional.of(primaryKeyString);
             }
@@ -644,7 +644,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
+            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey + ", count(*) as COUNTS FROM " + qualifiedTableName(tableName) + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
                     if (rs.getInt(COUNTS_COLUMN_NAME) == 1) {
@@ -785,5 +785,12 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     request.getConstraints());
         }
         return generatedSql;
+    }
+
+    private String qualifiedTableName(TableName tableName)
+    {
+        return snowflakeQueryStringBuilder.quote(tableName.getSchemaName())
+                + "."
+                + snowflakeQueryStringBuilder.quote(tableName.getTableName());
     }
 }

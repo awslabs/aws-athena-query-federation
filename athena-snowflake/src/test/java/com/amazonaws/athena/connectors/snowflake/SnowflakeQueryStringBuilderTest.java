@@ -98,6 +98,12 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
+    public void quote_whenIdentifierContainsDoubleQuote_escapesByDoubling()
+    {
+        assertEquals("\"COL\"\"NAME\"", queryBuilder.quote("COL\"NAME"));
+    }
+
+    @Test
     public void testBuildSqlWithSimpleConstraints() throws SQLException
     {
         Connection mockConnection = mock(Connection.class);
