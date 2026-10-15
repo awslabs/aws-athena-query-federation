@@ -19,17 +19,35 @@
  */
 package com.amazonaws.athena.connectors.sqlserver;
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcFederationExpressionParser;
 import com.google.common.base.Joiner;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.util.List;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_END;
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_START;
+
 public class SqlServerFederationExpressionParser extends JdbcFederationExpressionParser
 {
-    public SqlServerFederationExpressionParser(String quoteChar)
+    /**
+     * Parent requires a quote-character argument. It is unused: wrapping uses
+     * {@link SqlServerConstants#SQLSERVER_QUOTE_START} and {@link SqlServerConstants#SQLSERVER_QUOTE_END}.
+     */
+    public SqlServerFederationExpressionParser()
     {
-        super(quoteChar);
+        super("");
+    }
+
+    /**
+     * SQL Server column names are quoted with square brackets ({@code [col]}), valid regardless of the
+     * session {@code QUOTED_IDENTIFIER} setting. An embedded closing bracket is escaped by doubling it.
+     */
+    @Override
+    public String parseVariableExpression(VariableExpression variableExpression)
+    {
+        return SQLSERVER_QUOTE_START + variableExpression.getColumnName().replace(SQLSERVER_QUOTE_END, SQLSERVER_QUOTE_END + SQLSERVER_QUOTE_END) + SQLSERVER_QUOTE_END;
     }
 
     @Override
