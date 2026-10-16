@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import org.apache.calcite.sql.dialect.HiveSqlDialect;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -30,6 +31,7 @@ import java.util.Collections;
 
 import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_CHARACTER;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("deprecation")
 @RunWith(MockitoJUnitRunner.class)
@@ -58,5 +60,19 @@ public class HiveQueryStringBuilderTest
 		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
 		
 		assertEquals(Collections.emptyList(), builder.getPartitionWhereClauses(split));
+	}
+
+	@Test
+	public void getSqlDialect_default_returnsHiveDialect()
+	{
+		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
+		assertTrue(builder.getSqlDialect() instanceof HiveSqlDialect);
+	}
+
+	@Test
+	public void getSqlDialect_withCatalogCasingFilter_returnsHiveDialect()
+	{
+		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
+		assertTrue(builder.getSqlDialect(true) instanceof HiveDialect);
 	}
 }

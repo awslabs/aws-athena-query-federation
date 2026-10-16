@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -375,6 +376,92 @@ public class HiveMetadataHandlerTest
                 .collect(Collectors.toSet());
         assertEquals(expectedPartitions, actualPartitions);
         assertEquals(CATALOG_NAME, getSplitsResponse.getCatalogName());
+    }
+
+    @Test
+    public void doGetSplits_whenCatalogCasingFilterSet_propagatesFilterToSplits() {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = partitionSchema.getFields().stream()
+                .map(Field::getName)
+                .collect(Collectors.toSet());
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(HiveConstants.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType());
+        Block partitionsBlock = blockAllocator.createBlock(schemaBuilder.build());
+        partitionsBlock.setValue(HiveConstants.BLOCK_PARTITION_COLUMN_NAME, 0, "partition_0");
+        partitionsBlock.setRowCount(1);
+
+        Mockito.when(this.federatedIdentity.getConfigOptions())
+                .thenReturn(Map.of(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY));
+
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME,
+                tableName, partitionsBlock, new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.hiveMetadataHandler.doGetSplits(blockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        getSplitsResponse.getSplits().forEach(split ->
+                assertEquals(EnvironmentConstants.UPPERCASE_ONLY, split.getProperties().get(EnvironmentConstants.CATALOG_CASING_FILTER)));
+    }
+
+    @Test
+    public void doGetSplits_whenNoCatalogCasingFilter_doesNotAddFilterProperty() {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = partitionSchema.getFields().stream()
+                .map(Field::getName)
+                .collect(Collectors.toSet());
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(HiveConstants.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType());
+        Block partitionsBlock = blockAllocator.createBlock(schemaBuilder.build());
+        partitionsBlock.setValue(HiveConstants.BLOCK_PARTITION_COLUMN_NAME, 0, "partition_0");
+        partitionsBlock.setRowCount(1);
+
+        Mockito.when(this.federatedIdentity.getConfigOptions()).thenReturn(Collections.emptyMap());
+
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME,
+                tableName, partitionsBlock, new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.hiveMetadataHandler.doGetSplits(blockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        getSplitsResponse.getSplits().forEach(split ->
+                assertEquals(null, split.getProperties().get(EnvironmentConstants.CATALOG_CASING_FILTER)));
+    }
+
+    @Test
+    public void doGetSplits_whenConfigOptionsNull_doesNotAddFilterProperty() {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = partitionSchema.getFields().stream()
+                .map(Field::getName)
+                .collect(Collectors.toSet());
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(HiveConstants.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType());
+        Block partitionsBlock = blockAllocator.createBlock(schemaBuilder.build());
+        partitionsBlock.setValue(HiveConstants.BLOCK_PARTITION_COLUMN_NAME, 0, "partition_0");
+        partitionsBlock.setRowCount(1);
+
+        // Null config options exercises the identity-config-options null guard in doGetSplits.
+        Mockito.when(this.federatedIdentity.getConfigOptions()).thenReturn(null);
+
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME,
+                tableName, partitionsBlock, new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.hiveMetadataHandler.doGetSplits(blockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        getSplitsResponse.getSplits().forEach(split ->
+                assertEquals(null, split.getProperties().get(EnvironmentConstants.CATALOG_CASING_FILTER)));
     }
 
     @Test
