@@ -50,12 +50,14 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsRequest;
@@ -84,7 +86,11 @@ import java.util.concurrent.TimeoutException;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -650,5 +656,46 @@ public class CloudwatchMetadataHandlerTest
 
         ListSchemasRequest req = new ListSchemasRequest(identity, QUERY_ID, CATALOG_NAME);
         handler.doListSchemaNames(allocator, req);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Managed-connector (Athena federation) behaviour: the customer FAS credentials returned by
+    // getRequestOverrideConfig(configOptions) must be threaded onto the Cloudwatch Logs metadata calls
+    // (both the direct describe* calls and those the table resolver makes).
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    public void listSchemaNamesAppliesFasOverrideToDescribeLogGroups()
+            throws Exception
+    {
+        CloudwatchMetadataHandler spyHandler = spy(handler);
+        AwsRequestOverrideConfiguration fasOverride = AwsRequestOverrideConfiguration.builder().build();
+        doReturn(fasOverride).when(spyHandler).getRequestOverrideConfig(anyMap());
+
+        spyHandler.doListSchemaNames(allocator, new ListSchemasRequest(identity, "queryId", "default"));
+
+        ArgumentCaptor<DescribeLogGroupsRequest> captor = ArgumentCaptor.forClass(DescribeLogGroupsRequest.class);
+        verify(mockAwsLogs, atLeastOnce()).describeLogGroups(captor.capture());
+        assertTrue("expected customer FAS override on the DescribeLogGroups request",
+                captor.getValue().overrideConfiguration().isPresent());
+        assertSame(fasOverride, captor.getValue().overrideConfiguration().get());
+    }
+
+    @Test
+    public void listTablesAppliesFasOverrideToDescribeLogStreams()
+            throws Exception
+    {
+        CloudwatchMetadataHandler spyHandler = spy(handler);
+        AwsRequestOverrideConfiguration fasOverride = AwsRequestOverrideConfiguration.builder().build();
+        doReturn(fasOverride).when(spyHandler).getRequestOverrideConfig(anyMap());
+
+        spyHandler.doListTables(allocator, new ListTablesRequest(identity, "queryId", "default",
+                "schema-1", null, UNLIMITED_PAGE_SIZE_VALUE));
+
+        ArgumentCaptor<DescribeLogStreamsRequest> captor = ArgumentCaptor.forClass(DescribeLogStreamsRequest.class);
+        verify(mockAwsLogs, atLeastOnce()).describeLogStreams(captor.capture());
+        assertTrue("expected customer FAS override on the DescribeLogStreams request",
+                captor.getValue().overrideConfiguration().isPresent());
+        assertSame(fasOverride, captor.getValue().overrideConfiguration().get());
     }
 }

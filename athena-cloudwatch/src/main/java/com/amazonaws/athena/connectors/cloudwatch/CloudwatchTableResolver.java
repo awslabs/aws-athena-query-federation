@@ -26,6 +26,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsRequest;
 import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsResponse;
@@ -62,6 +63,10 @@ public class CloudwatchTableResolver
     private final LoadingCache<String, String> schemaCache;
     //The table cache that is presto casing to cloudwatch casing
     private final LoadingCache<TableName, CloudwatchTableName> tableCache;
+    //The customer FAS credential override applied to Cloudwatch calls on the managed-connector path.
+    //Null on the AppFlow/DNA path, where the injected client already carries the customer credentials.
+    //Set per request by validateTable/validateSchema immediately before a (potential) cache-miss load.
+    private volatile AwsRequestOverrideConfiguration awsRequestOverrideConfiguration;
 
     /**
      * Constructs an instance of the table resolver.
@@ -119,7 +124,8 @@ public class CloudwatchTableResolver
 
         logger.info("loadLogStreams: Did not find a match for the table, falling back to LogGroup scan for  {}:{}",
                 logGroup, logStream);
-        DescribeLogStreamsRequest.Builder validateTableRequestBuilder = DescribeLogStreamsRequest.builder().logGroupName(logGroup);
+        DescribeLogStreamsRequest.Builder validateTableRequestBuilder = DescribeLogStreamsRequest.builder().logGroupName(logGroup)
+                .overrideConfiguration(awsRequestOverrideConfiguration);
         DescribeLogStreamsResponse validateTableResponse;
         do {
             validateTableResponse = invoker.invoke(() -> logsClient.describeLogStreams(validateTableRequestBuilder.build()));
@@ -164,7 +170,7 @@ public class CloudwatchTableResolver
             effectiveTableName = effectiveTableName.replace(LAMBDA_PATTERN, LAMBDA_ACTUAL_PATTERN);
         }
         DescribeLogStreamsRequest request = DescribeLogStreamsRequest.builder().logGroupName(logGroup)
-                .logStreamNamePrefix(effectiveTableName).build();
+                .logStreamNamePrefix(effectiveTableName).overrideConfiguration(awsRequestOverrideConfiguration).build();
         DescribeLogStreamsResponse response = invoker.invoke(() -> logsClient.describeLogStreams(request));
         for (LogStream nextStream : response.logStreams()) {
             String logStreamName = nextStream.logStreamName();
@@ -195,7 +201,8 @@ public class CloudwatchTableResolver
         }
 
         logger.info("loadLogGroups: Did not find a match for the schema, falling back to LogGroup scan for  {}", schemaName);
-        DescribeLogGroupsRequest.Builder validateSchemaRequestBuilder = DescribeLogGroupsRequest.builder();
+        DescribeLogGroupsRequest.Builder validateSchemaRequestBuilder = DescribeLogGroupsRequest.builder()
+                .overrideConfiguration(awsRequestOverrideConfiguration);
         DescribeLogGroupsResponse validateSchemaResponse;
         do {
             validateSchemaResponse = invoker.invoke(() -> logsClient.describeLogGroups(validateSchemaRequestBuilder.build()));
@@ -224,7 +231,8 @@ public class CloudwatchTableResolver
     private String loadLogGroup(String schemaName)
             throws TimeoutException
     {
-        DescribeLogGroupsRequest request = DescribeLogGroupsRequest.builder().logGroupNamePrefix(schemaName).build();
+        DescribeLogGroupsRequest request = DescribeLogGroupsRequest.builder().logGroupNamePrefix(schemaName)
+                .overrideConfiguration(awsRequestOverrideConfiguration).build();
         DescribeLogGroupsResponse response = invoker.invoke(() -> logsClient.describeLogGroups(request));
         for (LogGroup next : response.logGroups()) {
             String nextLogGroupName = next.logGroupName();
@@ -247,7 +255,17 @@ public class CloudwatchTableResolver
      */
     public CloudwatchTableName validateTable(TableName tableName)
     {
-        String actualSchema = validateSchema(tableName.getSchemaName());
+        return validateTable(tableName, null);
+    }
+
+    /**
+     * Managed-connector overload. Applies the supplied customer FAS credential override to any
+     * Cloudwatch describe calls made while resolving (on cache miss).
+     */
+    public CloudwatchTableName validateTable(TableName tableName, AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
+    {
+        this.awsRequestOverrideConfiguration = awsRequestOverrideConfiguration;
+        String actualSchema = validateSchema(tableName.getSchemaName(), awsRequestOverrideConfiguration);
         CloudwatchTableName actual = null;
         try {
             actual = tableCache.get(new TableName(actualSchema, tableName.getTableName()));
@@ -271,6 +289,16 @@ public class CloudwatchTableResolver
      */
     public String validateSchema(String schema)
     {
+        return validateSchema(schema, null);
+    }
+
+    /**
+     * Managed-connector overload. Applies the supplied customer FAS credential override to any
+     * Cloudwatch describe calls made while resolving (on cache miss).
+     */
+    public String validateSchema(String schema, AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
+    {
+        this.awsRequestOverrideConfiguration = awsRequestOverrideConfiguration;
         String actual = null;
         try {
             actual = schemaCache.get(schema);
