@@ -403,6 +403,13 @@
                                         <!-- 15. Fix for CVE-2026-54512/54513/54514/54515: Exclude Neptune metadata that declares vulnerable jackson-databind 2.18.2 (actual deployed: 2.22.0) -->
                                         <exclude>META-INF/maven/com.amazonaws/amazon-neptune-gremlin-java-sigv4/pom.xml</exclude>
                                         <exclude>META-INF/maven/com.amazonaws/amazon-neptune-gremlin-java-sigv4/pom.properties</exclude>
+                                        <!-- 16. Fix for Inspector code scanning CWE-327/328/326/208/1240: Exclude aws-cryptographic-material-providers
+                                             primitives used only by its keyrings (Hierarchical KDF, ECDSA, ECDH). KmsEncryptionProvider uses the
+                                             MasterKeyProvider API, which never loads these classes; the rest of the library is still required by AwsCrypto.
+                                             These top-level packages are unique to that artifact. -->
+                                        <exclude>AesKdfCtr/**</exclude>
+                                        <exclude>Signature/**</exclude>
+                                        <exclude>ECDH/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
