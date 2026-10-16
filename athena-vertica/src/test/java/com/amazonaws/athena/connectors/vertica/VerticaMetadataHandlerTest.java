@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -37,6 +38,7 @@ import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import org.mockito.InOrder;
+import org.mockito.MockedStatic;
 import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -51,6 +53,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
@@ -59,6 +62,9 @@ import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParser;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -102,6 +108,7 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -629,6 +636,109 @@ public class VerticaMetadataHandlerTest extends TestBase
             }
             assertTrue(partitions.getRowCount() > 0);
             logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
+        }
+    }
+
+    @Test
+    public void getPartitionsWithSubstraitQueryPlanRendersExportSelect() throws Exception
+    {
+        // Managed-connector (Substrait) path: a valid SELECT query plan must be rendered and wrapped
+        // in EXPORT TO PARQUET ... AS <select>. The existing getPartitions test passes a null query
+        // plan and therefore only exercises the legacy branch, so this covers the new SELECT branch.
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("int_col")
+                .addStringField("preparedStmt")
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add("preparedStmt");
+        partitionCols.add(TEST_QUERY_ID);
+        partitionCols.add(AWS_REGION_SQL_FIELD);
+
+        String s3ExportBucket = "s3://testS3Bucket";
+        String queryId = TEST_QUERY_ID + UUID.randomUUID().toString().replace("-", "");
+
+        // A top-level SELECT parses to a SqlSelect; render it with the same dialect the handler uses
+        // so the expected embedded SQL matches exactly.
+        SqlNode selectNode = SqlParser.create(
+                "SELECT \"employee_id\", \"employee_name\" FROM \"schema1\".\"table1\"").parseQuery();
+        String renderedSelect = selectNode.toSqlString(VerticaSqlDialect.DEFAULT).getSql();
+
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(s3ExportBucket);
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(),
+                Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(),
+                new QueryPlan("0.29.0", "dummySubstraitPlan"));
+
+        try (MockedStatic<SubstraitSqlUtils> mockedSubstrait = Mockito.mockStatic(SubstraitSqlUtils.class)) {
+            mockedSubstrait.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(
+                    Mockito.anyString(), Mockito.any(SqlDialect.class))).thenReturn(selectNode);
+
+            try (GetTableLayoutRequest req = new GetTableLayoutRequest(federatedIdentity, queryId, "default",
+                    new TableName("schema1", "table1"), constraints, tableSchema, partitionCols);
+                 GetTableLayoutResponse res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req)) {
+
+                Block partitions = res.getPartitions();
+                String actualQueryID = partitions.getFieldReader(TEST_QUERY_ID).readText().toString();
+                String actualExportSql = partitions.getFieldReader("preparedStmt").readText().toString();
+
+                assertTrue("partitions should be produced", partitions.getRowCount() > 0);
+                assertTrue("queryId should start with the request queryId: " + actualQueryID,
+                        actualQueryID.startsWith(queryId));
+                assertTrue("export statement should use the EXPORT TO PARQUET wrapper, was: " + actualExportSql,
+                        actualExportSql.startsWith("EXPORT TO PARQUET"));
+                assertTrue("export directory should embed the generated queryId, was: " + actualExportSql,
+                        actualExportSql.contains("/" + actualQueryID + "'"));
+                assertTrue("export statement should embed the rendered SELECT, was: " + actualExportSql,
+                        actualExportSql.contains(" AS " + renderedSelect));
+                assertEquals("ALTER SESSION SET AWSRegion='us-east-1'",
+                        partitions.getFieldReader(AWS_REGION_SQL_FIELD).readText().toString());
+            }
+        }
+    }
+
+    @Test
+    public void getPartitionsWithNonSelectSubstraitPlanThrows() throws Exception
+    {
+        // A query plan that renders to a non-SqlSelect (e.g. a top-level ORDER BY parses to SqlOrderBy)
+        // must be rejected with a clear UnsupportedOperationException rather than being wrapped into
+        // EXPORT TO PARQUET and failing opaquely inside Vertica.
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("int_col")
+                .addStringField("preparedStmt")
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add("preparedStmt");
+        partitionCols.add(TEST_QUERY_ID);
+        partitionCols.add(AWS_REGION_SQL_FIELD);
+
+        String queryId = TEST_QUERY_ID + UUID.randomUUID().toString().replace("-", "");
+
+        SqlNode orderByNode = SqlParser.create(
+                "SELECT \"employee_id\" FROM \"schema1\".\"table1\" ORDER BY \"employee_id\"").parseQuery();
+
+        Mockito.lenient().when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("s3://testS3Bucket");
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(),
+                Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(),
+                new QueryPlan("0.29.0", "dummySubstraitPlan"));
+
+        try (MockedStatic<SubstraitSqlUtils> mockedSubstrait = Mockito.mockStatic(SubstraitSqlUtils.class)) {
+            mockedSubstrait.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(
+                    Mockito.anyString(), Mockito.any(SqlDialect.class))).thenReturn(orderByNode);
+
+            GetTableLayoutRequest req = new GetTableLayoutRequest(federatedIdentity, queryId, "default",
+                    new TableName("schema1", "table1"), constraints, tableSchema, partitionCols);
+
+            UnsupportedOperationException ex = assertThrows(UnsupportedOperationException.class,
+                    () -> verticaMetadataHandlerMocked.doGetTableLayout(allocator, req));
+            assertTrue("exception message should explain only SELECT is supported, was: " + ex.getMessage(),
+                    ex.getMessage().contains("only SELECT is supported"));
         }
     }
 
