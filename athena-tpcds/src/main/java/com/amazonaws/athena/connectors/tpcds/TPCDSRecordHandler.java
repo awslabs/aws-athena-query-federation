@@ -114,9 +114,17 @@ public class TPCDSRecordHandler
         Results results = constructResults(table, session);
         Iterator<List<List<String>>> itr = results.iterator();
 
+        // Managed (Athena federation) path: the WHERE predicate arrives as a Substrait query plan and the
+        // engine does not re-apply it, so filter the generated rows here. Null on the legacy / Query
+        // Pass-Through path, which continues to rely on the ConstraintEvaluator summary as before.
+        TPCDSSubstraitFilter substraitFilter = TPCDSSubstraitFilter.from(recordsRequest.getConstraints(), table);
+
         Map<Integer, CellWriter> writers = makeWriters(recordsRequest.getSchema(), table);
         while (itr.hasNext() && queryStatusChecker.isQueryRunning()) {
             List<String> row = itr.next().get(0);
+            if (substraitFilter != null && !substraitFilter.matches(row)) {
+                continue;
+            }
             spiller.writeRows((Block block, int numRow) -> {
                 boolean matched = true;
                 for (Map.Entry<Integer, CellWriter> nextWriter : writers.entrySet()) {
