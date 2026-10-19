@@ -67,6 +67,7 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+	  <!-- see https://www.vertica.com/wp-content/uploads/2024/02/Vertica-Client-License-Agreement_Feb2023.pdf -->
             <groupId>com.vertica.jdbc</groupId>
             <artifactId>vertica-jdbc</artifactId>
             <version>12.0.4-0</version>
