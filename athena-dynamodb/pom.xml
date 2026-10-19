@@ -119,7 +119,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.10.0</version>
+                <version>3.11.0</version>
                 <executions>
                     <execution>
                         <id>copy</id>
@@ -182,6 +182,10 @@
                                         <!-- These POM files cause false-positive CVE alerts in AWS Inspector -->
                                         <exclude>META-INF/maven/**/pom.xml</exclude>
                                         <exclude>META-INF/maven/**/pom.properties</exclude>
+                                        <!-- Inspector code scanning CWE-327/328/326/208/1240: aws-cryptographic-material-providers keyring-only primitives (see root pom #16) -->
+                                        <exclude>AesKdfCtr/**</exclude>
+                                        <exclude>Signature/**</exclude>
+                                        <exclude>ECDH/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

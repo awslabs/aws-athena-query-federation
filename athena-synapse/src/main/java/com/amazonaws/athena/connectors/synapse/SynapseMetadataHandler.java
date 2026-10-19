@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.synapse;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -60,9 +61,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.stringtemplate.v4.ST;
-import org.stringtemplate.v4.STGroup;
-import org.stringtemplate.v4.STGroupDir;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -72,7 +70,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -95,6 +92,44 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     static final String PARTITION_COLUMN = "PARTITION_COLUMN";
 
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
+
+    /**
+     * Parameter order: table name ({@code t.[name]}), schema name ({@code s.[name]}).
+     */
+    private static final String GET_PARTITIONS_SQL =
+            "SELECT s.[name] AS [schema_name], "
+                    + "t.[name] AS [table_name], "
+                    + "i.[name] AS [index_name], "
+                    + "p.[partition_number] AS [partition_number], "
+                    + "p.[rows] AS [partition_row_count], "
+                    + "rv.[value] AS [PARTITION_BOUNDARY_VALUE], "
+                    + "p.[data_compression_desc] AS [partition_compression_desc], "
+                    + "c.[name] AS [Partition_Column] "
+                    + "FROM sys.schemas s "
+                    + "JOIN sys.tables t ON t.[schema_id] = s.[schema_id] "
+                    + "JOIN sys.partitions p ON p.[object_id] = t.[object_id] "
+                    + "JOIN sys.indexes i ON i.[object_id] = p.[object_id] AND i.[index_id] = p.[index_id] "
+                    + "JOIN sys.data_spaces ds ON ds.[data_space_id] = i.[data_space_id] "
+                    + "JOIN sys.index_columns AS ic ON ic.[object_id] = i.[object_id] AND ic.index_id = i.index_id AND ic.partition_ordinal >= 1 "
+                    + "JOIN sys.columns AS c ON t.[object_id] = c.[object_id] AND ic.column_id = c.column_id "
+                    + "LEFT JOIN sys.partition_schemes ps ON ps.[data_space_id] = ds.[data_space_id] "
+                    + "LEFT JOIN sys.partition_functions pf ON pf.[function_id] = ps.[function_id] "
+                    + "LEFT JOIN sys.partition_range_values rv ON rv.[function_id] = pf.[function_id] AND rv.[boundary_id] = p.[partition_number] "
+                    + "WHERE p.[index_id] <= 1 AND t.[name] = ? AND s.[name] = ?";
+
+    private static final String ROW_COUNT_SQL =
+            "SELECT COUNT(*) AS ROW_COUNT "
+                    + "FROM sys.schemas s "
+                    + "JOIN sys.tables t ON t.[schema_id] = s.[schema_id] "
+                    + "JOIN sys.partitions p ON p.[object_id] = t.[object_id] "
+                    + "JOIN sys.indexes i ON i.[object_id] = p.[object_id] AND i.[index_id] = p.[index_id] "
+                    + "JOIN sys.data_spaces ds ON ds.[data_space_id] = i.[data_space_id] "
+                    + "JOIN sys.index_columns AS ic ON ic.[object_id] = i.[object_id] AND ic.index_id = i.index_id AND ic.partition_ordinal >= 1 "
+                    + "JOIN sys.columns AS c ON t.[object_id] = c.[object_id] AND ic.column_id = c.column_id "
+                    + "LEFT JOIN sys.partition_schemes ps ON ps.[data_space_id] = ds.[data_space_id] "
+                    + "LEFT JOIN sys.partition_functions pf ON pf.[function_id] = ps.[function_id] "
+                    + "LEFT JOIN sys.partition_range_values rv ON rv.[function_id] = pf.[function_id] AND rv.[boundary_id] = p.[partition_number] "
+                    + "WHERE p.[index_id] <= 1 AND t.[name] = ? AND s.[name] = ?";
 
     public SynapseMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -173,23 +208,18 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
 
-        /**
-         * Queries formed through String Template for retrieving Azure Synapse table partitions
-         */
-        STGroup stGroup = new STGroupDir("templates", '$', '$');
+        String tableName = getTableLayoutRequest.getTableName().getTableName();
+        String schemaName = getTableLayoutRequest.getTableName().getSchemaName();
 
-        ST getPartitionsSt = stGroup.getInstanceOf("getPartitions");
-        getPartitionsSt.add("name", getTableLayoutRequest.getTableName().getTableName());
-        getPartitionsSt.add("schemaname", getTableLayoutRequest.getTableName().getSchemaName());
-        ST rowCountSt = stGroup.getInstanceOf("rowCount");
-        rowCountSt.add("name", getTableLayoutRequest.getTableName().getTableName());
-        rowCountSt.add("schemaname", getTableLayoutRequest.getTableName().getSchemaName());
-
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-             Statement st = connection.createStatement();
-             Statement st2 = connection.createStatement();
-             ResultSet resultSet = st.executeQuery(getPartitionsSt.render());
-             ResultSet resultSet2 = st2.executeQuery(rowCountSt.render())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)));
+             PreparedStatement psPartitions = connection.prepareStatement(GET_PARTITIONS_SQL);
+             PreparedStatement psRowCount = connection.prepareStatement(ROW_COUNT_SQL)) {
+            psPartitions.setString(1, tableName);
+            psPartitions.setString(2, schemaName);
+            psRowCount.setString(1, tableName);
+            psRowCount.setString(2, schemaName);
+            try (ResultSet resultSet = psPartitions.executeQuery();
+                 ResultSet resultSet2 = psRowCount.executeQuery()) {
             int rowCount = 0;
             // check whether the table have partitions or not using ROW_COUNT_QUERY
             if (resultSet2.next()) {
@@ -249,6 +279,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                     });
                 }
             }
+            }
         }
     }
 
@@ -281,16 +312,24 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             // Included partition information to split if the table is partitioned
             if (partInfo.contains(":::")) {
                 String[] partInfoAr = partInfo.split(":::");
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfoAr[0])
                         .add(PARTITION_BOUNDARY_FROM, partInfoAr[1])
                         .add(PARTITION_BOUNDARY_TO, partInfoAr[2])
                         .add(PARTITION_COLUMN, partInfoAr[3]);
             }
             else {
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfo);
             }
+
+            Map<String, String> identityConfigOptions = getSplitsRequest.getIdentity().getConfigOptions();
+            if (identityConfigOptions != null && identityConfigOptions.containsKey(EnvironmentConstants.CATALOG_CASING_FILTER)) {
+                String catalogCasingFilter = identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER);
+                LOGGER.info("Catalog Casing Filter found: {}", catalogCasingFilter);
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, catalogCasingFilter);
+            }
+
             splits.add(splitBuilder.build());
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
@@ -350,7 +389,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder;
         HashMap<String, List<String>> columnNameAndDataTypeMap = new HashMap<>();
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype information.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
@@ -491,7 +530,8 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         return CredentialsProviderFactory.createCredentialProvider(
                 getDatabaseConnectionConfig().getSecret(),
                 getCachableSecretsManager(),
-                new SynapseOAuthCredentialsProvider()
+                new SynapseOAuthCredentialsProvider(),
+                requestOverrideConfiguration
         );
     }
 }

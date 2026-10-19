@@ -34,7 +34,7 @@ import static org.junit.Assert.assertNull;
 public class MskJsonDeserializerTest extends MskAbstractDeserializerTest
 {
     @Test
-    public void testMskJsonDeserializer() throws Exception {
+    public void deserialize_withValidJson_returnsTopicResultSetWithDataFormat() throws Exception {
         TopicSchema topicSchema = createJsonTopicSchema();
         Schema schema = createSchema(topicSchema);
         MskJsonDeserializer jsonDeserializer = new MskJsonDeserializer(schema);
@@ -51,7 +51,7 @@ public class MskJsonDeserializerTest extends MskAbstractDeserializerTest
     }
 
     @Test
-    public void testExceptionInMskJsonDeserializer() throws Exception
+    public void deserialize_whenSchemaMissingMapping_throwsException() throws Exception
     {
         TopicSchema topicSchema = createJsonTopicSchema();
         Schema schema = createSchemaForException(topicSchema);

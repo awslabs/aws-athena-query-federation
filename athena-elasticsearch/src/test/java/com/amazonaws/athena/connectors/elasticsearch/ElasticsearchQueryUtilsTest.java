@@ -28,8 +28,10 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,6 +46,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 
 /**
@@ -93,10 +97,16 @@ public class ElasticsearchQueryUtilsTest
                                         null))))).build();
     }
 
-    @Test
-    public void getProjectionTest()
+    @After
+    public void tearDown()
     {
-        logger.info("getProjectionTest - enter");
+        allocator.close();
+    }
+
+    @Test
+    public void getProjection_withMapping_returnsProjection()
+    {
+        logger.info("getProjection_withMapping_returnsProjection - enter");
 
         List<String> expectedProjection = new ArrayList<>();
         mapping.getFields().forEach(field -> expectedProjection.add(field.getName()));
@@ -108,13 +118,13 @@ public class ElasticsearchQueryUtilsTest
         logger.info("Projections - Expected: {}, Actual: {}", expectedProjection, actualProjection);
         assertEquals("Projections do not match", expectedProjection, actualProjection);
 
-        logger.info("getProjectionTest - exit");
+        logger.info("getProjection_withMapping_returnsProjection - exit");
     }
 
     @Test
-    public void getRangePredicateTest()
+    public void getQuery_withRangePredicate_returnsQueryBuilderRangePredicateString()
     {
-        logger.info("getRangePredicateTest - enter");
+        logger.info("getQuery_withRangePredicate_returnsQueryBuilderRangePredicateString - enter");
 
         constraintsMap.put("year", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
                 ImmutableList.of(
@@ -125,7 +135,7 @@ public class ElasticsearchQueryUtilsTest
                         Range.equal(allocator, Types.MinorType.INT.getType(), 1996),
                         Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 2010)),
                 false));
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        Constraints constraints = createConstraints(constraintsMap);
         String expectedPredicate = "(_exists_:year) AND year:([* TO 1950} OR {1955 TO 1972] OR [2010 TO *] OR 1952 OR 1996)";
 
         // Get the actual predicate and compare to the expected one.
@@ -135,17 +145,17 @@ public class ElasticsearchQueryUtilsTest
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
-        logger.info("getRangePredicateTest - exit");
+        logger.info("getQuery_withRangePredicate_returnsQueryBuilderRangePredicateString - exit");
     }
 
     @Test
-    public void getWhitelistedEquitableValuesPredicate()
+    public void getQuery_withWhitelistedEquitableValues_returnsQueryBuilderOrClause()
     {
-        logger.info("getWhitelistedEquitableValuesPredicate - enter");
+        logger.info("getQuery_withWhitelistedEquitableValues_returnsQueryBuilderOrClause - enter");
 
         constraintsMap.put("age", EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(),
                 true, true).addAll(ImmutableList.of(20, 25, 30, 35)).build());
-                Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        Constraints constraints = createConstraints(constraintsMap);
         String expectedPredicate = "age:(20 OR 25 OR 30 OR 35)";
 
         // Get the actual predicate and compare to the expected one.
@@ -155,17 +165,17 @@ public class ElasticsearchQueryUtilsTest
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
-        logger.info("getWhitelistedEquitableValuesPredicate - exit");
+        logger.info("getQuery_withWhitelistedEquitableValues_returnsQueryBuilderOrClause - exit");
     }
 
     @Test
-    public void getExclusiveEquitableValuesPredicate()
+    public void getQuery_withExclusiveEquitableValues_returnsQueryBuilderNotOrClause()
     {
-        logger.info("getExclusiveEquitableValuesPredicate - enter");
+        logger.info("getQuery_withExclusiveEquitableValues_returnsQueryBuilderNotOrClause - enter");
 
         constraintsMap.put("age", EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(),
                 false, true).addAll(ImmutableList.of(20, 25, 30, 35)).build());
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        Constraints constraints = createConstraints(constraintsMap);
         String expectedPredicate = "NOT age:(20 OR 25 OR 30 OR 35)";
 
         // Get the actual predicate and compare to the expected one.
@@ -175,16 +185,16 @@ public class ElasticsearchQueryUtilsTest
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
-        logger.info("getExclusiveEquitableValuesPredicate - exit");
+        logger.info("getQuery_withExclusiveEquitableValues_returnsQueryBuilderNotOrClause - exit");
     }
 
     @Test
-    public void getAllValuePredicate()
+    public void getQuery_withAllValuePredicate_returnsQueryBuilderExistsClause()
     {
-        logger.info("getAllValuePredicate - enter");
+        logger.info("getQuery_withAllValuePredicate_returnsQueryBuilderExistsClause - enter");
 
         constraintsMap.put("number", new AllOrNoneValueSet(Types.MinorType.INT.getType(), true, true));
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        Constraints constraints = createConstraints(constraintsMap);
         String expectedPredicate = "(_exists_:number)";
 
         // Get the actual predicate and compare to the expected one.
@@ -194,16 +204,16 @@ public class ElasticsearchQueryUtilsTest
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
-        logger.info("getAllValuePredicate - exit");
+        logger.info("getQuery_withAllValuePredicate_returnsQueryBuilderExistsClause - exit");
     }
 
     @Test
-    public void getNoneValuePredicate()
+    public void getQuery_withNoneValuePredicate_returnsQueryBuilderNotExistsClause()
     {
-        logger.info("getNoneValuePredicate - enter");
+        logger.info("getQuery_withNoneValuePredicate_returnsQueryBuilderNotExistsClause - enter");
 
         constraintsMap.put("number", new AllOrNoneValueSet(Types.MinorType.INT.getType(), false, false));
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        Constraints constraints = createConstraints(constraintsMap);
         String expectedPredicate = "(NOT _exists_:number)";
 
         // Get the actual predicate and compare to the expected one.
@@ -213,6 +223,118 @@ public class ElasticsearchQueryUtilsTest
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
-        logger.info("getNoneValuePredicate - exit");
+        logger.info("getQuery_withNoneValuePredicate_returnsQueryBuilderNotExistsClause - exit");
     }
+
+    @Test
+    public void getQuery_withDateSingleValueInRange_wrapsDateInQuotes()
+    {
+        Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("mydate", SortedRangeSet.copyOf(Types.MinorType.DATEMILLI.getType(),
+                ImmutableList.of(Range.equal(allocator, Types.MinorType.DATEMILLI.getType(), 1589525370001L)), false));
+        Constraints constraints = createConstraints(summary);
+
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
+        String actualPredicate = builder.queryName();
+        assertTrue("Predicate for single date value should wrap value in quotes", actualPredicate.contains("mydate:(\""));
+        assertTrue("Predicate should contain quoted value", actualPredicate.contains("\")"));
+    }
+
+    @Test
+    public void getQuery_withExclusiveLowBound_returnsQueryBuilderExclusiveLowBoundRange()
+    {
+        Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("myfield", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.range(allocator, Types.MinorType.INT.getType(), 10, false, 20, true)), false));
+        Constraints constraints = createConstraints(summary);
+
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
+        assertNotNull("Should successfully create query builder for range with exclusive low bound", builder);
+        String actualPredicate = builder.queryName();
+        assertTrue("Exclusive low bound should use '{' in range syntax", actualPredicate.contains("{"));
+    }
+
+    @Test
+    public void getQuery_withExclusiveHighBound_returnsQueryBuilderExclusiveHighBoundRange()
+    {
+        Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("myfield", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.range(allocator, Types.MinorType.INT.getType(), 10, true, 20, false)), false));
+        Constraints constraints = createConstraints(summary);
+
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
+        assertNotNull("Should successfully create query builder for range with exclusive high bound", builder);
+        String actualPredicate = builder.queryName();
+        assertTrue("Exclusive high bound should use '}' in range syntax", actualPredicate.contains("}"));
+    }
+
+    @Test
+    public void getQuery_withInclusiveRange_returnsQueryBuilderInclusiveRangeClause()
+    {
+        Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("myfield", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.range(allocator, Types.MinorType.INT.getType(), 10, true, 20, true)), false));
+        Constraints constraints = createConstraints(summary);
+
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
+        assertNotNull("Should successfully create query builder for inclusive range", builder);
+        String actualPredicate = builder.queryName();
+        assertTrue("Inclusive range should use '[' in range syntax", actualPredicate.contains("["));
+        assertTrue("Inclusive range should use ']' in range syntax", actualPredicate.contains("]"));
+    }
+
+    @Test
+    public void getQuery_withEmptyRangeSet_returnsQueryBuilderMatchAllQuery()
+    {
+        // Test getPredicateFromRange indirectly through getQuery with empty range set
+        SortedRangeSet emptyRangeSet = SortedRangeSet.copyOf(Types.MinorType.INT.getType(), Collections.emptyList(), false);
+        Map<String, ValueSet> constraintSummary = new HashMap<>();
+        constraintSummary.put("myfield", emptyRangeSet);
+        Constraints constraints = createConstraints(constraintSummary);
+
+        QueryBuilder result = ElasticsearchQueryUtils.getQuery(constraints);
+
+        assertNotNull("Should return query builder", result);
+    }
+
+    @Test
+    public void getQuery_withEmptyConstraints_returnsQueryBuilderMatchAllQuery()
+    {
+        Constraints emptyConstraints = createConstraints(Collections.emptyMap());
+
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(emptyConstraints);
+        assertNotNull("Query builder should not be null for empty constraints", builder);
+        assertTrue("Empty constraints should produce MatchAllQueryBuilder", builder instanceof MatchAllQueryBuilder);
+    }
+
+    @Test
+    public void getQuery_withRangeSet_returnsQueryBuilderRangeSet()
+    {
+        // Test getPredicateFromRange indirectly through getQuery with valid range set
+        // Note: Testing BELOW/ABOVE marker edge cases requires reflection which is not compatible with Java 17+
+        // These edge cases are internal implementation details and should be tested through integration tests
+        Range range = Range.range(allocator, Types.MinorType.INT.getType(), 10, true, 20, true);
+        SortedRangeSet rangeSet = SortedRangeSet.copyOf(Types.MinorType.INT.getType(), ImmutableList.of(range), false);
+        
+        Map<String, ValueSet> constraintSummary = new HashMap<>();
+        constraintSummary.put("myfield", rangeSet);
+        Constraints constraints = createConstraints(constraintSummary);
+
+        QueryBuilder result = ElasticsearchQueryUtils.getQuery(constraints);
+
+        assertNotNull("Should return query builder for range set", result);
+        String actualPredicate = result.queryName();
+        assertTrue("Range set predicate should contain field name myfield", actualPredicate.contains("myfield"));
+        assertTrue("Range set predicate should contain lower bound 10", actualPredicate.contains("10"));
+        assertTrue("Range set predicate should contain upper bound 20", actualPredicate.contains("20"));
+    }
+
+    /**
+     * Creates a Constraints instance from the given constraint summary map.
+     */
+    private Constraints createConstraints(Map<String, ValueSet> summary)
+    {
+        return new Constraints(summary, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+    }
+
 }

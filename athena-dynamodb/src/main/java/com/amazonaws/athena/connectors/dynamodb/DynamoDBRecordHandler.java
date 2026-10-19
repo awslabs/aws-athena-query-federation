@@ -55,8 +55,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementResponse;
@@ -71,6 +73,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -124,9 +127,14 @@ public class DynamoDBRecordHandler
     public DynamoDBRecordHandler(java.util.Map<String, String> configOptions)
     {
         super(sourceType, configOptions);
-        this.ddbClient = DynamoDbClient.builder()
-                .credentialsProvider(CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
-                .build();
+        String region = System.getenv("AWS_REGION");
+        DynamoDbClientBuilder builder = DynamoDbClient.builder()
+                .region(Region.of(region))
+                .credentialsProvider(CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"));
+        if (region != null && region.startsWith("eusc-")) {
+            builder.endpointOverride(URI.create("https://dynamodb." + region + ".amazonaws.eu"));
+        }
+        this.ddbClient = builder.build();
         this.invokerCache = CacheBuilder.newBuilder().build(
             new CacheLoader<String, ThrottlingInvoker>() {
                 @Override

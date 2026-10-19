@@ -1215,4 +1215,73 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         return preparedStatement;
     }
+
+    // Substrait plan: SELECT col1, col2, col3 FROM test_schema.test_table LIMIT 10
+    private static final String SUBSTRAIT_PLAN_FETCH =
+            "GlsSWQpXGlUKAgoAEksKSQoCCgASKAoEY29sMQoEY29sMgoEY29sMxIUCgRiAhABCgQqAhABCgRiAhABGAI6GQoLdGVzdF9zY2hlbWEKCnRlc3RfdGFibGUYACAK";
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithLowercaseCasingFilter_GeneratesValidFetchNext() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql("LOWERCASE_ONLY", "SELECT *\nFROM \"test_schema\".\"test_table\"\nFETCH NEXT 10 ROWS ONLY");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithUppercaseCasingFilter_GeneratesValidFetchNext() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql("UPPERCASE_ONLY", "SELECT *\nFROM \"TEST_SCHEMA\".\"TEST_TABLE\"\nFETCH NEXT 10 ROWS ONLY");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithoutCasingFilter_GeneratesValidFetchNext() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql(null, "SELECT *\nFROM \"test_schema\".\"test_table\"\nFETCH NEXT 10 ROWS ONLY");
+    }
+
+    private void assertSubstraitPlanGeneratesExpectedSql(String casingFilter, String expectedSql) throws SQLException
+    {
+        com.amazonaws.athena.connector.lambda.domain.TableName tableName =
+                new com.amazonaws.athena.connector.lambda.domain.TableName("test_schema", "test_table");
+        org.apache.arrow.vector.types.pojo.Schema schema = com.amazonaws.athena.connector.lambda.data.SchemaBuilder.newBuilder()
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("col1", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("col2", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build())
+                .addField(com.amazonaws.athena.connector.lambda.data.FieldBuilder.newBuilder("col3", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .build();
+
+        com.amazonaws.athena.connector.lambda.domain.Split split = Mockito.mock(com.amazonaws.athena.connector.lambda.domain.Split.class);
+        java.util.Map<String, String> splitProperties = new java.util.HashMap<>();
+        splitProperties.put(PARTITION_NAME_COL, "*");
+        splitProperties.put(PARTITION_SCHEMA_NAME, "*");
+        if (casingFilter != null) {
+            splitProperties.put("CATALOG_CASING_FILTER", casingFilter);
+        }
+        Mockito.when(split.getProperties()).thenReturn(splitProperties);
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_NAME_COL))).thenReturn("*");
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_SCHEMA_NAME))).thenReturn("*");
+        Mockito.when(split.getProperty(Mockito.eq("CATALOG_CASING_FILTER"))).thenReturn(casingFilter);
+
+        com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan queryPlan =
+                new com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan("", SUBSTRAIT_PLAN_FETCH);
+        com.amazonaws.athena.connector.lambda.domain.predicate.Constraints constraints =
+                new com.amazonaws.athena.connector.lambda.domain.predicate.Constraints(
+                        java.util.Collections.emptyMap(),
+                        java.util.Collections.emptyList(),
+                        java.util.Collections.emptyList(),
+                        -1L,
+                        java.util.Collections.emptyMap(),
+                        queryPlan
+                );
+
+        java.sql.PreparedStatement mockStmt = Mockito.mock(java.sql.PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Mockito.anyString())).thenReturn(mockStmt);
+        Mockito.when(mockStmt.getParameterMetaData()).thenReturn(null);
+
+        this.postGreSqlRecordHandler.buildSplitSql(
+                this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+        org.mockito.ArgumentCaptor<String> sqlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        Mockito.verify(this.connection).prepareStatement(sqlCaptor.capture());
+
+        Assert.assertEquals(expectedSql, sqlCaptor.getValue());
+    }
 }

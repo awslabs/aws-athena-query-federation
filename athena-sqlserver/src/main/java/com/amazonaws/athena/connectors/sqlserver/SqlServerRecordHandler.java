@@ -100,7 +100,8 @@ public class SqlServerRecordHandler extends JdbcRecordHandler
         return CredentialsProviderFactory.createCredentialProvider(
                 getDatabaseConnectionConfig().getSecret(),
                 getCachableSecretsManager(),
-                new SqlServerOAuthCredentialsProvider()
+                new SqlServerOAuthCredentialsProvider(),
+                requestOverrideConfiguration
         );
     }
 }

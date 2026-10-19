@@ -63,7 +63,6 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -130,11 +129,17 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
+        TableName table = getTableLayoutRequest.getTableName();
+        String qualifiedTable = HiveUtils.qualifiedTableForMetadataSql(table);
+        String describeSql = GET_METADATA_QUERY + qualifiedTable;
+        String showPartitionsSql = "show partitions " + qualifiedTable;
+        String showExtendedSql = "show table extended in "
+                + HiveUtils.quoteIdentifier(table.getSchemaName().toUpperCase())
+                + " like " + HiveUtils.likePatternLiteral(table.getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-             Statement stmt = connection.createStatement();
-             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase())) {
+             Statement stmt = connection.createStatement()) {
             boolean isTablePartitioned = false;
-            ResultSet partitionResultset = stmt.executeQuery("show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like " + getTableLayoutRequest.getTableName().getTableName().toUpperCase());
+            ResultSet partitionResultset = stmt.executeQuery(showExtendedSql);
             while (partitionResultset != null && partitionResultset.next()) {
                 String partExists = partitionResultset.getString(1);
                 if (partExists.toUpperCase().contains("PARTITIONED")) {
@@ -146,13 +151,13 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
             }
             LOGGER.debug("isTablePartitioned:" + isTablePartitioned);
              if (isTablePartitioned) {
-                 ResultSet partitionRs = stmt.executeQuery("show partitions " + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase());
+                 ResultSet partitionRs = stmt.executeQuery(showPartitionsSql);
                  Set<String> partition = new HashSet<>();
                  while (partitionRs != null && partitionRs.next()) {
                      partition.add(partitionRs.getString("Partition"));
                  }
                  if (!partition.isEmpty()) {
-                     Map<String, String> columnHashMap = getMetadataForGivenTable(psmt);
+                     Map<String, String> columnHashMap = getMetadataForGivenTable(stmt, describeSql);
                      addPartitions(partition, columnHashMap, blockWriter);
                  }
              }
@@ -306,8 +311,9 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
                 Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
-                Map<String, String> meteHashMap = getMetadataForGivenTable(psmt);
+            try (Statement stmt = connection.createStatement()) {
+                Map<String, String> meteHashMap = getMetadataForGivenTable(stmt,
+                        GET_METADATA_QUERY + HiveUtils.qualifiedTableForMetadataSql(tableName));
                 while (resultSet.next()) {
                     Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
                             resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"), configOptions);
@@ -368,14 +374,15 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
 
     /**
      *  used to get column names and associated data types for column names.
-     * @param statement A PreparedStatement holds query to get metadata for a table.
+     * @param statement JDBC statement used to run the metadata query
+     * @param sql fully formed SQL with quoted table identifiers (not JDBC {@code ?} parameters)
      * @return Map of column name and associated data type for column.
      * @throws SQLException A SQLException should be thrown for database connection failures , query syntax errors and so on.
      */
-    private Map<String, String> getMetadataForGivenTable(PreparedStatement statement) throws SQLException
+    private Map<String, String> getMetadataForGivenTable(Statement statement, String sql) throws SQLException
     {
         Map<String, String> columnHashMap = new HashMap<>();
-        try (ResultSet rs = statement.executeQuery()) {
+        try (ResultSet rs = statement.executeQuery(sql)) {
             while (rs.next()) {
                 String dataType = rs.getString(HiveConstants.METADATA_COLUMN_TYPE);
                 if (dataType != null && !dataType.isEmpty()) {

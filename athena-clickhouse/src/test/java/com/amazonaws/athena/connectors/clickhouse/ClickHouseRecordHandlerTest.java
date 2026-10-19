@@ -104,6 +104,13 @@ public class ClickHouseRecordHandlerTest
     }
 
     @Test
+    public void clickHouseRecordHandler_ConstructorWithDatabaseConnectionConfig_PassesEmptyJdbcProperties()
+    {
+        Assert.assertTrue(ClickHouseConstants.JDBC_PROPERTIES.isEmpty());
+        Assert.assertFalse(ClickHouseConstants.JDBC_PROPERTIES.containsKey("databaseTerm"));
+    }
+
+    @Test
     public void testBuildSplitSqlWithQueryPassThroughEnabled()
             throws SQLException
     {

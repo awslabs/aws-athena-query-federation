@@ -698,4 +698,69 @@ public class OracleRecordHandlerTest
         when(req.getConstraints()).thenReturn(mock(Constraints.class));
         return req;
     }
+
+    // Substrait plan: SELECT col1, col2, col3 FROM test_schema.test_table LIMIT 10
+    private static final String SUBSTRAIT_PLAN_FETCH =
+            "GlsSWQpXGlUKAgoAEksKSQoCCgASKAoEY29sMQoEY29sMgoEY29sMxIUCgRiAhABCgQqAhABCgRiAhABGAI6GQoLdGVzdF9zY2hlbWEKCnRlc3RfdGFibGUYACAK";
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithLowercaseCasingFilter_GeneratesValidFetchFirst() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql("LOWERCASE_ONLY", "SELECT *\nFROM \"test_schema\".\"test_table\"\nFETCH NEXT 10 ROWS ONLY");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithUppercaseCasingFilter_GeneratesValidFetchFirst() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql("UPPERCASE_ONLY", "SELECT *\nFROM \"TEST_SCHEMA\".\"TEST_TABLE\"\nFETCH NEXT 10 ROWS ONLY");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithoutCasingFilter_GeneratesValidFetchFirst() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql(null, "SELECT *\nFROM \"test_schema\".\"test_table\"\nFETCH NEXT 10 ROWS ONLY");
+    }
+
+    private void assertSubstraitPlanGeneratesExpectedSql(String casingFilter, String expectedSql) throws SQLException
+    {
+        TableName tableName = new TableName("test_schema", "test_table");
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("col1", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("col2", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build())
+                .addField(FieldBuilder.newBuilder("col3", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .build();
+
+        Split split = mock(Split.class);
+        java.util.Map<String, String> splitProperties = new java.util.HashMap<>();
+        splitProperties.put(PARTITION_COLUMN, "0");
+        if (casingFilter != null) {
+            splitProperties.put("CATALOG_CASING_FILTER", casingFilter);
+        }
+        when(split.getProperties()).thenReturn(splitProperties);
+        when(split.getProperty(Mockito.eq(PARTITION_COLUMN))).thenReturn("0");
+        when(split.getProperty(Mockito.eq("CATALOG_CASING_FILTER"))).thenReturn(casingFilter);
+
+        com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan queryPlan =
+                new com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan("", SUBSTRAIT_PLAN_FETCH);
+        Constraints constraints = new Constraints(
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyList(),
+                java.util.Collections.emptyList(),
+                -1L,
+                java.util.Collections.emptyMap(),
+                queryPlan
+        );
+
+        PreparedStatement mockStmt = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(Mockito.anyString())).thenReturn(mockStmt);
+        when(mockStmt.getParameterMetaData()).thenReturn(null);
+
+        this.oracleRecordHandler.buildSplitSql(
+                this.connection, "testCatalogName", tableName, schema, constraints, split);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(this.connection).prepareStatement(sqlCaptor.capture());
+
+        Assert.assertEquals(expectedSql, sqlCaptor.getValue());
+    }
 }

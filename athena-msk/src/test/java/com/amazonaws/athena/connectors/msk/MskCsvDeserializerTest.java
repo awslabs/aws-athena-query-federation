@@ -34,7 +34,7 @@ import static org.junit.Assert.assertNull;
 public class MskCsvDeserializerTest extends MskAbstractDeserializerTest
 {
     @Test
-    public void testMskCsvDeserializer() throws Exception
+    public void deserialize_withValidCsv_returnsTopicResultSetWithDataFormat() throws Exception
     {
         TopicSchema topicSchema = createCsvTopicSchema();
         Schema schema = createSchema(topicSchema);
@@ -52,7 +52,7 @@ public class MskCsvDeserializerTest extends MskAbstractDeserializerTest
     }
 
     @Test
-    public void testExceptionInMskCsvDeserializer() throws Exception
+    public void deserialize_whenSchemaMissingMapping_throwsException() throws Exception
     {
         TopicSchema topicSchema = createCsvTopicSchema();
         Schema schema = createSchemaForException(topicSchema);

@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
@@ -45,6 +46,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -64,6 +66,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.CATALOG_CASING_FILTER;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.UPPERCASE_ONLY;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
 import static com.amazonaws.athena.connectors.synapse.SynapseConstants.QUOTE_CHARACTER;
 import static org.mockito.ArgumentMatchers.eq;
@@ -159,12 +163,14 @@ public class SynapseRecordHandlerTest
 
         when(constraints.getLimit()).thenReturn(5L);
 
-        String expectedSql = "SELECT \"" + TEST_COL1 + "\", \"" + TEST_COL2 + "\", \"" + TEST_COL3 + "\", \"" + TEST_COL4 + "\" FROM \"" + TEST_SCHEMA + "\".\"" + TEST_TABLE + "\"  WHERE (\"" + TEST_COL4 + "\" = ?) AND " + TEST_ID_COL + " > " + TEST_PARTITION_FROM + " and " + TEST_ID_COL + " <= " + TEST_PARTITION_TO;
+        String expectedSql = "SELECT \"" + TEST_COL1 + "\", \"" + TEST_COL2 + "\", \"" + TEST_COL3 + "\", \"" + TEST_COL4 + "\" FROM \"" + TEST_SCHEMA + "\".\"" + TEST_TABLE + "\"  WHERE (\"" + TEST_COL4 + "\" = ?) AND \"" + TEST_ID_COL + "\" > ? AND \"" + TEST_ID_COL + "\" <= ?";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
         PreparedStatement preparedStatement = this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, TEST_TABLE_NAME, schema, constraints, split);
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         verify(preparedStatement, Mockito.times(1)).setString(1, TEST_VARCHAR_VALUE);
+        verify(preparedStatement, Mockito.times(1)).setString(2, TEST_PARTITION_FROM);
+        verify(preparedStatement, Mockito.times(1)).setString(3, TEST_PARTITION_TO);
     }
 
     @Test
@@ -251,6 +257,66 @@ public class SynapseRecordHandlerTest
     }
 
     @Test
+    public void readWithConstraint_AzureServerless_SkipsAutoCommitAndCommit() throws Exception {
+        // Serverless (on-demand) host: autoCommit must stay at default and commit() must be skipped,
+        // otherwise the connection close triggers a rollback that emits @@TRANCOUNT (unsupported on serverless).
+        runReadWithConstraintForUrl("jdbc:sqlserver://test-ondemand.sql.azuresynapse.net:1433;databaseName=testdb;");
+
+        verify(connection, Mockito.never()).setAutoCommit(Mockito.anyBoolean());
+        verify(connection, Mockito.never()).commit();
+    }
+
+    @Test
+    public void readWithConstraint_DedicatedPool_SetsAutoCommitAndCommits() throws Exception {
+        // Dedicated pool host (no "ondemand"): transactions are supported, so autoCommit(false) + commit() are used.
+        runReadWithConstraintForUrl("jdbc:sqlserver://test.sql.azuresynapse.net:1433;databaseName=testdb;");
+
+        verify(connection, Mockito.times(1)).setAutoCommit(false);
+        verify(connection, Mockito.times(1)).commit();
+    }
+
+    private void runReadWithConstraintForUrl(String jdbcUrl) throws Exception {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder(TEST_ID_COL, Types.MinorType.INT.getType()).build())
+                .addField(FieldBuilder.newBuilder(TEST_NAME_COL, Types.MinorType.VARCHAR.getType()).build())
+                .build();
+
+        Split split = Mockito.mock(Split.class);
+        when(split.getProperties()).thenReturn(Collections.emptyMap());
+
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.getInt(TEST_ID_COL)).thenReturn(TEST_ID_1);
+        when(resultSet.getString(TEST_NAME_COL)).thenReturn(TEST_NAME_1);
+
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        when(connection.prepareStatement(Mockito.anyString())).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        DatabaseMetaData metaData = Mockito.mock(DatabaseMetaData.class);
+        when(connection.getMetaData()).thenReturn(metaData);
+        when(metaData.getURL()).thenReturn(jdbcUrl);
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                federatedIdentity,
+                TEST_CATALOG,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1000, Collections.emptyMap(), null),
+                0,
+                0
+        );
+
+        BlockSpiller spiller = Mockito.mock(BlockSpiller.class);
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        synapseRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
+    }
+
+    @Test
     public void buildSplitSql_WithOrderBy_ReturnsCorrectSql() throws SQLException {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createSchemaWithCommonFields();
@@ -271,13 +337,15 @@ public class SynapseRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"id\", \"name\", \"value\" FROM \"testSchema\".\"testTable\"  WHERE id > 100000 and id <= 300000 ORDER BY \"value\" DESC NULLS LAST, \"name\" ASC NULLS LAST";
+        String expectedSql = "SELECT \"id\", \"name\", \"value\" FROM \"testSchema\".\"testTable\"  WHERE \"id\" > ? AND \"id\" <= ? ORDER BY \"value\" DESC NULLS LAST, \"name\" ASC NULLS LAST";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         verifyFetchSize(expectedPreparedStatement);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "100000");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, "300000");
     }
 
     @Test
@@ -303,7 +371,7 @@ public class SynapseRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"id\", \"name\", \"doubleCol\" FROM \"testSchema\".\"testTable\"  WHERE ((\"name\" >= ? AND \"name\" < ?)) AND ((\"doubleCol\" >= ? AND \"doubleCol\" <= ?)) AND id > 100000 and id <= 300000";
+        String expectedSql = "SELECT \"id\", \"name\", \"doubleCol\" FROM \"testSchema\".\"testTable\"  WHERE ((\"name\" >= ? AND \"name\" < ?)) AND ((\"doubleCol\" >= ? AND \"doubleCol\" <= ?)) AND \"id\" > ? AND \"id\" <= ?";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -314,6 +382,8 @@ public class SynapseRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, "tesu");
         Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(3, 1.0d);
         Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(4, 2.0d);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(5, "100000");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(6, "300000");
     }
 
     @Test
@@ -340,7 +410,7 @@ public class SynapseRecordHandlerTest
                 Collections.emptyMap(),
                 null);
 
-        String expectedSql = "SELECT \"id\", \"name\", \"intCol\" FROM \"testSchema\".\"testTable\"  WHERE (\"name\" = ?) AND (\"intCol\" = ?) AND id > 100000 and id <= 300000";
+        String expectedSql = "SELECT \"id\", \"name\", \"intCol\" FROM \"testSchema\".\"testTable\"  WHERE (\"name\" = ?) AND (\"intCol\" = ?) AND \"id\" > ? AND \"id\" <= ?";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -349,6 +419,8 @@ public class SynapseRecordHandlerTest
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "testValue");
         Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 42);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "100000");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, "300000");
         verifyFetchSize(expectedPreparedStatement);
     }
 
@@ -366,13 +438,15 @@ public class SynapseRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"" + COL_ID + "\", \"" + COL_NAME + "\" FROM \"testSchema\".\"testTable\"  WHERE id > 100000 and id <= 300000";
-        PreparedStatement preparedStatement = createMockPreparedStatement(expectedSql);
+        String expectedSql = "SELECT \"" + COL_ID + "\", \"" + COL_NAME + "\" FROM \"testSchema\".\"testTable\"  WHERE \"" + COL_ID + "\" > ? AND \"" + COL_ID + "\" <= ?";
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement result = this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
 
-        Assert.assertEquals(preparedStatement, result);
-        verifyFetchSize(preparedStatement);
+        Assert.assertEquals(expectedPreparedStatement, result);
+        verifyFetchSize(expectedPreparedStatement);
+        Mockito.verify(result, Mockito.times(1)).setString(1, "100000");
+        Mockito.verify(result, Mockito.times(1)).setString(2, "300000");
     }
 
     @Test
@@ -391,13 +465,15 @@ public class SynapseRecordHandlerTest
         );
 
         // Expected SQL should NOT contain LIMIT clause as Synapse does not support LIMIT clause
-        String expectedSql = "SELECT \"id\", \"name\", \"value\" FROM \"testSchema\".\"testTable\"  WHERE id > 100000 and id <= 300000";
+        String expectedSql = "SELECT \"id\", \"name\", \"value\" FROM \"testSchema\".\"testTable\"  WHERE \"id\" > ? AND \"id\" <= ?";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         verifyFetchSize(expectedPreparedStatement);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "100000");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, "300000");
     }
 
     @Test
@@ -430,7 +506,7 @@ public class SynapseRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"id\", \"name\", \"intCol\", \"doubleCol\", \"stringCol\" FROM \"testSchema\".\"testTable\"  WHERE (\"intCol\" IN (?,?,?)) AND ((\"doubleCol\" >= ? AND \"doubleCol\" < ?)) AND (\"stringCol\" IN (?,?)) AND id > 100000 and id <= 300000";
+        String expectedSql = "SELECT \"id\", \"name\", \"intCol\", \"doubleCol\", \"stringCol\" FROM \"testSchema\".\"testTable\"  WHERE (\"intCol\" IN (?,?,?)) AND ((\"doubleCol\" >= ? AND \"doubleCol\" < ?)) AND (\"stringCol\" IN (?,?)) AND \"id\" > ? AND \"id\" <= ?";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -445,6 +521,8 @@ public class SynapseRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(5, 5.5d);
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(6, "value1");
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(7, "value2");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(8, "100000");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(9, "300000");
     }
 
     @Test
@@ -523,7 +601,7 @@ public class SynapseRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"id\", \"name\", \"value\", \"dateCol\" FROM \"testSchema\".\"testTable\"  WHERE (\"name\" = ?) AND ((\"value\" > ? AND \"value\" <= ?)) AND id > 100000 and id <= 300000 ORDER BY \"id\" ASC NULLS LAST, \"value\" DESC NULLS LAST" ;
+        String expectedSql = "SELECT \"id\", \"name\", \"value\", \"dateCol\" FROM \"testSchema\".\"testTable\"  WHERE (\"name\" = ?) AND ((\"value\" > ? AND \"value\" <= ?)) AND \"id\" > ? AND \"id\" <= ? ORDER BY \"id\" ASC NULLS LAST, \"value\" DESC NULLS LAST" ;
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -533,6 +611,8 @@ public class SynapseRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "testName");
         Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(2, 10.0);
         Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(3, 100.0);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, "100000");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(5, "300000");
     }
 
     @Test
@@ -554,13 +634,15 @@ public class SynapseRecordHandlerTest
                 null
         );
 
-        String expectedSql = "SELECT \"" + COL_ID + "\", \"" + COL_NAME + "\" FROM \"testSchema\".\"testTable\"  WHERE id > 100000 and id <= 300000 ORDER BY \"" + COL_ID + "\" ASC NULLS LAST, \"" + COL_NAME + "\" DESC NULLS LAST";
-        PreparedStatement preparedStatement = createMockPreparedStatement(expectedSql);
+        String expectedSql = "SELECT \"" + COL_ID + "\", \"" + COL_NAME + "\" FROM \"testSchema\".\"testTable\"  WHERE \"" + COL_ID + "\" > ? AND \"" + COL_ID + "\" <= ? ORDER BY \"" + COL_ID + "\" ASC NULLS LAST, \"" + COL_NAME + "\" DESC NULLS LAST";
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement result = this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
 
-        Assert.assertEquals(preparedStatement, result);
-        verifyFetchSize(preparedStatement);
+        Assert.assertEquals(expectedPreparedStatement, result);
+        verifyFetchSize(expectedPreparedStatement);
+        Mockito.verify(result, Mockito.times(1)).setString(1, "100000");
+        Mockito.verify(result, Mockito.times(1)).setString(2, "300000");
     }
 
 
@@ -643,5 +725,55 @@ public class SynapseRecordHandlerTest
     private SchemaBuilder createSchemaWithValueField() {
         return createSchemaWithCommonFields()
                 .addField(FieldBuilder.newBuilder(COL_VALUE, Types.MinorType.FLOAT8.getType()).build());
+    }
+
+    // Substrait plan (base64) for: SELECT col1, col2, col3 FROM test_schema.test_table LIMIT 10
+    private static final String SUBSTRAIT_PLAN_FETCH =
+            "GlsSWQpXGlUKAgoAEksKSQoCCgASKAoEY29sMQoEY29sMgoEY29sMxIUCgRiAhABCgQqAhABCgRiAhABGAI6GQoLdGVzdF9zY2hlbWEKCnRlc3RfdGFibGUYACAK";
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithUppercaseCasingFilter_UppercasesIdentifiers() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql(UPPERCASE_ONLY, "SELECT TOP (10) *\nFROM [TEST_SCHEMA].[TEST_TABLE]");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithLowercaseCasingFilter_PreservesCase() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql("LOWERCASE_ONLY", "SELECT TOP (10) *\nFROM [test_schema].[test_table]");
+    }
+
+    @Test
+    public void buildSplitSql_SubstraitPlanWithoutCasingFilter_PreservesCase() throws SQLException
+    {
+        assertSubstraitPlanGeneratesExpectedSql(null, "SELECT TOP (10) *\nFROM [test_schema].[test_table]");
+    }
+
+    private void assertSubstraitPlanGeneratesExpectedSql(String casingFilter, String expectedSql) throws SQLException
+    {
+        TableName tableName = new TableName("test_schema", "test_table");
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("col1", Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("col2", Types.MinorType.INT.getType()).build())
+                .addField(FieldBuilder.newBuilder("col3", Types.MinorType.VARCHAR.getType()).build())
+                .build();
+
+        // No PARTITION_COLUMN stubbed -> getPartitionWhereClauses returns empty, so the asserted SQL is purely the rendered plan.
+        Split split = Mockito.mock(Split.class);
+        when(split.getProperty(CATALOG_CASING_FILTER)).thenReturn(casingFilter);
+
+        QueryPlan queryPlan = new QueryPlan("", SUBSTRAIT_PLAN_FETCH);
+        Constraints constraints = Mockito.mock(Constraints.class);
+        when(constraints.getQueryPlan()).thenReturn(queryPlan);
+
+        PreparedStatement mockStmt = Mockito.mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(Mockito.anyString())).thenReturn(mockStmt);
+        when(mockStmt.getParameterMetaData()).thenReturn(null);
+
+        this.synapseRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(this.connection).prepareStatement(sqlCaptor.capture());
+        Assert.assertEquals(expectedSql, sqlCaptor.getValue());
     }
 }

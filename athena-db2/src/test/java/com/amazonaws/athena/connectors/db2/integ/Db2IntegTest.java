@@ -103,8 +103,7 @@ public class Db2IntegTest extends IntegrationTestBase {
         super.setUp();
     }
 
-    public Db2IntegTest() throws Exception
-    {
+    public Db2IntegTest() {
         logger.warn("Entered constructor");
         theApp = new App();
         lambdaFunctionName = getLambdaFunctionName();

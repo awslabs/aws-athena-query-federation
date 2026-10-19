@@ -19,18 +19,32 @@
  */
 package com.amazonaws.athena.connectors.mysql;
 
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcCasingSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
+
+import java.util.Locale;
 
 /**
  * MySQL-specific SQL dialect with catalog casing filter support. Uses backtick ({@code `}) for identifier quoting.
  */
-public class MysqlSqlDialect extends JdbcCasingSqlDialect
+public class MysqlSqlDialect extends org.apache.calcite.sql.dialect.MysqlSqlDialect
 {
     public static final SqlDialect DEFAULT = org.apache.calcite.sql.dialect.MysqlSqlDialect.DEFAULT;
 
+    private final boolean catalogCasingFilter;
+
     public MysqlSqlDialect(boolean catalogCasingFilter)
     {
-        super(DatabaseProduct.MYSQL, "`", catalogCasingFilter);
+        super(DEFAULT_CONTEXT);
+        this.catalogCasingFilter = catalogCasingFilter;
+    }
+
+    @Override
+    public StringBuilder quoteIdentifier(StringBuilder buf, String identifier)
+    {
+        if (catalogCasingFilter) {
+            String upper = identifier.toUpperCase(Locale.ROOT);
+            return buf.append("`").append(upper.replace("`", "``")).append("`");
+        }
+        return super.quoteIdentifier(buf, identifier);
     }
 }

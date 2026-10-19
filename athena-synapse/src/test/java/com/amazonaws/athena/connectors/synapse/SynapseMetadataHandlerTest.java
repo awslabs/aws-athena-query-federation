@@ -53,6 +53,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
+import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
+import org.mockito.MockedStatic;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -63,7 +66,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,8 +92,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SynapseMetadataHandlerTest
@@ -139,6 +146,15 @@ public class SynapseMetadataHandlerTest
         this.federatedIdentity = mock(FederatedIdentity.class);
     }
 
+    private void mockGetPartitionsPreparedStatements(ResultSet partitionResultSet, ResultSet rowCountResultSet) throws SQLException
+    {
+        PreparedStatement psPartitions = mock(PreparedStatement.class);
+        PreparedStatement psRowCount = mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(any(String.class))).thenReturn(psPartitions, psRowCount);
+        when(psPartitions.executeQuery()).thenReturn(partitionResultSet);
+        when(psRowCount.executeQuery()).thenReturn(rowCountResultSet);
+    }
+
     @Test
     public void getPartitionSchema()
     {
@@ -159,14 +175,12 @@ public class SynapseMetadataHandlerTest
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
-        String[] columns = {"ROW_COUNT", PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
-        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
-        Object[][] values = {{2, null, null, null}, {0, "1", "id", "100000"}, {0, "2", "id", "300000"}};
-        ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        String[] partitionColumns = {PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
+        int[] partitionTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] partitionValues = {{"1", "id", "100000"}, {"2", "id", "300000"}};
+        ResultSet partitionRs = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{2}}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         GetTableLayoutResponse getTableLayoutResponse = this.synapseMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
@@ -194,16 +208,13 @@ public class SynapseMetadataHandlerTest
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
-        Object[][] values = {{}};
-        ResultSet resultSet = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{0}}, new AtomicInteger(-1));
+        ResultSet partitionRs = mockResultSet(new String[]{PARTITION_NUMBER}, new int[]{Types.VARCHAR}, new Object[][]{}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         GetTableLayoutResponse getTableLayoutResponse = this.synapseMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
-        assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
+        assertEquals(1, getTableLayoutResponse.getPartitions().getRowCount());
 
         List<String> actualValues = new ArrayList<>();
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
@@ -246,15 +257,12 @@ public class SynapseMetadataHandlerTest
         Constraints constraints = mock(Constraints.class);
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
-        String[] columns = {"ROW_COUNT", PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
-        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
-        Object[][] values = {{2, null, null, null}, {0, 1, "id", "0"}, {0, 2, "id", "105"}, {0, 3, "id", "327"}, {0, 4, "id", null}};
-
-        ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        String[] partitionColumns = {PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
+        int[] partitionTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] partitionValues = {{"1", "id", "0"}, {"2", "id", "105"}, {"3", "id", "327"}, {"4", "id", null}};
+        ResultSet partitionRs = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{2}}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         Schema partitionSchema = this.synapseMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
@@ -304,12 +312,9 @@ public class SynapseMetadataHandlerTest
         Constraints constraints = mock(Constraints.class);
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
-        Object[][] values = {{}};
-        ResultSet resultSet = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{0}}, new AtomicInteger(-1));
+        ResultSet partitionRs = mockResultSet(new String[]{PARTITION_NUMBER}, new int[]{Types.VARCHAR}, new Object[][]{}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         Schema partitionSchema = this.synapseMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
@@ -339,15 +344,12 @@ public class SynapseMetadataHandlerTest
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
-        String[] columns = {"ROW_COUNT", PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
-        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
-        Object[][] values = {{2, null, null, null}, {0, 1, "id", "0"}, {0, 2, "id", "105"}, {0, 3, "id", "327"}, {0, 4, "id", null}};
-
-        ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
-
-        Statement st = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(st);
-        when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
+        String[] partitionColumns = {PARTITION_NUMBER, PARTITION_COLUMN, "PARTITION_BOUNDARY_VALUE"};
+        int[] partitionTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] partitionValues = {{"1", "id", "0"}, {"2", "id", "105"}, {"3", "id", "327"}, {"4", "id", null}};
+        ResultSet partitionRs = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        ResultSet rowCountRs = mockResultSet(new String[]{"ROW_COUNT"}, new int[]{Types.INTEGER}, new Object[][]{{2}}, new AtomicInteger(-1));
+        mockGetPartitionsPreparedStatements(partitionRs, rowCountRs);
 
         GetTableLayoutResponse getTableLayoutResponse = this.synapseMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
@@ -410,6 +412,66 @@ public class SynapseMetadataHandlerTest
         assertEquals(expected, getTableResponse.getSchema());
         assertEquals(inputTableName, getTableResponse.getTableName());
         assertEquals(TEST_CATALOG, getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void doGetTable_getSchema_usesRequestOverrideCredentials()
+            throws Exception
+    {
+        // Regression guard for the managed-connector FAS fix: getSchema must obtain its JDBC connection with the
+        // request-override credentials, i.e. getCredentialProvider(requestOverrideConfiguration). Previously getSchema
+        // called the no-arg getCredentialProvider(), which falls back to the connector's execution role and fails a
+        // cross-account secretsmanager:GetSecretValue in managed-connector mode.
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        String[] schema = {"DATA_TYPE", "COLUMN_NAME", "PRECISION", "SCALE"};
+        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] values = {{Types.INTEGER, "testCol1", 0, 0}, {Types.VARCHAR, "testCol2", 0, 0}};
+        ResultSet resultSet = mockResultSet(schema, types, values, new AtomicInteger(-1));
+
+        String[] columns = {"DATA_TYPE", "COLUMN_SIZE", "DECIMAL_DIGITS", "COLUMN_NAME"};
+        int[] types2 = {Types.INTEGER, Types.INTEGER, Types.INTEGER, Types.VARCHAR};
+        Object[][] values2 = {{Types.INTEGER, 12, 0, "testCol1"}, {Types.VARCHAR, 25, 0, "testCol2"}};
+        ResultSet resultSet2 = mockResultSet(columns, types2, values2, new AtomicInteger(-1));
+
+        PreparedStatement stmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(nullable(String.class))).thenReturn(stmt);
+        when(stmt.executeQuery()).thenReturn(resultSet);
+        when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://hostname;databaseName=fakedatabase");
+        TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        when(connection.getCatalog()).thenReturn(TEST_CATALOG);
+        when(connection.getMetaData().getColumns(TEST_CATALOG, inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet2);
+
+        // Spy the handler and force a distinct (sentinel) override so we can assert getSchema forwards it through.
+        SynapseMetadataHandler spyHandler = spy(this.synapseMetadataHandler);
+        AwsRequestOverrideConfiguration sentinelOverride = AwsRequestOverrideConfiguration.builder().build();
+        doReturn(sentinelOverride).when(spyHandler).getRequestOverrideConfig(any(GetTableRequest.class));
+
+        spyHandler.doGetTable(blockAllocator,
+                new GetTableRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG, inputTableName, Collections.emptyMap()));
+
+        // getSchema (and doGetTable) must request credentials WITH the override...
+        verify(spyHandler, atLeastOnce()).getCredentialProvider(sentinelOverride);
+        // ...and must NEVER use the no-arg (execution-role) credential provider anywhere on the doGetTable path.
+        verify(spyHandler, never()).getCredentialProvider();
+    }
+
+    @Test
+    public void createCredentialsProvider_forwardsRequestOverrideConfiguration()
+    {
+        // Regression guard: createCredentialsProvider must forward requestOverrideConfiguration to the 4-arg
+        // CredentialsProviderFactory overload. The 3-arg overload passes null, discarding the FAS/vended
+        // credentials, so the SecretsManager read falls back to the connector execution role and fails a
+        // cross-account secretsmanager:GetSecretValue in managed-connector mode.
+        AwsRequestOverrideConfiguration sentinelOverride = AwsRequestOverrideConfiguration.builder().build();
+        try (MockedStatic<CredentialsProviderFactory> factory = mockStatic(CredentialsProviderFactory.class)) {
+            this.synapseMetadataHandler.createCredentialsProvider("test-secret", sentinelOverride);
+
+            // must call the 4-arg overload WITH the override...
+            factory.verify(() -> CredentialsProviderFactory.createCredentialProvider(
+                    any(), any(), any(), eq(sentinelOverride)));
+            // ...and must NEVER call the 3-arg overload that drops the override (passes null).
+            factory.verify(() -> CredentialsProviderFactory.createCredentialProvider(any(), any(), any()), never());
+        }
     }
 
     @Test

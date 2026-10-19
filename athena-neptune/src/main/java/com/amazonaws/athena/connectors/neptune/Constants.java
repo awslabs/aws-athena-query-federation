@@ -52,7 +52,6 @@ public class Constants
    public static final String PREFIX_KEY = "prefix_";
    public static final int PREFIX_LEN = PREFIX_KEY.length();
 
-   public static final String GREMLIN_QUERY_SUPPORT_TYPE = "valueMap";
    public static final String RDF_COMPONENT_TYPE = "rdf";
    public static final String GREMLIN_QUERY_LIMIT = "limit(10)";
    public static final String SPARQL_QUERY_LIMIT = "limit 10";

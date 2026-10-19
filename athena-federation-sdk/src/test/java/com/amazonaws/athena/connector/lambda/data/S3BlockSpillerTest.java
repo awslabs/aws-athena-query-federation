@@ -330,6 +330,156 @@ public class S3BlockSpillerTest
         return capturedRequest;
     }
 
+    @Test(expected = RuntimeException.class)
+    public void getSpillLocationsThrowsOnAsyncS3Error()
+            throws IOException
+    {
+        // Create a spiller with async spill threads enabled
+        SpillConfig asyncSpillConfig = SpillConfig.newBuilder()
+                .withEncryptionKey(keyFactory.create())
+                .withRequestId(requestId)
+                .withSpillLocation(S3SpillLocation.newBuilder()
+                        .withBucket(bucket)
+                        .withPrefix(prefix)
+                        .withQueryId(requestId)
+                        .withSplitId(splitId)
+                        .withIsDirectory(true)
+                        .build())
+                .withRequestId(requestId)
+                .withMaxBlockBytes(100) // small so it spills immediately
+                .withMaxInlineBlockBytes(0) // force spill
+                .withNumSpillThreads(1)
+                .build();
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField("col1", new ArrowType.Int(32, true))
+                .build();
+
+        S3BlockSpiller asyncSpiller = new S3BlockSpiller(mockS3, asyncSpillConfig, allocator, schema,
+                ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
+
+        // Mock S3 putObject to throw a permission error (simulating AccessDenied)
+        when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenThrow(new RuntimeException("Access Denied"));
+
+        try {
+            // Write enough data to trigger a spill
+            asyncSpiller.writeRows((Block block, int rowNum) -> {
+                BlockUtils.setValue(block.getFieldVector("col1"), rowNum, 100);
+                return 1;
+            });
+
+            // This should throw because the async S3 write failed with permission error
+            asyncSpiller.getSpillLocations();
+        }
+        finally {
+            asyncSpiller.close();
+        }
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void spilledThrowsOnAsyncS3Error()
+            throws IOException
+    {
+        // Create a spiller with async spill threads enabled
+        SpillConfig asyncSpillConfig = SpillConfig.newBuilder()
+                .withEncryptionKey(keyFactory.create())
+                .withRequestId(requestId)
+                .withSpillLocation(S3SpillLocation.newBuilder()
+                        .withBucket(bucket)
+                        .withPrefix(prefix)
+                        .withQueryId(requestId)
+                        .withSplitId(splitId)
+                        .withIsDirectory(true)
+                        .build())
+                .withRequestId(requestId)
+                .withMaxBlockBytes(100) // small so it spills immediately
+                .withMaxInlineBlockBytes(0) // force spill
+                .withNumSpillThreads(1)
+                .build();
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField("col1", new ArrowType.Int(32, true))
+                .addField("col2", new ArrowType.Utf8())
+                .build();
+
+        S3BlockSpiller asyncSpiller = new S3BlockSpiller(mockS3, asyncSpillConfig, allocator, schema,
+                ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
+
+        // Mock S3 putObject to throw a permission error
+        when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenThrow(new RuntimeException("Access Denied"));
+
+        try {
+            // Write multiple rows to exceed maxBlockBytes and trigger a spill
+            for (int i = 0; i < 20; i++) {
+                asyncSpiller.writeRows((Block block, int rowNum) -> {
+                    BlockUtils.setValue(block.getFieldVector("col1"), rowNum, 100);
+                    BlockUtils.setValue(block.getFieldVector("col2"), rowNum, "SomeDataToIncreaseBlockSize");
+                    return 1;
+                });
+            }
+
+            // Close the spiller which awaits async thread termination
+            asyncSpiller.close();
+
+            // After close, the async thread has completed - spilled() should throw
+            asyncSpiller.spilled();
+        }
+        finally {
+            // already closed above, but safe to call again
+        }
+    }
+
+    @Test
+    public void getSpillLocationsSucceedsWhenS3WriteSucceeds()
+            throws IOException
+    {
+        // Create a spiller with async spill threads enabled
+        SpillConfig asyncSpillConfig = SpillConfig.newBuilder()
+                .withEncryptionKey(keyFactory.create())
+                .withRequestId(requestId)
+                .withSpillLocation(S3SpillLocation.newBuilder()
+                        .withBucket(bucket)
+                        .withPrefix(prefix)
+                        .withQueryId(requestId)
+                        .withSplitId(splitId)
+                        .withIsDirectory(true)
+                        .build())
+                .withRequestId(requestId)
+                .withMaxBlockBytes(100) // small so it spills immediately
+                .withMaxInlineBlockBytes(0) // force spill
+                .withNumSpillThreads(1)
+                .build();
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField("col1", new ArrowType.Int(32, true))
+                .build();
+
+        S3BlockSpiller asyncSpiller = new S3BlockSpiller(mockS3, asyncSpillConfig, allocator, schema,
+                ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
+
+        // Mock S3 putObject to succeed
+        when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+
+        try {
+            // Write enough data to trigger a spill
+            asyncSpiller.writeRows((Block block, int rowNum) -> {
+                BlockUtils.setValue(block.getFieldVector("col1"), rowNum, 100);
+                return 1;
+            });
+
+            // Should succeed without exception
+            java.util.List<SpillLocation> locations = asyncSpiller.getSpillLocations();
+            assertNotNull(locations);
+            assertFalse(locations.isEmpty());
+        }
+        finally {
+            asyncSpiller.close();
+        }
+    }
+
     private class ByteHolder
     {
         private byte[] bytes;

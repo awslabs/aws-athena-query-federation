@@ -27,9 +27,11 @@ import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateDayExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -44,8 +46,10 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableDateDayHolder;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
@@ -61,12 +65,14 @@ import software.amazon.awssdk.services.timestreamquery.model.Row;
 import software.amazon.awssdk.services.timestreamquery.model.TimeSeriesDataPoint;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -80,6 +86,8 @@ public class TimestreamRecordHandler
             .appendFraction(ChronoField.MILLI_OF_SECOND, 0, 9, false)
             .toFormatter()
             .withZone(ZoneId.of("UTC"));
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
 
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "timestream";
@@ -182,8 +190,14 @@ public class TimestreamRecordHandler
                     break;
                 case BIT:
                     builder.withExtractor(nextField.getName(), (BitExtractor) (Object context, NullableBitHolder value) -> {
-                        value.isSet = 1;
-                        value.value = Boolean.valueOf(((Row) context).data().get(curFieldNum).scalarValue()) == false ? 0 : 1;
+                        String boolValue = ((Row) context).data().get(curFieldNum).scalarValue();
+                        if (boolValue != null) {
+                            value.isSet = 1;
+                            value.value = Boolean.parseBoolean(boolValue) ? 1 : 0;
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
                     });
                     break;
                 case BIGINT:
@@ -192,6 +206,18 @@ public class TimestreamRecordHandler
                         if (longValue != null) {
                             value.isSet = 1;
                             value.value = Long.valueOf(longValue);
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
+                    });
+                    break;
+                case INT:
+                    builder.withExtractor(nextField.getName(), (IntExtractor) (Object context, NullableIntHolder value) -> {
+                        String intValue = ((Row) context).data().get(curFieldNum).scalarValue();
+                        if (intValue != null) {
+                            value.isSet = 1;
+                            value.value = Integer.valueOf(intValue);
                         }
                         else {
                             value.isSet = 0;
@@ -210,12 +236,28 @@ public class TimestreamRecordHandler
                         }
                     });
                     break;
+                case DATEDAY:
+                    builder.withExtractor(nextField.getName(), (DateDayExtractor) (Object context, NullableDateDayHolder value) -> {
+                        String dateValue = ((Row) context).data().get(curFieldNum).scalarValue();
+                        if (dateValue != null) {
+                            value.isSet = 1;
+                            value.value = (int) LocalDate.parse(dateValue, DATE_FORMATTER).toEpochDay();
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
+                    });
+                    break;
                 case LIST:
-                    //TODO: This presently only supports TimeSeries results but it is possible that customers may
-                    //generate LIST type results for other reasons when using VIEWs. For now this seems like an OK
-                    //compromise since it enables an important capability of TimeStream even if it doesn't enable arbitrary
-                    //complex types.
-                    buildTimeSeriesExtractor(builder, nextField, curFieldNum);
+                    if (isTimeSeriesListField(nextField)) {
+                        buildTimeSeriesExtractor(builder, nextField, curFieldNum);
+                    }
+                    else {
+                        buildListExtractor(builder, nextField, curFieldNum);
+                    }
+                    break;
+                case STRUCT:
+                    buildStructExtractor(builder, nextField, curFieldNum);
                     break;
                 default:
                     throw new RuntimeException("Unsupported field type[" + nextField.getType() + "] for field[" + nextField.getName() + "]");
@@ -231,40 +273,165 @@ public class TimestreamRecordHandler
                         (Object context, int rowNum) -> {
                             Row row = (Row) context;
                             Datum datum = row.data().get(curFieldNum);
-                            Field timeField = field.getChildren().get(0).getChildren().get(0);
-                            Field valueField = field.getChildren().get(0).getChildren().get(1);
-
-                            if (datum.timeSeriesValue() != null) {
-                                List<Map<String, Object>> values = new ArrayList<>();
-                                for (TimeSeriesDataPoint nextDatum : datum.timeSeriesValue()) {
-                                    Map<String, Object> eventMap = new HashMap<>();
-
-                                    eventMap.put(timeField.getName(), Instant.from(TIMESTAMP_FORMATTER.parse(nextDatum.time())).toEpochMilli());
-
-                                    switch (Types.getMinorTypeForArrowType(valueField.getType())) {
-                                        case FLOAT8:
-                                            eventMap.put(valueField.getName(), Double.valueOf(nextDatum.value().scalarValue()));
-                                            break;
-                                        case BIGINT:
-                                            eventMap.put(valueField.getName(), Long.valueOf(nextDatum.value().scalarValue()));
-                                            break;
-                                        case INT:
-                                            eventMap.put(valueField.getName(), Integer.valueOf(nextDatum.value().scalarValue()));
-                                            break;
-                                        case BIT:
-                                            eventMap.put(valueField.getName(),
-                                                    Boolean.valueOf(((Row) context).data().get(curFieldNum).scalarValue()) == false ? 0 : 1);
-                                            break;
-                                    }
-                                    values.add(eventMap);
-                                }
-                                BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, values);
+                            if (Boolean.TRUE.equals(datum.nullValue())) {
+                                return true;
                             }
-                            else {
-                                throw new RuntimeException("Only LISTs of type TimeSeries are presently supported.");
+                            if (!datum.hasTimeSeriesValue()) {
+                                throw new RuntimeException("Expected TimeSeries payload for column[" + field.getName() + "]");
                             }
-
-                            return true;    //we don't yet support predicate pushdown on complex types
+                            List<Map<String, Object>> values = buildTimeSeriesRowMaps(datum, field);
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, values);
+                            return true;
                         });
+    }
+
+    private void buildListExtractor(GeneratedRowWriter.RowWriterBuilder builder, Field field, int curFieldNum)
+    {
+        builder.withFieldWriterFactory(field.getName(),
+                (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                        (Object context, int rowNum) -> {
+                            Datum datum = ((Row) context).data().get(curFieldNum);
+                            if (Boolean.TRUE.equals(datum.nullValue())) {
+                                return true;
+                            }
+                            Object value = convertDatumToObject(datum, field);
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, value);
+                            return true;
+                        });
+    }
+
+    private void buildStructExtractor(GeneratedRowWriter.RowWriterBuilder builder, Field field, int curFieldNum)
+    {
+        builder.withFieldWriterFactory(field.getName(),
+                (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                        (Object context, int rowNum) -> {
+                            Datum datum = ((Row) context).data().get(curFieldNum);
+                            if (Boolean.TRUE.equals(datum.nullValue())) {
+                                return true;
+                            }
+                            Object value = convertDatumToObject(datum, field);
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, value);
+                            return true;
+                        });
+    }
+
+    /**
+     * Timestream time series columns are modeled as {@code LIST<STRUCT<time, measure_value>>} with {@code time} first.
+     */
+    private static boolean isTimeSeriesListField(Field listField)
+    {
+        if (listField.getChildren().size() != 1) {
+            return false;
+        }
+        Field inner = listField.getChildren().get(0);
+        if (Types.getMinorTypeForArrowType(inner.getType()) != Types.MinorType.STRUCT) {
+            return false;
+        }
+        if (inner.getChildren().size() != 2) {
+            return false;
+        }
+        Field timeChild = inner.getChildren().get(0);
+        return "time".equals(timeChild.getName())
+                && Types.getMinorTypeForArrowType(timeChild.getType()) == Types.MinorType.DATEMILLI;
+    }
+
+    private List<Map<String, Object>> buildTimeSeriesRowMaps(Datum datum, Field listField)
+    {
+        Field structField = listField.getChildren().get(0);
+        Field timeField = structField.getChildren().get(0);
+        Field valueField = structField.getChildren().get(1);
+        List<Map<String, Object>> values = new ArrayList<>();
+        for (TimeSeriesDataPoint nextDatum : datum.timeSeriesValue()) {
+            Map<String, Object> eventMap = new HashMap<>();
+            eventMap.put(timeField.getName(), Instant.from(TIMESTAMP_FORMATTER.parse(nextDatum.time())).toEpochMilli());
+            eventMap.put(valueField.getName(), parseMeasureScalar(nextDatum.value(), valueField));
+            values.add(eventMap);
+        }
+        return values;
+    }
+
+    private static Object parseMeasureScalar(Datum measureDatum, Field valueField)
+    {
+        String sv = measureDatum.scalarValue();
+        if (sv == null) {
+            return null;
+        }
+        switch (Types.getMinorTypeForArrowType(valueField.getType())) {
+            case FLOAT8:
+                return Double.valueOf(sv);
+            case BIGINT:
+                return Long.valueOf(sv);
+            case INT:
+                return Integer.valueOf(sv);
+            case BIT:
+                return Boolean.parseBoolean(sv) ? 1 : 0;
+            case VARCHAR:
+                return sv;
+            default:
+                throw new RuntimeException("Unsupported time series measure type[" + valueField.getType() + "]");
+        }
+    }
+
+    private Object convertDatumToObject(Datum datum, Field field)
+    {
+        if (datum == null || Boolean.TRUE.equals(datum.nullValue())) {
+            return null;
+        }
+        Types.MinorType minor = Types.getMinorTypeForArrowType(field.getType());
+        switch (minor) {
+            case LIST:
+                Field elementField = field.getChildren().get(0);
+                if (isTimeSeriesListField(field) && datum.hasTimeSeriesValue()) {
+                    return buildTimeSeriesRowMaps(datum, field);
+                }
+                if (datum.hasArrayValue()) {
+                    List<Object> elements = new ArrayList<>();
+                    for (Datum next : datum.arrayValue()) {
+                        elements.add(convertDatumToObject(next, elementField));
+                    }
+                    return elements;
+                }
+                throw new RuntimeException("Unexpected LIST payload for field[" + field.getName() + "]");
+            case STRUCT:
+                if (datum.rowValue() == null) {
+                    return null;
+                }
+                software.amazon.awssdk.services.timestreamquery.model.Row structRow = datum.rowValue();
+                Map<String, Object> map = new LinkedHashMap<>();
+                List<Field> children = field.getChildren();
+                for (int i = 0; i < children.size(); i++) {
+                    Field childField = children.get(i);
+                    Datum childDatum = structRow.data().get(i);
+                    map.put(childField.getName(), convertDatumToObject(childDatum, childField));
+                }
+                return map;
+            default:
+                return parseScalarString(datum.scalarValue(), field);
+        }
+    }
+
+    private static Object parseScalarString(String scalarValue, Field field)
+    {
+        if (scalarValue == null) {
+            return null;
+        }
+        switch (Types.getMinorTypeForArrowType(field.getType())) {
+            case VARCHAR:
+                return scalarValue;
+            case FLOAT8:
+                return Double.valueOf(scalarValue);
+            case BIT:
+                return Boolean.parseBoolean(scalarValue) ? 1 : 0;
+            case BIGINT:
+                return Long.valueOf(scalarValue);
+            case INT:
+                return Integer.valueOf(scalarValue);
+            case DATEMILLI:
+                return Instant.from(TIMESTAMP_FORMATTER.parse(scalarValue)).toEpochMilli();
+            case DATEDAY:
+                return (int) LocalDate.parse(scalarValue, DATE_FORMATTER).toEpochDay();
+            default:
+                return scalarValue;
+        }
     }
 }

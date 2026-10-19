@@ -78,8 +78,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementResponse;
@@ -90,6 +92,7 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -163,9 +166,7 @@ public class DynamoDBMetadataHandler
     public DynamoDBMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
-        this.ddbClient = DynamoDbClient.builder() 
-                .credentialsProvider(CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
-                .build();
+        this.ddbClient = buildDynamoDbClient(configOptions);
         this.glueClient = getAwsGlue();
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
@@ -189,6 +190,18 @@ public class DynamoDBMetadataHandler
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
         this.queryPassthrough = new DDBQueryPassthrough();
+    }
+
+    private static DynamoDbClient buildDynamoDbClient(java.util.Map<String, String> configOptions)
+    {
+        String region = System.getenv("AWS_REGION");
+        DynamoDbClientBuilder builder = DynamoDbClient.builder()
+                .region(Region.of(region))
+                .credentialsProvider(CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"));
+        if (region != null && region.startsWith("eusc-")) {
+            builder.endpointOverride(URI.create("https://dynamodb." + region + ".amazonaws.eu"));
+        }
+        return builder.build();
     }
 
     @Override
