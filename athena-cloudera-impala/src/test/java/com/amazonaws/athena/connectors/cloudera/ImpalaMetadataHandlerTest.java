@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -366,6 +367,96 @@ public class ImpalaMetadataHandlerTest
                 .collect(Collectors.toSet());
         assertEquals(expectedPartitions, actualPartitions);
         assertEquals(TEST_CATALOG, getSplitsResponse.getCatalogName());
+    }
+
+    @Test
+    public void doGetSplits_whenCatalogCasingFilterSet_propagatesFilterToSplits()
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema(TEST_CATALOG);
+        Set<String> partitionCols = partitionSchema.getFields().stream()
+                .map(Field::getName)
+                .collect(Collectors.toSet());
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(TEST_PARTITION, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType());
+        Block partitionsBlock = blockAllocator.createBlock(schemaBuilder.build());
+        partitionsBlock.setValue(TEST_PARTITION, 0, "partition_0");
+        partitionsBlock.setRowCount(1);
+
+        Mockito.when(this.federatedIdentity.getConfigOptions())
+                .thenReturn(Map.of(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY));
+
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG,
+                tableName, partitionsBlock, new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.impalaMetadataHandler.doGetSplits(blockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        getSplitsResponse.getSplits().forEach(split ->
+                assertEquals(EnvironmentConstants.UPPERCASE_ONLY, split.getProperties().get(EnvironmentConstants.CATALOG_CASING_FILTER)));
+    }
+
+    @Test
+    public void doGetSplits_whenNoCatalogCasingFilter_doesNotAddFilterProperty()
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema(TEST_CATALOG);
+        Set<String> partitionCols = partitionSchema.getFields().stream()
+                .map(Field::getName)
+                .collect(Collectors.toSet());
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(TEST_PARTITION, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType());
+        Block partitionsBlock = blockAllocator.createBlock(schemaBuilder.build());
+        partitionsBlock.setValue(TEST_PARTITION, 0, "partition_0");
+        partitionsBlock.setRowCount(1);
+
+        Mockito.when(this.federatedIdentity.getConfigOptions()).thenReturn(Collections.emptyMap());
+
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG,
+                tableName, partitionsBlock, new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.impalaMetadataHandler.doGetSplits(blockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        getSplitsResponse.getSplits().forEach(split ->
+                assertEquals(null, split.getProperties().get(EnvironmentConstants.CATALOG_CASING_FILTER)));
+    }
+
+    @Test
+    public void doGetSplits_whenIdentityConfigOptionsNull_doesNotAddFilterProperty()
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema(TEST_CATALOG);
+        Set<String> partitionCols = partitionSchema.getFields().stream()
+                .map(Field::getName)
+                .collect(Collectors.toSet());
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(TEST_PARTITION, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType());
+        Block partitionsBlock = blockAllocator.createBlock(schemaBuilder.build());
+        partitionsBlock.setValue(TEST_PARTITION, 0, "partition_0");
+        partitionsBlock.setRowCount(1);
+
+        // A null identity config-options map must be tolerated (the null branch of the ternary in
+        // doGetSplits) and must yield no casing-filter property on the splits.
+        Mockito.when(this.federatedIdentity.getConfigOptions()).thenReturn(null);
+
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, TEST_QUERY_ID, TEST_CATALOG,
+                tableName, partitionsBlock, new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.impalaMetadataHandler.doGetSplits(blockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        getSplitsResponse.getSplits().forEach(split ->
+                assertEquals(null, split.getProperties().get(EnvironmentConstants.CATALOG_CASING_FILTER)));
     }
 
     @Test
