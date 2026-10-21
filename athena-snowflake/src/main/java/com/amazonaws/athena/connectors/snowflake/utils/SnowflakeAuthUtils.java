@@ -122,26 +122,32 @@ public class SnowflakeAuthUtils
      */
     private static String formatPrivateKeyWithPemHeaders(String privateKeyString, String passphrase)
     {
-        // Check if the input is already in PEM format (contains headers/footers)
-        if (!privateKeyString.contains("-----BEGIN") && !privateKeyString.contains("-----END")) {
-            // Input is raw base64, wrap it with PEM headers and footers
-            // Try to determine if it's encrypted by checking if passphrase is provided
-            if (passphrase != null && !passphrase.trim().isEmpty()) {
-                String formattedKey = "-----BEGIN ENCRYPTED PRIVATE KEY-----\n" + 
-                                     privateKeyString + 
-                                     "\n-----END ENCRYPTED PRIVATE KEY-----";
-                LOGGER.debug("Wrapped raw encrypted private key with PEM headers and footers");
-                return formattedKey;
-            }
-            else {
-                String formattedKey = "-----BEGIN PRIVATE KEY-----\n" + 
-                                     privateKeyString + 
-                                     "\n-----END PRIVATE KEY-----";
-                LOGGER.debug("Wrapped raw private key with PEM headers and footers");
-                return formattedKey;
-            }
+        // Normalize to a well-formed PEM regardless of the input shape. The input may be:
+        //   - raw base64 with no headers/footers,
+        //   - a PEM whose header/footer and body are inline on a single line (common when the key is
+        //     stored inside a JSON secret) — which BouncyCastle's PEMParser rejects, or
+        //   - an already well-formed multi-line PEM.
+        // Strip any existing BEGIN/END markers and all whitespace to recover the base64 body, then
+        // re-wrap it with the correct header and 64-character lines so PEMParser can always read it.
+        // This makes the federation path as lenient as the describeEntity (AppFlow) path, which was
+        // accepting keys with or without headers while this path only accepted header-less keys.
+        final boolean encrypted = privateKeyString.contains("ENCRYPTED")
+                || (passphrase != null && !passphrase.trim().isEmpty());
+
+        String body = privateKeyString
+                .replaceAll("-----BEGIN[^-]*-----", "")
+                .replaceAll("-----END[^-]*-----", "")
+                .replaceAll("\\s", "");
+
+        final String keyType = encrypted ? "ENCRYPTED PRIVATE KEY" : "PRIVATE KEY";
+        StringBuilder pem = new StringBuilder();
+        pem.append("-----BEGIN ").append(keyType).append("-----\n");
+        for (int i = 0; i < body.length(); i += 64) {
+            pem.append(body, i, Math.min(i + 64, body.length())).append('\n');
         }
-        return privateKeyString;
+        pem.append("-----END ").append(keyType).append("-----\n");
+        LOGGER.debug("Normalized private key into well-formed PEM ({})", keyType);
+        return pem.toString();
     }
 
     /**
