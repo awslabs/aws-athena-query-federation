@@ -20,15 +20,16 @@
 package com.amazonaws.athena.connectors.influxdb;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 import com.influxdb.v3.client.InfluxDBApiHttpException;
 import com.influxdb.v3.client.InfluxDBClient;
@@ -36,8 +37,6 @@ import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightStatusCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.naming.ConfigurationException;
 
 import java.io.IOException;
 import java.net.URI;
@@ -63,6 +62,13 @@ import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.INFLUXD
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MAX_EXCEPTION_CAUSE_SEARCH_DEPTH;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MAX_TOKEN_REFRESH_RETRIES;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.TOKEN_REFRESH_MAX_RETRIES;
+import static software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION;
+import static software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION;
+import static software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION;
+import static software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.INVALID_INPUT_EXCEPTION;
+import static software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION;
+import static software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION;
+
 /**
  * Creates InfluxDB client connections, resolving the auth token from Secrets Manager.
  *
@@ -137,14 +143,14 @@ public class InfluxDBConnectionFactory
      * Plain {@code http} is accepted only when {@code ALLOW_INSECURE_TRANSPORT=true}, which is
      * intended for local testing against a server without TLS.
      *
-     * @throws IllegalArgumentException if the host is missing, is not an absolute URL, or does not
-     *             use HTTPS (or HTTP with insecure transport explicitly allowed)
+     * @throws AthenaConnectorException with {@code INVALID_INPUT_EXCEPTION} if the host is missing, is not an
+     *             absolute URL, or does not use HTTPS (or HTTP with insecure transport explicitly allowed)
      */
     String validatedHost()
     {
         final String configured = configOptions.get(ENV_INFLUXDB_HOST);
         if (configured == null || configured.isBlank()) {
-            throw new IllegalArgumentException("Missing required env var: " + ENV_INFLUXDB_HOST);
+            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION, "Missing required env var: " + ENV_INFLUXDB_HOST);
         }
         final String host = configured.trim();
         final URI uri;
@@ -152,17 +158,18 @@ public class InfluxDBConnectionFactory
             uri = new URI(host);
         }
         catch (final URISyntaxException e) {
-            throw new IllegalArgumentException("Invalid host: '" + host + "'. Host must be a valid URL", e);
+            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION,
+                    "Invalid host: '" + host + "'. Host must be a valid URL", e);
         }
         if (uri.getScheme() == null || uri.getHost() == null) {
-            throw new IllegalArgumentException(
+            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION,
                 "Invalid host: '" + host + "'. Host must be an absolute URL such as https://<endpoint>:8181");
         }
         final String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
         final boolean allowInsecureTransport =
             Boolean.parseBoolean(configOptions.getOrDefault(ENV_ALLOW_INSECURE_TRANSPORT, "false"));
         if (!"https".equals(scheme) && !("http".equals(scheme) && allowInsecureTransport)) {
-            throw new IllegalArgumentException("Invalid host: '" + host + "'. Host must use HTTPS");
+            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION, "Invalid host: '" + host + "'. Host must use HTTPS");
         }
         return scheme + host.substring(uri.getScheme().length());
     }
@@ -182,7 +189,8 @@ public class InfluxDBConnectionFactory
      * This is the single boundary check shared by {@link #getClient} and {@link #resolveDatabase};
      * {@code influxdb_database} is an enforced access boundary, not merely a discovery filter.
      *
-     * @throws IllegalArgumentException if a database outside the configured scope is requested
+     * @throws AthenaConnectorException with {@code ACCESS_DENIED_EXCEPTION} if a database outside the configured
+     *             scope is requested
      */
     private String enforceDatabaseScope(final String requested)
     {
@@ -194,7 +202,7 @@ public class InfluxDBConnectionFactory
         if (req.isEmpty() || configuredDb.equalsIgnoreCase(req)) {
             return configuredDb;
         }
-        throw new IllegalArgumentException(
+        throw InfluxDBErrors.error(ACCESS_DENIED_EXCEPTION,
             "Access to database '" + req + "' is denied; this connector is scoped to '" + configuredDb + "'");
     }
 
@@ -214,7 +222,8 @@ public class InfluxDBConnectionFactory
 
         final String db = enforceDatabaseScope(database);
         if (db.isEmpty()) {
-            throw new IllegalArgumentException("No database specified and no " + INFLUXDB_DATABASE + " default is configured");
+            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION,
+                    "No database specified and no " + INFLUXDB_DATABASE + " default is configured");
         }
 
         final InfluxDBClient cachedInfluxDbClient = influxDbClients.getIfPresent(db);
@@ -228,8 +237,9 @@ public class InfluxDBConnectionFactory
         catch (final ExecutionException e) {
             // InfluxDBClient.getInstance throws only unchecked exceptions, so Guava never actually wraps a checked
             // one here; unwrap defensively rather than leak a checked exception that cannot occur.
-            final Throwable cause = e.getCause() != null ? e.getCause() : e;
-            throw new RuntimeException("Failed to create InfluxDB client for database '" + db + "'", cause);
+            final Throwable cause = e.getCause() instanceof Exception ? e.getCause() : e;
+            throw InfluxDBErrors.error(INTERNAL_SERVICE_EXCEPTION,
+                    "Failed to create InfluxDB client for database '" + db + "'", (Exception) cause);
         }
     }
 
@@ -244,7 +254,7 @@ public class InfluxDBConnectionFactory
     private void assertDatabaseExists(final String database)
     {
         if (database == null || database.isEmpty()) {
-            throw new IllegalArgumentException("Database name must be provided");
+            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION, "Database name must be provided");
         }
         final boolean exists;
         try {
@@ -254,14 +264,15 @@ public class InfluxDBConnectionFactory
                 .anyMatch(db -> db != null && database.equals(db.name));
         }
         catch (final IOException e) {
-            throw new RuntimeException("Failed to verify database '" + database + "' exists", e);
+            throw InfluxDBErrors.ioError("Failed to verify database '" + database + "' exists", e);
         }
         catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while verifying database '" + database + "' exists", e);
+            throw InfluxDBErrors.error(OPERATION_TIMEOUT_EXCEPTION,
+                    "Interrupted while verifying database '" + database + "' exists", e);
         }
         if (!exists) {
-            throw new IllegalArgumentException("Database does not exist: '" + database + "'");
+            throw InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION, "Database does not exist: '" + database + "'");
         }
     }
 
@@ -310,6 +321,10 @@ public class InfluxDBConnectionFactory
      *
      * This is the only retry loop in the connection factory. Operations inside an attempt must use
      * non-retrying calls (such as {@link #fetchDatabases}) so retry budgets never multiply.
+     *
+     * A failure that is not retried is translated by {@link InfluxDBErrors#translate}, so InfluxDB client errors
+     * reach Athena as an {@link AthenaConnectorException} with a {@code FederationSourceErrorCode}. For example, a
+     * Flight {@code RESOURCE_EXHAUSTED} or an HTTP 429 becomes {@code THROTTLING_EXCEPTION}.
      */
     <T> T withCredentialRefresh(final Attempt<T> attempt) throws Exception
     {
@@ -324,13 +339,15 @@ public class InfluxDBConnectionFactory
                     logger.warn("Authentication error from InfluxDB; invalidating token and retrying (attempt {} of {})",
                             refreshes, maxTokenRefreshRetries);
                     invalidateToken();
-                    Thread.sleep(backoffMillis(refreshes));
+                    try {
+                        Thread.sleep(backoffMillis(refreshes));
+                    }
+                    catch (final InterruptedException interrupted) {
+                        throw InfluxDBErrors.translate(interrupted);
+                    }
                     continue;
                 }
-                if (isThrottle(e) && !(e instanceof FederationThrottleException)) {
-                    throw new FederationThrottleException("InfluxDB throttled the request", e);
-                }
-                throw e;
+                throw InfluxDBErrors.translate(e);
             }
         }
     }
@@ -343,26 +360,6 @@ public class InfluxDBConnectionFactory
     {
         final int doublings = Math.max(0, Math.min(retry - 1, 20));
         return Math.min(BACKOFF_MAX_MILLIS, BACKOFF_BASE_MILLIS << doublings);
-    }
-
-    /**
-     * True if the throwable (or anything in its cause chain) indicates the downstream is throttling us: a Flight
-     * {@code RESOURCE_EXHAUSTED} or an HTTP 429.
-     */
-    static boolean isThrottle(final Throwable throwable)
-    {
-        Throwable cause = throwable;
-        for (int depth = 0; cause != null && depth < MAX_EXCEPTION_CAUSE_SEARCH_DEPTH; cause = cause.getCause(), depth++) {
-            if (cause instanceof FlightRuntimeException
-                    && ((FlightRuntimeException) cause).status().code() == FlightStatusCode.RESOURCE_EXHAUSTED) {
-                return true;
-            }
-            if (cause instanceof InfluxDBApiHttpException
-                    && ((InfluxDBApiHttpException) cause).statusCode() == 429) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -432,7 +429,8 @@ public class InfluxDBConnectionFactory
      * instead of returning the requested name unchanged. Returning the unverified name would let a
      * caller-supplied schema masquerade as a real database and defer a guaranteed failure to a later stage.
      *
-     * @throws IllegalArgumentException if the schema is outside the configured scope or does not resolve to an existing database
+     * @throws AthenaConnectorException with {@code ACCESS_DENIED_EXCEPTION} if the schema is outside the configured
+     *             scope, or {@code ENTITY_NOT_FOUND_EXCEPTION} if it does not resolve to an existing database
      * @throws InterruptedException
      * @throws IOException
      */
@@ -444,7 +442,8 @@ public class InfluxDBConnectionFactory
         }
         return listDatabases().stream().map(db -> db != null ? db.name : null)
                 .filter(name -> name != null && name.equalsIgnoreCase(schemaName)).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Database not found: '" + schemaName + "'"));
+                .orElseThrow(() -> InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION,
+                        "Database not found: '" + schemaName + "'"));
     }
 
     /**
@@ -460,7 +459,7 @@ public class InfluxDBConnectionFactory
             try (Stream<Object[]> stream = client.query(sql, parameters)) {
                 return stream.map(row -> String.valueOf(row[0]))
                         .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException(
+                        .orElseThrow(() -> InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION,
                                 "Table not found in database '" + resolvedDB + "': " + tableName.getTableName()));
             }
         });
@@ -476,12 +475,13 @@ public class InfluxDBConnectionFactory
         try {
             return withCredentialRefresh(this::fetchDatabases);
         }
-        catch (final IOException | InterruptedException | RuntimeException e) {
+        catch (final RuntimeException e) {
             throw e;
         }
         catch (final Exception e) {
-            // fetchDatabases throws only the exceptions handled above.
-            throw new IllegalStateException(e);
+            // withCredentialRefresh translates every failure into an AthenaConnectorException, so this is not
+            // reached; translate here too rather than leak a checked exception.
+            throw InfluxDBErrors.translate(e);
         }
     }
 
@@ -504,9 +504,11 @@ public class InfluxDBConnectionFactory
      * inside a retrying operation (see {@link #assertDatabaseExists}) use this so their attempts count
      * against that operation's single retry budget instead of starting a nested retry loop.
      *
-     * @throws InfluxDBApiHttpException for a non-200, non-429 status, so {@link #isAuthError} and the
-     *             caller's retry logic can classify it by status code
-     * @throws FederationThrottleException for HTTP 429
+     * @throws InfluxDBApiHttpException for a non-200 status, so {@link #isAuthError} and the caller's retry logic
+     *             can classify it by status code. {@link #withCredentialRefresh} later translates it (for example,
+     *             HTTP 429 becomes {@code THROTTLING_EXCEPTION}).
+     * @throws AthenaConnectorException with {@code INVALID_RESPONSE_EXCEPTION} if the response body is not the
+     *             expected JSON
      */
     List<DatabaseInfo> fetchDatabases() throws IOException, InterruptedException
     {
@@ -522,14 +524,16 @@ public class InfluxDBConnectionFactory
         final HttpResponse<String> httpResponse = HTTP.send(httpRequest, BodyHandlers.ofString());
         final int statusCode = httpResponse.statusCode();
         if (statusCode == 200) {
-            final List<DatabaseInfo> parsedJson = GSON.fromJson(httpResponse.body(),
-                    new TypeToken<List<DatabaseInfo>>() {
-                    }.getType());
+            final List<DatabaseInfo> parsedJson;
+            try {
+                parsedJson = GSON.fromJson(httpResponse.body(), new TypeToken<List<DatabaseInfo>>() {
+                }.getType());
+            }
+            catch (final JsonParseException e) {
+                throw InfluxDBErrors.error(INVALID_RESPONSE_EXCEPTION,
+                        "Unexpected response listing databases in host " + host, e);
+            }
             return parsedJson != null ? parsedJson : List.of();
-        }
-        if (statusCode == 429) {
-            throw new FederationThrottleException(
-                    "InfluxDB throttled the request listing databases in host " + host);
         }
         throw new InfluxDBApiHttpException(
                 "Failed to list databases in host " + host + ": status code: " + statusCode,
@@ -547,7 +551,7 @@ public class InfluxDBConnectionFactory
         }
         final String rawToken = configOptions.get(ENV_INFLUXDB_TOKEN);
         if (rawToken == null || rawToken.isEmpty()) {
-            throw new IllegalArgumentException("Missing required env var: " + ENV_INFLUXDB_TOKEN);
+            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION, "Missing required env var: " + ENV_INFLUXDB_TOKEN);
         }
 
         // Use the SDK's built-in secret resolution for ${secret_name} patterns.
@@ -556,21 +560,21 @@ public class InfluxDBConnectionFactory
         // If the resolved value looks like JSON, extract the token key.
         String trimmed = resolved.trim();
         if (trimmed.startsWith("{")) {
+            JsonObject json = null;
             try {
-                final JsonObject json = GSON.fromJson(trimmed, JsonObject.class);
-                final String tokenKey = configOptions.getOrDefault(ENV_INFLUXDB_TOKEN_KEY, DEFAULT_TOKEN_KEY);
-                if (json.has(tokenKey)) {
-                    trimmed = json.get(tokenKey).getAsString();
-                }
-                else {
-                    throw new ConfigurationException("JSON secret does not contain key '" + tokenKey + "'");
-                }
+                json = GSON.fromJson(trimmed, JsonObject.class);
             }
-            catch (final JsonSyntaxException jse) {
+            catch (final JsonParseException e) {
                 logger.warn("Failed to parse secret as JSON. Treating secret as a raw token");
             }
-            catch (final Exception e) {
-                throw new RuntimeException("Unexpected error occurred while parsing secret JSON: " + e.getMessage());
+            if (json != null) {
+                final String tokenKey = configOptions.getOrDefault(ENV_INFLUXDB_TOKEN_KEY, DEFAULT_TOKEN_KEY);
+                final JsonElement token = json.get(tokenKey);
+                if (token == null || !token.isJsonPrimitive()) {
+                    throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION,
+                            "JSON secret does not contain a string value for key '" + tokenKey + "'");
+                }
+                trimmed = token.getAsString();
             }
         }
         this.resolvedToken = trimmed;

@@ -63,6 +63,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
@@ -163,7 +164,8 @@ public class InfluxDBMetadataHandler
             throws Exception
     {
         if (!request.isQueryPassthrough()) {
-            throw new IllegalArgumentException("doGetQueryPassthroughSchema called without query passthrough arguments");
+            throw InfluxDBErrors.error(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION,
+                    "doGetQueryPassthroughSchema called without query passthrough arguments");
         }
         // Enforce enable_query_passthrough before executing the caller's native SQL to infer the
         // schema.

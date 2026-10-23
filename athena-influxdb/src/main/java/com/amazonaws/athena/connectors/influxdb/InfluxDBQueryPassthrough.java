@@ -19,9 +19,11 @@
  */
 package com.amazonaws.athena.connectors.influxdb;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Arrays;
 import java.util.List;
@@ -78,7 +80,7 @@ public class InfluxDBQueryPassthrough implements QueryPassthroughSignature
     {
         String databaseName = engineQptArguments.get(DATABASE);
         if (databaseName == null || !VALID_DATABASE_NAME.matcher(databaseName).matches()) {
-            throw new IllegalArgumentException(
+            throw InfluxDBErrors.error(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION,
                 "Invalid InfluxDB v3 database name '" + databaseName + "'. Names must "
                 + "be a maximum of 64 characters, start with a letter or number and "
                 + "contain only letters, numbers, '_', '-', or '/'.");
@@ -88,12 +90,13 @@ public class InfluxDBQueryPassthrough implements QueryPassthroughSignature
     /**
      * Enforces the {@code enable_query_passthrough} flag at execution time.
      *
-     * @throws UnsupportedOperationException if {@code enable_query_passthrough} is not {@code true}
+     * @throws AthenaConnectorException with {@code OPERATION_NOT_SUPPORTED_EXCEPTION} if
+     *             {@code enable_query_passthrough} is not {@code true}
      */
     public void assertEnabled(final Map<String, String> configOptions)
     {
         if (!allowQueryPassthrough(configOptions)) {
-            throw new UnsupportedOperationException(
+            throw InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
                 "Query passthrough is disabled; set " + ENABLE_QUERY_PASSTHROUGH + "=true to enable it");
         }
     }

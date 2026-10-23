@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.influxdb.v3.client.InfluxDBClient;
@@ -50,6 +51,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -64,6 +66,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBErrorsTest.assertErrorCode;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -420,8 +423,8 @@ public class InfluxDBRecordHandlerTest
             disabledHandler.readWithConstraint(spiller, request, checker);
             fail("expected passthrough to be rejected when enable_query_passthrough=false");
         }
-        catch (final UnsupportedOperationException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION, expected);
         }
         // The native SQL must never reach InfluxDB.
         verify(mockClient, never()).queryBatches(anyString());

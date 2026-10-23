@@ -19,12 +19,15 @@
  */
 package com.amazonaws.athena.connectors.influxdb;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import org.junit.Test;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBErrorsTest.assertErrorCode;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -82,8 +85,8 @@ public class InfluxDBQueryPassthroughTest
             signature.assertEnabled(config);
             fail("expected assertEnabled to reject when passthrough is disabled");
         }
-        catch (final UnsupportedOperationException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION, expected);
         }
     }
 
@@ -96,8 +99,8 @@ public class InfluxDBQueryPassthroughTest
             signature.verify(args);
             fail("expected verify to reject a mismatched function signature");
         }
-        catch (final RuntimeException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, expected);
         }
     }
 
@@ -110,8 +113,8 @@ public class InfluxDBQueryPassthroughTest
             signature.verify(args);
             fail("expected verify to reject missing QUERY argument");
         }
-        catch (final RuntimeException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, expected);
         }
     }
 
@@ -142,8 +145,8 @@ public class InfluxDBQueryPassthroughTest
             signature.customConnectorVerifications(args);
             fail("expected verify to reject database name argument starting with _");
         }
-        catch (final RuntimeException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, expected);
         }
 
         // Expected failure when starting with -. Names must start with a number or a letter.
@@ -153,8 +156,8 @@ public class InfluxDBQueryPassthroughTest
             signature.customConnectorVerifications(args);
             fail("expected verify to reject database name argument starting with -");
         }
-        catch (final RuntimeException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, expected);
         }
 
         // Expected failure when starting with /. Names must start with a number or a letter.
@@ -164,8 +167,8 @@ public class InfluxDBQueryPassthroughTest
             signature.customConnectorVerifications(args);
             fail("expected verify to reject database name argument starting with /");
         }
-        catch (final RuntimeException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, expected);
         }
 
         // Expected failure when longer than 64 characters.
@@ -175,8 +178,8 @@ public class InfluxDBQueryPassthroughTest
             signature.customConnectorVerifications(args);
             fail("expected verify to reject database name longer than 64 characters");
         }
-        catch (final RuntimeException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, expected);
         }
 
         // Expected failure when including disallowed characters.
@@ -186,8 +189,8 @@ public class InfluxDBQueryPassthroughTest
             signature.customConnectorVerifications(args);
             fail("expected verify to reject database name with disallowed characters");
         }
-        catch (final RuntimeException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, expected);
         }
     }
 }

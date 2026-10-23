@@ -339,8 +339,9 @@ public class InfluxDBLocalIntegTest
             fail("Expected doGetTable to throw for a nonexistent table");
         }
         catch (final Exception expected) {
-            assertTrue("Expected an IllegalArgumentException, was: " + expected,
-                    expected instanceof IllegalArgumentException);
+            InfluxDBErrorsTest.assertErrorCode(
+                    software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION,
+                    expected);
             assertTrue("Message should name the missing table, was: " + expected.getMessage(),
                     expected.getMessage() != null && expected.getMessage().contains("does_not_exist"));
         }

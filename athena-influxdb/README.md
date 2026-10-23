@@ -9,7 +9,7 @@ This connector enables Amazon Athena to query **InfluxDB 3** time-series data (i
 - [Query passthrough](#query-passthrough)
 - [Split strategy & query parallelism](#split-strategy--query-parallelism)
 - [Record reads (field extraction)](#record-reads-field-extraction)
-- [Backpressure](#backpressure)
+- [Errors and backpressure](#errors-and-backpressure)
 - [Authentication & secrets](#authentication--secrets)
 - [Deployment](#deployment)
 - [Configuration parameters](#configuration-parameters)
@@ -84,9 +84,11 @@ A **split** is Athena's unit of parallelism — each split is read by a separate
 
 **Enable it** for large, time-ranged scans that return many rows (or that approach a single Lambda's memory/time limits). Leave it **off** (the default) otherwise. Tune `query_parallelism_count` (clamped to a safe range) to balance throughput against backend load.
 
-## Backpressure
+## Errors and backpressure
 
-If InfluxDB signals throttling — a Flight `RESOURCE_EXHAUSTED`, or an HTTP `429` on the database-list call — the connector raises `FederationThrottleException` (`isThrottle` in `InfluxDBConnectionFactory`). Athena treats this as backpressure and reduces the concurrency it drives, which protects the single downstream InfluxDB instance from being overwhelmed by Lambda fan-out. Throttles are surfaced before any rows are written, so Athena can safely retry.
+Every error the connector raises is an `AthenaConnectorException` with a `FederationSourceErrorCode`, following the SDK and the other connectors (`InfluxDBErrors`). Configuration problems (a missing or invalid host or token) are `INVALID_INPUT_EXCEPTION`; a database outside the `influxdb_database` scope is `ACCESS_DENIED_EXCEPTION`; a database or table that does not exist is `ENTITY_NOT_FOUND_EXCEPTION`. InfluxDB client failures are translated by status: Flight status codes (for example `UNAUTHENTICATED` to `INVALID_CREDENTIALS_EXCEPTION`, `TIMED_OUT` to `OPERATION_TIMEOUT_EXCEPTION`), and HTTP status codes from the database-list call through the SDK's `CompositeHandler.mapHTTPErrorCode`.
+
+If InfluxDB signals throttling — a Flight `RESOURCE_EXHAUSTED`, or an HTTP `429` on the database-list call — the error code is `THROTTLING_EXCEPTION`, the same code the SDK's `ThrottlingInvoker` uses. Athena treats this as backpressure and reduces the concurrency it drives, which protects the single downstream InfluxDB instance from being overwhelmed by Lambda fan-out.
 
 ## Authentication & secrets
 
