@@ -214,7 +214,7 @@ Create a Secrets Manager secret holding the InfluxDB token and pass its name (no
 - **Project only needed columns.** The connector reads exactly the projected columns; `SELECT *` over wide measurements marshals more data.
 - **Keep the cluster private.** A non-public cluster lets you use a clean, security-group-scoped ingress rule and avoids a NAT gateway.
 - **Enable parallelism deliberately.** Turn it on for large, time-ranged scans; leave it off for small/aggregate queries (see [Split strategy](#split-strategy--query-parallelism)).
-- **Store the token in Secrets Manager** (via `${secret_name}`) rather than inline, and rely on the connector's rotation-aware token refresh.
+- **Rotate the token in Secrets Manager.** The connector re-reads the `${secret_name}` secret on an authentication failure, so a rotated token is picked up without a redeploy.
 
 ## Limitations
 
@@ -226,13 +226,13 @@ Create a Secrets Manager secret holding the InfluxDB token and pass its name (no
 
 ## Running the integration tests
 
-`InfluxDBLocalIntegrationTest` runs the connector against a local **InfluxDB 3 Core** container, so it exercises the real Flight SQL read/metadata paths end-to-end. It requires a working Docker daemon; no AWS resources or `test-config.json` are needed.
+`InfluxDBLocalIntegTest` runs the connector against a local **InfluxDB 3 Core** container, so it exercises the real Flight SQL read/metadata paths end-to-end. It requires a working Docker daemon; no AWS resources or `test-config.json` are needed. Integration tests run only when failsafe is invoked explicitly; `mvn verify` alone does not run them.
 
 ```bash
 # From the athena-influxdb directory:
-mvn verify                 # runs unit + local integration tests
 mvn test                   # unit tests only
 mvn test jacoco:report     # unit tests + coverage report (target/site/jacoco)
+mvn verify failsafe:integration-test failsafe:verify -Dit.test=InfluxDBLocalIntegTest   # unit + local integration tests
 ```
 
 To run against a real Timestream for InfluxDB cluster, deploy the connector (see [Deployment](#deployment)), register it as an Athena data source, and issue federated queries such as:

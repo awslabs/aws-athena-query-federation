@@ -509,7 +509,7 @@ public class InfluxDBMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetQueryPassthroughSchemaFailsWhenQueryReturnsNoBatches() throws Exception
+    public void testDoGetQueryPassthroughSchemaReturnsEmptyWhenQueryReturnsNoBatches() throws Exception
     {
         when(mockClient.queryBatches(anyString())).thenReturn(Stream.empty());
         final GetTableResponse response = handler.doGetQueryPassthroughSchema(allocator,
