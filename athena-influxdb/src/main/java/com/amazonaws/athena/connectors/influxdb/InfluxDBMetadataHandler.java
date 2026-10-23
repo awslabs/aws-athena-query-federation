@@ -74,7 +74,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.DEFAULT_QUERY_PARALLELISM_COUNT;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.DEFAULT_TIME_COLUMN;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENABLE_QUERY_PARALLELISM;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.INFLUXDB_DATABASE;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MAX_QUERY_PARALLELISM_COUNT;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MIN_QUERY_PARALLELISM_COUNT;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.PART_TIME_LOWER;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.PART_TIME_UPPER;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.QUERY_PARALLELISM_COUNT;
@@ -86,18 +91,28 @@ public class InfluxDBMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(InfluxDBMetadataHandler.class);
 
-    // Split-count tuning for time-based query parallelism.
-    private static final int DEFAULT_SPLIT_COUNT = 8;
-    private static final int MIN_SPLIT_COUNT = 1;
-    private static final int MAX_SPLIT_COUNT = 16;
-
     private final InfluxDBConnectionFactory connectionFactory;
     private final InfluxDBQueryPassthrough queryPassthrough = new InfluxDBQueryPassthrough();
 
+    /**
+     * Creates a handler with its own connection factory. Used when the metadata handler is deployed as its
+     * own Lambda handler.
+     */
     public InfluxDBMetadataHandler(final Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
         this.connectionFactory = new InfluxDBConnectionFactory(configOptions, this);
+    }
+
+    /**
+     * Creates a handler that uses a connection factory shared with an {@link InfluxDBRecordHandler} in the
+     * same Lambda container. The record handler resolves the factory's secrets.
+     */
+    public InfluxDBMetadataHandler(final Map<String, String> configOptions,
+            final InfluxDBConnectionFactory connectionFactory)
+    {
+        super(SOURCE_TYPE, configOptions);
+        this.connectionFactory = connectionFactory;
     }
 
     @VisibleForTesting
@@ -140,8 +155,8 @@ public class InfluxDBMetadataHandler
 
     /**
      * Derives the result schema for a query passthrough by running the native query and inspecting the Arrow schema of
-     * its first result batch. The InfluxDB Arrow types are mapped to the same Athena types this connector produces for
-     * normal reads, so the RecordHandler's value conversion is identical for passthrough and non-passthrough reads.
+     * its first result batch. {@link InfluxDBTypeMapper} maps the column types, the same mapping that
+     * {@link #doGetTable} uses, so a column has the same Athena type on both paths.
      */
     @Override
     public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator allocator, final GetTableRequest request)
@@ -164,7 +179,7 @@ public class InfluxDBMetadataHandler
             try (Stream<VectorSchemaRoot> batches = client.queryBatches(query)) {
                 batches.findFirst().ifPresent(first -> {
                     for (final Field field : first.getSchema().getFields()) {
-                        addPassthroughField(schemaBuilder, field);
+                        schemaBuilder.addField(field.getName(), InfluxDBTypeMapper.toAthenaType(field));
                     }
                 });
             }
@@ -173,54 +188,13 @@ public class InfluxDBMetadataHandler
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
     }
 
-    /**
-     * Maps a column from the InfluxDB Flight result's Arrow schema to the Athena field type this connector uses for
-     * normal reads (timestamps normalized to millisecond UTC; tags/strings to VARCHAR; integers to BIGINT).
-     */
-    private static void addPassthroughField(final SchemaBuilder schemaBuilder, final Field field)
-    {
-        final String name = field.getName();
-        switch (Types.getMinorTypeForArrowType(field.getType())) {
-            case TIMESTAMPNANOTZ:
-            case TIMESTAMPMICROTZ:
-            case TIMESTAMPMILLITZ:
-            case TIMESTAMPSECTZ:
-            case TIMESTAMPNANO:
-            case TIMESTAMPMICRO:
-            case TIMESTAMPMILLI:
-            case TIMESTAMPSEC:
-            case DATEMILLI:
-            case DATEDAY:
-                schemaBuilder.addField(name, new ArrowType.Timestamp(
-                        org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC"));
-                break;
-            case BIGINT:
-            case INT:
-            case SMALLINT:
-            case TINYINT:
-                schemaBuilder.addField(name, Types.MinorType.BIGINT.getType());
-                break;
-            case FLOAT8:
-            case FLOAT4:
-                schemaBuilder.addField(name, Types.MinorType.FLOAT8.getType());
-                break;
-            case BIT:
-                schemaBuilder.addField(name, Types.MinorType.BIT.getType());
-                break;
-            default:
-                // Tags (dictionary-encoded Utf8), Utf8, and anything else, render as VARCHAR.
-                schemaBuilder.addField(name, Types.MinorType.VARCHAR.getType());
-                break;
-        }
-    }
-
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator allocator, final ListSchemasRequest request)
             throws Exception
     {
         logger.info("doListSchemaNames: catalog={}", request.getCatalogName());
         final Set<String> schemas = new HashSet<>();
-        final String defaultDb = this.configOptions.getOrDefault("influxdb_database", "");
+        final String defaultDb = this.configOptions.getOrDefault(INFLUXDB_DATABASE, "");
         // If the influxdb_database configuration option has been specified, scope to a
         // single database.
         if (!defaultDb.isEmpty()) {
@@ -289,16 +263,7 @@ public class InfluxDBMetadataHandler
         });
         for (final Object[] row : columns) {
             final String colName = String.valueOf(row[0]).toLowerCase(Locale.ROOT);
-            final String dataType = String.valueOf(row[1]).toUpperCase(Locale.ROOT);
-            final Types.MinorType minorType = toArrowType(dataType);
-            if (minorType == Types.MinorType.TIMESTAMPMILLITZ) {
-                schemaBuilder.addField(colName,
-                        new org.apache.arrow.vector.types.pojo.ArrowType.Timestamp(
-                                org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC"));
-            }
-            else {
-                schemaBuilder.addField(colName, minorType.getType());
-            }
+            schemaBuilder.addField(colName, InfluxDBTypeMapper.toAthenaType(String.valueOf(row[1])));
         }
         final Schema schema = schemaBuilder.build();
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
@@ -344,19 +309,8 @@ public class InfluxDBMetadataHandler
     @VisibleForTesting
     int clampedSplitCount()
     {
-        int requested = DEFAULT_SPLIT_COUNT;
-        final String configured = configOptions.get(QUERY_PARALLELISM_COUNT);
-        if (configured != null && !configured.isBlank()) {
-            try {
-                requested = Integer.parseInt(configured.trim());
-            }
-            catch (final NumberFormatException e) {
-                logger.warn("Invalid {} value '{}'; falling back to default {}",
-                        QUERY_PARALLELISM_COUNT, configured, DEFAULT_SPLIT_COUNT);
-                requested = DEFAULT_SPLIT_COUNT;
-            }
-        }
-        return Math.max(MIN_SPLIT_COUNT, Math.min(requested, MAX_SPLIT_COUNT));
+        return InfluxDBConfig.clampedInt(configOptions, QUERY_PARALLELISM_COUNT, DEFAULT_QUERY_PARALLELISM_COUNT,
+                MIN_QUERY_PARALLELISM_COUNT, MAX_QUERY_PARALLELISM_COUNT);
     }
 
     @Override
@@ -443,7 +397,7 @@ public class InfluxDBMetadataHandler
 
     static Long[] extractTimeRange(Constraints constraints)
     {
-        ValueSet valueSet = constraints.getSummary() == null ? null : constraints.getSummary().get("time");
+        ValueSet valueSet = constraints.getSummary() == null ? null : constraints.getSummary().get(DEFAULT_TIME_COLUMN);
         if (!(valueSet instanceof SortedRangeSet) || valueSet.isNone()) {
             return null;
         }
@@ -465,44 +419,5 @@ public class InfluxDBMetadataHandler
         }
 
         return new Long[] { min, max };
-    }
-
-    static Types.MinorType toArrowType(final String influxType)
-    {
-        // InfluxDB 3 (DataFusion) returns types like:
-        // "Dictionary(Int32, Utf8)" for tags
-        // "Timestamp(ns)" or "Timestamp(Nanosecond, None)" for time
-        // "Float64" for float fields
-        // "Int64" for integer fields
-        // "Boolean" for boolean fields
-        // "Utf8" for string fields
-        final String upper = influxType.toUpperCase(Locale.ROOT);
-        if (upper.startsWith("DICTIONARY")) {
-            return Types.MinorType.VARCHAR;
-        }
-        if (upper.startsWith("TIMESTAMP")) {
-            return Types.MinorType.TIMESTAMPMILLITZ;
-        }
-        switch (upper) {
-            case "FLOAT64" :
-            case "DOUBLE" :
-            case "FLOAT8" :
-                return Types.MinorType.FLOAT8;
-            case "INT64" :
-            case "BIGINT" :
-            case "INTEGER" :
-            case "INT" :
-            case "UINT64" :
-                return Types.MinorType.BIGINT;
-            case "BOOLEAN" :
-            case "BOOL" :
-                return Types.MinorType.BIT;
-            case "UTF8" :
-            case "VARCHAR" :
-            case "STRING" :
-                return Types.MinorType.VARCHAR;
-            default :
-                return Types.MinorType.VARCHAR;
-        }
     }
 }

@@ -31,8 +31,12 @@ public final class InfluxDBConstants
     public static final String ENV_INFLUXDB_TOKEN = "INFLUXDB3_AUTH_TOKEN";
     public static final String ENV_INFLUXDB_TOKEN_KEY = "INFLUXDB3_AUTH_TOKEN_KEY";
     public static final String DEFAULT_TOKEN_KEY = "token";
+    public static final String INFLUXDB_DATABASE = "influxdb_database";
     public static final String ENABLE_QUERY_PARALLELISM = "enable_query_parallelism";
     public static final String QUERY_PARALLELISM_COUNT = "query_parallelism_count";
+    public static final int DEFAULT_QUERY_PARALLELISM_COUNT = 8;
+    public static final int MIN_QUERY_PARALLELISM_COUNT = 1;
+    public static final int MAX_QUERY_PARALLELISM_COUNT = 16;
     public static final String TOKEN_REFRESH_MAX_RETRIES = "token_refresh_max_retries";
     public static final int DEFAULT_TOKEN_REFRESH_MAX_RETRIES = 1;
     public static final int MAX_TOKEN_REFRESH_RETRIES = 3;

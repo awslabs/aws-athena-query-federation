@@ -216,10 +216,10 @@ public class InfluxDBQueryBuilder
                 if (!range.getLow().isLowerUnbounded()) {
                     switch (range.getLow().getBound()) {
                         case ABOVE :
-                            rangeConjuncts.add(quote(columnName) + " > " + constraintLiteral(range.getLow().getValue(), type));
+                            rangeConjuncts.add(quote(columnName) + " > " + toLiteral(range.getLow().getValue(), type));
                             break;
                         case EXACTLY :
-                            rangeConjuncts.add(quote(columnName) + " >= " + constraintLiteral(range.getLow().getValue(), type));
+                            rangeConjuncts.add(quote(columnName) + " >= " + toLiteral(range.getLow().getValue(), type));
                             break;
                         default :
                             break;
@@ -229,10 +229,10 @@ public class InfluxDBQueryBuilder
                     switch (range.getHigh().getBound()) {
                         case EXACTLY :
                             rangeConjuncts
-                                    .add(quote(columnName) + " <= " + constraintLiteral(range.getHigh().getValue(), type));
+                                    .add(quote(columnName) + " <= " + toLiteral(range.getHigh().getValue(), type));
                             break;
                         case BELOW :
-                            rangeConjuncts.add(quote(columnName) + " < " + constraintLiteral(range.getHigh().getValue(), type));
+                            rangeConjuncts.add(quote(columnName) + " < " + toLiteral(range.getHigh().getValue(), type));
                             break;
                         default :
                             break;
@@ -246,11 +246,11 @@ public class InfluxDBQueryBuilder
 
         // Single values as equality or IN
         if (singleValues.size() == 1) {
-            disjuncts.add(quote(columnName) + " = " + constraintLiteral(singleValues.get(0), type));
+            disjuncts.add(quote(columnName) + " = " + toLiteral(singleValues.get(0), type));
         }
         else if (singleValues.size() > 1) {
             final String values = singleValues.stream()
-                    .map(v -> constraintLiteral(v, type))
+                    .map(v -> toLiteral(v, type))
                     .collect(Collectors.joining(", "));
             disjuncts.add(quote(columnName) + " IN (" + values + ")");
         }
@@ -343,7 +343,7 @@ public class InfluxDBQueryBuilder
         }
         reader.setPosition(0);
         final Object value = reader.readObject();
-        return constraintLiteral(value, expr.getType());
+        return toLiteral(value, expr.getType());
     }
 
     /**
@@ -380,22 +380,9 @@ public class InfluxDBQueryBuilder
     }
 
     /**
-     * Renders a constraint value (as delivered by Athena) as a SQL literal. Athena
-     * packs TIMESTAMP-with-time-zone values (millisUtc &lt;&lt; 12 | tzKey), so those
-     * are decoded here before formatting; all other types delegate to {@link #toLiteral}.
-     */
-    static String constraintLiteral(final Object value, final ArrowType type)
-    {
-        if (value != null
-                && Types.getMinorTypeForArrowType(type) == Types.MinorType.TIMESTAMPMILLITZ
-                && type instanceof ArrowType.Timestamp) {
-            return timestampLiteral(constraintEpochMillis(value, (ArrowType.Timestamp) type));
-        }
-        return toLiteral(value, type);
-    }
-
-    /**
-     * Converts a Java value to a SQL literal based on its Arrow type.
+     * Renders a constraint value (as delivered by Athena) as a SQL literal, based on the column's Arrow type.
+     * Athena packs TIMESTAMP-with-time-zone values ({@code millisUtc << 12 | tzKey}); those are decoded by
+     * {@link #constraintEpochMillis} before formatting.
      */
     static String toLiteral(final Object value, final ArrowType type)
     {
@@ -409,22 +396,9 @@ public class InfluxDBQueryBuilder
                 return "'" + String.valueOf(value).replace("'", "''") + "'";
             case BIT :
                 return Boolean.TRUE.equals(value) ? "true" : "false";
-            case TIMESTAMPMILLITZ : {
-                final Instant instant;
-                if (value instanceof Number) {
-                    instant = Instant.ofEpochMilli(((Number) value).longValue());
-                }
-                else if (value instanceof ZonedDateTime) {
-                    instant = ((ZonedDateTime) value).toInstant();
-                }
-                else if (value instanceof Instant) {
-                    instant = (Instant) value;
-                }
-                else {
-                    instant = Instant.parse(String.valueOf(value));
-                }
-                return "TIMESTAMP '" + DateTimeFormatter.ISO_INSTANT.format(instant) + "'";
-            }
+            case TIMESTAMPMILLITZ :
+                // getMinorTypeForArrowType returns TIMESTAMPMILLITZ only for an ArrowType.Timestamp.
+                return timestampLiteral(constraintEpochMillis(value, (ArrowType.Timestamp) type));
             case DATEMILLI : {
                 // Convert epoch millis or LocalDateTime to timestamp literal
                 if (value instanceof LocalDateTime) {

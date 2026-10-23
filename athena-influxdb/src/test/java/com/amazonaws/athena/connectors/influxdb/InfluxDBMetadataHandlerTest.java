@@ -316,16 +316,6 @@ public class InfluxDBMetadataHandlerTest
     }
 
     @Test
-    public void testToArrowType()
-    {
-        assertEquals(Types.MinorType.BIGINT, InfluxDBMetadataHandler.toArrowType("BIGINT"));
-        assertEquals(Types.MinorType.FLOAT8, InfluxDBMetadataHandler.toArrowType("DOUBLE"));
-        assertEquals(Types.MinorType.BIT, InfluxDBMetadataHandler.toArrowType("BOOLEAN"));
-        assertEquals(Types.MinorType.TIMESTAMPMILLITZ, InfluxDBMetadataHandler.toArrowType("TIMESTAMP"));
-        assertEquals(Types.MinorType.VARCHAR, InfluxDBMetadataHandler.toArrowType("UNKNOWN_TYPE"));
-    }
-
-    @Test
     public void testEnhancePartitionSchemaAddsTimeColumnsOnlyWhenParallelismEnabled()
     {
         final SchemaBuilder onBuilder = SchemaBuilder.newBuilder();
@@ -508,7 +498,8 @@ public class InfluxDBMetadataHandlerTest
             assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(derived.findField("count").getType()));
             assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(derived.findField("small").getType()));
             assertEquals(Types.MinorType.BIT, Types.getMinorTypeForArrowType(derived.findField("flag").getType()));
-            assertEquals(Types.MinorType.TIMESTAMPMILLITZ,
+            // Dates keep their unit, matching what doGetTable reports for the same column type.
+            assertEquals(Types.MinorType.DATEMILLI,
                     Types.getMinorTypeForArrowType(derived.findField("day").getType()));
             assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(derived.findField("ratio").getType()));
         }
@@ -692,14 +683,6 @@ public class InfluxDBMetadataHandlerTest
                 constraints, null));
         assertEquals(1, response.getSplits().size());
         assertNull(response.getSplits().iterator().next().getProperty("time_lower"));
-    }
-
-    @Test
-    public void testToArrowTypeUnknownFallsBackToVarchar()
-    {
-        assertEquals(Types.MinorType.VARCHAR, InfluxDBMetadataHandler.toArrowType("Decimal128(10, 2)"));
-        assertEquals(Types.MinorType.VARCHAR, InfluxDBMetadataHandler.toArrowType("Dictionary(Int32, Utf8)"));
-        assertEquals(Types.MinorType.TIMESTAMPMILLITZ, InfluxDBMetadataHandler.toArrowType("Timestamp(Nanosecond, None)"));
     }
 
     @Test

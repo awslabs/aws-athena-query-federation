@@ -21,10 +21,28 @@ package com.amazonaws.athena.connectors.influxdb;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
+import java.util.Map;
+
+/**
+ * The Lambda entry point. The metadata and record handlers share one {@link InfluxDBConnectionFactory}, so the
+ * container resolves the auth token once and keeps one client cache.
+ */
 public class InfluxDBCompositeHandler extends CompositeHandler
 {
     public InfluxDBCompositeHandler()
     {
-        super(new InfluxDBMetadataHandler(System.getenv()), new InfluxDBRecordHandler(System.getenv()));
+        this(System.getenv());
+    }
+
+    InfluxDBCompositeHandler(final Map<String, String> configOptions)
+    {
+        this(configOptions, new InfluxDBConnectionFactory(configOptions, null));
+    }
+
+    private InfluxDBCompositeHandler(final Map<String, String> configOptions,
+            final InfluxDBConnectionFactory connectionFactory)
+    {
+        super(new InfluxDBMetadataHandler(configOptions, connectionFactory),
+                new InfluxDBRecordHandler(configOptions, connectionFactory));
     }
 }

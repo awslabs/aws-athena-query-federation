@@ -13,6 +13,11 @@
              sun-misc-unsafe-memory-access=allow option on JDK 23+, where it exists. It stays empty on
              JDK 17/21 (the CI build JDK), where that option does not exist and would abort the test JVM. -->
         <influxdbArrowUnsafeArg></influxdbArrowUnsafeArg>
+        <!-- JVM options for the surefire and failsafe test forks. Arrow's off-heap allocator uses Netty's
+             sun.misc.Unsafe path. JDK 24+ denies Unsafe memory access by default (JEP 498), so on those
+             JDKs the test fork opts back in via influxdbArrowUnsafeArg, or Arrow buffer allocation fails
+             with a Netty ClassCastException. Each plugin appends the JaCoCo agent's argLine. -->
+        <influxdbTestJvmArgs>--add-opens=java.base/java.nio=ALL-UNNAMED ${influxdbArrowUnsafeArg}</influxdbTestJvmArgs>
     </properties>
     <dependencies>
         <dependency>
@@ -109,29 +114,18 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- Arrow's off-heap allocator uses Netty's sun.misc.Unsafe path. JDK 24+ denies
-                         Unsafe memory access by default (JEP 498), so on those JDKs the test fork opts
-                         back in via influxdbArrowUnsafeArg (set by the JDK 23+ profile below), or Arrow
-                         buffer allocation fails with a Netty ClassCastException. The property is empty on
-                         JDK 17/21 (the CI build JDK), where that JVM option does not exist. -->
-                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED ${influxdbArrowUnsafeArg} ${argLine}</argLine>
+                    <argLine>${influxdbTestJvmArgs} ${argLine}</argLine>
                     <environmentVariables>
                         <AWS_REGION>us-east-1</AWS_REGION>
                     </environmentVariables>
                 </configuration>
             </plugin>
             <plugin>
-                <!-- Integration tests (*IntegTest) run only when failsafe is invoked explicitly,
-                     and need the same JVM args as surefire above (see the argLine note below). -->
+                <!-- Integration tests (*IntegTest) run only when failsafe is invoked explicitly. -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
-                    <!-- Arrow's off-heap allocator uses Netty's sun.misc.Unsafe path. JDK 24+ denies
-                         Unsafe memory access by default (JEP 498), so on those JDKs the test fork opts
-                         back in via influxdbArrowUnsafeArg (set by the JDK 23+ profile below), or Arrow
-                         buffer allocation fails with a Netty ClassCastException. The property is empty on
-                         JDK 17/21 (the CI build JDK), where that JVM option does not exist. -->
-                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED ${influxdbArrowUnsafeArg} ${argLine}</argLine>
+                    <argLine>${influxdbTestJvmArgs} ${argLine}</argLine>
                     <environmentVariables>
                         <AWS_REGION>us-east-1</AWS_REGION>
                     </environmentVariables>

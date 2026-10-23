@@ -29,16 +29,19 @@ Athena lowercases identifiers, but InfluxDB is case-sensitive, so the connector 
 
 ## Supported and unsupported data types
 
-InfluxDB 3 (DataFusion/IOx) exposes a **flat, primitive** column model. The connector maps:
+InfluxDB 3 (DataFusion/IOx) exposes a **flat, primitive** column model. Table schemas and query passthrough schemas use the same mapping (`InfluxDBTypeMapper`):
 
 | InfluxDB / DataFusion type | Arrow / Athena type |
 |---|---|
-| `BIGINT`, `INTEGER` | `BIGINT` |
-| `DOUBLE`, `FLOAT` | `FLOAT8` (double) |
-| `BOOLEAN` | `BIT` (boolean) |
-| `TIMESTAMP` (`time`) | `TIMESTAMP` (millisecond, UTC) |
-| `VARCHAR`, tag (`Dictionary(Int32, Utf8)`) | `VARCHAR` |
+| `Int64` (integer field), `UInt64` (unsigned integer field), and other integer widths | `BIGINT` |
+| `Float64` (float field), `Float32` | `FLOAT8` (double) |
+| `Boolean` | `BIT` (boolean) |
+| `Timestamp` (`time`), any unit | `TIMESTAMP` (millisecond, UTC) |
+| `Date32` / `Date64` (passthrough results only) | `DATEDAY` / `DATEMILLI` |
+| `Utf8` (string field), tag (`Dictionary(Int32, Utf8)`) | `VARCHAR` |
 | anything else | `VARCHAR` (safe fallback) |
+
+Athena has no unsigned integer type, so an unsigned integer value above 9,223,372,036,854,775,807 (2^63 - 1) wraps to a negative `BIGINT`.
 
 **Unsupported (by design):** complex/nested types — `STRUCT`, `MAP`, `LIST`/`ARRAY` — and `DECIMAL`/`SET`. This is not a connector limitation so much as a property of the source: InfluxDB 3 measurements are flat rows of tags (strings), primitive fields, and a timestamp. There is no nested data to project, so no `STRUCT`/`MAP` handling is implemented. Timestamps are always normalized to millisecond precision in UTC regardless of the source unit (see [Record reads](#record-reads-field-extraction)).
 

@@ -65,10 +65,24 @@ public class InfluxDBRecordHandler
     private final InfluxDBConnectionFactory connectionFactory;
     private final InfluxDBQueryPassthrough queryPassthrough = new InfluxDBQueryPassthrough();
 
+    /**
+     * Creates a handler with its own connection factory. Used when the record handler is deployed as its own
+     * Lambda handler.
+     */
     public InfluxDBRecordHandler(final Map<String, String> configOptions)
     {
-        this(S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(),
-                new InfluxDBConnectionFactory(configOptions, null),
+        this(configOptions, new InfluxDBConnectionFactory(configOptions, null));
+    }
+
+    /**
+     * Creates a handler that uses the given connection factory, which may be shared with an
+     * {@link InfluxDBMetadataHandler} in the same Lambda container. This handler becomes the factory's secret
+     * resolver.
+     */
+    public InfluxDBRecordHandler(final Map<String, String> configOptions,
+            final InfluxDBConnectionFactory connectionFactory)
+    {
+        this(S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(), connectionFactory,
                 configOptions);
     }
 
@@ -119,11 +133,10 @@ public class InfluxDBRecordHandler
         logger.debug("readWithConstraint SQL: {}", sql);
 
         final List<Field> fields = schema.getFields();
-        // Pre-compute which columns are timestamps
-        final boolean[] isTimestamp = new boolean[fields.size()];
+        // Pre-compute each column's Athena type.
+        final Types.MinorType[] athenaTypes = new Types.MinorType[fields.size()];
         for (int i = 0; i < fields.size(); i++) {
-            final Types.MinorType mt = Types.getMinorTypeForArrowType(fields.get(i).getType());
-            isTimestamp[i] = (mt == Types.MinorType.TIMESTAMPMILLITZ || mt == Types.MinorType.DATEMILLI);
+            athenaTypes[i] = Types.getMinorTypeForArrowType(fields.get(i).getType());
         }
 
         connectionFactory.executeWithTokenRetry(resolvedDB, client -> {
@@ -154,15 +167,22 @@ public class InfluxDBRecordHandler
                                 final Integer col = arrowIndexByName.get(fieldName);
                                 // A schema field absent from the result maps to null.
                                 Object val = (col != null) ? values[col] : null;
-                                if (val != null && isTimestamp[j]) {
+                                final ArrowType sourceType = (col != null) ? vectors.get(col).getField().getType() : null;
+                                if (val != null && athenaTypes[j] == Types.MinorType.TIMESTAMPMILLITZ
+                                        && sourceType instanceof ArrowType.Timestamp) {
                                     // BlockUtils.setValue for TIMESTAMPMILLITZ expects a ZonedDateTime.
                                     // Convert using the column's actual Arrow time unit.
-                                    final FieldVector vector = vectors.get(col);
-                                    if (vector.getField().getType() instanceof ArrowType.Timestamp) {
-                                        final TimeUnit unit =
-                                                ((ArrowType.Timestamp) vector.getField().getType()).getUnit();
-                                        val = toZonedDateTime(((TimeStampVector) vector).get(rowIdx), unit);
-                                    }
+                                    final TimeUnit unit = ((ArrowType.Timestamp) sourceType).getUnit();
+                                    val = toZonedDateTime(((TimeStampVector) vectors.get(col)).get(rowIdx), unit);
+                                }
+                                else if (sourceType instanceof ArrowType.Date) {
+                                    // Read dates from the vector. A date computed from the time column (for
+                                    // example CAST(time AS DATE)) keeps time's iox::column::type metadata, and
+                                    // the client's converter returns null for it.
+                                    val = vectors.get(col).getObject(rowIdx);
+                                }
+                                else {
+                                    val = toAthenaValue(val, athenaTypes[j]);
                                 }
                                 matched &= block.offerValue(fieldName, rowNum, val);
                             }
@@ -173,6 +193,28 @@ public class InfluxDBRecordHandler
             }
             return null;
         });
+    }
+
+    /**
+     * Converts a value read from a Flight result to the Java type that {@code BlockUtils.setValue} expects for the
+     * column's Athena type. {@link InfluxDBTypeMapper} widens every integer type to BIGINT and every floating-point
+     * type to FLOAT8, but the vectors return narrower Java types (for example, Integer for Int32, Character for
+     * UInt16, and Float for Float32), which {@code setValue} would reject with a ClassCastException.
+     */
+    static Object toAthenaValue(final Object value, final Types.MinorType athenaType)
+    {
+        if (athenaType == Types.MinorType.BIGINT) {
+            if (value instanceof Number) {
+                return ((Number) value).longValue();
+            }
+            if (value instanceof Character) {
+                return (long) (Character) value;
+            }
+        }
+        if (athenaType == Types.MinorType.FLOAT8 && value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return value;
     }
 
     /**
