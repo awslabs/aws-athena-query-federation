@@ -430,8 +430,53 @@ public class InfluxDBQueryBuilderTest
 
         // Timestamp constant exercises toLiteral -> constraintEpochMillis -> timestampLiteral.
         final ArrowType ts = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
-        assertTrue(sqlForExpression(fce(sf("GREATER_THAN_OPERATOR_FUNCTION_NAME"), BOOL,
-                var("time", ts), constant(1782258710000L, ts))).contains("TIMESTAMP"));
+        final String timeSql = sqlForExpression(fce(sf("GREATER_THAN_OPERATOR_FUNCTION_NAME"), BOOL,
+                var("time", ts), constant(1782258710000L, ts)));
+        assertTrue(timeSql.contains("TIMESTAMP"));
+        // The nanosecond column is truncated to the millisecond that Athena compares against.
+        assertTrue(timeSql.contains("date_trunc('millisecond', \"time\") > TIMESTAMP"));
+    }
+
+    private String whereForTime(final Range... ranges)
+    {
+        final ArrowType ts = InfluxDBTypeMapper.ATHENA_TIMESTAMP;
+        final Schema tsSchema = new SchemaBuilder().addField("time", ts).build();
+        final Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("time", SortedRangeSet.copyOf(ts, Arrays.asList(ranges), false));
+        return InfluxDBQueryBuilder.buildWhereClause(tsSchema, new Constraints(summary, Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null));
+    }
+
+    /**
+     * InfluxDB stores nanoseconds but the connector reads milliseconds, so each pushed-down bound covers its whole
+     * millisecond. Otherwise a row at ...00.000500 (shown as ...00.000) would be dropped by "= ...00.000".
+     */
+    @Test
+    public void testTimestampPredicatesCoverTheWholeMillisecond()
+    {
+        final ArrowType ts = InfluxDBTypeMapper.ATHENA_TIMESTAMP;
+        final long x = 1764764130000L;
+        // Athena packs TIMESTAMP WITH TIME ZONE constraint values as (millisUtc << 12 | tzKey); UTC key is 0.
+        final long packedX = x << 12;
+        final long packedNext = (x + 5) << 12;
+        final String atX = InfluxDBQueryBuilder.timestampLiteral(x);
+        final String afterX = InfluxDBQueryBuilder.timestampLiteral(x + 1);
+        final String atNext = InfluxDBQueryBuilder.timestampLiteral(x + 5);
+        final String afterNext = InfluxDBQueryBuilder.timestampLiteral(x + 6);
+
+        assertEquals("((\"time\" >= " + atX + " AND \"time\" < " + afterX + "))",
+                whereForTime(Range.equal(allocator, ts, packedX)));
+        assertEquals("((\"time\" < " + afterX + "))", whereForTime(Range.lessThanOrEqual(allocator, ts, packedX)));
+        assertEquals("((\"time\" < " + atX + "))", whereForTime(Range.lessThan(allocator, ts, packedX)));
+        assertEquals("((\"time\" >= " + atX + "))", whereForTime(Range.greaterThanOrEqual(allocator, ts, packedX)));
+        assertEquals("((\"time\" >= " + afterX + "))", whereForTime(Range.greaterThan(allocator, ts, packedX)));
+        // BETWEEN X AND X + 5ms.
+        assertEquals("((\"time\" >= " + atX + " AND \"time\" < " + afterNext + "))",
+                whereForTime(Range.range(allocator, ts, packedX, true, packedNext, true)));
+        // IN (X, X + 5ms) becomes one millisecond range per value.
+        assertEquals("((\"time\" >= " + atX + " AND \"time\" < " + afterX + ") OR (\"time\" >= " + atNext
+                        + " AND \"time\" < " + afterNext + "))",
+                whereForTime(Range.equal(allocator, ts, packedX), Range.equal(allocator, ts, packedNext)));
     }
 
     @Test

@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.DEFAULT_TOKEN_KEY;
@@ -72,16 +73,19 @@ import static software.amazon.awssdk.services.glue.model.FederationSourceErrorCo
 /**
  * Creates InfluxDB client connections, resolving the auth token from Secrets Manager.
  *
- * Token resolution supports two formats: 1. Plain string secret — the entire secret value is the token. 2. JSON secret — a JSON object; the token is extracted
- * from a configurable key (env var influxdb_token_key, defaults to "token").
- *
- * The env var influxdb_token can be either a literal token or a Secrets Manager reference using the SDK's ${secret_name} pattern.
+ * The {@code INFLUXDB3_AUTH_TOKEN} env var must be a Secrets Manager reference of the form {@code ${secret_name}};
+ * a literal token is rejected so the token is never stored in the Lambda configuration. The secret value may be a
+ * plain string (the entire value is the token) or a JSON object (the token is read from a configurable key, env var
+ * {@code INFLUXDB3_AUTH_TOKEN_KEY}, default {@code token}).
  */
 public class InfluxDBConnectionFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(InfluxDBConnectionFactory.class);
     private static final Gson GSON = new Gson();
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    // A whole-value Secrets Manager reference, using the same secret-name characters as the SDK's
+    // CachableSecretsManager.
+    private static final Pattern SECRET_REFERENCE = Pattern.compile("^\\$\\{[a-zA-Z0-9/_\\-.+=@]+}$");
     static final int INFLUXDB_CLIENT_CACHE_CAPACITY = 100;
     static final long BACKOFF_BASE_MILLIS = 100L;
     static final long BACKOFF_MAX_MILLIS = 1_000L;
@@ -541,8 +545,11 @@ public class InfluxDBConnectionFactory
     }
 
     /**
-     * Resolves the InfluxDB auth token. Supports: 1. ${secret_name} pattern — resolved via Secrets Manager, then parsed as JSON or plain string 2. Literal
-     * token value
+     * Resolves the InfluxDB auth token from the Secrets Manager secret named by {@code INFLUXDB3_AUTH_TOKEN}
+     * ({@code ${secret_name}}), then parses the secret value as JSON or as a plain string.
+     *
+     * @throws AthenaConnectorException with {@code INVALID_INPUT_EXCEPTION} if the env var is missing or is not a
+     *             Secrets Manager reference, or if a JSON secret has no string value for the token key
      */
     String resolveToken()
     {
@@ -553,9 +560,14 @@ public class InfluxDBConnectionFactory
         if (rawToken == null || rawToken.isEmpty()) {
             throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION, "Missing required env var: " + ENV_INFLUXDB_TOKEN);
         }
+        if (!SECRET_REFERENCE.matcher(rawToken.trim()).matches()) {
+            // The value is not echoed in the message: it may be a literal token.
+            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION, ENV_INFLUXDB_TOKEN
+                    + " must be a Secrets Manager reference of the form ${secret_name}; literal tokens are not allowed");
+        }
 
-        // Use the SDK's built-in secret resolution for ${secret_name} patterns.
-        final String resolved = handler.resolveSecrets(rawToken);
+        // Use the SDK's built-in secret resolution for the ${secret_name} reference.
+        final String resolved = handler.resolveSecrets(rawToken.trim());
 
         // If the resolved value looks like JSON, extract the token key.
         String trimmed = resolved.trim();

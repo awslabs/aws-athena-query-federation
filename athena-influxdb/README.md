@@ -54,7 +54,9 @@ The connector advertises its capabilities via `doGetDataSourceCapabilities` and 
 - **`ORDER BY` / Top-N pushdown** — `buildOrderByClause` emits `ORDER BY … [ASC|DESC] [NULLS FIRST|LAST]`.
 - **`LIMIT` pushdown** — appended when `constraints.hasLimit()`.
 
-**Why push down:** InfluxDB/DataFusion is far more efficient at filtering, sorting, and limiting at the source than shipping rows to Athena and filtering there. Pushdown minimizes the bytes marshalled back through the Lambda. Values are rendered as SQL literals with proper quoting/escaping; Athena's Trino-packed `TIMESTAMP WITH TIME ZONE` constants are unpacked to UTC millisecond `TIMESTAMP` literals so comparisons against the source `time` column are apples-to-apples.
+**Why push down:** InfluxDB/DataFusion is far more efficient at filtering, sorting, and limiting at the source than shipping rows to Athena and filtering there. Pushdown minimizes the bytes marshalled back through the Lambda. Values are rendered as SQL literals with proper quoting/escaping; Athena's Trino-packed `TIMESTAMP WITH TIME ZONE` constants are unpacked to UTC millisecond `TIMESTAMP` literals.
+
+**Timestamp precision:** reads are at millisecond precision, but InfluxDB stores nanoseconds. A pushed-down `time` bound therefore covers the whole millisecond that Athena compares against (`timestampRange`): `= X` becomes `>= X AND < X + 1ms`, `<= X` becomes `< X + 1ms`, and `> X` becomes `>= X + 1ms`. In complex expressions the column is compared as `date_trunc('millisecond', "time")`. Without this, a row at `...00.000500` (shown in Athena as `...00.000`) would not match `= ...00.000` in InfluxDB and would never reach Athena.
 
 ## Query passthrough
 
@@ -84,6 +86,10 @@ A **split** is Athena's unit of parallelism — each split is read by a separate
 
 **Enable it** for large, time-ranged scans that return many rows (or that approach a single Lambda's memory/time limits). Leave it **off** (the default) otherwise. Tune `query_parallelism_count` (clamped to a safe range) to balance throughput against backend load.
 
+## Record reads (field extraction)
+
+`InfluxDBRecordHandler.readWithConstraint` runs the generated SQL with `client.queryBatches(sql)` and reads the Arrow vectors of each `VectorSchemaRoot` directly (`readValue`). It does not use the client's internal `VectorSchemaRootConverter`, which can change in any client release. Values become the Java types the SDK's `BlockUtils` expects: integers of any width or signedness become `Long`, floating-point numbers become `Double`, and strings stay `Text`. Timestamps are converted using the column's actual Arrow time unit (`toZonedDateTime`) and normalized to millisecond UTC. InfluxDB 3 sends tags as plain strings; a dictionary-encoded column is rejected with `OPERATION_NOT_SUPPORTED_EXCEPTION`, because the client does not expose the dictionaries needed to decode it.
+
 ## Errors and backpressure
 
 Every error the connector raises is an `AthenaConnectorException` with a `FederationSourceErrorCode`, following the SDK and the other connectors (`InfluxDBErrors`). Configuration problems (a missing or invalid host or token) are `INVALID_INPUT_EXCEPTION`; a database outside the `influxdb_database` scope is `ACCESS_DENIED_EXCEPTION`; a database or table that does not exist is `ENTITY_NOT_FOUND_EXCEPTION`. InfluxDB client failures are translated by status: Flight status codes (for example `UNAUTHENTICATED` to `INVALID_CREDENTIALS_EXCEPTION`, `TIMED_OUT` to `OPERATION_TIMEOUT_EXCEPTION`), and HTTP status codes from the database-list call through the SDK's `CompositeHandler.mapHTTPErrorCode`.
@@ -92,7 +98,7 @@ If InfluxDB signals throttling — a Flight `RESOURCE_EXHAUSTED`, or an HTTP `42
 
 ## Authentication & secrets
 
-The InfluxDB token is provided via the `INFLUXDB3_AUTH_TOKEN` env var, which may be either a literal token or a Secrets Manager reference using the SDK's `${secret_name}` pattern. Secret values may be a plain string (the whole value is the token) or JSON (the token is read from a configurable key, default `token`, via `INFLUXDB3_AUTH_TOKEN_KEY`).
+The InfluxDB token must be stored in AWS Secrets Manager. The `INFLUXDB3_AUTH_TOKEN` env var holds a reference to the secret using the SDK's `${secret_name}` pattern (the SAM template builds it from `InfluxDBSecretId`); a literal token is rejected with `INVALID_INPUT_EXCEPTION`, so the token never appears in the Lambda configuration. Secret values may be a plain string (the whole value is the token) or JSON (the token is read from a configurable key, default `token`, via `INFLUXDB3_AUTH_TOKEN_KEY`).
 
 The resolved token is cached for the Lambda container's lifetime. Per-database clients are cached in a bounded cache: at most 100 clients, each evicted (and closed) after 30 minutes without use, and a client is only created after the connector confirms the database exists on the server. A caller therefore cannot create clients for arbitrary database names. On an authentication failure (Flight `UNAUTHENTICATED` or HTTP `401`) the connector invalidates the cached token and clients, re-resolves the token (picking up a rotated secret), waits a short exponential backoff (100 ms, doubling, capped at 1 s), and retries, up to `token_refresh_max_retries` times (default 1, capped at 3). Each operation has a single retry budget, so the database-existence check made while creating a client never adds a second, nested retry loop. An authorization denial (Flight `UNAUTHORIZED` or HTTP `403`) means the token is valid but lacks permission, so it is returned to the caller immediately: no retry, no token invalidation, and no cache flush.
 
@@ -179,7 +185,7 @@ Timestream for InfluxDB clusters live in a VPC, so the connector Lambda must be 
 
 ### Secret
 
-Create a Secrets Manager secret holding the InfluxDB token and pass its name/ARN as `InfluxDBSecretId`. The Lambda's execution role (created by the template) is granted `secretsmanager:GetSecretValue` for that secret only.
+Create a Secrets Manager secret holding the InfluxDB token and pass its name (not its ARN) as `InfluxDBSecretId`. The Lambda's execution role (created by the template) is granted `secretsmanager:GetSecretValue` for that secret only.
 
 ## Configuration parameters
 
@@ -189,7 +195,7 @@ Create a Secrets Manager secret holding the InfluxDB token and pass its name/ARN
 | `SpillBucket` / `SpillPrefix` | S3 location for spilled results. |
 | `INFLUXDB3_HOST_URL` (`InfluxDBHost`) | InfluxDB 3 host URL, e.g. `https://<endpoint>:8181`. Must be an absolute `https://` URL; the connector rejects any other scheme (including a missing scheme) before the token is read, because the token is sent on every request. |
 | `ALLOW_INSECURE_TRANSPORT` | Set to `true` to also accept a plain `http://` host. Intended only for local testing against a server without TLS; the token is then sent in cleartext. Not exposed by the SAM template (default `false`). |
-| `INFLUXDB3_AUTH_TOKEN` (`InfluxDBSecretId`) | Token, or `${secret_name}` Secrets Manager reference. |
+| `INFLUXDB3_AUTH_TOKEN` (`InfluxDBSecretId`) | `${secret_name}` reference to the Secrets Manager secret that holds the token. Literal tokens are rejected. |
 | `INFLUXDB3_AUTH_TOKEN_KEY` (`InfluxDBTokenKey`) | Key to read from a JSON secret (default `token`). |
 | `influxdb_database` (`InfluxDBDatabase`) | Optional single-database scope. When empty, all databases the token can reach are exposed. When set, it is an **enforced access boundary**: the connector only ever connects to that database — every metadata, record, and query-passthrough request for any other database is rejected, and a request differing only in case is normalized to the configured database rather than reaching a case-sensitive sibling. This is a connector-side guardrail; the token still governs what is ultimately reachable, so for defense in depth scope permissions at the token level as well. |
 | `enable_query_parallelism` | `true` to enable time-based split parallelism (default `false`). |

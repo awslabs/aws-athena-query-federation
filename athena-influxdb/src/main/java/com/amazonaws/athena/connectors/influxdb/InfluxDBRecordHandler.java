@@ -23,15 +23,16 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.influxdb.v3.client.internal.VectorSchemaRootConverter;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.BaseIntVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FloatingPointVector;
 import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -46,7 +47,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -134,11 +134,6 @@ public class InfluxDBRecordHandler
         logger.debug("readWithConstraint SQL: {}", sql);
 
         final List<Field> fields = schema.getFields();
-        // Pre-compute each column's Athena type.
-        final Types.MinorType[] athenaTypes = new Types.MinorType[fields.size()];
-        for (int i = 0; i < fields.size(); i++) {
-            athenaTypes[i] = Types.getMinorTypeForArrowType(fields.get(i).getType());
-        }
 
         connectionFactory.executeWithTokenRetry(resolvedDB, client -> {
             // queryBatches returns Arrow VectorSchemaRoots, so each timestamp column's
@@ -147,45 +142,20 @@ public class InfluxDBRecordHandler
                 final Iterator<VectorSchemaRoot> it = batches.iterator();
                 while (queryStatusChecker.isQueryRunning() && it.hasNext()) {
                     final VectorSchemaRoot root = it.next();
-                    final List<FieldVector> vectors = root.getFieldVectors();
-                    // Resolve each result column to its position by name.
-                    final Map<String, Integer> arrowIndexByName = new HashMap<>();
-                    for (int i = 0; i < vectors.size(); i++) {
-                        arrowIndexByName.put(vectors.get(i).getField().getName(), i);
+                    // Resolve each schema field to its result vector by name. A schema field absent from the
+                    // result has no vector and is written as null.
+                    final FieldVector[] columns = new FieldVector[fields.size()];
+                    for (int j = 0; j < fields.size(); j++) {
+                        columns[j] = root.getVector(fields.get(j).getName());
                     }
                     final int rowCount = root.getRowCount();
                     for (int i = 0; i < rowCount; i++) {
-                        final int rowIdx = i;
-                        // Reuse the client's converter for value extraction (handles
-                        // dictionary-encoded tags, Utf8, numerics, booleans). Values are returned in
-                        // Arrow column order, so they are indexed by the resolved Arrow position.
-                        final Object[] values =
-                                VectorSchemaRootConverter.INSTANCE.getArrayObjectFromVectorSchemaRoot(root, rowIdx);
+                        final int row = i;
                         spiller.writeRows((final Block block, final int rowNum) -> {
                             boolean matched = true;
                             for (int j = 0; j < fields.size(); j++) {
-                                final String fieldName = fields.get(j).getName();
-                                final Integer col = arrowIndexByName.get(fieldName);
-                                // A schema field absent from the result maps to null.
-                                Object val = (col != null) ? values[col] : null;
-                                final ArrowType sourceType = (col != null) ? vectors.get(col).getField().getType() : null;
-                                if (val != null && athenaTypes[j] == Types.MinorType.TIMESTAMPMILLITZ
-                                        && sourceType instanceof ArrowType.Timestamp) {
-                                    // BlockUtils.setValue for TIMESTAMPMILLITZ expects a ZonedDateTime.
-                                    // Convert using the column's actual Arrow time unit.
-                                    final TimeUnit unit = ((ArrowType.Timestamp) sourceType).getUnit();
-                                    val = toZonedDateTime(((TimeStampVector) vectors.get(col)).get(rowIdx), unit);
-                                }
-                                else if (sourceType instanceof ArrowType.Date) {
-                                    // Read dates from the vector. A date computed from the time column (for
-                                    // example CAST(time AS DATE)) keeps time's iox::column::type metadata, and
-                                    // the client's converter returns null for it.
-                                    val = vectors.get(col).getObject(rowIdx);
-                                }
-                                else {
-                                    val = toAthenaValue(val, athenaTypes[j]);
-                                }
-                                matched &= block.offerValue(fieldName, rowNum, val);
+                                final Object val = (columns[j] != null) ? readValue(columns[j], row) : null;
+                                matched &= block.offerValue(fields.get(j).getName(), rowNum, val);
                             }
                             return matched ? 1 : 0;
                         });
@@ -197,25 +167,42 @@ public class InfluxDBRecordHandler
     }
 
     /**
-     * Converts a value read from a Flight result to the Java type that {@code BlockUtils.setValue} expects for the
-     * column's Athena type. {@link InfluxDBTypeMapper} widens every integer type to BIGINT and every floating-point
-     * type to FLOAT8, but the vectors return narrower Java types (for example, Integer for Int32, Character for
-     * UInt16, and Float for Float32), which {@code setValue} would reject with a ClassCastException.
+     * Reads one value from a Flight result vector as the Java type that {@code BlockUtils.setValue} expects for
+     * the column's Athena type (see {@link InfluxDBTypeMapper}). Values are read from the Arrow vectors directly,
+     * not through the InfluxDB client's internal converter:
+     * <ul>
+     *   <li>Timestamps become a UTC {@link ZonedDateTime}, using the vector's time unit.</li>
+     *   <li>Integers (signed and unsigned, any width) become a Long, which BIGINT expects.</li>
+     *   <li>Floating-point numbers (any width) become a Double, which FLOAT8 expects.</li>
+     *   <li>Everything else uses the vector's own Java value, for example Text for strings, Boolean for booleans,
+     *       Integer days for DATEDAY, and LocalDateTime for DATEMILLI.</li>
+     * </ul>
+     *
+     * @throws AthenaConnectorException with {@code OPERATION_NOT_SUPPORTED_EXCEPTION} for a dictionary-encoded
+     *             column. InfluxDB 3 sends tags as plain strings, and the client does not expose the dictionaries
+     *             needed to decode the indices.
      */
-    static Object toAthenaValue(final Object value, final Types.MinorType athenaType)
+    static Object readValue(final FieldVector vector, final int row)
     {
-        if (athenaType == Types.MinorType.BIGINT) {
-            if (value instanceof Number) {
-                return ((Number) value).longValue();
-            }
-            if (value instanceof Character) {
-                return (long) (Character) value;
-            }
+        if (vector.isNull(row)) {
+            return null;
         }
-        if (athenaType == Types.MinorType.FLOAT8 && value instanceof Number) {
-            return ((Number) value).doubleValue();
+        final Field field = vector.getField();
+        if (field.getDictionary() != null) {
+            throw InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                    "Dictionary-encoded column '" + field.getName() + "' is not supported");
         }
-        return value;
+        if (vector instanceof TimeStampVector) {
+            final TimeUnit unit = ((ArrowType.Timestamp) field.getType()).getUnit();
+            return toZonedDateTime(((TimeStampVector) vector).get(row), unit);
+        }
+        if (vector instanceof BaseIntVector) {
+            return ((BaseIntVector) vector).getValueAsLong(row);
+        }
+        if (vector instanceof FloatingPointVector) {
+            return ((FloatingPointVector) vector).getValueAsDouble(row);
+        }
+        return vector.getObject(row);
     }
 
     /**

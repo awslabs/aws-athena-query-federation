@@ -33,6 +33,11 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -41,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.influxdb.v3.client.InfluxDBClient;
 import com.influxdb.v3.client.Point;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -57,10 +63,14 @@ import org.junit.Test;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -88,6 +98,10 @@ public class InfluxDBLocalIntegTest
     private static final FederatedIdentity IDENTITY = new FederatedIdentity("arn", "account",
             Collections.<String, String>emptyMap(), Collections.<String>emptyList(),
             Collections.<String, String>emptyMap());
+    private static final String TOKEN_SECRET_NAME = "influxdb-integ-token";
+    private static final String TOKEN_SECRET_REFERENCE = "${" + TOKEN_SECRET_NAME + "}";
+    // 2023-11-14T22:13:20Z. The "precise" table has one row at this millisecond plus 500 microseconds.
+    private static final long PRECISE_MILLIS = 1_700_000_000_000L;
 
     private BlockAllocator allocator;
     private InfluxDBMetadataHandler handler;
@@ -151,7 +165,7 @@ public class InfluxDBLocalIntegTest
         configOptions = new HashMap<>();
         configOptions.put("ALLOW_INSECURE_TRANSPORT", "true");
         configOptions.put("INFLUXDB3_HOST_URL", host);
-        configOptions.put("INFLUXDB3_AUTH_TOKEN", influxDBV3Token);
+        configOptions.put("INFLUXDB3_AUTH_TOKEN", TOKEN_SECRET_REFERENCE);
         configOptions.put("influxdb_database", database);
         configOptions.put("spill_bucket", "test-bucket");
         configOptions.put("spill_prefix", "test-prefix");
@@ -184,13 +198,15 @@ public class InfluxDBLocalIntegTest
             // One row with every InfluxDB field type, including an unsigned integer (written as line
             // protocol because Point has no unsigned setter). The server assigns the timestamp.
             writeClient.writeRecord("types,host=server1 i=-3i,u=42u,f=1.5,b=true,s=\"text\"");
+            // One row whose time has sub-millisecond precision: PRECISE_MILLIS plus 500 microseconds.
+            writeClient.writeRecord("precise,host=server1 v=1i " + (PRECISE_MILLIS * 1_000_000L + 500_000L));
 
             // InfluxDB 3 buffers writes briefly; poll until the seeded tables are queryable.
             final String probe = "SELECT table_name FROM information_schema.tables "
-                    + "WHERE table_schema = 'iox' AND table_name IN ('cpu', 'mem', 'CpuStats', 'types')";
+                    + "WHERE table_schema = 'iox' AND table_name IN ('cpu', 'mem', 'CpuStats', 'types', 'precise')";
             for (int attempt = 0; attempt < 20; attempt++) {
                 try (Stream<Object[]> rows = writeClient.query(probe)) {
-                    if (rows.count() >= 4) {
+                    if (rows.count() >= 5) {
                         return;
                     }
                 }
@@ -204,15 +220,44 @@ public class InfluxDBLocalIntegTest
     public void setUpHandler()
     {
         allocator = new BlockAllocatorImpl();
-        handler = new InfluxDBMetadataHandler(configOptions);
+        handler = metadataHandler(configOptions);
         // Real connection factory (hits the container); AWS clients are mocked since reads here are
-        // small and stay in-memory (no S3 spill).
+        // small and stay in-memory (no S3 spill). The token comes from the mocked Secrets Manager.
         recordHandler = new InfluxDBRecordHandler(
                 mock(software.amazon.awssdk.services.s3.S3Client.class),
-                mock(software.amazon.awssdk.services.secretsmanager.SecretsManagerClient.class),
+                secretsManager(),
                 mock(software.amazon.awssdk.services.athena.AthenaClient.class),
                 new InfluxDBConnectionFactory(configOptions, null),
                 configOptions);
+    }
+
+    /**
+     * A Secrets Manager mock that returns the container's admin token for {@link #TOKEN_SECRET_NAME}. The
+     * connector only accepts the token as a Secrets Manager reference.
+     */
+    private static SecretsManagerClient secretsManager()
+    {
+        final SecretsManagerClient secretsManager = mock(SecretsManagerClient.class);
+        when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenAnswer(invocation -> {
+            final GetSecretValueRequest request = invocation.getArgument(0);
+            if (!TOKEN_SECRET_NAME.equals(request.secretId())) {
+                throw new IllegalArgumentException("Unexpected secret: " + request.secretId());
+            }
+            return GetSecretValueResponse.builder().secretString(influxDBV3Token).build();
+        });
+        return secretsManager;
+    }
+
+    /** A metadata handler with a real connection factory and a mocked Secrets Manager. */
+    private static InfluxDBMetadataHandler metadataHandler(final Map<String, String> config)
+    {
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, null);
+        final InfluxDBMetadataHandler metadataHandler = new InfluxDBMetadataHandler(factory,
+                new LocalKeyFactory(), secretsManager(),
+                mock(software.amazon.awssdk.services.athena.AthenaClient.class),
+                "test-bucket", "test-prefix", config);
+        factory.setHandler(metadataHandler);
+        return metadataHandler;
     }
 
     @After
@@ -251,10 +296,10 @@ public class InfluxDBLocalIntegTest
         final HashMap<String, String> newConfigOptions = new HashMap<>();
         newConfigOptions.put("ALLOW_INSECURE_TRANSPORT", "true");
         newConfigOptions.put("INFLUXDB3_HOST_URL", host);
-        newConfigOptions.put("INFLUXDB3_AUTH_TOKEN", influxDBV3Token);
+        newConfigOptions.put("INFLUXDB3_AUTH_TOKEN", TOKEN_SECRET_REFERENCE);
         newConfigOptions.put("spill_bucket", "test-bucket");
         newConfigOptions.put("spill_prefix", "test-prefix");
-        handler = new InfluxDBMetadataHandler(newConfigOptions);
+        handler = metadataHandler(newConfigOptions);
 
         final String newDatabase = "extratestdb";
         final ExecResult databaseCreationResult = influxDBV3Container.execInContainer(
@@ -512,6 +557,54 @@ public class InfluxDBLocalIntegTest
         final long today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay();
         final long day = ((Number) d.readObject()).longValue();
         assertTrue("unexpected date " + day, day == today || day == today - 1);
+    }
+
+    /** Reads the "precise" table with one pushed-down constraint on time and returns the number of rows. */
+    private int preciseRowsMatching(final Range range) throws Exception
+    {
+        final GetTableResponse table = handler.doGetTable(allocator,
+                new GetTableRequest(IDENTITY, "queryId", "catalog",
+                        new TableName(database, "precise"), Collections.emptyMap()));
+        final Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("time", SortedRangeSet.of(range));
+        final Constraints constraints = new Constraints(summary, Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
+        return readHostsFor(new TableName(database, "precise"), table.getSchema(), constraints).size();
+    }
+
+    /**
+     * The "precise" row is at PRECISE_MILLIS + 500 microseconds, so Athena sees PRECISE_MILLIS. Every pushed-down
+     * time predicate must give the result Athena expects for that millisecond value. InfluxDB compares the stored
+     * nanoseconds, so a bound that was not widened to the whole millisecond would drop the row.
+     */
+    @Test
+    public void testTimestampPushdownMatchesMillisecondValue() throws Exception
+    {
+        final ArrowType ts = InfluxDBTypeMapper.ATHENA_TIMESTAMP;
+        // Athena packs TIMESTAMP WITH TIME ZONE constraint values as (millisUtc << 12 | tzKey); UTC key is 0.
+        final long x = PRECISE_MILLIS << 12;
+        final long before = (PRECISE_MILLIS - 1) << 12;
+        assertEquals("= X", 1, preciseRowsMatching(Range.equal(allocator, ts, x)));
+        assertEquals("<= X", 1, preciseRowsMatching(Range.lessThanOrEqual(allocator, ts, x)));
+        assertEquals("BETWEEN X - 1ms AND X", 1, preciseRowsMatching(Range.range(allocator, ts, before, true, x, true)));
+        assertEquals(">= X", 1, preciseRowsMatching(Range.greaterThanOrEqual(allocator, ts, x)));
+        assertEquals("> X", 0, preciseRowsMatching(Range.greaterThan(allocator, ts, x)));
+        assertEquals("< X", 0, preciseRowsMatching(Range.lessThan(allocator, ts, x)));
+
+        // The expression path compares date_trunc('millisecond', "time"), which InfluxDB must accept.
+        final Block constantBlock = allocator.createBlock(new SchemaBuilder().addField("col1", ts).build());
+        constantBlock.setValue("col1", 0, x);
+        constantBlock.setRowCount(1);
+        final FederationExpression equalsX = new FunctionCallExpression(ArrowType.Bool.INSTANCE,
+                StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getFunctionName(),
+                Arrays.asList(new VariableExpression("time", ts), new ConstantExpression(constantBlock, ts)));
+        final GetTableResponse table = handler.doGetTable(allocator,
+                new GetTableRequest(IDENTITY, "queryId", "catalog",
+                        new TableName(database, "precise"), Collections.emptyMap()));
+        final Constraints expression = new Constraints(new HashMap<>(), Collections.singletonList(equalsX),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
+        assertEquals("expression = X", 1,
+                readHostsFor(new TableName(database, "precise"), table.getSchema(), expression).size());
     }
 
     @Test
