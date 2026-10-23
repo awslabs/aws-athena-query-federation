@@ -102,6 +102,7 @@ final class InfluxDBTypeMapper
                 return Types.MinorType.BIGINT.getType();
             case FLOAT8:
             case FLOAT4:
+            case FLOAT2:
                 return Types.MinorType.FLOAT8.getType();
             case BIT:
                 return Types.MinorType.BIT.getType();

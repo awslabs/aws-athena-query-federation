@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.influxdb;
 
 import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
@@ -182,6 +183,11 @@ public class InfluxDBQueryBuilder
 
     /**
      * Converts a ValueSet into a SQL predicate for a single column.
+     *
+     * Timestamp columns are read at millisecond precision, but InfluxDB stores nanoseconds, so a bound is widened to
+     * cover the whole millisecond that Athena compares against (see {@link #timestampRange}). Otherwise a row at
+     * {@code ...00.000500} (shown in Athena as {@code ...00.000}) would not match {@code = ...00.000} in InfluxDB and
+     * would never reach Athena.
      */
     private static String toPredicate(final String columnName, final ValueSet valueSet, final ArrowType type)
     {
@@ -207,8 +213,15 @@ public class InfluxDBQueryBuilder
             return "(" + quote(columnName) + " IS NOT NULL)";
         }
 
+        final boolean millisTimestamp = Types.getMinorTypeForArrowType(type) == Types.MinorType.TIMESTAMPMILLITZ;
         for (final Range range : rangeList) {
-            if (range.isSingleValue()) {
+            if (millisTimestamp) {
+                final String rangeSql = timestampRange(columnName, range, (ArrowType.Timestamp) type);
+                if (!rangeSql.isEmpty()) {
+                    disjuncts.add(rangeSql);
+                }
+            }
+            else if (range.isSingleValue()) {
                 singleValues.add(range.getLow().getValue());
             }
             else {
@@ -262,6 +275,33 @@ public class InfluxDBQueryBuilder
     }
 
     /**
+     * Renders one range of a millisecond timestamp constraint as a SQL predicate on the nanosecond InfluxDB column.
+     * Athena compares each row's time truncated to the millisecond, so each bound covers its whole millisecond:
+     * <ul>
+     *   <li>{@code = X} becomes {@code >= X AND < X + 1ms}.</li>
+     *   <li>{@code > X} becomes {@code >= X + 1ms}, and {@code >= X} stays {@code >= X}.</li>
+     *   <li>{@code <= X} becomes {@code < X + 1ms}, and {@code < X} stays {@code < X}.</li>
+     * </ul>
+     * Returns an empty string for a range with no bounds.
+     */
+    static String timestampRange(final String columnName, final Range range, final ArrowType.Timestamp type)
+    {
+        final String col = quote(columnName);
+        final List<String> conjuncts = new ArrayList<>();
+        if (!range.getLow().isLowerUnbounded()) {
+            final long low = constraintEpochMillis(range.getLow().getValue(), type);
+            final long inclusiveLow = (range.getLow().getBound() == Marker.Bound.ABOVE) ? low + 1 : low;
+            conjuncts.add(col + " >= " + timestampLiteral(inclusiveLow));
+        }
+        if (!range.getHigh().isUpperUnbounded()) {
+            final long high = constraintEpochMillis(range.getHigh().getValue(), type);
+            final long exclusiveHigh = (range.getHigh().getBound() == Marker.Bound.BELOW) ? high : high + 1;
+            conjuncts.add(col + " < " + timestampLiteral(exclusiveHigh));
+        }
+        return conjuncts.isEmpty() ? "" : "(" + String.join(" AND ", conjuncts) + ")";
+    }
+
+    /**
      * Recursively converts a FunctionCallExpression into SQL.
      */
     private static String toExpression(final FunctionCallExpression expr)
@@ -272,7 +312,13 @@ public class InfluxDBQueryBuilder
 
         final List<String> argStrings = args.stream().map(arg -> {
             if (arg instanceof VariableExpression) {
-                return quote(((VariableExpression) arg).getColumnName());
+                final VariableExpression variable = (VariableExpression) arg;
+                // Athena evaluates the expression against the millisecond value it reads, so a timestamp column
+                // is truncated the same way before InfluxDB compares it (see timestampRange).
+                if (variable.getType() instanceof ArrowType.Timestamp) {
+                    return "date_trunc('millisecond', " + quote(variable.getColumnName()) + ")";
+                }
+                return quote(variable.getColumnName());
             }
             else if (arg instanceof ConstantExpression) {
                 return constantToLiteral((ConstantExpression) arg);

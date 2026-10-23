@@ -30,7 +30,8 @@ Parameters:
     AllowedPattern: '^https://.+'
     Type: String
   InfluxDBSecretId:
-    Description: 'The name or ARN of the Secrets Manager secret containing the InfluxDB auth token.'
+    Description: 'The name (not the ARN) of the Secrets Manager secret containing the InfluxDB auth token. The connector only reads the token from Secrets Manager.'
+    AllowedPattern: '^[a-zA-Z0-9/_+=.@-]+$'
     Type: String
   InfluxDBTokenKey:
     Description: 'If the secret is JSON, the key to extract the token from. Defaults to "token".'

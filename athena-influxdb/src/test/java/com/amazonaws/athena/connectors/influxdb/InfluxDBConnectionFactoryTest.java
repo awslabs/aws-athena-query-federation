@@ -80,9 +80,9 @@ public class InfluxDBConnectionFactoryTest
     {
         final Map<String, String> config = new HashMap<>();
         config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
-        config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
+        config.put("INFLUXDB3_AUTH_TOKEN", "${token-secret}");
 
-        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
 
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         assertEquals("my-plain-token", factory.resolveToken());
@@ -148,6 +148,28 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
+    public void testResolveTokenRejectsLiteralToken()
+    {
+        for (final String literal : new String[] {"my-plain-token", "prefix-${my-secret}", "${my-secret}-suffix",
+                "${}", "${bad secret}"}) {
+            final Map<String, String> config = new HashMap<>();
+            config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
+            config.put("INFLUXDB3_AUTH_TOKEN", literal);
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
+            try {
+                factory.resolveToken();
+                fail("expected a value that is not a whole secret reference to be rejected: " + literal);
+            }
+            catch (final AthenaConnectorException e) {
+                assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+                // The message must not echo the configured value, which may be a real token.
+                assertFalse(e.getMessage().contains(literal));
+            }
+        }
+        verify(mockHandler, never()).resolveSecrets(anyString());
+    }
+
+    @Test
     public void testResolveTokenJsonMissingKeyThrows()
     {
         final Map<String, String> config = new HashMap<>();
@@ -201,7 +223,7 @@ public class InfluxDBConnectionFactoryTest
     public void testGetClientMissingHostThrows()
     {
         final Map<String, String> config = new HashMap<>();
-        config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
+        config.put("INFLUXDB3_AUTH_TOKEN", "${token-secret}");
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         try {
             factory.getClient("db");
@@ -239,7 +261,7 @@ public class InfluxDBConnectionFactoryTest
     {
         final Map<String, String> config = new HashMap<>();
         config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
-        config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
+        config.put("INFLUXDB3_AUTH_TOKEN", "${token-secret}");
         config.put("influxdb_database", "MyDatabase");
 
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
@@ -296,7 +318,7 @@ public class InfluxDBConnectionFactoryTest
     {
         final Map<String, String> config = new HashMap<>();
         config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
-        config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
+        config.put("INFLUXDB3_AUTH_TOKEN", "${token-secret}");
         return config;
     }
 
@@ -382,11 +404,11 @@ public class InfluxDBConnectionFactoryTest
     public void testSetHandlerIsUsedForSecretResolution()
     {
         final Map<String, String> config = baseConfig();
-        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, null);
         factory.setHandler(mockHandler);
         assertEquals("my-plain-token", factory.resolveToken());
-        verify(mockHandler, times(1)).resolveSecrets("my-plain-token");
+        verify(mockHandler, times(1)).resolveSecrets("${token-secret}");
     }
 
     @Test
@@ -394,7 +416,7 @@ public class InfluxDBConnectionFactoryTest
     {
         final Map<String, String> config = baseConfig();
         config.put("influxdb_database", "MyDb");
-        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
         doReturn(List.of(new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).fetchDatabases();
 
@@ -420,7 +442,7 @@ public class InfluxDBConnectionFactoryTest
     {
         final Map<String, String> config = baseConfig();
         config.put("influxdb_database", "MyDb");
-        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
         try {
             factory.getClient("OtherDb");
@@ -438,7 +460,7 @@ public class InfluxDBConnectionFactoryTest
     {
         final Map<String, String> config = baseConfig();
         config.put("influxdb_database", "MyDb");
-        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(config, mockHandler));
         doReturn(List.of(new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).fetchDatabases();
 
@@ -472,7 +494,7 @@ public class InfluxDBConnectionFactoryTest
     @Test
     public void testGetClientWithoutDatabaseOrDefaultThrows()
     {
-        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(baseConfig(), mockHandler);
         try {
             factory.getClient(null);
@@ -486,7 +508,7 @@ public class InfluxDBConnectionFactoryTest
     @Test
     public void testGetClientRejectsNonExistentDatabase() throws Exception
     {
-        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
         doReturn(Arrays.asList(new InfluxDBConnectionFactory.DatabaseInfo("Other"), null)).when(factory).fetchDatabases();
         try {
@@ -502,7 +524,7 @@ public class InfluxDBConnectionFactoryTest
     @Test
     public void testGetClientWrapsListDatabasesFailures() throws Exception
     {
-        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
 
         doThrow(new IOException("io")).when(factory).fetchDatabases();
@@ -587,7 +609,7 @@ public class InfluxDBConnectionFactoryTest
     public void testListDatabasesMissingHostThrows() throws Exception
     {
         final Map<String, String> config = new HashMap<>();
-        config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
+        config.put("INFLUXDB3_AUTH_TOKEN", "${token-secret}");
         new InfluxDBConnectionFactory(config, mockHandler).listDatabases();
     }
 
@@ -693,7 +715,7 @@ public class InfluxDBConnectionFactoryTest
     @Test
     public void testClientCacheIsBoundedToCapacity() throws Exception
     {
-        when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+        when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
         final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
         final int databaseCount = InfluxDBConnectionFactory.INFLUXDB_CLIENT_CACHE_CAPACITY + 20;
         final List<InfluxDBConnectionFactory.DatabaseInfo> databases = new ArrayList<>();
@@ -723,7 +745,7 @@ public class InfluxDBConnectionFactoryTest
             statuses.add(200);
             return new String[] {"200", "[{\"iox::database\":\"DbOne\"},{\"iox::database\":\"DbTwo\"}]"};
         })) {
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
             final List<InfluxDBConnectionFactory.DatabaseInfo> databases = factory.listDatabases();
             assertEquals(2, databases.size());
@@ -738,7 +760,7 @@ public class InfluxDBConnectionFactoryTest
     public void testListDatabasesKeepsHostPathPrefix() throws Exception
     {
         try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"200", "[]"})) {
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final Map<String, String> config = server.config();
             // InfluxDB served under a path prefix, for example behind a reverse proxy.
             config.put("INFLUXDB3_HOST_URL", config.get("INFLUXDB3_HOST_URL") + "/influx");
@@ -765,7 +787,7 @@ public class InfluxDBConnectionFactoryTest
     public void testListDatabasesTreatsNullBodyAsEmpty() throws Exception
     {
         try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"200", "null"})) {
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
             assertTrue(factory.listDatabases().isEmpty());
         }
@@ -803,7 +825,7 @@ public class InfluxDBConnectionFactoryTest
         })) {
             final Map<String, String> config = server.config();
             config.put("token_refresh_max_retries", "1");
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
             try {
                 factory.listDatabases();
@@ -826,7 +848,7 @@ public class InfluxDBConnectionFactoryTest
             requests.incrementAndGet();
             return new String[] {"403", "forbidden"};
         })) {
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(server.config(), mockHandler));
             try {
                 factory.listDatabases();
@@ -838,7 +860,7 @@ public class InfluxDBConnectionFactoryTest
             }
             assertEquals(1, requests.get());
             verify(factory, never()).invalidateToken();
-            verify(mockHandler, times(1)).resolveSecrets("my-plain-token");
+            verify(mockHandler, times(1)).resolveSecrets("${token-secret}");
         }
     }
 
@@ -874,7 +896,7 @@ public class InfluxDBConnectionFactoryTest
             requests.incrementAndGet();
             return new String[] {"403", "forbidden"};
         })) {
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(server.config(), mockHandler));
             try {
                 factory.executeWithTokenRetry("db", client -> "unreachable");
@@ -886,7 +908,7 @@ public class InfluxDBConnectionFactoryTest
             }
             assertEquals(1, requests.get());
             verify(factory, never()).invalidateToken();
-            verify(mockHandler, times(1)).resolveSecrets("my-plain-token");
+            verify(mockHandler, times(1)).resolveSecrets("${token-secret}");
         }
     }
 
@@ -900,7 +922,7 @@ public class InfluxDBConnectionFactoryTest
         })) {
             final Map<String, String> config = server.config();
             config.put("token_refresh_max_retries", "2");
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
             try {
                 factory.executeWithTokenRetry("db", client -> "unreachable");
@@ -949,7 +971,7 @@ public class InfluxDBConnectionFactoryTest
     public void testListDatabasesSurfaces429AsThrottle() throws Exception
     {
         try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"429", "slow down"})) {
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
             try {
                 factory.listDatabases();
@@ -966,7 +988,7 @@ public class InfluxDBConnectionFactoryTest
     public void testListDatabasesRejectsMalformedJson() throws Exception
     {
         try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"200", "{\"not\": \"a list\"}"})) {
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
             try {
                 factory.listDatabases();
@@ -982,7 +1004,7 @@ public class InfluxDBConnectionFactoryTest
     public void testListDatabasesFailsOnUnexpectedStatus() throws Exception
     {
         try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"500", "boom"})) {
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            when(mockHandler.resolveSecrets("${token-secret}")).thenReturn("my-plain-token");
             final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
             try {
                 factory.listDatabases();
@@ -1023,7 +1045,7 @@ public class InfluxDBConnectionFactoryTest
         {
             final Map<String, String> config = new HashMap<>();
             config.put("INFLUXDB3_HOST_URL", "http://127.0.0.1:" + server.getAddress().getPort());
-            config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
+            config.put("INFLUXDB3_AUTH_TOKEN", "${token-secret}");
             config.put("ALLOW_INSECURE_TRANSPORT", "true");
             return config;
         }

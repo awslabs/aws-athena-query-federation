@@ -36,13 +36,24 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.influxdb.v3.client.InfluxDBClient;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TimeStampMilliTZVector;
+import org.apache.arrow.vector.TimeStampNanoVector;
+import org.apache.arrow.vector.UInt1Vector;
+import org.apache.arrow.vector.UInt2Vector;
+import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.UInt8Vector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.DictionaryEncoding;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -431,20 +442,71 @@ public class InfluxDBRecordHandlerTest
     }
 
     @Test
-    public void testToAthenaValueWidensNumbers()
+    public void testReadValueReadsVectorsDirectly()
     {
-        // Narrow integer and float vector values are widened to the Long/Double that BIGINT/FLOAT8 expect.
-        assertEquals(7L, InfluxDBRecordHandler.toAthenaValue(7, Types.MinorType.BIGINT));
-        assertEquals(7L, InfluxDBRecordHandler.toAthenaValue((short) 7, Types.MinorType.BIGINT));
-        assertEquals(7L, InfluxDBRecordHandler.toAthenaValue((byte) 7, Types.MinorType.BIGINT));
-        // UInt16 vectors return Character.
-        assertEquals(65535L, InfluxDBRecordHandler.toAthenaValue((char) 65535, Types.MinorType.BIGINT));
-        assertEquals(1.5d, InfluxDBRecordHandler.toAthenaValue(1.5f, Types.MinorType.FLOAT8));
-        // Values that already match, and other types, pass through unchanged.
-        assertEquals(7L, InfluxDBRecordHandler.toAthenaValue(7L, Types.MinorType.BIGINT));
-        assertEquals("a", InfluxDBRecordHandler.toAthenaValue("a", Types.MinorType.VARCHAR));
-        assertEquals(19000, InfluxDBRecordHandler.toAthenaValue(19000, Types.MinorType.DATEDAY));
-        assertEquals(null, InfluxDBRecordHandler.toAthenaValue(null, Types.MinorType.BIGINT));
+        try (BufferAllocator arrow = new RootAllocator();
+                UInt1Vector u8 = new UInt1Vector("u8", arrow);
+                UInt2Vector u16 = new UInt2Vector("u16", arrow);
+                UInt4Vector u32 = new UInt4Vector("u32", arrow);
+                UInt8Vector u64 = new UInt8Vector("u64", arrow);
+                IntVector i32 = new IntVector("i32", arrow);
+                SmallIntVector i16 = new SmallIntVector("i16", arrow);
+                Float4Vector f32 = new Float4Vector("f32", arrow);
+                Float8Vector f64 = new Float8Vector("f64", arrow);
+                BitVector flag = new BitVector("flag", arrow);
+                VarCharVector text = new VarCharVector("text", arrow);
+                DateDayVector day = new DateDayVector("day", arrow);
+                TimeStampNanoVector time = new TimeStampNanoVector("time",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.NANOSECOND, null)), arrow)) {
+            u8.setSafe(0, 200);
+            u16.setSafe(0, 65535);
+            u32.setSafe(0, -1); // 4294967295 unsigned
+            u64.setSafe(0, 42L);
+            i32.setSafe(0, -3);
+            i16.setSafe(0, (short) 7);
+            f32.setSafe(0, 1.5f);
+            f64.setSafe(0, 2.5d);
+            flag.setSafe(0, 1);
+            text.setSafe(0, "server1".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            day.setSafe(0, 19000);
+            time.setSafe(0, 1782258710000000500L);
+            u8.setNull(1);
+
+            // Integers of every width and signedness become Long; unsigned values are not sign-extended.
+            assertEquals(200L, InfluxDBRecordHandler.readValue(u8, 0));
+            assertEquals(65535L, InfluxDBRecordHandler.readValue(u16, 0));
+            assertEquals(4294967295L, InfluxDBRecordHandler.readValue(u32, 0));
+            assertEquals(42L, InfluxDBRecordHandler.readValue(u64, 0));
+            assertEquals(-3L, InfluxDBRecordHandler.readValue(i32, 0));
+            assertEquals(7L, InfluxDBRecordHandler.readValue(i16, 0));
+            // Floating-point numbers of every width become Double.
+            assertEquals(1.5d, InfluxDBRecordHandler.readValue(f32, 0));
+            assertEquals(2.5d, InfluxDBRecordHandler.readValue(f64, 0));
+            assertEquals(Boolean.TRUE, InfluxDBRecordHandler.readValue(flag, 0));
+            assertEquals(new Text("server1"), InfluxDBRecordHandler.readValue(text, 0));
+            assertEquals(19000, InfluxDBRecordHandler.readValue(day, 0));
+            assertEquals(Instant.ofEpochSecond(0L, 1782258710000000500L).atZone(UTC),
+                    InfluxDBRecordHandler.readValue(time, 0));
+            assertEquals(null, InfluxDBRecordHandler.readValue(u8, 1));
+        }
+    }
+
+    @Test
+    public void testReadValueRejectsDictionaryEncodedColumn()
+    {
+        final FieldType encoded = new FieldType(true, new ArrowType.Int(32, true),
+                new DictionaryEncoding(0L, false, new ArrowType.Int(32, true)));
+        try (BufferAllocator arrow = new RootAllocator();
+                IntVector indices = new IntVector(new Field("host", encoded, null), arrow)) {
+            indices.setSafe(0, 0);
+            try {
+                InfluxDBRecordHandler.readValue(indices, 0);
+                fail("expected a dictionary-encoded column to be rejected");
+            }
+            catch (final AthenaConnectorException e) {
+                assertErrorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION, e);
+            }
+        }
     }
 
     @Test
