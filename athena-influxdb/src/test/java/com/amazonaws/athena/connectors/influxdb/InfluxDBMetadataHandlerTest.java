@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -62,6 +63,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -71,6 +73,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.assertArrayEquals;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBErrorsTest.assertErrorCode;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -231,8 +234,8 @@ public class InfluxDBMetadataHandlerTest
             disabledHandler.doGetQueryPassthroughSchema(allocator, request);
             fail("expected doGetQueryPassthroughSchema to be rejected when passthrough is disabled");
         }
-        catch (final UnsupportedOperationException expected) {
-            // ok
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION, expected);
         }
         // The native SQL must never reach InfluxDB.
         Mockito.verify(mockClient, Mockito.never()).queryBatches(anyString());
@@ -524,7 +527,8 @@ public class InfluxDBMetadataHandlerTest
                             Collections.emptyMap()));
             fail("expected a non-passthrough request to be rejected");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
             assertTrue(e.getMessage().contains("without query passthrough arguments"));
         }
     }

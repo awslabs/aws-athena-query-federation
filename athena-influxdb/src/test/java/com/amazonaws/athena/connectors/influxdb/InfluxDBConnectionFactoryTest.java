@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.influxdb;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler;
 import com.influxdb.v3.client.InfluxDBApiHttpException;
 import com.influxdb.v3.client.InfluxDBClient;
@@ -29,6 +29,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.apache.arrow.flight.CallStatus;
 import org.junit.Before;
 import org.junit.Test;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -44,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBErrorsTest.assertErrorCode;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -129,18 +131,24 @@ public class InfluxDBConnectionFactoryTest
         assertEquals("plain-secret-value", factory.resolveToken());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testResolveTokenMissingThrows()
     {
         final Map<String, String> config = new HashMap<>();
         config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
 
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
-        factory.resolveToken();
+        try {
+            factory.resolveToken();
+            fail("expected a missing token to throw");
+        }
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+        }
     }
 
     @Test
-    public void testResolveTokenJsonMissingKeyFallsBackToRaw()
+    public void testResolveTokenJsonMissingKeyThrows()
     {
         final Map<String, String> config = new HashMap<>();
         config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
@@ -152,8 +160,27 @@ public class InfluxDBConnectionFactoryTest
             factory.resolveToken();
             fail("expected missing key to throw an exception");
         }
-        catch (final Exception e) {
-            assertTrue(e.getMessage().contains("Unexpected error occurred while parsing secret JSON: JSON secret does not contain key 'token'"));
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+            assertTrue(e.getMessage().contains("JSON secret does not contain a string value for key 'token'"));
+        }
+    }
+
+    @Test
+    public void testResolveTokenJsonNonStringValueThrows()
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
+        config.put("INFLUXDB3_AUTH_TOKEN", "${my-secret}");
+        when(mockHandler.resolveSecrets("${my-secret}")).thenReturn("{\"token\": {\"nested\": 1}}");
+
+        final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
+        try {
+            factory.resolveToken();
+            fail("expected a non-string token value to throw");
+        }
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
         }
     }
 
@@ -167,16 +194,22 @@ public class InfluxDBConnectionFactoryTest
 
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
         // Invalid JSON will should be treated as a token, since a token may start with '{'..
-        factory.resolveToken();
+        assertEquals("{not-valid-json", factory.resolveToken());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetClientMissingHostThrows() throws ExecutionException
+    @Test
+    public void testGetClientMissingHostThrows()
     {
         final Map<String, String> config = new HashMap<>();
         config.put("INFLUXDB3_AUTH_TOKEN", "my-plain-token");
         final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(config, mockHandler);
-        factory.getClient("db");
+        try {
+            factory.getClient("db");
+            fail("expected a missing host to throw");
+        }
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+        }
     }
 
     @Test
@@ -245,34 +278,17 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
-    public void testIsThrottleForFlightResourceExhaustedAndHttp429()
-    {
-        assertTrue(InfluxDBConnectionFactory.isThrottle(CallStatus.RESOURCE_EXHAUSTED.toRuntimeException()));
-        assertTrue(InfluxDBConnectionFactory.isThrottle(new InfluxDBApiHttpException("slow down", null, 429)));
-        assertTrue(InfluxDBConnectionFactory.isThrottle(
-                new RuntimeException("wrap", CallStatus.RESOURCE_EXHAUSTED.toRuntimeException())));
-    }
-
-    @Test
-    public void testIsThrottleFalseForOtherErrors()
-    {
-        assertFalse(InfluxDBConnectionFactory.isThrottle(new RuntimeException("boom")));
-        assertFalse(InfluxDBConnectionFactory.isThrottle(CallStatus.UNAUTHENTICATED.toRuntimeException()));
-        assertFalse(InfluxDBConnectionFactory.isThrottle(new InfluxDBApiHttpException("forbidden", null, 403)));
-    }
-
-    @Test
-    public void testExecuteWithTokenRetrySurfacesThrottleAsFederationThrottleException() throws ExecutionException
+    public void testExecuteWithTokenRetrySurfacesThrottleAsThrottlingException() throws ExecutionException
     {
         final InfluxDBConnectionFactory factory = spyFactoryReturningClient(baseConfig());
         try {
             factory.executeWithTokenRetry("db", client -> {
                 throw CallStatus.RESOURCE_EXHAUSTED.toRuntimeException();
             });
-            fail("expected throttle to surface as FederationThrottleException");
+            fail("expected throttle to surface as THROTTLING_EXCEPTION");
         }
         catch (final Exception e) {
-            assertTrue(e instanceof FederationThrottleException);
+            assertErrorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION, e);
         }
     }
 
@@ -334,6 +350,7 @@ public class InfluxDBConnectionFactoryTest
             fail("expected the auth error to propagate after exhausting retries");
         }
         catch (final Exception e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION, e);
             assertTrue(InfluxDBConnectionFactory.isAuthError(e));
         }
         // 1 initial attempt + 2 refresh retries.
@@ -354,7 +371,8 @@ public class InfluxDBConnectionFactoryTest
             fail("expected the non-auth error to propagate");
         }
         catch (final Exception e) {
-            assertEquals("boom", e.getMessage());
+            assertErrorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION, e);
+            assertEquals("boom", e.getCause().getMessage());
         }
         assertEquals(1, calls.get());
         verify(factory, never()).invalidateToken();
@@ -408,7 +426,8 @@ public class InfluxDBConnectionFactoryTest
             factory.getClient("OtherDb");
             fail("expected access to an out-of-scope database to be denied");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION, e);
             assertTrue(e.getMessage().contains("scoped to 'MyDb'"));
         }
         verify(factory, never()).fetchDatabases();
@@ -443,7 +462,7 @@ public class InfluxDBConnectionFactoryTest
             factory.resolveDatabase("otherdb");
             fail("expected a schema outside the configured scope to be rejected");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
             assertTrue(e.getMessage().contains("scoped to 'MyDb'"));
         }
         // When scoped, enforcement happens without enumerating the server's databases (no fall-through).
@@ -459,7 +478,7 @@ public class InfluxDBConnectionFactoryTest
             factory.getClient(null);
             fail("expected missing database to throw");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
             assertTrue(e.getMessage().contains("No database specified"));
         }
     }
@@ -474,7 +493,8 @@ public class InfluxDBConnectionFactoryTest
             factory.getClient("MyDb");
             fail("expected a non-existent database to be rejected");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION, e);
             assertTrue(e.getMessage().contains("Database does not exist: 'MyDb'"));
         }
     }
@@ -490,9 +510,19 @@ public class InfluxDBConnectionFactoryTest
             factory.getClient("MyDb");
             fail("expected IOException to be wrapped");
         }
-        catch (final RuntimeException e) {
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION, e);
             assertTrue(e.getMessage().contains("Failed to verify database 'MyDb' exists"));
             assertTrue(e.getCause() instanceof IOException);
+        }
+
+        doThrow(new java.net.http.HttpTimeoutException("timed out")).when(factory).fetchDatabases();
+        try {
+            factory.getClient("MyDb");
+            fail("expected HttpTimeoutException to be wrapped");
+        }
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION, e);
         }
 
         doThrow(new InterruptedException("interrupted")).when(factory).fetchDatabases();
@@ -500,7 +530,8 @@ public class InfluxDBConnectionFactoryTest
             factory.getClient("MyDb");
             fail("expected InterruptedException to be wrapped");
         }
-        catch (final RuntimeException e) {
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION, e);
             assertTrue(e.getMessage().contains("Interrupted while verifying database 'MyDb' exists"));
             assertTrue(Thread.interrupted()); // also clears the flag so later tests are unaffected
         }
@@ -517,7 +548,8 @@ public class InfluxDBConnectionFactoryTest
             factory.resolveDatabase("missing");
             fail("expected an unknown schema to be rejected");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION, e);
             assertTrue(e.getMessage().contains("Database not found: 'missing'"));
         }
     }
@@ -545,12 +577,13 @@ public class InfluxDBConnectionFactoryTest
             factory.resolveTableName("MyDb", new TableName("mydb", "nope"));
             fail("expected a missing table to throw");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION, e);
             assertTrue(e.getMessage().contains("Table not found in database 'MyDb': nope"));
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void testListDatabasesMissingHostThrows() throws Exception
     {
         final Map<String, String> config = new HashMap<>();
@@ -567,7 +600,7 @@ public class InfluxDBConnectionFactoryTest
             new InfluxDBConnectionFactory(config, mockHandler).listDatabases();
             fail("expected plain http to be rejected");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
             assertTrue(e.getMessage().contains("Host must use HTTPS"));
         }
     }
@@ -597,7 +630,7 @@ public class InfluxDBConnectionFactoryTest
                 new InfluxDBConnectionFactory(config, mockHandler).validatedHost();
                 fail("expected host to be rejected: " + host);
             }
-            catch (final IllegalArgumentException e) {
+            catch (final AthenaConnectorException e) {
                 assertTrue(e.getMessage().contains("Host must use HTTPS"));
             }
         }
@@ -613,8 +646,8 @@ public class InfluxDBConnectionFactoryTest
                 new InfluxDBConnectionFactory(config, mockHandler).validatedHost();
                 fail("expected host to be rejected: '" + host + "'");
             }
-            catch (final IllegalArgumentException e) {
-                // expected
+            catch (final AthenaConnectorException e) {
+                assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
             }
         }
     }
@@ -633,7 +666,7 @@ public class InfluxDBConnectionFactoryTest
             new InfluxDBConnectionFactory(config, mockHandler).validatedHost();
             fail("expected a non-HTTP scheme to be rejected even with insecure transport allowed");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
             assertTrue(e.getMessage().contains("Host must use HTTPS"));
         }
     }
@@ -649,7 +682,7 @@ public class InfluxDBConnectionFactoryTest
             factory.getClient("MyDb");
             fail("expected an insecure host to be rejected");
         }
-        catch (final IllegalArgumentException e) {
+        catch (final AthenaConnectorException e) {
             assertTrue(e.getMessage().contains("Host must use HTTPS"));
         }
         // Fails closed before the token is read or any request is sent.
@@ -776,7 +809,8 @@ public class InfluxDBConnectionFactoryTest
                 factory.listDatabases();
                 fail("expected a persistent auth failure to propagate");
             }
-            catch (final RuntimeException e) {
+            catch (final AthenaConnectorException e) {
+                assertErrorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION, e);
                 assertTrue(e.getMessage().contains("status code: 401"));
             }
             // 1 initial attempt + 1 refresh retry.
@@ -798,8 +832,9 @@ public class InfluxDBConnectionFactoryTest
                 factory.listDatabases();
                 fail("expected the authorization denial to propagate");
             }
-            catch (final InfluxDBApiHttpException e) {
-                assertEquals(403, e.statusCode());
+            catch (final AthenaConnectorException e) {
+                assertErrorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION, e);
+                assertEquals(403, ((InfluxDBApiHttpException) e.getCause()).statusCode());
             }
             assertEquals(1, requests.get());
             verify(factory, never()).invalidateToken();
@@ -822,7 +857,8 @@ public class InfluxDBConnectionFactoryTest
                 fail("expected the authorization denial to propagate");
             }
             catch (final Exception e) {
-                assertSame(denial, e);
+                assertErrorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION, e);
+                assertSame(denial, e.getCause());
             }
             assertEquals(1, calls.get());
             verify(factory, times(1)).getClient("db");
@@ -844,8 +880,9 @@ public class InfluxDBConnectionFactoryTest
                 factory.executeWithTokenRetry("db", client -> "unreachable");
                 fail("expected the authorization denial to propagate");
             }
-            catch (final InfluxDBApiHttpException e) {
-                assertEquals(403, e.statusCode());
+            catch (final AthenaConnectorException e) {
+                assertErrorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION, e);
+                assertEquals(403, ((InfluxDBApiHttpException) e.getCause()).statusCode());
             }
             assertEquals(1, requests.get());
             verify(factory, never()).invalidateToken();
@@ -916,10 +953,27 @@ public class InfluxDBConnectionFactoryTest
             final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
             try {
                 factory.listDatabases();
-                fail("expected 429 to surface as FederationThrottleException");
+                fail("expected 429 to surface as THROTTLING_EXCEPTION");
             }
-            catch (final FederationThrottleException e) {
-                assertTrue(e.getMessage().contains("throttled"));
+            catch (final AthenaConnectorException e) {
+                assertErrorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION, e);
+                assertTrue(e.getMessage().contains("status code: 429"));
+            }
+        }
+    }
+
+    @Test
+    public void testListDatabasesRejectsMalformedJson() throws Exception
+    {
+        try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"200", "{\"not\": \"a list\"}"})) {
+            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
+            final InfluxDBConnectionFactory factory = new InfluxDBConnectionFactory(server.config(), mockHandler);
+            try {
+                factory.listDatabases();
+                fail("expected an unexpected response body to fail");
+            }
+            catch (final AthenaConnectorException e) {
+                assertErrorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION, e);
             }
         }
     }
@@ -934,7 +988,8 @@ public class InfluxDBConnectionFactoryTest
                 factory.listDatabases();
                 fail("expected a 500 to fail");
             }
-            catch (final RuntimeException e) {
+            catch (final AthenaConnectorException e) {
+                assertErrorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION, e);
                 assertTrue(e.getMessage().contains("status code: 500"));
             }
         }

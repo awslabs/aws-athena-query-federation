@@ -38,6 +38,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -234,7 +235,8 @@ public class InfluxDBRecordHandler
             case NANOSECOND :
                 return Instant.ofEpochSecond(0L, epoch).atZone(UTC);
             default :
-                throw new IllegalArgumentException("Unsupported timestamp unit: " + unit);
+                throw InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                        "Unsupported timestamp unit: " + unit);
         }
     }
 }
