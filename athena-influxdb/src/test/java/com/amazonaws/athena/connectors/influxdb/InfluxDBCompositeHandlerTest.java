@@ -20,12 +20,17 @@
 package com.amazonaws.athena.connectors.influxdb;
 
 import org.junit.Test;
+import org.mockito.MockedConstruction;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.verify;
 
 public class InfluxDBCompositeHandlerTest
 {
@@ -39,6 +44,24 @@ public class InfluxDBCompositeHandlerTest
     {
         final InfluxDBCompositeHandler handler = new InfluxDBCompositeHandler();
         assertNotNull(handler);
+    }
+
+    @Test
+    public void testCompositeHandlerSharesOneConnectionFactory()
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put("spill_bucket", "test-bucket");
+        config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
+        config.put("INFLUXDB3_AUTH_TOKEN", "test-token");
+
+        try (MockedConstruction<InfluxDBConnectionFactory> factories =
+                mockConstruction(InfluxDBConnectionFactory.class)) {
+            assertNotNull(new InfluxDBCompositeHandler(config));
+            // One factory for both handlers, so the token is resolved once and there is one client cache.
+            assertEquals(1, factories.constructed().size());
+            // The record handler becomes the shared factory's secret resolver.
+            verify(factories.constructed().get(0)).setHandler(any(InfluxDBRecordHandler.class));
+        }
     }
 
     @Test

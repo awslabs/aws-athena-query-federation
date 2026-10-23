@@ -181,13 +181,16 @@ public class InfluxDBLocalIntegTest
                             .setTag("host", "server9")
                             .setField("load", 1.5)
                             .setTimestamp(now)));
+            // One row with every InfluxDB field type, including an unsigned integer (written as line
+            // protocol because Point has no unsigned setter). The server assigns the timestamp.
+            writeClient.writeRecord("types,host=server1 i=-3i,u=42u,f=1.5,b=true,s=\"text\"");
 
             // InfluxDB 3 buffers writes briefly; poll until the seeded tables are queryable.
             final String probe = "SELECT table_name FROM information_schema.tables "
-                    + "WHERE table_schema = 'iox' AND table_name IN ('cpu', 'mem', 'CpuStats')";
+                    + "WHERE table_schema = 'iox' AND table_name IN ('cpu', 'mem', 'CpuStats', 'types')";
             for (int attempt = 0; attempt < 20; attempt++) {
                 try (Stream<Object[]> rows = writeClient.query(probe)) {
-                    if (rows.count() >= 3) {
+                    if (rows.count() >= 4) {
                         return;
                     }
                 }
@@ -421,6 +424,93 @@ public class InfluxDBLocalIntegTest
 
         // The native passthrough query runs verbatim and returns only the matching server1 row.
         assertEquals(Collections.singletonList("server1"), hosts);
+    }
+
+    private GetTableResponse passthroughSchema(final String query) throws Exception
+    {
+        return handler.doGetQueryPassthroughSchema(allocator,
+                new GetTableRequest(IDENTITY, "queryId", "catalog", new TableName("system", "query"),
+                        passthroughArguments(query)));
+    }
+
+    private Map<String, String> passthroughArguments(final String query)
+    {
+        final Map<String, String> qpt = new HashMap<>();
+        qpt.put("schemaFunctionName", "SYSTEM.QUERY");
+        qpt.put(InfluxDBQueryPassthrough.DATABASE, database);
+        qpt.put(InfluxDBQueryPassthrough.QUERY, query);
+        return qpt;
+    }
+
+    private static Map<String, ArrowType> fieldTypes(final Schema schema)
+    {
+        final Map<String, ArrowType> types = new HashMap<>();
+        for (final Field field : schema.getFields()) {
+            types.put(field.getName(), field.getType());
+        }
+        return types;
+    }
+
+    /**
+     * A table read and a passthrough over the same table must report the same Athena type for every column,
+     * including the unsigned integer field.
+     */
+    @Test
+    public void testTableAndPassthroughSchemasAgree() throws Exception
+    {
+        final GetTableResponse table = handler.doGetTable(allocator,
+                new GetTableRequest(IDENTITY, "queryId", "catalog",
+                        new TableName(database, "types"), Collections.emptyMap()));
+        final GetTableResponse passthrough = passthroughSchema("SELECT * FROM types");
+
+        final Map<String, ArrowType> tableTypes = fieldTypes(table.getSchema());
+        assertEquals(tableTypes, fieldTypes(passthrough.getSchema()));
+        assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(tableTypes.get("u")));
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(tableTypes.get("host")));
+        assertEquals(InfluxDBTypeMapper.ATHENA_TIMESTAMP, tableTypes.get("time"));
+    }
+
+    /**
+     * A passthrough whose result has types that no InfluxDB table column has (Int32, Float32, Date32) must
+     * read end to end with the schema that doGetQueryPassthroughSchema reports.
+     */
+    @Test
+    public void testEndToEndPassthroughNarrowTypes() throws Exception
+    {
+        final String query = "SELECT CAST(i AS INT) AS i32, CAST(f AS REAL) AS f32, "
+                + "CAST(time AS DATE) AS d, u FROM types";
+        final Schema schema = passthroughSchema(query).getSchema();
+        final Map<String, ArrowType> types = fieldTypes(schema);
+        assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(types.get("i32")));
+        assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(types.get("f32")));
+        assertEquals(Types.MinorType.DATEDAY, Types.getMinorTypeForArrowType(types.get("d")));
+        assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(types.get("u")));
+
+        final Constraints constraints = new Constraints(new HashMap<>(), Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, passthroughArguments(query), null);
+        final ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, "catalog", "queryId",
+                new TableName("system", "query"), schema, emptySplit(), constraints, 100_000, 100_000);
+        final Block block = allocator.createBlock(schema);
+        block.constrain(ConstraintEvaluator.emptyEvaluator());
+        final AtomicInteger rowsWritten = new AtomicInteger();
+        recordHandler.readWithConstraint(spillerWritingTo(block, rowsWritten), request, runningChecker());
+
+        assertEquals(1, rowsWritten.get());
+        final FieldReader i32 = block.getFieldReader("i32");
+        i32.setPosition(0);
+        assertEquals(Long.valueOf(-3L), i32.readLong());
+        final FieldReader f32 = block.getFieldReader("f32");
+        f32.setPosition(0);
+        assertEquals(Double.valueOf(1.5d), f32.readDouble());
+        final FieldReader u = block.getFieldReader("u");
+        u.setPosition(0);
+        assertEquals(Long.valueOf(42L), u.readLong());
+        // The row was written moments ago, so its date is today (or yesterday just after midnight UTC).
+        final FieldReader d = block.getFieldReader("d");
+        d.setPosition(0);
+        final long today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay();
+        final long day = ((Number) d.readObject()).longValue();
+        assertTrue("unexpected date " + day, day == today || day == today - 1);
     }
 
     @Test

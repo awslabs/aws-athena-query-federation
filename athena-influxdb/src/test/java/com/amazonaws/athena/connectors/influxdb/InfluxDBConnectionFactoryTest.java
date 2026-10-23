@@ -729,27 +729,6 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
-    public void testShutdownHookClosesClientsOfEveryFactory() throws Exception
-    {
-        try (LocalInfluxServer server = new LocalInfluxServer(
-                exchange -> new String[] {"200", "[{\"iox::database\":\"db1\"},{\"iox::database\":\"db2\"}]"})) {
-            when(mockHandler.resolveSecrets("my-plain-token")).thenReturn("my-plain-token");
-            final InfluxDBConnectionFactory first = new InfluxDBConnectionFactory(server.config(), mockHandler);
-            final InfluxDBConnectionFactory second = new InfluxDBConnectionFactory(server.config(), mockHandler);
-            first.getClient("db1");
-            second.getClient("db2");
-            assertEquals(1, first.cachedClientCount());
-            assertEquals(1, second.cachedClientCount());
-
-            // The single class-level hook runs this; it must reach every factory, not just one.
-            InfluxDBConnectionFactory.closeAllLiveFactories();
-
-            assertEquals(0, first.cachedClientCount());
-            assertEquals(0, second.cachedClientCount());
-        }
-    }
-
-    @Test
     public void testListDatabasesTreatsNullBodyAsEmpty() throws Exception
     {
         try (LocalInfluxServer server = new LocalInfluxServer(exchange -> new String[] {"200", "null"})) {

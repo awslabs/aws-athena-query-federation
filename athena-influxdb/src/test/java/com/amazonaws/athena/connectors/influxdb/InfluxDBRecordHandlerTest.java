@@ -428,6 +428,23 @@ public class InfluxDBRecordHandlerTest
     }
 
     @Test
+    public void testToAthenaValueWidensNumbers()
+    {
+        // Narrow integer and float vector values are widened to the Long/Double that BIGINT/FLOAT8 expect.
+        assertEquals(7L, InfluxDBRecordHandler.toAthenaValue(7, Types.MinorType.BIGINT));
+        assertEquals(7L, InfluxDBRecordHandler.toAthenaValue((short) 7, Types.MinorType.BIGINT));
+        assertEquals(7L, InfluxDBRecordHandler.toAthenaValue((byte) 7, Types.MinorType.BIGINT));
+        // UInt16 vectors return Character.
+        assertEquals(65535L, InfluxDBRecordHandler.toAthenaValue((char) 65535, Types.MinorType.BIGINT));
+        assertEquals(1.5d, InfluxDBRecordHandler.toAthenaValue(1.5f, Types.MinorType.FLOAT8));
+        // Values that already match, and other types, pass through unchanged.
+        assertEquals(7L, InfluxDBRecordHandler.toAthenaValue(7L, Types.MinorType.BIGINT));
+        assertEquals("a", InfluxDBRecordHandler.toAthenaValue("a", Types.MinorType.VARCHAR));
+        assertEquals(19000, InfluxDBRecordHandler.toAthenaValue(19000, Types.MinorType.DATEDAY));
+        assertEquals(null, InfluxDBRecordHandler.toAthenaValue(null, Types.MinorType.BIGINT));
+    }
+
+    @Test
     public void testToZonedDateTimeNanoseconds()
     {
         final long nanos = 1782258710000000000L;

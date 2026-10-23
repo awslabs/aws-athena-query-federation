@@ -101,17 +101,11 @@ public class InfluxDBQueryBuilderTest
         // The shared helper unpacks back to the original epoch millis.
         assertEquals(millisUtc, InfluxDBQueryBuilder.constraintEpochMillis(packed, tsType));
 
-        // constraintLiteral decodes the packed value (not the corrupted far-future year 233142).
+        // toLiteral decodes the packed value (not the corrupted far-future year 233142).
         final String expected = "TIMESTAMP '"
                 + java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.ofEpochMilli(millisUtc))
                 + "'";
-        assertEquals(expected, InfluxDBQueryBuilder.constraintLiteral(packed, tsType));
-
-        // toLiteral is the plain formatter: it treats the value as epoch millis directly.
-        assertEquals("TIMESTAMP '"
-                        + java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.ofEpochMilli(millisUtc))
-                        + "'",
-                InfluxDBQueryBuilder.toLiteral(millisUtc, tsType));
+        assertEquals(expected, InfluxDBQueryBuilder.toLiteral(packed, tsType));
     }
 
     @Test
@@ -291,7 +285,8 @@ public class InfluxDBQueryBuilderTest
                 org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE)));
         assertEquals("true", InfluxDBQueryBuilder.toLiteral(true, new ArrowType.Bool()));
         assertEquals("NULL", InfluxDBQueryBuilder.toLiteral(null, new ArrowType.Utf8()));
-        assertEquals("TIMESTAMP '2026-06-23T23:51:50Z'", InfluxDBQueryBuilder.toLiteral(1782258710000l,
+        // Athena delivers TIMESTAMP WITH TIME ZONE constraint values packed as (millisUtc << 12 | tzKey).
+        assertEquals("TIMESTAMP '2026-06-23T23:51:50Z'", InfluxDBQueryBuilder.toLiteral(1782258710000L << 12,
                 new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")));
     }
 
@@ -433,7 +428,7 @@ public class InfluxDBQueryBuilderTest
         assertTrue(sqlForExpression(fce(sf("ADD_FUNCTION_NAME"), FLOAT8,
                 var("usage_idle", FLOAT8), constant(1.0, FLOAT8))).contains(" + "));
 
-        // Timestamp constant exercises constraintLiteral -> constraintEpochMillis -> timestampLiteral.
+        // Timestamp constant exercises toLiteral -> constraintEpochMillis -> timestampLiteral.
         final ArrowType ts = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
         assertTrue(sqlForExpression(fce(sf("GREATER_THAN_OPERATOR_FUNCTION_NAME"), BOOL,
                 var("time", ts), constant(1782258710000L, ts))).contains("TIMESTAMP"));

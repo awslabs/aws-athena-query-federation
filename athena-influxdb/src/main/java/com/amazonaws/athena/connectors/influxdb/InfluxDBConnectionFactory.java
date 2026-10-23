@@ -47,13 +47,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
@@ -63,6 +59,7 @@ import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_ALL
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_HOST;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_TOKEN;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.ENV_INFLUXDB_TOKEN_KEY;
+import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.INFLUXDB_DATABASE;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MAX_EXCEPTION_CAUSE_SEARCH_DEPTH;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MAX_TOKEN_REFRESH_RETRIES;
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.TOKEN_REFRESH_MAX_RETRIES;
@@ -84,18 +81,9 @@ public class InfluxDBConnectionFactory
     static final long BACKOFF_MAX_MILLIS = 1_000L;
     private static final int INFLUXDB_CLIENT_CACHE_MINUTES_TO_LIVE = 30;
 
-    // Factories whose cached clients the shutdown hook closes. The set holds weak references, so a
-    // factory that is no longer used can still be garbage-collected.
-    private static final Set<InfluxDBConnectionFactory> LIVE_FACTORIES =
-            Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
-
-    static {
-        // The Athena federation SDK exposes no explicit container-teardown callback, so release cached clients
-        // (gRPC channels, threads, allocators) via a JVM shutdown hook when the Lambda environment is torn down.
-        // One hook for the class, not one per instance, so creating factories does not accumulate hooks.
-        Runtime.getRuntime().addShutdownHook(
-                new Thread(InfluxDBConnectionFactory::closeAllLiveFactories, "influxdb-client-cache-shutdown"));
-    }
+    // Cached clients are closed when the cache evicts them (size limit, idle expiry, or token
+    // invalidation). There is no shutdown hook: Lambda does not reliably run JVM shutdown hooks, and the
+    // clients' sockets, threads, and memory are released when the execution environment's process ends.
 
     private volatile String resolvedToken;
     private final Cache<String, InfluxDBClient> influxDbClients;
@@ -123,39 +111,9 @@ public class InfluxDBConnectionFactory
             })
             .build();
         this.resolvedToken = null;
-        this.maxTokenRefreshRetries = parseMaxTokenRefreshRetries(configOptions);
-        LIVE_FACTORIES.add(this);
-    }
-
-    /**
-     * Closes the cached clients of every factory that is still reachable. Runs from the shutdown hook.
-     */
-    static void closeAllLiveFactories()
-    {
-        final List<InfluxDBConnectionFactory> factories;
-        synchronized (LIVE_FACTORIES) {
-            factories = new ArrayList<>(LIVE_FACTORIES);
-        }
-        for (final InfluxDBConnectionFactory factory : factories) {
-            factory.closeAllClients();
-        }
-    }
-
-    private static int parseMaxTokenRefreshRetries(final Map<String, String> configOptions)
-    {
-        final String configured = configOptions.get(TOKEN_REFRESH_MAX_RETRIES);
-        if (configured == null || configured.isBlank()) {
-            return DEFAULT_TOKEN_REFRESH_MAX_RETRIES;
-        }
-        try {
-            // Clamped so a misconfiguration cannot turn one failing request into an unbounded burst.
-            return Math.max(0, Math.min(Integer.parseInt(configured.trim()), MAX_TOKEN_REFRESH_RETRIES));
-        }
-        catch (final NumberFormatException e) {
-            logger.warn("Invalid {} value '{}'; using default {}",
-                    TOKEN_REFRESH_MAX_RETRIES, configured, DEFAULT_TOKEN_REFRESH_MAX_RETRIES);
-            return DEFAULT_TOKEN_REFRESH_MAX_RETRIES;
-        }
+        // Clamped so a misconfiguration cannot turn one failing request into an unbounded burst.
+        this.maxTokenRefreshRetries = InfluxDBConfig.clampedInt(configOptions, TOKEN_REFRESH_MAX_RETRIES,
+                DEFAULT_TOKEN_REFRESH_MAX_RETRIES, 0, MAX_TOKEN_REFRESH_RETRIES);
     }
 
     /**
@@ -228,7 +186,7 @@ public class InfluxDBConnectionFactory
      */
     private String enforceDatabaseScope(final String requested)
     {
-        final String configuredDb = configOptions.getOrDefault("influxdb_database", "");
+        final String configuredDb = configOptions.getOrDefault(INFLUXDB_DATABASE, "");
         final String req = (requested == null) ? "" : requested;
         if (configuredDb.isEmpty()) {
             return req;
@@ -256,7 +214,7 @@ public class InfluxDBConnectionFactory
 
         final String db = enforceDatabaseScope(database);
         if (db.isEmpty()) {
-            throw new IllegalArgumentException("No database specified and no influxdb_database default is configured");
+            throw new IllegalArgumentException("No database specified and no " + INFLUXDB_DATABASE + " default is configured");
         }
 
         final InfluxDBClient cachedInfluxDbClient = influxDbClients.getIfPresent(db);
@@ -414,14 +372,13 @@ public class InfluxDBConnectionFactory
     synchronized void invalidateToken()
     {
         resolvedToken = null;
-        influxDbClients.invalidateAll();
-        influxDbClients.cleanUp();
+        closeAllClients();
     }
 
     /**
-     * Closes and evicts every cached client, releasing each one's gRPC channel, threads, and allocator. Wired to a JVM
-     * shutdown hook so cached clients are released on container teardown. Closing runs through the cache's removal
-     * listener; {@code invalidateAll} + {@code cleanUp} guarantees the listener fires for every entry. Idempotent.
+     * Closes and evicts every cached client, releasing each one's gRPC channel, threads, and allocator. Closing runs
+     * through the cache's removal listener; {@code invalidateAll} + {@code cleanUp} guarantees the listener fires for
+     * every entry. Idempotent.
      */
     synchronized void closeAllClients()
     {
@@ -481,7 +438,7 @@ public class InfluxDBConnectionFactory
      */
     public String resolveDatabase(final String schemaName) throws IOException, InterruptedException
     {
-        final String configuredDb = this.configOptions.getOrDefault("influxdb_database", "");
+        final String configuredDb = this.configOptions.getOrDefault(INFLUXDB_DATABASE, "");
         if (!configuredDb.isEmpty()) {
             return enforceDatabaseScope(schemaName);
         }
