@@ -22,6 +22,10 @@ package com.amazonaws.athena.connectors.vertica;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,6 +56,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -81,6 +86,9 @@ import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -95,12 +103,16 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_EXPORT_BUCKET;
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_OBJECT_KEY;
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_QUERY_ID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -293,6 +305,106 @@ public class VerticaRecordHandlerTest
         }
 
         logger.info("doReadRecordsSpill: exit");
+    }
+
+    /**
+     * Option A read #2: when the request carries LF-vended (FAS-forwarded) credentials, the parquet read
+     * downloads the export object via the SDK getObject on the vended client, then reads it from a local
+     * file:// temp file. Asserts the vended client is used for the split's bucket/key, rows still read
+     * correctly, and the temp file is cleaned up afterward.
+     */
+    @Test
+    public void doReadRecords_WhenFasPresent_DownloadsViaVendedClientAndReadsLocalFile() throws Exception
+    {
+        VectorSchemaRoot schemaRoot = createRoot();
+        ArrowReader mockReader = mock(ArrowReader.class);
+        when(mockReader.loadNextBatch()).thenReturn(true, false);
+        when(mockReader.getVectorSchemaRoot()).thenReturn(schemaRoot);
+
+        VerticaRecordHandler handlerSpy = spy(handler);
+
+        AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("vendedAk", "vendedSk")))
+                .build();
+        doReturn(overrideConfig).when(handlerSpy).getRequestOverrideConfig(any(ReadRecordsRequest.class));
+
+        S3Client overrideClient = mock(S3Client.class);
+        doReturn(overrideClient).when(handlerSpy).getS3Client(any(), any());
+        byte[] payload = "PAR1-bytes".getBytes(StandardCharsets.UTF_8);
+        when(overrideClient.getObject(any(GetObjectRequest.class)))
+                .thenReturn(new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(payload)));
+
+        ArgumentCaptor<String> uriCaptor = ArgumentCaptor.forClass(String.class);
+        doReturn(mockReader).when(handlerSpy).constructArrowReader(uriCaptor.capture());
+
+        RecordResponse rawResponse = handlerSpy.doReadRecords(allocator, buildReadRecordsRequest(schemaRoot.getSchema()));
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        assertEquals(2, ((ReadRecordsResponse) rawResponse).getRecords().getRowCount());
+
+        // Downloaded via the vended client for the split's export bucket/key.
+        ArgumentCaptor<GetObjectRequest> getObjectCaptor = ArgumentCaptor.forClass(GetObjectRequest.class);
+        verify(overrideClient).getObject(getObjectCaptor.capture());
+        assertEquals("export_bucket", getObjectCaptor.getValue().bucket());
+        assertEquals("s3_object_key", getObjectCaptor.getValue().key());
+
+        // Arrow reads a local file:// URI, and that temp file is cleaned up afterward.
+        String readerUri = uriCaptor.getValue();
+        assertTrue(readerUri.startsWith("file:"), "expected a local file:// URI but was " + readerUri);
+        assertFalse(Files.exists(Paths.get(URI.create(readerUri))), "temp export file must be deleted");
+    }
+
+    /**
+     * Option A read #2 absent-FAS fallback: with no LF-vended credentials, the read stays on Arrow's native
+     * S3 filesystem over the raw s3:// URI (default credential chain) and performs no SDK download.
+     */
+    @Test
+    public void doReadRecords_WhenFasAbsent_ReadsNativeS3UriWithoutDownload() throws Exception
+    {
+        VectorSchemaRoot schemaRoot = createRoot();
+        ArrowReader mockReader = mock(ArrowReader.class);
+        when(mockReader.loadNextBatch()).thenReturn(true, false);
+        when(mockReader.getVectorSchemaRoot()).thenReturn(schemaRoot);
+
+        VerticaRecordHandler handlerSpy = spy(handler);
+        doReturn(null).when(handlerSpy).getRequestOverrideConfig(any(ReadRecordsRequest.class));
+
+        ArgumentCaptor<String> uriCaptor = ArgumentCaptor.forClass(String.class);
+        doReturn(mockReader).when(handlerSpy).constructArrowReader(uriCaptor.capture());
+
+        RecordResponse rawResponse = handlerSpy.doReadRecords(allocator, buildReadRecordsRequest(schemaRoot.getSchema()));
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        assertEquals(2, ((ReadRecordsResponse) rawResponse).getRecords().getRowCount());
+
+        // Reads the native s3:// URI from the split; no vended download performed.
+        assertEquals("s3://export_bucket/s3_object_key", uriCaptor.getValue());
+        verify(mockS3, never()).getObject(any(GetObjectRequest.class));
+    }
+
+    /** Builds a no-spill ReadRecordsRequest whose split points at export_bucket/s3_object_key. */
+    private ReadRecordsRequest buildReadRecordsRequest(Schema schema)
+    {
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+        Split split = Split.newBuilder(splitLoc, keyFactory.create())
+                .add(VERTICA_SPLIT_QUERY_ID, "query_id")
+                .add(VERTICA_SPLIT_EXPORT_BUCKET, "export_bucket")
+                .add(VERTICA_SPLIT_OBJECT_KEY, "s3_object_key")
+                .build();
+        return new ReadRecordsRequest(identity,
+                DEFAULT_CATALOG,
+                QUERY_ID,
+                TABLE_NAME,
+                schema,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L,
+                100_000_000_000L);
     }
 
     private class ByteHolder
