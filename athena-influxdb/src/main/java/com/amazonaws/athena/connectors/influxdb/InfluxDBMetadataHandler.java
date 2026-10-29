@@ -70,6 +70,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -221,7 +222,9 @@ public class InfluxDBMetadataHandler
             throws Exception
     {
         logger.info("doListTables: catalog={}, schema={}", request.getCatalogName(), request.getSchemaName());
-        final List<TableName> tables = new ArrayList<>();
+        // Tables whose names differ only by case lowercase to the same Athena name, so each name is listed once.
+        // Reading such a table fails with an error that names every match (see resolveTableName).
+        final Set<TableName> tables = new LinkedHashSet<>();
         final String resolvedDB = connectionFactory.resolveDatabase(request.getSchemaName());
         final String sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'iox'";
         connectionFactory.executeWithTokenRetry(resolvedDB, client -> {
@@ -240,8 +243,8 @@ public class InfluxDBMetadataHandler
         });
         // Manual (in-memory) pagination: InfluxDB returns the full table list in one query, and Athena
         // may page a large catalog in via repeated calls using the returned continuation token.
-        return PaginationHelper.manualPagination(tables, request.getNextToken(), request.getPageSize(),
-                request.getCatalogName());
+        return PaginationHelper.manualPagination(new ArrayList<>(tables), request.getNextToken(),
+                request.getPageSize(), request.getCatalogName());
     }
 
     @Override

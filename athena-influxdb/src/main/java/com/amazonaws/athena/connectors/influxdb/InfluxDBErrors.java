@@ -29,6 +29,7 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
 import java.net.http.HttpTimeoutException;
+import java.util.List;
 
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.MAX_EXCEPTION_CAUSE_SEARCH_DEPTH;
 
@@ -51,6 +52,22 @@ final class InfluxDBErrors
             final Exception cause)
     {
         return new AthenaConnectorException(message, cause, details(code, cause.getMessage()));
+    }
+
+    /**
+     * Builds the error for identifiers that Athena cannot tell apart. Athena lowercases identifiers, so InfluxDB
+     * names that differ only by case (for example databases {@code testdb} and {@code TestDB}) map to the same
+     * Athena name. Rather than pick one of them, the connector fails with {@code INVALID_INPUT_EXCEPTION} and
+     * names every match. Query passthrough takes exact, case-sensitive names, so it can still read them.
+     *
+     * @param description what the names are, for example {@code "Tables in database 'mydb'"}
+     * @param names the matching InfluxDB names
+     */
+    static AthenaConnectorException ambiguousNames(final String description, final List<String> names)
+    {
+        return error(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, description
+                + " have names that differ only by case, which Athena cannot tell apart: " + names
+                + ". Use query passthrough, which takes exact names, to read them.");
     }
 
     /**
