@@ -34,7 +34,9 @@
         <dependency>
             <groupId>com.influxdb</groupId>
             <artifactId>influxdb3-java</artifactId>
-            <version>1.9.0</version>
+            <!-- 1.8.0 is the latest release built on Arrow 18.3.0, the SDK's ${apache.arrow.version}. Releases
+                 1.9.0 and later are built on Arrow 19. Upgrade only together with the SDK's Arrow version. -->
+            <version>1.8.0</version>
             <exclusions>
                 <!-- Exclude SLF4J — the SDK already bundles it -->
                 <exclusion>
@@ -103,6 +105,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- Pinned to the SDK's Arrow version so the shaded jar never mixes Flight and Arrow core versions,
+                 even if influxdb3-java later brings a newer flight-core. -->
             <groupId>org.apache.arrow</groupId>
             <artifactId>flight-core</artifactId>
             <version>${apache.arrow.version}</version>
