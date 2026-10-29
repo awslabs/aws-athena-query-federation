@@ -250,7 +250,8 @@ public class InfluxDBConnectionFactory
     }
 
     /**
-    * Verifies {@code database} is an existing database on the target server, failing closed if it is not.
+    * Verifies {@code database} is a database on the target server that the token can read, failing closed if it
+    * is not. The database list contains only databases the token can read.
     * Gates {@link #getClient} so a caller-supplied name cannot mint (and cache) a live client for a database
     * that doesn't exist — this is what bounds the client cache to real databases.
     *
@@ -278,8 +279,17 @@ public class InfluxDBConnectionFactory
                     "Interrupted while verifying database '" + database + "' exists", e);
         }
         if (!exists) {
-            throw InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION, "Database does not exist: '" + database + "'");
+            throw InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION, databaseNotFoundMessage(database));
         }
+    }
+
+    /**
+     * The message for a database that the server does not list. InfluxDB 3 Enterprise lists only the databases the
+     * token can read, so the database may exist but be unreadable with the configured token.
+     */
+    static String databaseNotFoundMessage(final String database)
+    {
+        return "Database not found, or the configured token cannot read it: '" + database + "'";
     }
 
     /**
@@ -438,7 +448,7 @@ public class InfluxDBConnectionFactory
      * also throws, rather than reading from whichever one the server lists first.
      *
      * @throws AthenaConnectorException with {@code ACCESS_DENIED_EXCEPTION} if the schema is outside the configured
-     *             scope, {@code ENTITY_NOT_FOUND_EXCEPTION} if it does not resolve to an existing database, or
+     *             scope, {@code ENTITY_NOT_FOUND_EXCEPTION} if it does not resolve to a database the token can read, or
      *             {@code INVALID_INPUT_EXCEPTION} if it matches more than one database
      * @throws InterruptedException
      * @throws IOException
@@ -454,7 +464,7 @@ public class InfluxDBConnectionFactory
                 .distinct()
                 .collect(Collectors.toList());
         if (matches.isEmpty()) {
-            throw InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION, "Database not found: '" + schemaName + "'");
+            throw InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION, databaseNotFoundMessage(schemaName));
         }
         if (matches.size() > 1) {
             throw InfluxDBErrors.ambiguousNames("Databases", matches);
