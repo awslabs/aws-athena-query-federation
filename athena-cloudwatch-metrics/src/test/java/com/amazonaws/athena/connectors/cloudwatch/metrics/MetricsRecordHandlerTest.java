@@ -34,10 +34,10 @@ import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.connectors.cloudwatch.metrics.MetricDataQuerySerDe;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import org.junit.After;
 import org.junit.Before;
@@ -53,6 +53,7 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.CloudWatchException;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataResponse;
@@ -79,6 +80,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.TestUtils.makeStringEquals;
@@ -94,7 +96,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -133,7 +134,7 @@ public class MetricsRecordHandlerTest
     {
         mockS3Storage = new ArrayList<>();
         allocator = new BlockAllocatorImpl();
-        handler = new MetricsRecordHandler(mockS3, mockSecretsManager, mockAthena, mockMetrics, com.google.common.collect.ImmutableMap.of());
+        handler = new MetricsRecordHandler(mockS3, mockSecretsManager, mockAthena, mockMetrics, ImmutableMap.of());
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
         Mockito.lenient().when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
@@ -319,6 +320,91 @@ public class MetricsRecordHandlerTest
         logger.info("readMetricSamplesWithConstraint: {}", BlockUtils.rowToString(response.getRecords(), 0));
 
         logger.info("readMetricSamplesWithConstraint: exit");
+    }
+
+    @Test
+    public void readMetricSamplesRetriesWhenCloudWatchThrottles()
+            throws Exception
+    {
+        logger.info("readMetricSamplesRetriesWhenCloudWatchThrottles: enter");
+
+        String namespace = "namespace";
+        String metricName = "metricName";
+        String statistic = "p90";
+        String period = "60";
+        String dimName = "dimName";
+        String dimValue = "dimValue";
+        List<Dimension> dimensions = Collections.singletonList(Dimension.builder().name(dimName).value(dimValue).build());
+
+        int numMetrics = 10;
+        int numSamples = 10;
+        AtomicInteger attempts = new AtomicInteger(0);
+        AtomicLong successfulCalls = new AtomicLong(0);
+        when(mockMetrics.getMetricData(nullable(GetMetricDataRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            if (attempts.getAndIncrement() == 0) {
+                throw CloudWatchException.builder()
+                        .message("Request has been throttled. (Service: CloudWatch, Status Code: 400)")
+                        .statusCode(400)
+                        .build();
+            }
+            successfulCalls.incrementAndGet();
+            return mockMetricData(invocation, numMetrics, numSamples);
+        });
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put(NAMESPACE_FIELD, makeStringEquals(allocator, namespace));
+        constraintsMap.put(STATISTIC_FIELD, makeStringEquals(allocator, statistic));
+        constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, dimName));
+        constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, dimValue));
+
+        S3SpillLocation spillLocation = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
+        metricDataQueries.add(MetricDataQuery.builder()
+                .metricStat(MetricStat.builder()
+                        .metric(Metric.builder()
+                                .namespace(namespace)
+                                .metricName(metricName)
+                                .dimensions(dimensions)
+                                .build())
+                        .period(60)
+                        .stat(statistic)
+                        .build())
+                .id("m1")
+                .build());
+
+        Split split = Split.newBuilder(spillLocation, keyFactory.create())
+                .add(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME, MetricDataQuerySerDe.serialize(metricDataQueries))
+                .add(METRIC_NAME_FIELD, metricName)
+                .add(NAMESPACE_FIELD, namespace)
+                .add(STATISTIC_FIELD, statistic)
+                .add(PERIOD_FIELD, period)
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(identity,
+                "catalog",
+                "queryId-" + System.currentTimeMillis(),
+                METRIC_SAMPLES_TABLE_NAME,
+                METRIC_DATA_TABLE.getSchema(),
+                split,
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        assertEquals(successfulCalls.get() * numMetrics * numSamples, response.getRecords().getRowCount());
+        assertTrue(attempts.get() > successfulCalls.get());
+
+        logger.info("readMetricSamplesRetriesWhenCloudWatchThrottles: exit");
     }
 
     private GetMetricDataResponse mockMetricData(InvocationOnMock invocation, int numMetrics, int numSamples)
