@@ -32,6 +32,7 @@ import org.apache.arrow.vector.BaseIntVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FloatingPointVector;
 import org.apache.arrow.vector.TimeStampVector;
+import org.apache.arrow.vector.UInt8Vector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -44,6 +45,7 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -180,7 +182,9 @@ public class InfluxDBRecordHandler
      * not through the InfluxDB client's internal converter:
      * <ul>
      *   <li>Timestamps become a UTC {@link ZonedDateTime}, using the vector's time unit.</li>
-     *   <li>Integers (signed and unsigned, any width) become a Long, which BIGINT expects.</li>
+     *   <li>Unsigned 64-bit integers become a BigDecimal, which DECIMAL expects, without wrapping values above
+     *       {@link Long#MAX_VALUE}.</li>
+     *   <li>Other integers (signed, and unsigned up to 32 bits) become a Long, which BIGINT expects.</li>
      *   <li>Floating-point numbers (any width) become a Double, which FLOAT8 expects.</li>
      *   <li>Everything else uses the vector's own Java value, for example Text for strings, Boolean for booleans,
      *       Integer days for DATEDAY, and LocalDateTime for DATEMILLI.</li>
@@ -203,6 +207,9 @@ public class InfluxDBRecordHandler
         if (vector instanceof TimeStampVector) {
             final TimeUnit unit = ((ArrowType.Timestamp) field.getType()).getUnit();
             return toZonedDateTime(((TimeStampVector) vector).get(row), unit);
+        }
+        if (vector instanceof UInt8Vector) {
+            return new BigDecimal(((UInt8Vector) vector).getObjectNoOverflow(row));
         }
         if (vector instanceof BaseIntVector) {
             return ((BaseIntVector) vector).getValueAsLong(row);

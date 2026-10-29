@@ -33,7 +33,8 @@ InfluxDB 3 (DataFusion/IOx) exposes a **flat, primitive** column model. Table sc
 
 | InfluxDB / DataFusion type | Arrow / Athena type |
 |---|---|
-| `Int64` (integer field), `UInt64` (unsigned integer field), and other integer widths | `BIGINT` |
+| `Int64` (integer field) and other signed integer widths, `UInt32` and narrower unsigned widths | `BIGINT` |
+| `UInt64` (unsigned integer field) | `DECIMAL(20,0)` |
 | `Float64` (float field), `Float32` | `FLOAT8` (double) |
 | `Boolean` | `BIT` (boolean) |
 | `Timestamp` (`time`), any unit | `TIMESTAMP` (millisecond, UTC) |
@@ -41,9 +42,9 @@ InfluxDB 3 (DataFusion/IOx) exposes a **flat, primitive** column model. Table sc
 | `Utf8` (string field), tag (`Dictionary(Int32, Utf8)`) | `VARCHAR` |
 | anything else | `VARCHAR` (safe fallback) |
 
-Athena has no unsigned integer type, so an unsigned integer value above 9,223,372,036,854,775,807 (2^63 - 1) wraps to a negative `BIGINT`.
+Athena has no unsigned integer type, and `BIGINT` stops at 9,223,372,036,854,775,807 (2^63 - 1). Unsigned integer fields are therefore `DECIMAL(20,0)`, which holds every value up to 18,446,744,073,709,551,615 (2^64 - 1) exactly, so values above 2^63 - 1 are neither wrapped nor dropped by filters.
 
-**Unsupported (by design):** complex/nested types — `STRUCT`, `MAP`, `LIST`/`ARRAY` — and `DECIMAL`/`SET`. This is not a connector limitation so much as a property of the source: InfluxDB 3 measurements are flat rows of tags (strings), primitive fields, and a timestamp. There is no nested data to project, so no `STRUCT`/`MAP` handling is implemented. Timestamps are always normalized to millisecond precision in UTC regardless of the source unit (see [Record reads](#record-reads-field-extraction)).
+**Unsupported (by design):** complex/nested types — `STRUCT`, `MAP`, `LIST`/`ARRAY` — and `DECIMAL`/`SET` columns (InfluxDB has no decimal field type; `DECIMAL(20,0)` is used only to represent unsigned integers). This is not a connector limitation so much as a property of the source: InfluxDB 3 measurements are flat rows of tags (strings), primitive fields, and a timestamp. There is no nested data to project, so no `STRUCT`/`MAP` handling is implemented. Timestamps are always normalized to millisecond precision in UTC regardless of the source unit (see [Record reads](#record-reads-field-extraction)).
 
 ## Predicate & compute pushdown
 
@@ -88,7 +89,7 @@ A **split** is Athena's unit of parallelism — each split is read by a separate
 
 ## Record reads (field extraction)
 
-`InfluxDBRecordHandler.readWithConstraint` runs the generated SQL with `client.queryBatches(sql)` and reads the Arrow vectors of each `VectorSchemaRoot` directly (`readValue`). It does not use the client's internal `VectorSchemaRootConverter`, which can change in any client release. Values become the Java types the SDK's `BlockUtils` expects: integers of any width or signedness become `Long`, floating-point numbers become `Double`, and strings stay `Text`. Timestamps are converted using the column's actual Arrow time unit (`toZonedDateTime`) and normalized to millisecond UTC. InfluxDB 3 sends tags as plain strings; a dictionary-encoded column is rejected with `OPERATION_NOT_SUPPORTED_EXCEPTION`, because the client does not expose the dictionaries needed to decode it.
+`InfluxDBRecordHandler.readWithConstraint` runs the generated SQL with `client.queryBatches(sql)` and reads the Arrow vectors of each `VectorSchemaRoot` directly (`readValue`). It does not use the client's internal `VectorSchemaRootConverter`, which can change in any client release. Values become the Java types the SDK's `BlockUtils` expects: integers become `Long` (unsigned 64-bit integers become `BigDecimal`, for `DECIMAL(20,0)`), floating-point numbers become `Double`, and strings stay `Text`. Timestamps are converted using the column's actual Arrow time unit (`toZonedDateTime`) and normalized to millisecond UTC. InfluxDB 3 sends tags as plain strings; a dictionary-encoded column is rejected with `OPERATION_NOT_SUPPORTED_EXCEPTION`, because the client does not expose the dictionaries needed to decode it.
 
 ## Errors and backpressure
 
@@ -228,7 +229,7 @@ Create a Secrets Manager secret holding the InfluxDB token and pass its name (no
 
 ## Limitations
 
-- **Primitive types only** — no `STRUCT`/`MAP`/`LIST`/`DECIMAL` (see [data types](#supported-and-unsupported-data-types)).
+- **Primitive types only** — no `STRUCT`/`MAP`/`LIST`, and no decimal fields (see [data types](#supported-and-unsupported-data-types)).
 - **Time-based splitting only.** Parallelism requires a lower+upper `time` bound; queries without one run as a single split.
 - **Single-instance backpressure.** The backend is typically a single InfluxDB cluster; excessive parallelism can throttle it (surfaced to Athena as backpressure).
 - **Cached token staleness window.** A rotated secret is picked up on the next auth failure or container recycle, not proactively.

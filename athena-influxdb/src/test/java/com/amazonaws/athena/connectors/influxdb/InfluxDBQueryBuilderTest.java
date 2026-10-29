@@ -549,6 +549,15 @@ public class InfluxDBQueryBuilderTest
     }
 
     @Test
+    public void testToLiteralRendersUnsigned64BitDecimalAsPlainInteger()
+    {
+        assertEquals("18446744073709551615", InfluxDBQueryBuilder.toLiteral(
+                new java.math.BigDecimal("18446744073709551615"), InfluxDBTypeMapper.ATHENA_UINT64));
+        assertEquals("5", InfluxDBQueryBuilder.toLiteral(
+                new java.math.BigDecimal("5E0"), InfluxDBTypeMapper.ATHENA_UINT64));
+    }
+
+    @Test
     public void testExpressionPushdownUnknownArgumentAndEmptyConstantRenderAsNull()
     {
         // An expression type the builder does not understand is rendered as NULL rather than failing.

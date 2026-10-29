@@ -40,6 +40,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -508,6 +509,15 @@ public class InfluxDBQueryBuilder
             case INT :
             case FLOAT8 :
             case FLOAT4 :
+                if (value instanceof Number) {
+                    return String.valueOf(value);
+                }
+                return "'" + String.valueOf(value).replace("'", "''") + "'";
+            case DECIMAL :
+                // An unsigned 64-bit column (DECIMAL(20,0)) compares against a plain integer literal.
+                if (value instanceof BigDecimal) {
+                    return ((BigDecimal) value).toPlainString();
+                }
                 if (value instanceof Number) {
                     return String.valueOf(value);
                 }
