@@ -73,6 +73,10 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -208,14 +212,17 @@ public class InfluxDBLocalIntegTest
             writeClient.writeRecord("mixedcase,host=server7,Region=us usageIdle=12.5");
             // A tag and a field whose names differ only by case, which Athena cannot tell apart.
             writeClient.writeRecord("casecollision,Region=us region=1i");
+            // Two tables whose names differ only by case, each with a column the other lacks.
+            writeClient.writeRecord("Sensor,host=a only_in_upper=1i");
+            writeClient.writeRecord("sensor,host=b only_in_lower=1i");
 
             // InfluxDB 3 buffers writes briefly; poll until the seeded tables are queryable.
             final String probe = "SELECT table_name FROM information_schema.tables "
                     + "WHERE table_schema = 'iox' AND table_name IN "
-                    + "('cpu', 'mem', 'CpuStats', 'types', 'precise', 'mixedcase', 'casecollision')";
+                    + "('cpu', 'mem', 'CpuStats', 'types', 'precise', 'mixedcase', 'casecollision', 'Sensor', 'sensor')";
             for (int attempt = 0; attempt < 20; attempt++) {
                 try (Stream<Object[]> rows = writeClient.query(probe)) {
-                    if (rows.count() >= 7) {
+                    if (rows.count() >= 9) {
                         return;
                     }
                 }
@@ -311,11 +318,7 @@ public class InfluxDBLocalIntegTest
         handler = metadataHandler(newConfigOptions);
 
         final String newDatabase = "extratestdb";
-        final ExecResult databaseCreationResult = influxDBV3Container.execInContainer(
-                "influxdb3", "create", "database", "--token", influxDBV3Token, newDatabase);
-        if (databaseCreationResult.getExitCode() == 1) {
-            throw new RuntimeException("Failed to create database " + newDatabase);
-        }
+        createDatabase(newDatabase);
 
         final ListSchemasResponse response = handler.doListSchemaNames(
                 allocator,
@@ -733,6 +736,75 @@ public class InfluxDBLocalIntegTest
             assertTrue(e.toString(), e instanceof AthenaConnectorException);
             assertTrue(e.getMessage(), e.getMessage().contains("differ only by case"));
         }
+    }
+
+    @Test
+    public void testTablesThatDifferOnlyByCaseAreRejected() throws Exception
+    {
+        // "Sensor" and "sensor" both appear to Athena as "sensor", listed once.
+        final ListTablesResponse tables = handler.doListTables(allocator,
+                new ListTablesRequest(IDENTITY, "queryId", "catalog", database, null,
+                        ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE));
+        assertEquals(1, tables.getTables().stream().filter(t -> "sensor".equals(t.getTableName())).count());
+
+        try {
+            handler.doGetTable(allocator, new GetTableRequest(IDENTITY, "queryId", "catalog",
+                    new TableName(database, "sensor"), Collections.emptyMap()));
+            fail("expected tables that differ only by case to be rejected");
+        }
+        catch (final Exception e) {
+            InfluxDBErrorsTest.assertErrorCode(
+                    software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+            assertTrue(e.getMessage(), e.getMessage().contains("Sensor") && e.getMessage().contains("sensor"));
+        }
+    }
+
+    /**
+     * Creates a database through the InfluxDB HTTP API. Tests use this instead of {@code execInContainer}, which
+     * intermittently failed locally with {@code NoHttpResponseException} through Podman's Docker-compatible API.
+     */
+    private static void createDatabase(final String name) throws Exception
+    {
+        final HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(host + "/api/v3/configure/database"))
+                .header("Authorization", "Bearer " + influxDBV3Token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"db\":\"" + name + "\"}"))
+                .build();
+        final HttpResponse<String> response = HttpClient.newHttpClient()
+                .send(request, HttpResponse.BodyHandlers.ofString());
+        assertTrue("Failed to create database " + name + ": " + response.statusCode() + " " + response.body(),
+                response.statusCode() / 100 == 2);
+    }
+
+    @Test
+    public void testDatabasesThatDifferOnlyByCaseAreRejected() throws Exception
+    {
+        // With no influxdb_database scope, "testdb" and "TestDB" both appear to Athena as "testdb".
+        createDatabase("TestDB");
+        final Map<String, String> unscoped = new HashMap<>(configOptions);
+        unscoped.remove("influxdb_database");
+        final InfluxDBMetadataHandler unscopedHandler = metadataHandler(unscoped);
+
+        assertTrue(unscopedHandler.doListSchemaNames(allocator, new ListSchemasRequest(IDENTITY, "queryId", "catalog"))
+                .getSchemas().contains(database));
+        try {
+            unscopedHandler.doListTables(allocator, new ListTablesRequest(IDENTITY, "queryId", "catalog", database,
+                    null, ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE));
+            fail("expected databases that differ only by case to be rejected");
+        }
+        catch (final Exception e) {
+            InfluxDBErrorsTest.assertErrorCode(
+                    software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+            assertTrue(e.getMessage(), e.getMessage().contains("[testdb, TestDB]")
+                    || e.getMessage().contains("[TestDB, testdb]"));
+        }
+
+        // A scoped connector reads only the configured database, so the twin does not affect it.
+        assertEquals(2, readHostsFor(new TableName(database, "cpu"),
+                handler.doGetTable(allocator, new GetTableRequest(IDENTITY, "queryId", "catalog",
+                        new TableName(database, "cpu"), Collections.emptyMap())).getSchema(),
+                noConstraints()).size());
     }
 
     @Test

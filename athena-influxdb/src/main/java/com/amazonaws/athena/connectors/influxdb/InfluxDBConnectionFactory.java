@@ -434,9 +434,12 @@ public class InfluxDBConnectionFactory
      * Otherwise fails closed: if the schema is not among the databases discoverable on the server, throws
      * instead of returning the requested name unchanged. Returning the unverified name would let a
      * caller-supplied schema masquerade as a real database and defer a guaranteed failure to a later stage.
+     * If more than one database matches case-insensitively (for example {@code testdb} and {@code TestDB}),
+     * also throws, rather than reading from whichever one the server lists first.
      *
      * @throws AthenaConnectorException with {@code ACCESS_DENIED_EXCEPTION} if the schema is outside the configured
-     *             scope, or {@code ENTITY_NOT_FOUND_EXCEPTION} if it does not resolve to an existing database
+     *             scope, {@code ENTITY_NOT_FOUND_EXCEPTION} if it does not resolve to an existing database, or
+     *             {@code INVALID_INPUT_EXCEPTION} if it matches more than one database
      * @throws InterruptedException
      * @throws IOException
      */
@@ -446,29 +449,45 @@ public class InfluxDBConnectionFactory
         if (!configuredDb.isEmpty()) {
             return enforceDatabaseScope(schemaName);
         }
-        return listDatabases().stream().map(db -> db != null ? db.name : null)
-                .filter(name -> name != null && name.equalsIgnoreCase(schemaName)).findFirst()
-                .orElseThrow(() -> InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION,
-                        "Database not found: '" + schemaName + "'"));
+        final List<String> matches = listDatabases().stream().map(db -> db != null ? db.name : null)
+                .filter(name -> name != null && name.equalsIgnoreCase(schemaName))
+                .distinct()
+                .collect(Collectors.toList());
+        if (matches.isEmpty()) {
+            throw InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION, "Database not found: '" + schemaName + "'");
+        }
+        if (matches.size() > 1) {
+            throw InfluxDBErrors.ambiguousNames("Databases", matches);
+        }
+        return matches.get(0);
     }
 
     /**
      * Resolves a lowercased table name back to the original case by querying information_schema given an
      * already-resolved database. Throws if no matching table exists — there is no correct-case name to fall back to,
-     * and proceeding with the lowercased name would only defer a guaranteed failure to the read stage.
+     * and proceeding with the lowercased name would only defer a guaranteed failure to the read stage. Also throws
+     * if more than one table matches case-insensitively (for example {@code Sensor} and {@code sensor}).
+     *
+     * @throws AthenaConnectorException with {@code ENTITY_NOT_FOUND_EXCEPTION} if no table matches, or
+     *             {@code INVALID_INPUT_EXCEPTION} if more than one table matches
      */
     public String resolveTableName(final String resolvedDB, final TableName tableName) throws Exception
     {
         final Map<String, Object> parameters = Map.of("table_name", tableName.getTableName().toLowerCase(Locale.ROOT));
         final String sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'iox' AND lower(table_name) = $table_name";
-        return executeWithTokenRetry(resolvedDB, client -> {
+        final List<String> matches = executeWithTokenRetry(resolvedDB, client -> {
             try (Stream<Object[]> stream = client.query(sql, parameters)) {
-                return stream.map(row -> String.valueOf(row[0]))
-                        .findFirst()
-                        .orElseThrow(() -> InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION,
-                                "Table not found in database '" + resolvedDB + "': " + tableName.getTableName()));
+                return stream.map(row -> String.valueOf(row[0])).distinct().collect(Collectors.toList());
             }
         });
+        if (matches.isEmpty()) {
+            throw InfluxDBErrors.error(ENTITY_NOT_FOUND_EXCEPTION,
+                    "Table not found in database '" + resolvedDB + "': " + tableName.getTableName());
+        }
+        if (matches.size() > 1) {
+            throw InfluxDBErrors.ambiguousNames("Tables in database '" + resolvedDB + "'", matches);
+        }
+        return matches.get(0);
     }
 
     /**
@@ -500,9 +519,8 @@ public class InfluxDBConnectionFactory
                 .flatMap(List::stream)
                 .collect(Collectors.toList());
         if (!ambiguous.isEmpty()) {
-            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION, "Table '" + resolvedTable + "' in database '"
-                    + resolvedDB + "' has columns whose names differ only by case, which Athena cannot tell apart: "
-                    + ambiguous + ". Use query passthrough to read this table.");
+            throw InfluxDBErrors.ambiguousNames(
+                    "Columns of table '" + resolvedTable + "' in database '" + resolvedDB + "'", ambiguous);
         }
         return columns;
     }

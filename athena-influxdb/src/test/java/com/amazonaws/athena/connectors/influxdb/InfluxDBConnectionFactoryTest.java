@@ -642,6 +642,44 @@ public class InfluxDBConnectionFactoryTest
         }
     }
 
+    @Test
+    public void testResolveTableNameRejectsNamesThatDifferOnlyByCase() throws Exception
+    {
+        final InfluxDBClient mockClient = mock(InfluxDBClient.class);
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        doReturn(mockClient).when(factory).getClient(anyString());
+        when(mockClient.query(anyString(), anyMap()))
+                .thenReturn(Stream.<Object[]>of(new Object[] {"Sensor"}, new Object[] {"sensor"}));
+        try {
+            factory.resolveTableName("MyDb", new TableName("mydb", "sensor"));
+            fail("expected tables that differ only by case to be rejected");
+        }
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+            assertTrue(e.getMessage(), e.getMessage().contains("Tables in database 'MyDb'"));
+            assertTrue(e.getMessage(), e.getMessage().contains("[Sensor, sensor]"));
+        }
+    }
+
+    @Test
+    public void testResolveDatabaseRejectsNamesThatDifferOnlyByCase() throws Exception
+    {
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        doReturn(Arrays.asList(new InfluxDBConnectionFactory.DatabaseInfo("testdb"),
+                new InfluxDBConnectionFactory.DatabaseInfo("TestDB"),
+                new InfluxDBConnectionFactory.DatabaseInfo("other"))).when(factory).listDatabases();
+        try {
+            factory.resolveDatabase("testdb");
+            fail("expected databases that differ only by case to be rejected");
+        }
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+            assertTrue(e.getMessage(), e.getMessage().contains("[testdb, TestDB]"));
+        }
+        // A database without a case-only twin still resolves.
+        assertEquals("other", factory.resolveDatabase("other"));
+    }
+
     @Test(expected = AthenaConnectorException.class)
     public void testListDatabasesMissingHostThrows() throws Exception
     {

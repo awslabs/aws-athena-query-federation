@@ -259,6 +259,22 @@ public class InfluxDBMetadataHandlerTest
     }
 
     @Test
+    public void testDoListTablesListsCaseOnlyTwinsOnce() throws Exception
+    {
+        final Object[][] rows = {new Object[]{"Sensor"}, new Object[]{"cpu"}, new Object[]{"sensor"}};
+        when(mockClient.query(anyString())).thenReturn(Stream.of(rows));
+
+        final ListTablesResponse response = handler.doListTables(
+                allocator,
+                new ListTablesRequest(IDENTITY, "queryId", "catalog", "mydb", null,
+                        ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE));
+
+        final java.util.List<TableName> tables = new java.util.ArrayList<>(response.getTables());
+        // PaginationHelper sorts by name.
+        assertEquals(List.of(new TableName("mydb", "cpu"), new TableName("mydb", "sensor")), tables);
+    }
+
+    @Test
     public void testDoGetTable() throws Exception {
         when(mockFactory.resolveTableName(anyString(), any())).thenReturn("cpu");
         when(mockFactory.resolveDatabase(anyString())).thenReturn("mydb");
