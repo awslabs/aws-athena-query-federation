@@ -649,6 +649,35 @@ public class InfluxDBLocalIntegTest
     }
 
     @Test
+    public void testInListExpressionFromMultiRowConstantReturnsEveryMatch() throws Exception
+    {
+        final GetTableResponse tableResponse = handler.doGetTable(
+                allocator,
+                new GetTableRequest(IDENTITY, "queryId", "catalog",
+                        new TableName(database, "cpu"), Collections.emptyMap()));
+
+        // host IN ('server1', 'server2') sent as one constant that holds both values.
+        final ArrowType utf8 = ArrowType.Utf8.INSTANCE;
+        final Block values = allocator.createBlock(new SchemaBuilder().addField("col1", utf8).build());
+        values.setValue("col1", 0, "server1");
+        values.setValue("col1", 1, "server2");
+        values.setRowCount(2);
+        final FederationExpression hostIn = new FunctionCallExpression(ArrowType.Bool.INSTANCE,
+                StandardFunctions.IN_PREDICATE_FUNCTION_NAME.getFunctionName(),
+                Arrays.asList(new VariableExpression("host", utf8),
+                        new FunctionCallExpression(utf8,
+                                StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME.getFunctionName(),
+                                Collections.singletonList(new ConstantExpression(values, utf8)))));
+        final Constraints constraints = new Constraints(new HashMap<>(), Collections.singletonList(hostIn),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
+
+        final List<String> hosts = readHostsFor(new TableName(database, "cpu"),
+                tableResponse.getSchema(), constraints);
+        Collections.sort(hosts);
+        assertEquals(Arrays.asList("server1", "server2"), hosts);
+    }
+
+    @Test
     public void testSqlInjectionInConstraintIsEscaped() throws Exception
     {
         final GetTableResponse tableResponse = handler.doGetTable(

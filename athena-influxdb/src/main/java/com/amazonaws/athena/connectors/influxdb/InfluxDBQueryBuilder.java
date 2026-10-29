@@ -379,17 +379,23 @@ public class InfluxDBQueryBuilder
     }
 
     /**
-     * Converts a ConstantExpression to a SQL literal string.
+     * Converts a ConstantExpression to SQL literals. A constant can hold several values, for example the list in
+     * {@code $in(col, $array(Constant['a', 'b']))}, so every row is rendered and the literals are comma-joined, as
+     * the SDK's JDBC {@code FederationExpressionParser} does. A constant with no rows renders as {@code NULL}.
      */
     private static String constantToLiteral(final ConstantExpression expr)
     {
-        final FieldReader reader = expr.getValues().getFieldReader(DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME);
-        if (expr.getValues().getRowCount() == 0) {
+        final int rowCount = expr.getValues().getRowCount();
+        if (rowCount == 0) {
             return "NULL";
         }
-        reader.setPosition(0);
-        final Object value = reader.readObject();
-        return toLiteral(value, expr.getType());
+        final FieldReader reader = expr.getValues().getFieldReader(DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME);
+        final List<String> literals = new ArrayList<>(rowCount);
+        for (int i = 0; i < rowCount; i++) {
+            reader.setPosition(i);
+            literals.add(toLiteral(reader.readObject(), expr.getType()));
+        }
+        return String.join(", ", literals);
     }
 
     /**
