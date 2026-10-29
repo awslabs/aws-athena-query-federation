@@ -46,11 +46,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBConstants.DEFAULT_TOKEN_KEY;
@@ -470,6 +472,42 @@ public class InfluxDBConnectionFactory
     }
 
     /**
+     * Lists the columns of an already-resolved table, in the order {@code information_schema.columns} returns them.
+     * The table is matched by its exact, case-sensitive name.
+     *
+     * Athena lowercases column names, so two columns whose names differ only by case (for example a tag
+     * {@code Region} and a field {@code region}) cannot both be exposed. Rather than read one of them in place of
+     * the other, this fails closed.
+     *
+     * @throws AthenaConnectorException with {@code INVALID_INPUT_EXCEPTION} if two column names differ only by case
+     */
+    public List<ColumnInfo> listColumns(final String resolvedDB, final String resolvedTable) throws Exception
+    {
+        final Map<String, Object> parameters = Map.of("table_name", resolvedTable);
+        final String sql = "SELECT column_name, data_type FROM information_schema.columns "
+                + "WHERE table_schema = 'iox' AND table_name = $table_name";
+        final List<ColumnInfo> columns = executeWithTokenRetry(resolvedDB, client -> {
+            try (Stream<Object[]> stream = client.query(sql, parameters)) {
+                return stream.map(row -> new ColumnInfo(String.valueOf(row[0]), String.valueOf(row[1])))
+                        .collect(Collectors.toList());
+            }
+        });
+        final Map<String, List<String>> namesByLowercase = columns.stream()
+                .collect(Collectors.groupingBy(column -> column.name.toLowerCase(Locale.ROOT), LinkedHashMap::new,
+                        Collectors.mapping(column -> column.name, Collectors.toList())));
+        final List<String> ambiguous = namesByLowercase.values().stream()
+                .filter(names -> names.size() > 1)
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+        if (!ambiguous.isEmpty()) {
+            throw InfluxDBErrors.error(INVALID_INPUT_EXCEPTION, "Table '" + resolvedTable + "' in database '"
+                    + resolvedDB + "' has columns whose names differ only by case, which Athena cannot tell apart: "
+                    + ambiguous + ". Use query passthrough to read this table.");
+        }
+        return columns;
+    }
+
+    /**
      * Lists the databases on the server. A top-level operation: an expired or rotated token (HTTP 401)
      * is refreshed and retried under {@link #withCredentialRefresh}; any other failure, including an
      * authorization denial (HTTP 403), propagates after a single request.
@@ -601,6 +639,22 @@ public class InfluxDBConnectionFactory
         DatabaseInfo(final String name)
         {
             this.name = name;
+        }
+    }
+
+    /**
+     * A table column as reported by {@code information_schema.columns}: its case-sensitive InfluxDB name and its
+     * {@code data_type} display name.
+     */
+    public static final class ColumnInfo
+    {
+        final String name;
+        final String dataType;
+
+        ColumnInfo(final String name, final String dataType)
+        {
+            this.name = name;
+            this.dataType = dataType;
         }
     }
 }

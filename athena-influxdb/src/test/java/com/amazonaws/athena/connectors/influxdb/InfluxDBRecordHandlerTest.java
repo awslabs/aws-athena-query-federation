@@ -119,6 +119,8 @@ public class InfluxDBRecordHandlerTest
         // authorized TableName (schema "testdb", table "cpu" -> case-sensitive "cpu").
         when(mockFactory.resolveDatabase(anyString())).thenReturn("testdb");
         when(mockFactory.resolveTableName(anyString(), any())).thenReturn("cpu");
+        // No case differences by default: every Athena column name is also its InfluxDB name.
+        when(mockFactory.listColumns(anyString(), anyString())).thenReturn(List.of());
 
         final Map<String, String> config = new HashMap<>();
         config.put("spill_bucket", "test-bucket");
@@ -258,6 +260,32 @@ public class InfluxDBRecordHandlerTest
         // Both rows in the batch were converted and written.
         assertEquals(2, rowsWritten.get());
         // Values (including the timestamp conversion path) landed in the block.
+        assertEquals("server01", block.getFieldReader("host").readText().toString());
+    }
+
+    @Test
+    public void testReadWithConstraintUsesCaseSensitiveColumnNames() throws Exception
+    {
+        // Athena sends lowercased names; the table's InfluxDB columns are "Host" and "usage_idle".
+        when(mockFactory.listColumns("testdb", "cpu")).thenReturn(List.of(
+                new InfluxDBConnectionFactory.ColumnInfo("Host", "Utf8"),
+                new InfluxDBConnectionFactory.ColumnInfo("usage_idle", "Float64"),
+                new InfluxDBConnectionFactory.ColumnInfo("time", "Timestamp(Nanosecond, None)")));
+        final Schema schema = projectionSchema();
+        final VectorSchemaRoot root = buildBatch();
+        final ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockClient.queryBatches(sqlCaptor.capture())).thenReturn(Stream.of(root).onClose(root::close));
+        final QueryStatusChecker checker = mock(QueryStatusChecker.class);
+        when(checker.isQueryRunning()).thenReturn(true);
+        final Block block = blockAllocator.createBlock(schema);
+        block.constrain(ConstraintEvaluator.emptyEvaluator());
+        final AtomicInteger rowsWritten = new AtomicInteger();
+
+        handler.readWithConstraint(spillerWritingTo(block, rowsWritten), readRequest(schema), checker);
+
+        // "Host" is selected by its InfluxDB name and aliased back to the Athena name "host".
+        assertEquals("SELECT \"Host\" AS \"host\", \"usage_idle\", \"time\" FROM \"cpu\"", sqlCaptor.getValue());
+        assertEquals(2, rowsWritten.get());
         assertEquals("server01", block.getFieldReader("host").readText().toString());
     }
 

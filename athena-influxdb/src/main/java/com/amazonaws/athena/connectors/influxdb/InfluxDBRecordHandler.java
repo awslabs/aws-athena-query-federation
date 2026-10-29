@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory.ColumnInfo;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.BaseIntVector;
 import org.apache.arrow.vector.FieldVector;
@@ -47,8 +48,10 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -123,11 +126,16 @@ public class InfluxDBRecordHandler
             final String schemaName = authorizedTable.getSchemaName();
             resolvedDB = connectionFactory.resolveDatabase(schemaName);
             final String resolvedTable = connectionFactory.resolveTableName(resolvedDB, authorizedTable);
+            // Athena lowercases column names; map each one back to its case-sensitive InfluxDB name.
+            final Map<String, String> columnNames = new HashMap<>();
+            for (final ColumnInfo column : connectionFactory.listColumns(resolvedDB, resolvedTable)) {
+                columnNames.put(column.name.toLowerCase(Locale.ROOT), column.name);
+            }
 
             final String timeLower = recordsRequest.getSplit().getProperty(PART_TIME_LOWER);
             final String timeUpper = recordsRequest.getSplit().getProperty(PART_TIME_UPPER);
             sql = InfluxDBQueryBuilder.buildSql(schema, resolvedTable, recordsRequest.getConstraints(),
-                    timeLower, timeUpper);
+                    timeLower, timeUpper, columnNames);
             logger.info("readWithConstraint: schema={}, table={}", schemaName, resolvedTable);
         }
         // The SQL embeds constraint literal values (possible PII) so it is logged only at debug.

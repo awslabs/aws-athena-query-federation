@@ -577,6 +577,43 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
+    public void testListColumnsMatchesExactTableName() throws Exception
+    {
+        final InfluxDBClient mockClient = mock(InfluxDBClient.class);
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        doReturn(mockClient).when(factory).getClient(anyString());
+        when(mockClient.query(anyString(), anyMap())).thenReturn(Stream.<Object[]>of(
+                new Object[] {"time", "Timestamp(Nanosecond, None)"}, new Object[] {"Region", "Utf8"}));
+
+        final List<InfluxDBConnectionFactory.ColumnInfo> columns = factory.listColumns("MyDb", "MyTable");
+
+        assertEquals(2, columns.size());
+        assertEquals("Region", columns.get(1).name);
+        assertEquals("Utf8", columns.get(1).dataType);
+        verify(mockClient).query(eq("SELECT column_name, data_type FROM information_schema.columns "
+                + "WHERE table_schema = 'iox' AND table_name = $table_name"), eq(Map.of("table_name", "MyTable")));
+    }
+
+    @Test
+    public void testListColumnsRejectsNamesThatDifferOnlyByCase() throws Exception
+    {
+        final InfluxDBClient mockClient = mock(InfluxDBClient.class);
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        doReturn(mockClient).when(factory).getClient(anyString());
+        when(mockClient.query(anyString(), anyMap())).thenReturn(Stream.<Object[]>of(
+                new Object[] {"Region", "Dictionary(Int32, Utf8)"}, new Object[] {"region", "Int64"},
+                new Object[] {"time", "Timestamp(Nanosecond, None)"}));
+        try {
+            factory.listColumns("MyDb", "MyTable");
+            fail("expected columns that differ only by case to be rejected");
+        }
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+            assertTrue(e.getMessage(), e.getMessage().contains("[Region, region]"));
+        }
+    }
+
+    @Test
     public void testResolveTableNameRestoresCaseFromInformationSchema() throws Exception
     {
         final InfluxDBClient mockClient = mock(InfluxDBClient.class);

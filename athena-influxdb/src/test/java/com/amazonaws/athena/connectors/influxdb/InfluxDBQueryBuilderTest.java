@@ -525,6 +525,30 @@ public class InfluxDBQueryBuilderTest
     }
 
     @Test
+    public void testBuildSqlUsesInfluxDBColumnNames()
+    {
+        // Athena names are lowercase; "Region" and "usageIdle" are the case-sensitive InfluxDB names.
+        final Schema mixed = new SchemaBuilder()
+                .addField("region", UTF8)
+                .addField("usageidle", FLOAT8)
+                .addField("time", InfluxDBTypeMapper.ATHENA_TIMESTAMP)
+                .build();
+        final Map<String, String> columnNames = Map.of("region", "Region", "usageidle", "usageIdle", "time", "time");
+        final Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("region", SortedRangeSet.of(Range.equal(allocator, UTF8, "us")));
+        final FederationExpression positive = fce(sf("GREATER_THAN_OPERATOR_FUNCTION_NAME"), BOOL,
+                var("usageidle", FLOAT8), constant(0.0, FLOAT8));
+        final Constraints constraints = new Constraints(summary, List.of(positive),
+                List.of(new OrderByField("usageidle", OrderByField.Direction.DESC_NULLS_LAST)),
+                Constraints.DEFAULT_NO_LIMIT, null, null);
+
+        assertEquals("SELECT \"Region\" AS \"region\", \"usageIdle\" AS \"usageidle\", \"time\" FROM \"mixed\""
+                        + " WHERE (\"Region\" = 'us') AND (\"usageIdle\" > 0.0)"
+                        + " ORDER BY \"usageIdle\" DESC NULLS LAST",
+                InfluxDBQueryBuilder.buildSql(mixed, "mixed", constraints, null, null, columnNames));
+    }
+
+    @Test
     public void testExpressionPushdownUnknownArgumentAndEmptyConstantRenderAsNull()
     {
         // An expression type the builder does not understand is rendered as NULL rather than failing.
