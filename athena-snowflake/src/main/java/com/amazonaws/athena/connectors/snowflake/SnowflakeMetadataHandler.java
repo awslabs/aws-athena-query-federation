@@ -110,6 +110,7 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DESCR
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.JDBC_PROPERTIES;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.LIST_PAGINATED_TABLES_QUERY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MATERIALIZED_VIEW_CHECK_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.S3_ENHANCED_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SHOW_PRIMARY_KEYS_QUERY;
@@ -282,8 +283,10 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
              */
             LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
             boolean viewFlag = checkForView(tableName);
-            //if the input table is a view , there will be single split
-            if (viewFlag) {
+            boolean materializedViewFlag = !viewFlag && checkForMaterializedView(tableName);
+            // A view or materialized view is read as one split. Snowflake keeps materialized views out of
+            // information_schema.views and stores them as TABLE_TYPE = 'MATERIALIZED VIEW'.
+            if (viewFlag || materializedViewFlag) {
                 blockWriter.writeRows((Block block, int rowNum) -> {
                     block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);
                     return 1;
@@ -660,22 +663,32 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
 
     /*
-     * Check if the input table is a view and returns viewflag accordingly
+     * Check if the input table is a view. Materialized views are not in information_schema.views.
      */
     private boolean checkForView(TableName tableName) throws Exception
     {
-        boolean viewFlag = false;
-        List<String> viewparameters = Arrays.asList(tableName.getSchemaName(), tableName.getTableName());
+        boolean viewFlag = metadataObjectExists(tableName, VIEW_CHECK_QUERY);
+        LOGGER.info("viewFlag: {}", viewFlag);
+        return viewFlag;
+    }
+
+    /*
+     * Check if the input table is a materialized view in information_schema.tables.
+     */
+    private boolean checkForMaterializedView(TableName tableName) throws Exception
+    {
+        return metadataObjectExists(tableName, MATERIALIZED_VIEW_CHECK_QUERY);
+    }
+
+    private boolean metadataObjectExists(TableName tableName, String query) throws Exception
+    {
+        List<String> parameters = Arrays.asList(tableName.getSchemaName(), tableName.getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(viewparameters).build();
+            try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(query).withParameters(parameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
-                if (resultSet.next()) {
-                    viewFlag = true;
-                }
-                LOGGER.info("viewFlag: {}", viewFlag);
+                return resultSet.next();
             }
         }
-        return viewFlag;
     }
 
     public Optional<String> getSFStorageIntegrationNameFromConfig()
@@ -715,7 +728,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         return Optional.ofNullable(storageIntegrationRow);
     }
 
-    private void validateSFStorageIntegrationExistAndValid(Map<String, String> storageIntegrationMap) throws SQLException
+    private void validateSFStorageIntegrationExistAndValid(Map<String, String> storageIntegrationMap)
     {
         String s3ExportPath = Optional.ofNullable(storageIntegrationMap.get(STORAGE_INTEGRATION_BUCKET_KEY))
                 .orElseThrow(() -> new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s cannot be null", STORAGE_INTEGRATION_BUCKET_KEY)));

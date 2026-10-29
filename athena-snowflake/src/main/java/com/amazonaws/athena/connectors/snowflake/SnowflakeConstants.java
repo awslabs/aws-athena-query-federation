@@ -121,9 +121,14 @@ public final class SnowflakeConstants
                     "ORDER BY TABLE_NAME " +
                     "LIMIT ? OFFSET ?";
     /**
-     * Query to check view
+     * Query to check view. Snowflake does not list materialized views in information_schema.views.
      */
     public static final String VIEW_CHECK_QUERY = "SELECT * FROM information_schema.views WHERE table_schema = ? AND table_name = ?";
+    /**
+     * Query to check a materialized view. Snowflake stores these in information_schema.tables
+     * with TABLE_TYPE = 'MATERIALIZED VIEW', not in information_schema.views.
+     */
+    public static final String MATERIALIZED_VIEW_CHECK_QUERY = "SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_name = ? AND table_type = 'MATERIALIZED VIEW'";
 
     private SnowflakeConstants() {}
 
