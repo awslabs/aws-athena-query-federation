@@ -92,13 +92,22 @@ A **split** is Athena's unit of parallelism — each split is read by a separate
 
 ## Errors and backpressure
 
-Every error the connector raises is an `AthenaConnectorException` with a `FederationSourceErrorCode`, following the SDK and the other connectors (`InfluxDBErrors`). Configuration problems (a missing or invalid host or token) are `INVALID_INPUT_EXCEPTION`; a database outside the `influxdb_database` scope is `ACCESS_DENIED_EXCEPTION`; a database or table that does not exist is `ENTITY_NOT_FOUND_EXCEPTION`. InfluxDB client failures are translated by status: Flight status codes (for example `UNAUTHENTICATED` to `INVALID_CREDENTIALS_EXCEPTION`, `TIMED_OUT` to `OPERATION_TIMEOUT_EXCEPTION`), and HTTP status codes from the database-list call through the SDK's `CompositeHandler.mapHTTPErrorCode`.
+Every error the connector raises is an `AthenaConnectorException` with a `FederationSourceErrorCode`, following the SDK and the other connectors (`InfluxDBErrors`). Configuration problems (a missing or invalid host or token) are `INVALID_INPUT_EXCEPTION`; a database outside the `influxdb_database` scope is `ACCESS_DENIED_EXCEPTION`; a database or table that does not exist is `ENTITY_NOT_FOUND_EXCEPTION`. InfluxDB lists only the databases the token can read, so a database that exists but that the token cannot read is also reported as `ENTITY_NOT_FOUND_EXCEPTION` (see [Token permissions](#token-permissions)). InfluxDB client failures are translated by status: Flight status codes (for example `UNAUTHENTICATED` to `INVALID_CREDENTIALS_EXCEPTION`, `TIMED_OUT` to `OPERATION_TIMEOUT_EXCEPTION`), and HTTP status codes from the database-list call through the SDK's `CompositeHandler.mapHTTPErrorCode`.
 
 If InfluxDB signals throttling — a Flight `RESOURCE_EXHAUSTED`, or an HTTP `429` on the database-list call — the error code is `THROTTLING_EXCEPTION`, the same code the SDK's `ThrottlingInvoker` uses. Athena treats this as backpressure and reduces the concurrency it drives, which protects the single downstream InfluxDB instance from being overwhelmed by Lambda fan-out.
 
 ## Authentication & secrets
 
 The InfluxDB token must be stored in AWS Secrets Manager. The `INFLUXDB3_AUTH_TOKEN` env var holds a reference to the secret using the SDK's `${secret_name}` pattern (the SAM template builds it from `InfluxDBSecretId`); a literal token is rejected with `INVALID_INPUT_EXCEPTION`, so the token never appears in the Lambda configuration. Secret values may be a plain string (the whole value is the token) or JSON (the token is read from a configurable key, default `token`, via `INFLUXDB3_AUTH_TOKEN_KEY`).
+
+### Token permissions
+
+The connector only reads data, so give it a token with only the `read` action on the databases Athena should query. Admin tokens work but are not needed.
+
+- **InfluxDB 3 Enterprise (including Amazon Timestream for InfluxDB 3 Enterprise):** create a resource token, for example `influxdb3 create token --permission "db:mydb:read" --name athena-connector`. Use `db:mydb,otherdb:read` for several databases or `db:*:read` for all of them.
+- **InfluxDB 3 Core:** Core supports only admin tokens, so the connector needs one.
+
+The connector lists databases with `GET /api/v3/configure/database` to resolve database names and to confirm a database exists before it creates a client. InfluxDB returns only the databases the token can read, so a read-only token is enough. Athena sees only those databases: a database that exists but that the token cannot read is reported as not found (`ENTITY_NOT_FOUND_EXCEPTION`). Setting `influxdb_database` adds a connector-side limit on top of the token's permissions.
 
 The resolved token is cached for the Lambda container's lifetime. Per-database clients are cached in a bounded cache: at most 100 clients, each evicted (and closed) after 30 minutes without use, and a client is only created after the connector confirms the database exists on the server. A caller therefore cannot create clients for arbitrary database names. On an authentication failure (Flight `UNAUTHENTICATED` or HTTP `401`) the connector invalidates the cached token and clients, re-resolves the token (picking up a rotated secret), waits a short exponential backoff (100 ms, doubling, capped at 1 s), and retries, up to `token_refresh_max_retries` times (default 1, capped at 3). Each operation has a single retry budget, so the database-existence check made while creating a client never adds a second, nested retry loop. An authorization denial (Flight `UNAUTHORIZED` or HTTP `403`) means the token is valid but lacks permission, so it is returned to the caller immediately: no retry, no token invalidation, and no cache flush.
 
@@ -120,7 +129,7 @@ Prerequisites: JDK 11, Maven, the SAM CLI, and AWS credentials for the target ac
    mvn clean package
    ```
 
-2. **Create a Secrets Manager secret** holding the InfluxDB token (a plain-string secret; or JSON with a `token` key):
+2. **Create a Secrets Manager secret** holding the InfluxDB token (a plain-string secret; or JSON with a `token` key). Use a read-only token (see [Token permissions](#token-permissions)). For Timestream for InfluxDB 3, don't point the connector at the secret that was created with the cluster: it holds the admin (operator) token.
 
    ```bash
    aws secretsmanager create-secret \
@@ -214,6 +223,7 @@ Create a Secrets Manager secret holding the InfluxDB token and pass its name (no
 - **Project only needed columns.** The connector reads exactly the projected columns; `SELECT *` over wide measurements marshals more data.
 - **Keep the cluster private.** A non-public cluster lets you use a clean, security-group-scoped ingress rule and avoids a NAT gateway.
 - **Enable parallelism deliberately.** Turn it on for large, time-ranged scans; leave it off for small/aggregate queries (see [Split strategy](#split-strategy--query-parallelism)).
+- **Use a read-only token.** The connector needs only the `read` action on the databases it queries (see [Token permissions](#token-permissions)).
 - **Rotate the token in Secrets Manager.** The connector re-reads the `${secret_name}` secret on an authentication failure, so a rotated token is picked up without a redeploy.
 
 ## Limitations

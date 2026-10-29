@@ -517,7 +517,8 @@ public class InfluxDBConnectionFactoryTest
         }
         catch (final AthenaConnectorException e) {
             assertErrorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION, e);
-            assertTrue(e.getMessage().contains("Database does not exist: 'MyDb'"));
+            assertTrue(e.getMessage(), e.getMessage().contains(
+                    "Database not found, or the configured token cannot read it: 'MyDb'"));
         }
     }
 
@@ -572,7 +573,8 @@ public class InfluxDBConnectionFactoryTest
         }
         catch (final AthenaConnectorException e) {
             assertErrorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION, e);
-            assertTrue(e.getMessage().contains("Database not found: 'missing'"));
+            assertTrue(e.getMessage(), e.getMessage().contains(
+                    "Database not found, or the configured token cannot read it: 'missing'"));
         }
     }
 
