@@ -509,6 +509,22 @@ public class InfluxDBQueryBuilderTest
     }
 
     @Test
+    public void testExpressionPushdownInListFromMultiRowConstant()
+    {
+        // Athena can send an IN list as one constant holding every value: $in(col, $array(Constant['a','b','c'])).
+        final Block values = allocator.createBlock(new SchemaBuilder().addField("col1", UTF8).build());
+        values.constrain(ConstraintEvaluator.emptyEvaluator());
+        values.setValue("col1", 0, "a");
+        values.setValue("col1", 1, "b");
+        values.setValue("col1", 2, "it's");
+        values.setRowCount(3);
+        final FederationExpression in = fce(sf("IN_PREDICATE_FUNCTION_NAME"), BOOL, var("host", UTF8),
+                fce(sf("ARRAY_CONSTRUCTOR_FUNCTION_NAME"), UTF8, new ConstantExpression(values, UTF8)));
+
+        assertTrue(sqlForExpression(in).contains("(\"host\" IN ('a', 'b', 'it''s'))"));
+    }
+
+    @Test
     public void testExpressionPushdownUnknownArgumentAndEmptyConstantRenderAsNull()
     {
         // An expression type the builder does not understand is rendered as NULL rather than failing.
