@@ -328,6 +328,8 @@ public class InfluxDBLocalIntegTest
         assertFalse("Should return at least two schemas", response.getSchemas().isEmpty());
         assertTrue("Should contain " + database, response.getSchemas().contains(database));
         assertTrue("Should contain " + newDatabase, response.getSchemas().contains(newDatabase));
+        // InfluxDB's system database is not exposed to Athena.
+        assertFalse("Should not contain _internal", response.getSchemas().contains("_internal"));
     }
 
     @Test

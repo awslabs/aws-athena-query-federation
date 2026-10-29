@@ -616,6 +616,26 @@ public class InfluxDBConnectionFactoryTest
     }
 
     @Test
+    public void testListDatabasesLeavesOutSystemDatabases() throws Exception
+    {
+        final InfluxDBConnectionFactory factory = spy(new InfluxDBConnectionFactory(baseConfig(), mockHandler));
+        doReturn(Arrays.asList(new InfluxDBConnectionFactory.DatabaseInfo("_internal"),
+                new InfluxDBConnectionFactory.DatabaseInfo("MyDb"))).when(factory).fetchDatabases();
+
+        final List<InfluxDBConnectionFactory.DatabaseInfo> databases = factory.listDatabases();
+        assertEquals(1, databases.size());
+        assertEquals("MyDb", databases.get(0).name);
+        // A system database is not resolvable by name either.
+        try {
+            factory.resolveDatabase("_internal");
+            fail("expected a system database to be rejected");
+        }
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION, e);
+        }
+    }
+
+    @Test
     public void testResolveTableNameRestoresCaseFromInformationSchema() throws Exception
     {
         final InfluxDBClient mockClient = mock(InfluxDBClient.class);
