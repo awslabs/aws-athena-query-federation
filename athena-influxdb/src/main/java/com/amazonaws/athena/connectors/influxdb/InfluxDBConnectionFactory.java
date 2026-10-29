@@ -536,14 +536,19 @@ public class InfluxDBConnectionFactory
     }
 
     /**
-     * Lists the databases on the server. A top-level operation: an expired or rotated token (HTTP 401)
-     * is refreshed and retried under {@link #withCredentialRefresh}; any other failure, including an
-     * authorization denial (HTTP 403), propagates after a single request.
+     * Lists the user databases on the server, for {@code doListSchemaNames} and {@link #resolveDatabase}. A
+     * top-level operation: an expired or rotated token (HTTP 401) is refreshed and retried under
+     * {@link #withCredentialRefresh}; any other failure, including an authorization denial (HTTP 403), propagates
+     * after a single request.
+     *
+     * InfluxDB system databases such as {@code _internal} are left out (see {@link #isSystemDatabase}), so Athena
+     * neither lists them nor resolves a schema name to them.
      */
     List<DatabaseInfo> listDatabases() throws IOException, InterruptedException
     {
+        final List<DatabaseInfo> databases;
         try {
-            return withCredentialRefresh(this::fetchDatabases);
+            databases = withCredentialRefresh(this::fetchDatabases);
         }
         catch (final RuntimeException e) {
             throw e;
@@ -553,6 +558,19 @@ public class InfluxDBConnectionFactory
             // reached; translate here too rather than leak a checked exception.
             throw InfluxDBErrors.translate(e);
         }
+        return databases.stream()
+                .filter(db -> db == null || !isSystemDatabase(db.name))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * True for an InfluxDB system database such as {@code _internal}. User database names must start with a
+     * letter or number (the same rule as {@link InfluxDBQueryPassthrough}), so a name starting with {@code _}
+     * belongs to InfluxDB.
+     */
+    static boolean isSystemDatabase(final String name)
+    {
+        return name != null && name.startsWith("_");
     }
 
     /**
