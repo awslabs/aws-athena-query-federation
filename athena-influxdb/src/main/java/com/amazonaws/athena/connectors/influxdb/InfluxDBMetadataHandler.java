@@ -51,6 +51,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Lim
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.util.PaginationHelper;
+import com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory.ColumnInfo;
 import com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory.DatabaseInfo;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
@@ -256,16 +257,10 @@ public class InfluxDBMetadataHandler
         // and never reads this metadata, so a forged schema cannot redirect a read.
         schemaBuilder.addMetadata("caseSensitiveTableName", resolvedTable);
         schemaBuilder.addMetadata("resolvedDatabaseName", resolvedDB);
-        final Map<String, Object> parameters = Map.of("table_name", request.getTableName().getTableName().toLowerCase(Locale.ROOT));
-        final String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'iox' AND lower(table_name) = $table_name";
-        final List<Object[]> columns = connectionFactory.executeWithTokenRetry(resolvedDB, client -> {
-            try (Stream<Object[]> stream = client.query(sql, parameters)) {
-                return stream.collect(java.util.stream.Collectors.toList());
-            }
-        });
-        for (final Object[] row : columns) {
-            final String colName = String.valueOf(row[0]).toLowerCase(Locale.ROOT);
-            schemaBuilder.addField(colName, InfluxDBTypeMapper.toAthenaType(String.valueOf(row[1])));
+        // Column names are lowercased for Athena. The RecordHandler maps them back to their InfluxDB names.
+        for (final ColumnInfo column : connectionFactory.listColumns(resolvedDB, resolvedTable)) {
+            schemaBuilder.addField(column.name.toLowerCase(Locale.ROOT),
+                    InfluxDBTypeMapper.toAthenaType(column.dataType));
         }
         final Schema schema = schemaBuilder.build();
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);

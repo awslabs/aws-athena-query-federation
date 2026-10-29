@@ -47,6 +47,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
@@ -79,17 +80,36 @@ public class InfluxDBQueryBuilder
     public static String buildSql(final Schema schema, final String tableName, final Constraints constraints,
             final String timeLowerMillis, final String timeUpperMillis)
     {
+        return buildSql(schema, tableName, constraints, timeLowerMillis, timeUpperMillis, Map.of());
+    }
+
+    /**
+     * Builds a complete SQL query against columns whose InfluxDB names may differ in case from the Athena names.
+     *
+     * Athena lowercases column names, but InfluxDB column names are case-sensitive. {@code columnNames} maps an
+     * Athena column name to its InfluxDB name, and every column reference (SELECT, WHERE, ORDER BY) uses the
+     * InfluxDB name. A selected column whose name differs is aliased back to the Athena name, so each result
+     * vector is named after its schema field. A column missing from the map is used as is.
+     */
+    static String buildSql(final Schema schema, final String tableName, final Constraints constraints,
+            final String timeLowerMillis, final String timeUpperMillis, final Map<String, String> columnNames)
+    {
         final StringBuilder sql = new StringBuilder();
 
         // SELECT columns
         final String columns = schema.getFields().stream()
-                .map(f -> quote(f.getName()))
+                .map(f -> {
+                    final String sourceName = sourceName(columnNames, f.getName());
+                    return sourceName.equals(f.getName())
+                            ? quote(sourceName)
+                            : quote(sourceName) + " AS " + quote(f.getName());
+                })
                 .collect(Collectors.joining(", "));
         sql.append("SELECT ").append(columns).append(" FROM ").append(quote(tableName));
 
         // WHERE clause from constraints, plus the optional per-split time bound
         final List<String> conjuncts = new ArrayList<>();
-        final String whereClause = buildWhereClause(schema, constraints);
+        final String whereClause = buildWhereClause(schema, constraints, columnNames);
         if (!whereClause.isEmpty()) {
             conjuncts.add(whereClause);
         }
@@ -103,7 +123,7 @@ public class InfluxDBQueryBuilder
 
         // ORDER BY clause
         if (constraints.hasNonEmptyOrderByClause()) {
-            sql.append(" ").append(buildOrderByClause(constraints));
+            sql.append(" ").append(buildOrderByClause(constraints, columnNames));
         }
 
         // LIMIT clause
@@ -137,6 +157,12 @@ public class InfluxDBQueryBuilder
      */
     static String buildWhereClause(final Schema schema, final Constraints constraints)
     {
+        return buildWhereClause(schema, constraints, Map.of());
+    }
+
+    private static String buildWhereClause(final Schema schema, final Constraints constraints,
+            final Map<String, String> columnNames)
+    {
         final List<String> conjuncts = new ArrayList<>();
 
         // Process ValueSet-based constraints (summary)
@@ -144,7 +170,8 @@ public class InfluxDBQueryBuilder
             for (final Field field : schema.getFields()) {
                 final ValueSet valueSet = constraints.getSummary().get(field.getName());
                 if (valueSet != null) {
-                    final String predicate = toPredicate(field.getName(), valueSet, field.getType());
+                    final String predicate = toPredicate(sourceName(columnNames, field.getName()), valueSet,
+                            field.getType());
                     if (predicate != null && !predicate.isEmpty()) {
                         conjuncts.add(predicate);
                     }
@@ -156,7 +183,7 @@ public class InfluxDBQueryBuilder
         if (constraints.getExpression() != null && !constraints.getExpression().isEmpty()) {
             for (final FederationExpression expr : constraints.getExpression()) {
                 if (expr instanceof FunctionCallExpression) {
-                    final String exprSql = toExpression((FunctionCallExpression) expr);
+                    final String exprSql = toExpression((FunctionCallExpression) expr, columnNames);
                     if (exprSql != null && !exprSql.isEmpty()) {
                         conjuncts.add(exprSql);
                     }
@@ -169,16 +196,29 @@ public class InfluxDBQueryBuilder
 
     static String buildOrderByClause(final Constraints constraints)
     {
+        return buildOrderByClause(constraints, Map.of());
+    }
+
+    private static String buildOrderByClause(final Constraints constraints, final Map<String, String> columnNames)
+    {
         final List<OrderByField> orderBy = constraints.getOrderByClause();
         if (orderBy == null || orderBy.isEmpty()) {
             return "";
         }
         final String fields = orderBy.stream()
-                .map(f -> quote(f.getColumnName()) + " " +
+                .map(f -> quote(sourceName(columnNames, f.getColumnName())) + " " +
                         (f.getDirection().isAscending() ? "ASC" : "DESC") + " " +
                         (f.getDirection().isNullsFirst() ? "NULLS FIRST" : "NULLS LAST"))
                 .collect(Collectors.joining(", "));
         return "ORDER BY " + fields;
+    }
+
+    /**
+     * Returns the InfluxDB name of an Athena column, or the Athena name if {@code columnNames} has no entry.
+     */
+    private static String sourceName(final Map<String, String> columnNames, final String athenaName)
+    {
+        return columnNames.getOrDefault(athenaName, athenaName);
     }
 
     /**
@@ -302,9 +342,10 @@ public class InfluxDBQueryBuilder
     }
 
     /**
-     * Recursively converts a FunctionCallExpression into SQL.
+     * Recursively converts a FunctionCallExpression into SQL. Column references use their InfluxDB names from
+     * {@code columnNames}.
      */
-    private static String toExpression(final FunctionCallExpression expr)
+    private static String toExpression(final FunctionCallExpression expr, final Map<String, String> columnNames)
     {
         final FunctionName functionName = expr.getFunctionName();
         final StandardFunctions func = StandardFunctions.fromFunctionName(functionName);
@@ -313,18 +354,19 @@ public class InfluxDBQueryBuilder
         final List<String> argStrings = args.stream().map(arg -> {
             if (arg instanceof VariableExpression) {
                 final VariableExpression variable = (VariableExpression) arg;
+                final String column = quote(sourceName(columnNames, variable.getColumnName()));
                 // Athena evaluates the expression against the millisecond value it reads, so a timestamp column
                 // is truncated the same way before InfluxDB compares it (see timestampRange).
                 if (variable.getType() instanceof ArrowType.Timestamp) {
-                    return "date_trunc('millisecond', " + quote(variable.getColumnName()) + ")";
+                    return "date_trunc('millisecond', " + column + ")";
                 }
-                return quote(variable.getColumnName());
+                return column;
             }
             else if (arg instanceof ConstantExpression) {
                 return constantToLiteral((ConstantExpression) arg);
             }
             else if (arg instanceof FunctionCallExpression) {
-                return toExpression((FunctionCallExpression) arg);
+                return toExpression((FunctionCallExpression) arg, columnNames);
             }
             return "NULL";
         }).collect(Collectors.toList());

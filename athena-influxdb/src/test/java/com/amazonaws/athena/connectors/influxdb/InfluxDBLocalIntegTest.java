@@ -24,12 +24,14 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -38,6 +40,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Federat
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -82,6 +85,7 @@ import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -200,13 +204,18 @@ public class InfluxDBLocalIntegTest
             writeClient.writeRecord("types,host=server1 i=-3i,u=42u,f=1.5,b=true,s=\"text\"");
             // One row whose time has sub-millisecond precision: PRECISE_MILLIS plus 500 microseconds.
             writeClient.writeRecord("precise,host=server1 v=1i " + (PRECISE_MILLIS * 1_000_000L + 500_000L));
+            // A mixed-case tag and field. Athena requests them lowercased.
+            writeClient.writeRecord("mixedcase,host=server7,Region=us usageIdle=12.5");
+            // A tag and a field whose names differ only by case, which Athena cannot tell apart.
+            writeClient.writeRecord("casecollision,Region=us region=1i");
 
             // InfluxDB 3 buffers writes briefly; poll until the seeded tables are queryable.
             final String probe = "SELECT table_name FROM information_schema.tables "
-                    + "WHERE table_schema = 'iox' AND table_name IN ('cpu', 'mem', 'CpuStats', 'types', 'precise')";
+                    + "WHERE table_schema = 'iox' AND table_name IN "
+                    + "('cpu', 'mem', 'CpuStats', 'types', 'precise', 'mixedcase', 'casecollision')";
             for (int attempt = 0; attempt < 20; attempt++) {
                 try (Stream<Object[]> rows = writeClient.query(probe)) {
-                    if (rows.count() >= 5) {
+                    if (rows.count() >= 7) {
                         return;
                     }
                 }
@@ -675,6 +684,55 @@ public class InfluxDBLocalIntegTest
                 tableResponse.getSchema(), constraints);
         Collections.sort(hosts);
         assertEquals(Arrays.asList("server1", "server2"), hosts);
+    }
+
+    @Test
+    public void testMixedCaseColumnsAreReadAndFiltered() throws Exception
+    {
+        final TableName table = new TableName(database, "mixedcase");
+        final GetTableResponse tableResponse = handler.doGetTable(allocator,
+                new GetTableRequest(IDENTITY, "queryId", "catalog", table, Collections.emptyMap()));
+        final Schema schema = tableResponse.getSchema();
+        assertNotNull(schema.findField("region"));
+        assertNotNull(schema.findField("usageidle"));
+
+        // Filter and sort on the lowercased names of the mixed-case tag and field.
+        final Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("region", SortedRangeSet.of(Range.equal(allocator, ArrowType.Utf8.INSTANCE, "us")));
+        final FederationExpression positive = new FunctionCallExpression(ArrowType.Bool.INSTANCE,
+                StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
+                Arrays.asList(new VariableExpression("usageidle", Types.MinorType.FLOAT8.getType()),
+                        new ConstantExpression(BlockUtils.newBlock(allocator, "col1",
+                                Types.MinorType.FLOAT8.getType(), 0.0), Types.MinorType.FLOAT8.getType())));
+        final Constraints constraints = new Constraints(summary, Collections.singletonList(positive),
+                Collections.singletonList(new OrderByField("usageidle", OrderByField.Direction.DESC_NULLS_LAST)),
+                Constraints.DEFAULT_NO_LIMIT, null, null);
+
+        final ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, "catalog", "queryId",
+                table, schema, emptySplit(), constraints, 100_000, 100_000);
+        final Block block = allocator.createBlock(schema);
+        block.constrain(ConstraintEvaluator.emptyEvaluator());
+        final AtomicInteger rowsWritten = new AtomicInteger();
+        recordHandler.readWithConstraint(spillerWritingTo(block, rowsWritten), request, runningChecker());
+
+        assertEquals(1, rowsWritten.get());
+        assertEquals("server7", block.getFieldReader("host").readText().toString());
+        assertEquals("us", block.getFieldReader("region").readText().toString());
+        assertEquals(12.5, block.getFieldReader("usageidle").readDouble(), 0.0);
+    }
+
+    @Test
+    public void testColumnsThatDifferOnlyByCaseAreRejected()
+    {
+        try {
+            handler.doGetTable(allocator, new GetTableRequest(IDENTITY, "queryId", "catalog",
+                    new TableName(database, "casecollision"), Collections.emptyMap()));
+            fail("expected columns that differ only by case to be rejected");
+        }
+        catch (final Exception e) {
+            assertTrue(e.toString(), e instanceof AthenaConnectorException);
+            assertTrue(e.getMessage(), e.getMessage().contains("differ only by case"));
+        }
     }
 
     @Test

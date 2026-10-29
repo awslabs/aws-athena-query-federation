@@ -262,14 +262,10 @@ public class InfluxDBMetadataHandlerTest
     public void testDoGetTable() throws Exception {
         when(mockFactory.resolveTableName(anyString(), any())).thenReturn("cpu");
         when(mockFactory.resolveDatabase(anyString())).thenReturn("mydb");
-        final Object[][] columnRows = {
-                new Object[] { "time", "TIMESTAMP" },
-                new Object[] { "host", "VARCHAR" },
-                new Object[] { "usage_idle", "DOUBLE" }
-        };
-        // First call resolves table name, second call gets columns
-        when(mockClient.query(anyString(), anyMap()))
-                .thenReturn(Stream.of(columnRows));
+        when(mockFactory.listColumns("mydb", "cpu")).thenReturn(List.of(
+                new InfluxDBConnectionFactory.ColumnInfo("time", "TIMESTAMP"),
+                new InfluxDBConnectionFactory.ColumnInfo("Host", "VARCHAR"),
+                new InfluxDBConnectionFactory.ColumnInfo("usage_idle", "DOUBLE")));
 
         final GetTableResponse response = handler.doGetTable(
                 allocator,
@@ -278,6 +274,7 @@ public class InfluxDBMetadataHandlerTest
 
         assertEquals(3, response.getSchema().getFields().size());
         assertEquals("time", response.getSchema().getFields().get(0).getName());
+        // Column names are lowercased for Athena.
         assertEquals("host", response.getSchema().getFields().get(1).getName());
         assertEquals("usage_idle", response.getSchema().getFields().get(2).getName());
     }
