@@ -215,14 +215,17 @@ public class InfluxDBLocalIntegTest
             // Two tables whose names differ only by case, each with a column the other lacks.
             writeClient.writeRecord("Sensor,host=a only_in_upper=1i");
             writeClient.writeRecord("sensor,host=b only_in_lower=1i");
+            // The largest unsigned 64-bit value, which doesn't fit in BIGINT, and a small one.
+            writeClient.writeRecord("unsigned,host=max u=18446744073709551615u");
+            writeClient.writeRecord("unsigned,host=small u=5u");
 
             // InfluxDB 3 buffers writes briefly; poll until the seeded tables are queryable.
             final String probe = "SELECT table_name FROM information_schema.tables "
-                    + "WHERE table_schema = 'iox' AND table_name IN "
-                    + "('cpu', 'mem', 'CpuStats', 'types', 'precise', 'mixedcase', 'casecollision', 'Sensor', 'sensor')";
+                    + "WHERE table_schema = 'iox' AND table_name IN ('cpu', 'mem', 'CpuStats', 'types', 'precise', "
+                    + "'mixedcase', 'casecollision', 'Sensor', 'sensor', 'unsigned')";
             for (int attempt = 0; attempt < 20; attempt++) {
                 try (Stream<Object[]> rows = writeClient.query(probe)) {
-                    if (rows.count() >= 9) {
+                    if (rows.count() >= 10) {
                         return;
                     }
                 }
@@ -525,7 +528,7 @@ public class InfluxDBLocalIntegTest
 
         final Map<String, ArrowType> tableTypes = fieldTypes(table.getSchema());
         assertEquals(tableTypes, fieldTypes(passthrough.getSchema()));
-        assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(tableTypes.get("u")));
+        assertEquals(InfluxDBTypeMapper.ATHENA_UINT64, tableTypes.get("u"));
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(tableTypes.get("host")));
         assertEquals(InfluxDBTypeMapper.ATHENA_TIMESTAMP, tableTypes.get("time"));
     }
@@ -544,7 +547,7 @@ public class InfluxDBLocalIntegTest
         assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(types.get("i32")));
         assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(types.get("f32")));
         assertEquals(Types.MinorType.DATEDAY, Types.getMinorTypeForArrowType(types.get("d")));
-        assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(types.get("u")));
+        assertEquals(InfluxDBTypeMapper.ATHENA_UINT64, types.get("u"));
 
         final Constraints constraints = new Constraints(new HashMap<>(), Collections.emptyList(),
                 Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, passthroughArguments(query), null);
@@ -564,13 +567,59 @@ public class InfluxDBLocalIntegTest
         assertEquals(Double.valueOf(1.5d), f32.readDouble());
         final FieldReader u = block.getFieldReader("u");
         u.setPosition(0);
-        assertEquals(Long.valueOf(42L), u.readLong());
+        assertEquals(new java.math.BigDecimal(42), u.readBigDecimal());
         // The row was written moments ago, so its date is today (or yesterday just after midnight UTC).
         final FieldReader d = block.getFieldReader("d");
         d.setPosition(0);
         final long today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay();
         final long day = ((Number) d.readObject()).longValue();
         assertTrue("unexpected date " + day, day == today || day == today - 1);
+    }
+
+    /**
+     * Reads the "unsigned" table with a pushed-down constraint on u, and applies the same constraint to the block
+     * as Athena's client-side check does. Returns each row's host and u, sorted by host.
+     */
+    private Map<String, java.math.BigDecimal> unsignedRowsMatching(final Range range) throws Exception
+    {
+        final TableName table = new TableName(database, "unsigned");
+        final Schema schema = handler.doGetTable(allocator, new GetTableRequest(IDENTITY, "queryId", "catalog",
+                table, Collections.emptyMap())).getSchema();
+        final Map<String, ValueSet> summary = new HashMap<>();
+        summary.put("u", SortedRangeSet.of(range));
+        final Constraints constraints = new Constraints(summary, Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
+        final ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, "catalog", "queryId",
+                table, schema, emptySplit(), constraints, 100_000, 100_000);
+        final Block block = allocator.createBlock(schema);
+        block.constrain(new ConstraintEvaluator(allocator, schema, constraints));
+        final AtomicInteger rowsWritten = new AtomicInteger();
+        recordHandler.readWithConstraint(spillerWritingTo(block, rowsWritten), request, runningChecker());
+
+        final Map<String, java.math.BigDecimal> rows = new java.util.TreeMap<>();
+        final FieldReader host = block.getFieldReader("host");
+        final FieldReader u = block.getFieldReader("u");
+        for (int i = 0; i < rowsWritten.get(); i++) {
+            host.setPosition(i);
+            u.setPosition(i);
+            rows.put(host.readText().toString(), u.readBigDecimal());
+        }
+        return rows;
+    }
+
+    @Test
+    public void testUnsignedValuesAboveLongMaxAreReadAndFiltered() throws Exception
+    {
+        final ArrowType uType = InfluxDBTypeMapper.ATHENA_UINT64;
+        final java.math.BigDecimal max = new java.math.BigDecimal("18446744073709551615");
+        final Map<String, java.math.BigDecimal> both = new java.util.TreeMap<>();
+        both.put("max", max);
+        both.put("small", java.math.BigDecimal.valueOf(5));
+
+        // WHERE u > 0 keeps both rows: the large value must not wrap to -1 and fail the client-side check.
+        assertEquals(both, unsignedRowsMatching(Range.greaterThan(allocator, uType, java.math.BigDecimal.ZERO)));
+        // WHERE u = 18446744073709551615 pushes the 20-digit literal down to InfluxDB.
+        assertEquals(Collections.singletonMap("max", max), unsignedRowsMatching(Range.equal(allocator, uType, max)));
     }
 
     /** Reads the "precise" table with one pushed-down constraint on time and returns the number of rows. */

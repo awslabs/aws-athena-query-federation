@@ -36,8 +36,9 @@ import java.util.Locale;
  * <ul>
  *   <li>All timestamps become millisecond UTC timestamps ({@link #ATHENA_TIMESTAMP}).</li>
  *   <li>Dates keep their unit (DATEDAY or DATEMILLI).</li>
- *   <li>All signed and unsigned integers become BIGINT. An unsigned 64-bit value above
- *       {@link Long#MAX_VALUE} wraps to a negative number, because Athena has no unsigned type.</li>
+ *   <li>Signed integers and unsigned integers up to 32 bits become BIGINT. Unsigned 64-bit integers become
+ *       {@link #ATHENA_UINT64} ({@code DECIMAL(20,0)}), which holds every value up to 2^64 - 1, because Athena
+ *       has no unsigned type and BIGINT stops at {@link Long#MAX_VALUE}.</li>
  *   <li>All floating-point numbers become FLOAT8.</li>
  *   <li>Booleans become BIT.</li>
  *   <li>Tags (dictionary-encoded strings), strings, and every other type become VARCHAR.</li>
@@ -47,6 +48,9 @@ final class InfluxDBTypeMapper
 {
     /** The Athena type for every InfluxDB timestamp column. */
     static final ArrowType ATHENA_TIMESTAMP = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
+
+    /** The Athena type for an InfluxDB unsigned 64-bit integer: 20 digits hold 2^64 - 1. */
+    static final ArrowType ATHENA_UINT64 = new ArrowType.Decimal(20, 0, 128);
 
     private InfluxDBTypeMapper()
     {
@@ -91,11 +95,13 @@ final class InfluxDBTypeMapper
                 return Types.MinorType.DATEDAY.getType();
             case DATEMILLI:
                 return Types.MinorType.DATEMILLI.getType();
+            case UINT8:
+                // Arrow's UINT8 is the 8-byte (64-bit) unsigned integer.
+                return ATHENA_UINT64;
             case BIGINT:
             case INT:
             case SMALLINT:
             case TINYINT:
-            case UINT8:
             case UINT4:
             case UINT2:
             case UINT1:

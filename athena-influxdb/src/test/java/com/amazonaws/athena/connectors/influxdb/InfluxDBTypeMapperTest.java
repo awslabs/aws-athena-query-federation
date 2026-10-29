@@ -53,7 +53,7 @@ public class InfluxDBTypeMapperTest
         assertEquals(InfluxDBTypeMapper.ATHENA_TIMESTAMP, InfluxDBTypeMapper.toAthenaType("Timestamp(ns)"));
         assertEquals(Types.MinorType.VARCHAR, athenaMinorType("Dictionary(Int32, Utf8)"));
         assertEquals(Types.MinorType.BIGINT, athenaMinorType("Int64"));
-        assertEquals(Types.MinorType.BIGINT, athenaMinorType("UInt64"));
+        assertEquals(Types.MinorType.DECIMAL, athenaMinorType("UInt64"));
         assertEquals(Types.MinorType.BIGINT, athenaMinorType("Int32"));
         assertEquals(Types.MinorType.FLOAT8, athenaMinorType("Float64"));
         assertEquals(Types.MinorType.FLOAT8, athenaMinorType("Float32"));
@@ -81,8 +81,12 @@ public class InfluxDBTypeMapperTest
         }
         for (final int bitWidth : new int[] {8, 16, 32, 64}) {
             assertEquals(Types.MinorType.BIGINT, athenaMinorType(new ArrowType.Int(bitWidth, true)));
+        }
+        for (final int bitWidth : new int[] {8, 16, 32}) {
             assertEquals(Types.MinorType.BIGINT, athenaMinorType(new ArrowType.Int(bitWidth, false)));
         }
+        // An unsigned 64-bit integer needs 20 digits, more than BIGINT holds.
+        assertEquals(new ArrowType.Decimal(20, 0, 128), InfluxDBTypeMapper.toAthenaType(new ArrowType.Int(64, false)));
         assertEquals(Types.MinorType.FLOAT8, athenaMinorType(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)));
         assertEquals(Types.MinorType.FLOAT8, athenaMinorType(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)));
         assertEquals(Types.MinorType.BIT, athenaMinorType(ArrowType.Bool.INSTANCE));

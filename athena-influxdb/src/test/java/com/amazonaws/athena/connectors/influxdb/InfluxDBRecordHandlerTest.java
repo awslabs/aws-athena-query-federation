@@ -490,6 +490,7 @@ public class InfluxDBRecordHandlerTest
             u16.setSafe(0, 65535);
             u32.setSafe(0, -1); // 4294967295 unsigned
             u64.setSafe(0, 42L);
+            u64.setSafe(1, -1L); // 18446744073709551615 unsigned
             i32.setSafe(0, -3);
             i16.setSafe(0, (short) 7);
             f32.setSafe(0, 1.5f);
@@ -500,11 +501,13 @@ public class InfluxDBRecordHandlerTest
             time.setSafe(0, 1782258710000000500L);
             u8.setNull(1);
 
-            // Integers of every width and signedness become Long; unsigned values are not sign-extended.
+            // Integers become Long, except unsigned 64-bit, which becomes BigDecimal. Unsigned values are not
+            // sign-extended or wrapped.
             assertEquals(200L, InfluxDBRecordHandler.readValue(u8, 0));
             assertEquals(65535L, InfluxDBRecordHandler.readValue(u16, 0));
             assertEquals(4294967295L, InfluxDBRecordHandler.readValue(u32, 0));
-            assertEquals(42L, InfluxDBRecordHandler.readValue(u64, 0));
+            assertEquals(new java.math.BigDecimal(42), InfluxDBRecordHandler.readValue(u64, 0));
+            assertEquals(new java.math.BigDecimal("18446744073709551615"), InfluxDBRecordHandler.readValue(u64, 1));
             assertEquals(-3L, InfluxDBRecordHandler.readValue(i32, 0));
             assertEquals(7L, InfluxDBRecordHandler.readValue(i16, 0));
             // Floating-point numbers of every width become Double.
