@@ -32,13 +32,13 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Functio
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,8 +47,11 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
@@ -58,7 +61,33 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.
  */
 public class InfluxDBQueryBuilder
 {
-    private static final Logger logger = LoggerFactory.getLogger(InfluxDBQueryBuilder.class);
+    /**
+     * The functions {@link #toExpression} translates to InfluxDB SQL, and the only ones the connector advertises for
+     * complex expression pushdown. This currently covers every {@link StandardFunctions} value. The list is explicit
+     * so that a function added to the SDK later is not advertised until it is translated here.
+     */
+    static final Set<StandardFunctions> SUPPORTED_FUNCTIONS = Collections.unmodifiableSet(EnumSet.of(
+            StandardFunctions.AND_FUNCTION_NAME,
+            StandardFunctions.OR_FUNCTION_NAME,
+            StandardFunctions.NOT_FUNCTION_NAME,
+            StandardFunctions.IS_NULL_FUNCTION_NAME,
+            StandardFunctions.NULLIF_FUNCTION_NAME,
+            StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.LIKE_PATTERN_FUNCTION_NAME,
+            StandardFunctions.IN_PREDICATE_FUNCTION_NAME,
+            StandardFunctions.ADD_FUNCTION_NAME,
+            StandardFunctions.SUBTRACT_FUNCTION_NAME,
+            StandardFunctions.MULTIPLY_FUNCTION_NAME,
+            StandardFunctions.DIVIDE_FUNCTION_NAME,
+            StandardFunctions.MODULUS_FUNCTION_NAME,
+            StandardFunctions.NEGATE_FUNCTION_NAME,
+            StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME));
 
     private InfluxDBQueryBuilder()
     {
@@ -345,11 +374,19 @@ public class InfluxDBQueryBuilder
     /**
      * Recursively converts a FunctionCallExpression into SQL. Column references use their InfluxDB names from
      * {@code columnNames}.
+     *
+     * @throws AthenaConnectorException with {@code OPERATION_NOT_SUPPORTED_EXCEPTION} for a function outside
+     *             {@link #SUPPORTED_FUNCTIONS} (including a name the SDK does not know) or an argument that is not
+     *             a variable, constant, or function call. Failing is safer than leaving out or rewriting part of a
+     *             filter, which could change which rows InfluxDB returns.
      */
     private static String toExpression(final FunctionCallExpression expr, final Map<String, String> columnNames)
     {
         final FunctionName functionName = expr.getFunctionName();
         final StandardFunctions func = StandardFunctions.fromFunctionName(functionName);
+        if (func == null || !SUPPORTED_FUNCTIONS.contains(func)) {
+            throw unsupportedFunction(functionName);
+        }
         final List<FederationExpression> args = expr.getArguments();
 
         final List<String> argStrings = args.stream().map(arg -> {
@@ -369,7 +406,8 @@ public class InfluxDBQueryBuilder
             else if (arg instanceof FunctionCallExpression) {
                 return toExpression((FunctionCallExpression) arg, columnNames);
             }
-            return "NULL";
+            throw InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                    "Unsupported expression type in expression pushdown: " + arg.getClass().getName());
         }).collect(Collectors.toList());
 
         switch (func) {
@@ -416,9 +454,15 @@ public class InfluxDBQueryBuilder
             case ARRAY_CONSTRUCTOR_FUNCTION_NAME :
                 return String.join(", ", argStrings);
             default :
-                logger.warn("Unsupported function in expression pushdown: {}", functionName.getFunctionName());
-                return null;
+                // Not reached: the check above rejects every function outside SUPPORTED_FUNCTIONS.
+                throw unsupportedFunction(functionName);
         }
+    }
+
+    private static AthenaConnectorException unsupportedFunction(final FunctionName functionName)
+    {
+        return InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                "Function " + functionName.getFunctionName() + " is not supported in expression pushdown");
     }
 
     /**

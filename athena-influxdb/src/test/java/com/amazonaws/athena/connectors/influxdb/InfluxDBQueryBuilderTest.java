@@ -35,6 +35,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Federat
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
@@ -60,6 +61,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -358,6 +360,14 @@ public class InfluxDBQueryBuilderTest
         assertTrue(capabilities.containsKey("supports_limit_pushdown"));
         assertTrue(capabilities.containsKey("supports_top_n_pushdown"));
         assertTrue(capabilities.containsKey("supports_complex_expression_pushdown"));
+
+        // Only the functions toExpression translates are advertised.
+        final java.util.Set<String> advertised = new java.util.HashSet<>(
+                capabilities.get("supports_complex_expression_pushdown").get(0).getProperties());
+        final java.util.Set<String> supported = InfluxDBQueryBuilder.SUPPORTED_FUNCTIONS.stream()
+                .map(f -> f.getFunctionName().getFunctionName())
+                .collect(java.util.stream.Collectors.toSet());
+        assertEquals(supported, advertised);
     }
 
     private static final ArrowType UTF8 = new ArrowType.Utf8();
@@ -558,9 +568,10 @@ public class InfluxDBQueryBuilderTest
     }
 
     @Test
-    public void testExpressionPushdownUnknownArgumentAndEmptyConstantRenderAsNull()
+    public void testExpressionPushdownRejectsUnknownArgumentAndRendersEmptyConstantAsNull()
     {
-        // An expression type the builder does not understand is rendered as NULL rather than failing.
+        // An expression type the builder does not understand fails instead of being rendered as NULL, which would
+        // make the comparison match nothing.
         final FederationExpression unknown = new FederationExpression(UTF8)
         {
             @Override
@@ -587,14 +598,41 @@ public class InfluxDBQueryBuilderTest
                 return "unknown";
             }
         };
-        assertTrue(sqlForExpression(fce(sf("EQUAL_OPERATOR_FUNCTION_NAME"), BOOL, var("host", UTF8), unknown))
-                .contains("\"host\" = NULL"));
+        assertOperationNotSupported(fce(sf("EQUAL_OPERATOR_FUNCTION_NAME"), BOOL, var("host", UTF8), unknown));
 
         // A constant with no rows is NULL.
         final Block empty = allocator.createBlock(new SchemaBuilder().addField("col1", UTF8).build());
         empty.setRowCount(0);
         assertTrue(sqlForExpression(fce(sf("EQUAL_OPERATOR_FUNCTION_NAME"), BOOL, var("host", UTF8),
                 new ConstantExpression(empty, UTF8))).contains("\"host\" = NULL"));
+    }
+
+    @Test
+    public void testExpressionPushdownRejectsUnsupportedFunctions()
+    {
+        // A name the SDK does not know: fromFunctionName returns null.
+        final com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName newFunction =
+                new com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName("$some_new_function");
+        assertOperationNotSupported(new FunctionCallExpression(BOOL, newFunction, List.of(var("host", UTF8))));
+        // The same function nested inside AND, so it cannot end up in the SQL as the text "null".
+        final FederationExpression nested = new FunctionCallExpression(FLOAT8, newFunction,
+                List.of(var("usage_idle", FLOAT8)));
+        assertOperationNotSupported(fce(sf("AND_FUNCTION_NAME"), BOOL,
+                fce(sf("GREATER_THAN_OPERATOR_FUNCTION_NAME"), BOOL, nested, constant(1.0, FLOAT8)),
+                fce(sf("IS_NULL_FUNCTION_NAME"), BOOL, var("host", UTF8))));
+    }
+
+    private void assertOperationNotSupported(final FederationExpression expr)
+    {
+        try {
+            final String sql = sqlForExpression(expr);
+            fail("expected the expression to be rejected, got: " + sql);
+        }
+        catch (final AthenaConnectorException e) {
+            InfluxDBErrorsTest.assertErrorCode(
+                    software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                    e);
+        }
     }
 
     @Test
