@@ -30,7 +30,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
@@ -68,7 +67,6 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -146,7 +144,7 @@ public class InfluxDBMetadataHandler
                 TopNPushdownSubType.SUPPORTS_ORDER_BY));
         capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
                 ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
-                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                        .withSubTypeProperties(InfluxDBQueryBuilder.SUPPORTED_FUNCTIONS.stream()
                                 .map(sf -> sf.getFunctionName().getFunctionName())
                                 .toArray(String[]::new))));
 

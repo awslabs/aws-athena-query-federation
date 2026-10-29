@@ -51,7 +51,7 @@ Athena has no unsigned integer type, and `BIGINT` stops at 9,223,372,036,854,775
 The connector advertises its capabilities via `doGetDataSourceCapabilities` and pushes the following down into the SQL sent to InfluxDB (see `InfluxDBQueryBuilder`):
 
 - **Filter pushdown** — equality, `IN` lists, `IS NULL`/`IS NOT NULL`, and open/closed ranges (`>`, `>=`, `<`, `<=`, `BETWEEN`), derived from the constraint summary `ValueSet`s (`buildWhereClause` → `toPredicate`).
-- **Complex expression pushdown** — `AND`/`OR`/`NOT`, comparison and arithmetic operators, `LIKE`, `IN`, `IS DISTINCT FROM`, `NULLIF`, etc., from `constraints.getExpression()` (`toExpression`). Unsupported functions are skipped (logged at `warn`), so the query still runs correctly with residual filtering done by Athena.
+- **Complex expression pushdown** — `AND`/`OR`/`NOT`, comparison and arithmetic operators, `LIKE`, `IN`, `IS DISTINCT FROM`, `NULLIF`, etc., from `constraints.getExpression()` (`toExpression`). The connector advertises only the functions it translates (`InfluxDBQueryBuilder.SUPPORTED_FUNCTIONS`), so a function added to the SDK later is not pushed down until the connector supports it. If an expression still contains a function or argument the connector cannot translate, the query fails with `OPERATION_NOT_SUPPORTED_EXCEPTION`, rather than leaving out part of the filter.
 - **`ORDER BY` / Top-N pushdown** — `buildOrderByClause` emits `ORDER BY … [ASC|DESC] [NULLS FIRST|LAST]`.
 - **`LIMIT` pushdown** — appended when `constraints.hasLimit()`.
 
