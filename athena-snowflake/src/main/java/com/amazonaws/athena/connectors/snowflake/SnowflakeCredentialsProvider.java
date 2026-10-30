@@ -28,8 +28,10 @@ import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -61,7 +63,7 @@ import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils
 public class SnowflakeCredentialsProvider implements CredentialsProvider
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeCredentialsProvider.class);
-    
+
     public static final String ACCESS_TOKEN = "access_token";
     public static final String FETCHED_AT = "fetched_at";
     public static final String REFRESH_TOKEN = "refresh_token";
@@ -69,18 +71,25 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
     private final String oauthSecretName;
     private final CachableSecretsManager secretsManager;
     private final ObjectMapper objectMapper;
+    private final AwsRequestOverrideConfiguration requestOverrideConfiguration;
 
     public SnowflakeCredentialsProvider(String oauthSecretName)
     {
-        this(oauthSecretName, SecretsManagerClient.create());
+        this(oauthSecretName, SecretsManagerClient.create(), null);
+    }
+
+    public SnowflakeCredentialsProvider(String oauthSecretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        this(oauthSecretName, SecretsManagerClient.create(), requestOverrideConfiguration);
     }
 
     @VisibleForTesting
-    public SnowflakeCredentialsProvider(String oauthSecretName, SecretsManagerClient secretsClient)
+    public SnowflakeCredentialsProvider(String oauthSecretName, SecretsManagerClient secretsClient, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         this.oauthSecretName = Validate.notNull(oauthSecretName, "oauthSecretName must not be null");
         this.secretsManager = new CachableSecretsManager(secretsClient);
         this.objectMapper = new ObjectMapper();
+        this.requestOverrideConfiguration = requestOverrideConfiguration;
     }
 
     @Override
@@ -97,9 +106,9 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
     public Map<String, String> getCredentialMap()
     {
         try {
-            String secretString = secretsManager.getSecret(oauthSecretName);
+            String secretString = secretsManager.getSecret(oauthSecretName, this.requestOverrideConfiguration);
             Map<String, String> secretMap = objectMapper.readValue(secretString, Map.class);
-            
+
             // Determine authentication type based on secret contents
             SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(secretMap);
             // Validate credentials once after determining auth type
@@ -116,6 +125,14 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
                     // Password authentication (backward compatible)
                     return handlePasswordAuthentication(secretMap);
             }
+        }
+        catch (IllegalArgumentException ex) {
+            // Client configuration errors — propagate without wrapping
+            throw ex;
+        }
+        catch (AthenaConnectorException ex) {
+            // Already properly typed (e.g., invalid private key format)
+            throw ex;
         }
         catch (Exception ex) {
             throw new RuntimeException("Error retrieving Snowflake credentials: " + ex.getMessage(), ex);
@@ -158,7 +175,11 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
     {
         Map<String, String> credentialMap = new HashMap<>();
         credentialMap.put(SnowflakeConstants.USER, getUsername(oauthConfig));
-        credentialMap.put(SnowflakeConstants.PASSWORD, oauthConfig.get(SnowflakeConstants.PASSWORD));
+        String password = oauthConfig.getOrDefault(SnowflakeConstants.PASSWORD, oauthConfig.get(SnowflakeConstants.PASSWORD_UPPERCASE));
+        if (password == null) {
+            throw new IllegalArgumentException("Missing required parameter: password/PASSWORD");
+        }
+        credentialMap.put(SnowflakeConstants.PASSWORD, password);
         LOGGER.debug("Using password authentication for user: {}", getUsername(oauthConfig));
         return credentialMap;
     }
@@ -186,6 +207,7 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
             secretsManager.getSecretsManager().putSecretValue(builder -> builder
                     .secretId(this.oauthSecretName)
                     .secretString(updatedSecretString)
+                    .overrideConfiguration(this.requestOverrideConfiguration)
                     .build());
         }
         catch (Exception e) {
@@ -197,11 +219,11 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
     private String fetchAccessTokenFromSecret(Map<String, String> oauthConfig) throws Exception
     {
         String accessToken;
-        String clientId = Validate.notNull(oauthConfig.get(SnowflakeConstants.CLIENT_ID), "Missing required property: client_id");
-        String tokenEndpoint = Validate.notNull(oauthConfig.get(SnowflakeConstants.TOKEN_URL), "Missing required property: token_url");
-        String redirectUri = Validate.notNull(oauthConfig.get(SnowflakeConstants.REDIRECT_URI), "Missing required property: redirect_uri");
-        String clientSecret = Validate.notNull(oauthConfig.get(SnowflakeConstants.CLIENT_SECRET), "Missing required property: client_secret");
-        String authCode = Validate.notNull(oauthConfig.get(SnowflakeConstants.AUTH_CODE), "Missing required property: auth_code");
+        String clientId = requireNonBlank(oauthConfig.get(SnowflakeConstants.CLIENT_ID), "Missing required property: client_id");
+        String tokenEndpoint = requireNonBlank(oauthConfig.get(SnowflakeConstants.TOKEN_URL), "Missing required property: token_url");
+        String redirectUri = requireNonBlank(oauthConfig.get(SnowflakeConstants.REDIRECT_URI), "Missing required property: redirect_uri");
+        String clientSecret = requireNonBlank(oauthConfig.get(SnowflakeConstants.CLIENT_SECRET), "Missing required property: client_secret");
+        String authCode = requireNonBlank(oauthConfig.get(SnowflakeConstants.AUTH_CODE), "Missing required property: auth_code");
 
         accessToken = loadTokenFromSecretsManager(oauthConfig);
 
@@ -271,6 +293,14 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
         ObjectNode tokenJson = objectMapper.readValue(response, ObjectNode.class);
         tokenJson.put(FETCHED_AT, System.currentTimeMillis() / 1000);
         return tokenJson;
+    }
+
+    private String requireNonBlank(String value, String message)
+    {
+        if (StringUtils.isBlank(value)) {
+            throw new IllegalArgumentException(message);
+        }
+        return value;
     }
 
     static HttpURLConnection getHttpURLConnection(String tokenEndpoint, String clientId, String clientSecret) throws IOException
