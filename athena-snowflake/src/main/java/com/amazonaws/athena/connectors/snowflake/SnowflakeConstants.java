@@ -111,6 +111,9 @@ public final class SnowflakeConstants
             "WHERE  table_type = 'BASE TABLE'\n" +
             "AND table_schema= ?\n" +
             "AND TABLE_NAME = ? ";
+    //query to detect Snowflake hybrid tables (is_hybrid is 'Y'/'YES' for hybrid tables). Hybrid tables
+    //do not maintain row_count in real time, so they are routed to a single split (see checkForHybridTable).
+    public static final String HYBRID_TABLE_CHECK_QUERY = "SELECT is_hybrid FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
     public static final String SHOW_PRIMARY_KEYS_QUERY = "SHOW PRIMARY KEYS IN ";
     public static final String COPY_INTO_QUERY_TEMPLATE = "COPY INTO '%s' FROM (%s) STORAGE_INTEGRATION = %s " +
             "HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') MAX_FILE_SIZE = 52428800";

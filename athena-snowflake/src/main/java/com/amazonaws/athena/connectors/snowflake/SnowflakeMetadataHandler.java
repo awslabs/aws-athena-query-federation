@@ -108,6 +108,7 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COPY_
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COUNT_RECORDS_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DESCRIBE_STORAGE_INTEGRATION_TEMPLATE;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.HYBRID_TABLE_CHECK_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.JDBC_PROPERTIES;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.LIST_PAGINATED_TABLES_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
@@ -281,9 +282,15 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
              * this is to handle timeout issues because of huge partitions
              */
             LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
-            boolean viewFlag = checkForView(tableName);
-            //if the input table is a view , there will be single split
-            if (viewFlag) {
+            /*
+             * Views use a single split. Hybrid tables also use a single split: Snowflake does not maintain
+             * row_count in INFORMATION_SCHEMA.TABLES in real time for hybrid tables (it is NULL/stale until a
+             * background compaction runs), so the statistic-based split planning below would emit zero splits
+             * and silently return no rows. Hybrid tables are bounded operational (OLTP) tables, so a single
+             * scan is appropriate.
+             */
+            boolean singleSplitTable = checkForView(tableName) || checkForHybridTable(tableName);
+            if (singleSplitTable) {
                 blockWriter.writeRows((Block block, int rowNum) -> {
                     block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);
                     return 1;
@@ -330,6 +337,31 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 }
             }
         }
+    }
+
+    /*
+     * Detects whether the input table is a Snowflake hybrid table. Hybrid tables do not maintain
+     * ROW_COUNT in INFORMATION_SCHEMA.TABLES in real time (it stays NULL until a background compaction
+     * runs), so the statistic-based split planning would silently return no rows for them. We detect
+     * them here so they can be routed to a single split.
+     */
+    private boolean checkForHybridTable(TableName tableName) throws Exception
+    {
+        List<String> hybridParameters = Arrays.asList(tableName.getSchemaName(), tableName.getTableName());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(HYBRID_TABLE_CHECK_QUERY).withParameters(hybridParameters).build();
+                 ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    // Single-column result (is_hybrid). Snowflake reports 'Y' or 'YES' for hybrid tables
+                    // depending on the surface; accept both.
+                    String isHybrid = resultSet.getString(1);
+                    boolean hybridFlag = "Y".equalsIgnoreCase(isHybrid) || "YES".equalsIgnoreCase(isHybrid);
+                    LOGGER.info("checkForHybridTable {}: is_hybrid={}, hybridFlag={}", tableName, isHybrid, hybridFlag);
+                    return hybridFlag;
+                }
+            }
+        }
+        return false;
     }
 
     private String buildQueryPassthroughSql(Constraints constraints)
