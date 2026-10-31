@@ -20,6 +20,7 @@ package com.amazonaws.athena.connectors.snowflake;
  */
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -1039,6 +1040,119 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
+    public void testGetPartitionsWithUppercaseCasingFilter() throws Exception {
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("day")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        // Mock view check - return a view so we get a single partition (simplest path)
+        String[] viewSchema = {"TABLE_SCHEMA", "TABLE_NAME"};
+        Object[][] viewValues = {{"TESTSCHEMA", "TESTTABLE"}};
+        AtomicInteger viewRowNumber = new AtomicInteger(-1);
+        ResultSet viewResultSet = mockResultSet(viewSchema, viewValues, viewRowNumber);
+
+        PreparedStatement viewStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString())).thenReturn(viewStmt);
+        when(viewStmt.executeQuery()).thenReturn(viewResultSet);
+
+        // Set up federated identity with CATALOG_CASING_FILTER = UPPERCASE_ONLY
+        FederatedIdentity identityWithCasing = mock(FederatedIdentity.class);
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY);
+        when(identityWithCasing.getConfigOptions()).thenReturn(configOptions);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(identityWithCasing, "queryId", "default",
+                new TableName("testschema", "testtable"),  // lowercase names
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                tableSchema,
+                partitionCols);
+
+        GetTableLayoutResponse res = snowflakeMetadataHandler.doGetTableLayout(allocator, req);
+        Block partitions = res.getPartitions();
+
+        assertNotNull(partitions);
+        assertTrue(partitions.getRowCount() > 0);
+        // The partition should be "*" since it's a view
+        assertEquals("*", partitions.getFieldVector(BLOCK_PARTITION_COLUMN_NAME).getObject(0).toString());
+    }
+
+    @Test
+    public void testGetSplitsWithCatalogCasingFilter() throws Exception {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("partition")
+                .build();
+
+        Block partitions = allocator.createBlock(schema);
+        partitions.getFieldVector("partition").allocateNew();
+        BlockUtils.setValue(partitions.getFieldVector("partition"), 0, "partition-primary-\"id\"-limit-100-offset-0");
+        partitions.setRowCount(1);
+
+        // Set up federated identity with CATALOG_CASING_FILTER
+        FederatedIdentity identityWithCasing = mock(FederatedIdentity.class);
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY);
+        when(identityWithCasing.getConfigOptions()).thenReturn(configOptions);
+
+        GetSplitsRequest originalReq = new GetSplitsRequest(identityWithCasing, "queryId", "catalog_name",
+                new TableName("schema", "table_name"),
+                partitions,
+                Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                null);
+        GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
+
+        MetadataResponse rawResponse = snowflakeMetadataHandler.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+
+        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        assertEquals(1, response.getSplits().size());
+
+        // Verify the split contains the CATALOG_CASING_FILTER property
+        Split split = response.getSplits().iterator().next();
+        assertEquals(EnvironmentConstants.UPPERCASE_ONLY, split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER));
+    }
+
+    @Test
+    public void testGetSplitsWithoutCatalogCasingFilter() throws Exception {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("partition")
+                .build();
+
+        Block partitions = allocator.createBlock(schema);
+        partitions.getFieldVector("partition").allocateNew();
+        BlockUtils.setValue(partitions.getFieldVector("partition"), 0, "partition-primary-\"id\"-limit-100-offset-0");
+        partitions.setRowCount(1);
+
+        // Set up federated identity without CATALOG_CASING_FILTER
+        FederatedIdentity identityNoCasing = mock(FederatedIdentity.class);
+        Map<String, String> configOptions = new HashMap<>();
+        when(identityNoCasing.getConfigOptions()).thenReturn(configOptions);
+
+        GetSplitsRequest originalReq = new GetSplitsRequest(identityNoCasing, "queryId", "catalog_name",
+                new TableName("schema", "table_name"),
+                partitions,
+                Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                null);
+        GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
+
+        MetadataResponse rawResponse = snowflakeMetadataHandler.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+
+        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        assertEquals(1, response.getSplits().size());
+
+        // Verify the split does NOT contain the CATALOG_CASING_FILTER property
+        Split split = response.getSplits().iterator().next();
+        org.junit.Assert.assertNull(split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER));
+    }
+
+    @Test
     public void testDoGetTableWithNoneCasing()
             throws Exception
     {
@@ -1072,5 +1186,215 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(new TableName(schemaName, tableName), getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    /**
+     * Builds the constraints used by the partition tests below.
+     */
+    private Constraints partitionConstraints()
+    {
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("day", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 0)), false));
+        return new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+    }
+
+    private Schema partitionTableSchema()
+    {
+        return SchemaBuilder.newBuilder()
+                .addIntField("day")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                .build();
+    }
+
+    /**
+     * A table above LARGE_TABLE_THRESHOLD must skip the primary-key uniqueness check entirely:
+     * that check is a full-table GROUP BY, which on a very large table would run until the Lambda
+     * times out. Skipping it means falling back to a single partition.
+     */
+    @Test
+    public void getPartitions_tableAboveLargeThreshold_skipsUniquenessCheck() throws Exception
+    {
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+
+        // Row count one above the threshold; empty view-check result means "not a view".
+        ResultSet countResultSet = mockResultSet(
+                new String[]{"row_count"}, new int[]{Types.BIGINT},
+                new Object[][]{{SnowflakeConstants.LARGE_TABLE_THRESHOLD + 1}}, new AtomicInteger(-1));
+        ResultSet viewResultSet = mockResultSet(
+                new String[]{"TABLE_SCHEM", "TABLE_NAME"}, new int[]{Types.VARCHAR, Types.VARCHAR},
+                new Object[][]{}, new AtomicInteger(-1));
+
+        PreparedStatement countStatement = mock(PreparedStatement.class);
+        PreparedStatement viewStatement = mock(PreparedStatement.class);
+        // Fails the test if the skipped uniqueness check is somehow reached.
+        PreparedStatement uniquenessStatement = mock(PreparedStatement.class);
+        // TestBase.mockResultSet does not stub getLong, which getPartitions uses for row_count.
+        when(countResultSet.getLong(1)).thenReturn(SnowflakeConstants.LARGE_TABLE_THRESHOLD + 1);
+        when(countStatement.executeQuery()).thenReturn(countResultSet);
+        when(viewStatement.executeQuery()).thenReturn(viewResultSet);
+        when(connection.prepareStatement(any())).thenAnswer(invocation -> {
+            String sql = invocation.getArgument(0);
+            if (sql.contains("GROUP BY")) {
+                return uniquenessStatement;
+            }
+            if (sql.contains("information_schema.tables")) {
+                return countStatement;
+            }
+            return viewStatement;
+        });
+
+        ResultSet columnResultSet = mockResultSet(
+                new String[]{"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"},
+                new int[]{Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR},
+                new Object[][]{{"schema1", "table1", "day", "int"}}, new AtomicInteger(-1));
+        when(connection.getMetaData().getColumns(any(), eq("schema1"), eq("table1"), any())).thenReturn(columnResultSet);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("schema1", "table1"), partitionConstraints(), partitionTableSchema(), partitionCols);
+
+        GetTableLayoutResponse res = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req);
+
+        assertNotNull(res.getPartitions());
+        // Above the threshold the GROUP BY uniqueness check must never run at all.
+        verify(uniquenessStatement, never()).executeQuery();
+        // With no usable primary key the table falls back to a single partition.
+        assertEquals(1, res.getPartitions().getRowCount());
+    }
+
+    /**
+     * Below the threshold the uniqueness check does run, and it must carry a statement-level
+     * timeout so it cannot consume the Lambda's full budget.
+     */
+    @Test
+    public void getPartitions_tableBelowThreshold_appliesUniquenessCheckTimeout() throws Exception
+    {
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+
+        // Large enough to partition, well below the skip threshold.
+        ResultSet countResultSet = mockResultSet(
+                new String[]{"row_count"}, new int[]{Types.BIGINT},
+                new Object[][]{{1_000_000L}}, new AtomicInteger(-1));
+        // Empty view-check result means "not a view".
+        ResultSet viewResultSet = mockResultSet(
+                new String[]{"TABLE_SCHEM", "TABLE_NAME"}, new int[]{Types.VARCHAR, Types.VARCHAR},
+                new Object[][]{}, new AtomicInteger(-1));
+        // SHOW PRIMARY KEYS returns one key, then the uniqueness check reports max count 1.
+        ResultSet primaryKeyResultSet = mockResultSet(
+                new String[]{"column_name"}, new int[]{Types.VARCHAR},
+                new Object[][]{{"id"}}, new AtomicInteger(-1));
+        ResultSet uniquenessResultSet = mockResultSet(
+                new String[]{"COUNTS"}, new int[]{Types.INTEGER},
+                new Object[][]{{1}}, new AtomicInteger(-1));
+
+        PreparedStatement countStatement = mock(PreparedStatement.class);
+        PreparedStatement viewStatement = mock(PreparedStatement.class);
+        PreparedStatement primaryKeyStatement = mock(PreparedStatement.class);
+        PreparedStatement uniquenessStatement = mock(PreparedStatement.class);
+        when(countResultSet.getLong(1)).thenReturn(1_000_000L);
+        when(countStatement.executeQuery()).thenReturn(countResultSet);
+        when(viewStatement.executeQuery()).thenReturn(viewResultSet);
+        when(primaryKeyStatement.executeQuery()).thenReturn(primaryKeyResultSet);
+        when(uniquenessStatement.executeQuery()).thenReturn(uniquenessResultSet);
+        when(connection.prepareStatement(any())).thenAnswer(invocation -> {
+            String sql = invocation.getArgument(0);
+            if (sql.startsWith(SnowflakeConstants.SHOW_PRIMARY_KEYS_QUERY)) {
+                return primaryKeyStatement;
+            }
+            if (sql.contains("GROUP BY")) {
+                return uniquenessStatement;
+            }
+            if (sql.contains("information_schema.tables")) {
+                return countStatement;
+            }
+            return viewStatement;
+        });
+
+        ResultSet columnResultSet = mockResultSet(
+                new String[]{"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"},
+                new int[]{Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR},
+                new Object[][]{{"schema1", "table1", "day", "int"}}, new AtomicInteger(-1));
+        when(connection.getMetaData().getColumns(any(), eq("schema1"), eq("table1"), any())).thenReturn(columnResultSet);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("schema1", "table1"), partitionConstraints(), partitionTableSchema(), partitionCols);
+
+        GetTableLayoutResponse res = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req);
+
+        assertNotNull(res.getPartitions());
+        verify(uniquenessStatement).setQueryTimeout(SnowflakeConstants.UNIQUENESS_CHECK_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * If the uniqueness check times out (or otherwise fails) the connector must fall back to a
+     * single partition rather than propagating the failure and failing the whole request.
+     */
+    @Test
+    public void getPartitions_uniquenessCheckTimesOut_fallsBackToSinglePartition() throws Exception
+    {
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+
+        ResultSet countResultSet = mockResultSet(
+                new String[]{"row_count"}, new int[]{Types.BIGINT},
+                new Object[][]{{1_000_000L}}, new AtomicInteger(-1));
+        ResultSet viewResultSet = mockResultSet(
+                new String[]{"TABLE_SCHEM", "TABLE_NAME"}, new int[]{Types.VARCHAR, Types.VARCHAR},
+                new Object[][]{}, new AtomicInteger(-1));
+        ResultSet primaryKeyResultSet = mockResultSet(
+                new String[]{"column_name"}, new int[]{Types.VARCHAR},
+                new Object[][]{{"id"}}, new AtomicInteger(-1));
+
+        PreparedStatement countStatement = mock(PreparedStatement.class);
+        PreparedStatement viewStatement = mock(PreparedStatement.class);
+        PreparedStatement primaryKeyStatement = mock(PreparedStatement.class);
+        PreparedStatement uniquenessStatement = mock(PreparedStatement.class);
+        when(countResultSet.getLong(1)).thenReturn(1_000_000L);
+        when(countStatement.executeQuery()).thenReturn(countResultSet);
+        when(viewStatement.executeQuery()).thenReturn(viewResultSet);
+        when(primaryKeyStatement.executeQuery()).thenReturn(primaryKeyResultSet);
+        when(uniquenessStatement.executeQuery()).thenThrow(new SQLException("statement timed out"));
+        when(connection.prepareStatement(any())).thenAnswer(invocation -> {
+            String sql = invocation.getArgument(0);
+            if (sql.startsWith(SnowflakeConstants.SHOW_PRIMARY_KEYS_QUERY)) {
+                return primaryKeyStatement;
+            }
+            if (sql.contains("GROUP BY")) {
+                return uniquenessStatement;
+            }
+            if (sql.contains("information_schema.tables")) {
+                return countStatement;
+            }
+            return viewStatement;
+        });
+
+        ResultSet columnResultSet = mockResultSet(
+                new String[]{"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"},
+                new int[]{Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR},
+                new Object[][]{{"schema1", "table1", "day", "int"}}, new AtomicInteger(-1));
+        when(connection.getMetaData().getColumns(any(), eq("schema1"), eq("table1"), any())).thenReturn(columnResultSet);
+
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("schema1", "table1"), partitionConstraints(), partitionTableSchema(), partitionCols);
+
+        // The SQLException is swallowed and treated as "not unique".
+        GetTableLayoutResponse res = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req);
+
+        assertNotNull(res.getPartitions());
+        assertEquals(1, res.getPartitions().getRowCount());
+    }
+
+    /**
+     * createCredentialsProvider returns a Snowflake-specific provider for a real secret name, and
+     * null when there is no secret to read.
+     */
+    @Test
+    public void createCredentialsProvider_returnsProviderOnlyWhenSecretPresent()
+    {
+        assertNotNull(this.snowflakeMetadataHandler.createCredentialsProvider("testSecret", null));
+        org.junit.Assert.assertNull(this.snowflakeMetadataHandler.createCredentialsProvider("", null));
+        org.junit.Assert.assertNull(this.snowflakeMetadataHandler.createCredentialsProvider(null, null));
     }
 }
