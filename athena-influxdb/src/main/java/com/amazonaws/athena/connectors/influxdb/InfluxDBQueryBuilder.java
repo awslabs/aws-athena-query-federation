@@ -1,0 +1,578 @@
+/*-
+ * #%L
+ * athena-influxdb
+ * %%
+ * Copyright (C) 2019 - 2026 Amazon Web Services
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+package com.amazonaws.athena.connectors.influxdb;
+
+import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
+import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
+
+/**
+ * Builds SQL queries for InfluxDB 3 from Athena SDK constraints. Since InfluxDB speaks SQL natively, we construct standard SQL strings directly.
+ */
+public class InfluxDBQueryBuilder
+{
+    /**
+     * The functions {@link #toExpression} translates to InfluxDB SQL, and the only ones the connector advertises for
+     * complex expression pushdown. This currently covers every {@link StandardFunctions} value. The list is explicit
+     * so that a function added to the SDK later is not advertised until it is translated here.
+     */
+    static final Set<StandardFunctions> SUPPORTED_FUNCTIONS = Collections.unmodifiableSet(EnumSet.of(
+            StandardFunctions.AND_FUNCTION_NAME,
+            StandardFunctions.OR_FUNCTION_NAME,
+            StandardFunctions.NOT_FUNCTION_NAME,
+            StandardFunctions.IS_NULL_FUNCTION_NAME,
+            StandardFunctions.NULLIF_FUNCTION_NAME,
+            StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME,
+            StandardFunctions.LIKE_PATTERN_FUNCTION_NAME,
+            StandardFunctions.IN_PREDICATE_FUNCTION_NAME,
+            StandardFunctions.ADD_FUNCTION_NAME,
+            StandardFunctions.SUBTRACT_FUNCTION_NAME,
+            StandardFunctions.MULTIPLY_FUNCTION_NAME,
+            StandardFunctions.DIVIDE_FUNCTION_NAME,
+            StandardFunctions.MODULUS_FUNCTION_NAME,
+            StandardFunctions.NEGATE_FUNCTION_NAME,
+            StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME));
+
+    private InfluxDBQueryBuilder()
+    {
+    }
+
+    /**
+     * Builds a complete SQL query from the schema, table name, and constraints.
+     */
+    public static String buildSql(final Schema schema, final String tableName, final Constraints constraints)
+    {
+        return buildSql(schema, tableName, constraints, null, null);
+    }
+
+    /**
+     * Builds a complete SQL query, additionally narrowing the query to a single
+     * time-based split via a half-open {@code [lower, upper)} predicate on the
+     * time column. The bounds are epoch-millisecond strings taken from the split
+     * properties; when either is null no time-based narrowing is applied.
+     */
+    public static String buildSql(final Schema schema, final String tableName, final Constraints constraints,
+            final String timeLowerMillis, final String timeUpperMillis)
+    {
+        return buildSql(schema, tableName, constraints, timeLowerMillis, timeUpperMillis, Map.of());
+    }
+
+    /**
+     * Builds a complete SQL query against columns whose InfluxDB names may differ in case from the Athena names.
+     *
+     * Athena lowercases column names, but InfluxDB column names are case-sensitive. {@code columnNames} maps an
+     * Athena column name to its InfluxDB name, and every column reference (SELECT, WHERE, ORDER BY) uses the
+     * InfluxDB name. A selected column whose name differs is aliased back to the Athena name, so each result
+     * vector is named after its schema field. A column missing from the map is used as is.
+     */
+    static String buildSql(final Schema schema, final String tableName, final Constraints constraints,
+            final String timeLowerMillis, final String timeUpperMillis, final Map<String, String> columnNames)
+    {
+        final StringBuilder sql = new StringBuilder();
+
+        // SELECT columns
+        final String columns = schema.getFields().stream()
+                .map(f -> {
+                    final String sourceName = sourceName(columnNames, f.getName());
+                    return sourceName.equals(f.getName())
+                            ? quote(sourceName)
+                            : quote(sourceName) + " AS " + quote(f.getName());
+                })
+                .collect(Collectors.joining(", "));
+        sql.append("SELECT ").append(columns).append(" FROM ").append(quote(tableName));
+
+        // WHERE clause from constraints, plus the optional per-split time bound
+        final List<String> conjuncts = new ArrayList<>();
+        final String whereClause = buildWhereClause(schema, constraints, columnNames);
+        if (!whereClause.isEmpty()) {
+            conjuncts.add(whereClause);
+        }
+        final String splitPredicate = buildSplitTimePredicate(timeLowerMillis, timeUpperMillis);
+        if (!splitPredicate.isEmpty()) {
+            conjuncts.add(splitPredicate);
+        }
+        if (!conjuncts.isEmpty()) {
+            sql.append(" WHERE ").append(String.join(" AND ", conjuncts));
+        }
+
+        // ORDER BY clause
+        if (constraints.hasNonEmptyOrderByClause()) {
+            sql.append(" ").append(buildOrderByClause(constraints, columnNames));
+        }
+
+        // LIMIT clause
+        if (constraints.hasLimit()) {
+            sql.append(" LIMIT ").append(constraints.getLimit());
+        }
+
+        return sql.toString();
+    }
+
+    /**
+     * Builds a half-open {@code [lower, upper)} predicate on the time column from
+     * epoch-millisecond bounds. Returns an empty string when either bound is null.
+     */
+    static String buildSplitTimePredicate(final String timeLowerMillis, final String timeUpperMillis)
+    {
+        if (timeLowerMillis == null || timeUpperMillis == null) {
+            return "";
+        }
+        final long low = Long.parseLong(timeLowerMillis);
+        final long high = Long.parseLong(timeUpperMillis);
+        final String col = quote(InfluxDBConstants.DEFAULT_TIME_COLUMN);
+        // Split bounds are already plain epoch millis (decoded in getPartitions),
+        // so format them directly rather than through the packing-aware path.
+        return "(" + col + " >= " + timestampLiteral(low)
+                + " AND " + col + " < " + timestampLiteral(high) + ")";
+    }
+
+    /**
+     * Builds a WHERE clause from the constraints summary (ValueSets) and complex expressions.
+     */
+    static String buildWhereClause(final Schema schema, final Constraints constraints)
+    {
+        return buildWhereClause(schema, constraints, Map.of());
+    }
+
+    private static String buildWhereClause(final Schema schema, final Constraints constraints,
+            final Map<String, String> columnNames)
+    {
+        final List<String> conjuncts = new ArrayList<>();
+
+        // Process ValueSet-based constraints (summary)
+        if (constraints.getSummary() != null) {
+            for (final Field field : schema.getFields()) {
+                final ValueSet valueSet = constraints.getSummary().get(field.getName());
+                if (valueSet != null) {
+                    final String predicate = toPredicate(sourceName(columnNames, field.getName()), valueSet,
+                            field.getType());
+                    if (predicate != null && !predicate.isEmpty()) {
+                        conjuncts.add(predicate);
+                    }
+                }
+            }
+        }
+
+        // Process complex expressions
+        if (constraints.getExpression() != null && !constraints.getExpression().isEmpty()) {
+            for (final FederationExpression expr : constraints.getExpression()) {
+                if (expr instanceof FunctionCallExpression) {
+                    final String exprSql = toExpression((FunctionCallExpression) expr, columnNames);
+                    if (exprSql != null && !exprSql.isEmpty()) {
+                        conjuncts.add(exprSql);
+                    }
+                }
+            }
+        }
+
+        return String.join(" AND ", conjuncts);
+    }
+
+    static String buildOrderByClause(final Constraints constraints)
+    {
+        return buildOrderByClause(constraints, Map.of());
+    }
+
+    private static String buildOrderByClause(final Constraints constraints, final Map<String, String> columnNames)
+    {
+        final List<OrderByField> orderBy = constraints.getOrderByClause();
+        if (orderBy == null || orderBy.isEmpty()) {
+            return "";
+        }
+        final String fields = orderBy.stream()
+                .map(f -> quote(sourceName(columnNames, f.getColumnName())) + " " +
+                        (f.getDirection().isAscending() ? "ASC" : "DESC") + " " +
+                        (f.getDirection().isNullsFirst() ? "NULLS FIRST" : "NULLS LAST"))
+                .collect(Collectors.joining(", "));
+        return "ORDER BY " + fields;
+    }
+
+    /**
+     * Returns the InfluxDB name of an Athena column, or the Athena name if {@code columnNames} has no entry.
+     */
+    private static String sourceName(final Map<String, String> columnNames, final String athenaName)
+    {
+        return columnNames.getOrDefault(athenaName, athenaName);
+    }
+
+    /**
+     * Converts a ValueSet into a SQL predicate for a single column.
+     *
+     * Timestamp columns are read at millisecond precision, but InfluxDB stores nanoseconds, so a bound is widened to
+     * cover the whole millisecond that Athena compares against (see {@link #timestampRange}). Otherwise a row at
+     * {@code ...00.000500} (shown in Athena as {@code ...00.000}) would not match {@code = ...00.000} in InfluxDB and
+     * would never reach Athena.
+     */
+    private static String toPredicate(final String columnName, final ValueSet valueSet, final ArrowType type)
+    {
+        if (!(valueSet instanceof SortedRangeSet)) {
+            return null;
+        }
+
+        final List<String> disjuncts = new ArrayList<>();
+        final List<Object> singleValues = new ArrayList<>();
+
+        if (valueSet.isNone() && valueSet.isNullAllowed()) {
+            return "(" + quote(columnName) + " IS NULL)";
+        }
+
+        if (valueSet.isNullAllowed()) {
+            disjuncts.add("(" + quote(columnName) + " IS NULL)");
+        }
+
+        final List<Range> rangeList = ((SortedRangeSet) valueSet).getOrderedRanges();
+        if (rangeList.size() == 1 && !valueSet.isNullAllowed()
+                && rangeList.get(0).getLow().isLowerUnbounded()
+                && rangeList.get(0).getHigh().isUpperUnbounded()) {
+            return "(" + quote(columnName) + " IS NOT NULL)";
+        }
+
+        final boolean millisTimestamp = Types.getMinorTypeForArrowType(type) == Types.MinorType.TIMESTAMPMILLITZ;
+        for (final Range range : rangeList) {
+            if (millisTimestamp) {
+                final String rangeSql = timestampRange(columnName, range, (ArrowType.Timestamp) type);
+                if (!rangeSql.isEmpty()) {
+                    disjuncts.add(rangeSql);
+                }
+            }
+            else if (range.isSingleValue()) {
+                singleValues.add(range.getLow().getValue());
+            }
+            else {
+                final List<String> rangeConjuncts = new ArrayList<>();
+                if (!range.getLow().isLowerUnbounded()) {
+                    switch (range.getLow().getBound()) {
+                        case ABOVE :
+                            rangeConjuncts.add(quote(columnName) + " > " + toLiteral(range.getLow().getValue(), type));
+                            break;
+                        case EXACTLY :
+                            rangeConjuncts.add(quote(columnName) + " >= " + toLiteral(range.getLow().getValue(), type));
+                            break;
+                        default :
+                            break;
+                    }
+                }
+                if (!range.getHigh().isUpperUnbounded()) {
+                    switch (range.getHigh().getBound()) {
+                        case EXACTLY :
+                            rangeConjuncts
+                                    .add(quote(columnName) + " <= " + toLiteral(range.getHigh().getValue(), type));
+                            break;
+                        case BELOW :
+                            rangeConjuncts.add(quote(columnName) + " < " + toLiteral(range.getHigh().getValue(), type));
+                            break;
+                        default :
+                            break;
+                    }
+                }
+                if (!rangeConjuncts.isEmpty()) {
+                    disjuncts.add("(" + String.join(" AND ", rangeConjuncts) + ")");
+                }
+            }
+        }
+
+        // Single values as equality or IN
+        if (singleValues.size() == 1) {
+            disjuncts.add(quote(columnName) + " = " + toLiteral(singleValues.get(0), type));
+        }
+        else if (singleValues.size() > 1) {
+            final String values = singleValues.stream()
+                    .map(v -> toLiteral(v, type))
+                    .collect(Collectors.joining(", "));
+            disjuncts.add(quote(columnName) + " IN (" + values + ")");
+        }
+
+        if (disjuncts.isEmpty()) {
+            return null;
+        }
+        return "(" + String.join(" OR ", disjuncts) + ")";
+    }
+
+    /**
+     * Renders one range of a millisecond timestamp constraint as a SQL predicate on the nanosecond InfluxDB column.
+     * Athena compares each row's time truncated to the millisecond, so each bound covers its whole millisecond:
+     * <ul>
+     *   <li>{@code = X} becomes {@code >= X AND < X + 1ms}.</li>
+     *   <li>{@code > X} becomes {@code >= X + 1ms}, and {@code >= X} stays {@code >= X}.</li>
+     *   <li>{@code <= X} becomes {@code < X + 1ms}, and {@code < X} stays {@code < X}.</li>
+     * </ul>
+     * Returns an empty string for a range with no bounds.
+     */
+    static String timestampRange(final String columnName, final Range range, final ArrowType.Timestamp type)
+    {
+        final String col = quote(columnName);
+        final List<String> conjuncts = new ArrayList<>();
+        if (!range.getLow().isLowerUnbounded()) {
+            final long low = constraintEpochMillis(range.getLow().getValue(), type);
+            final long inclusiveLow = (range.getLow().getBound() == Marker.Bound.ABOVE) ? low + 1 : low;
+            conjuncts.add(col + " >= " + timestampLiteral(inclusiveLow));
+        }
+        if (!range.getHigh().isUpperUnbounded()) {
+            final long high = constraintEpochMillis(range.getHigh().getValue(), type);
+            final long exclusiveHigh = (range.getHigh().getBound() == Marker.Bound.BELOW) ? high : high + 1;
+            conjuncts.add(col + " < " + timestampLiteral(exclusiveHigh));
+        }
+        return conjuncts.isEmpty() ? "" : "(" + String.join(" AND ", conjuncts) + ")";
+    }
+
+    /**
+     * Recursively converts a FunctionCallExpression into SQL. Column references use their InfluxDB names from
+     * {@code columnNames}.
+     *
+     * @throws AthenaConnectorException with {@code OPERATION_NOT_SUPPORTED_EXCEPTION} for a function outside
+     *             {@link #SUPPORTED_FUNCTIONS} (including a name the SDK does not know) or an argument that is not
+     *             a variable, constant, or function call. Failing is safer than leaving out or rewriting part of a
+     *             filter, which could change which rows InfluxDB returns.
+     */
+    private static String toExpression(final FunctionCallExpression expr, final Map<String, String> columnNames)
+    {
+        final FunctionName functionName = expr.getFunctionName();
+        final StandardFunctions func = StandardFunctions.fromFunctionName(functionName);
+        if (func == null || !SUPPORTED_FUNCTIONS.contains(func)) {
+            throw unsupportedFunction(functionName);
+        }
+        final List<FederationExpression> args = expr.getArguments();
+
+        final List<String> argStrings = args.stream().map(arg -> {
+            if (arg instanceof VariableExpression) {
+                final VariableExpression variable = (VariableExpression) arg;
+                final String column = quote(sourceName(columnNames, variable.getColumnName()));
+                // Athena evaluates the expression against the millisecond value it reads, so a timestamp column
+                // is truncated the same way before InfluxDB compares it (see timestampRange).
+                if (variable.getType() instanceof ArrowType.Timestamp) {
+                    return "date_trunc('millisecond', " + column + ")";
+                }
+                return column;
+            }
+            else if (arg instanceof ConstantExpression) {
+                return constantToLiteral((ConstantExpression) arg);
+            }
+            else if (arg instanceof FunctionCallExpression) {
+                return toExpression((FunctionCallExpression) arg, columnNames);
+            }
+            throw InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                    "Unsupported expression type in expression pushdown: " + arg.getClass().getName());
+        }).collect(Collectors.toList());
+
+        switch (func) {
+            case AND_FUNCTION_NAME :
+                return "(" + String.join(" AND ", argStrings) + ")";
+            case OR_FUNCTION_NAME :
+                return "(" + String.join(" OR ", argStrings) + ")";
+            case NOT_FUNCTION_NAME :
+                return "(NOT " + argStrings.get(0) + ")";
+            case IS_NULL_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " IS NULL)";
+            case NULLIF_FUNCTION_NAME :
+                return "NULLIF(" + argStrings.get(0) + ", " + argStrings.get(1) + ")";
+            case EQUAL_OPERATOR_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " = " + argStrings.get(1) + ")";
+            case NOT_EQUAL_OPERATOR_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " <> " + argStrings.get(1) + ")";
+            case LESS_THAN_OPERATOR_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " < " + argStrings.get(1) + ")";
+            case GREATER_THAN_OPERATOR_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " > " + argStrings.get(1) + ")";
+            case LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " <= " + argStrings.get(1) + ")";
+            case GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " >= " + argStrings.get(1) + ")";
+            case IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " IS DISTINCT FROM " + argStrings.get(1) + ")";
+            case LIKE_PATTERN_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " LIKE " + argStrings.get(1) + ")";
+            case IN_PREDICATE_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " IN (" + argStrings.get(1) + "))";
+            case ADD_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " + " + argStrings.get(1) + ")";
+            case SUBTRACT_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " - " + argStrings.get(1) + ")";
+            case MULTIPLY_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " * " + argStrings.get(1) + ")";
+            case DIVIDE_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " / " + argStrings.get(1) + ")";
+            case MODULUS_FUNCTION_NAME :
+                return "(" + argStrings.get(0) + " % " + argStrings.get(1) + ")";
+            case NEGATE_FUNCTION_NAME :
+                return "(-" + argStrings.get(0) + ")";
+            case ARRAY_CONSTRUCTOR_FUNCTION_NAME :
+                return String.join(", ", argStrings);
+            default :
+                // Not reached: the check above rejects every function outside SUPPORTED_FUNCTIONS.
+                throw unsupportedFunction(functionName);
+        }
+    }
+
+    private static AthenaConnectorException unsupportedFunction(final FunctionName functionName)
+    {
+        return InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                "Function " + functionName.getFunctionName() + " is not supported in expression pushdown");
+    }
+
+    /**
+     * Converts a ConstantExpression to SQL literals. A constant can hold several values, for example the list in
+     * {@code $in(col, $array(Constant['a', 'b']))}, so every row is rendered and the literals are comma-joined, as
+     * the SDK's JDBC {@code FederationExpressionParser} does. A constant with no rows renders as {@code NULL}.
+     */
+    private static String constantToLiteral(final ConstantExpression expr)
+    {
+        final int rowCount = expr.getValues().getRowCount();
+        if (rowCount == 0) {
+            return "NULL";
+        }
+        final FieldReader reader = expr.getValues().getFieldReader(DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME);
+        final List<String> literals = new ArrayList<>(rowCount);
+        for (int i = 0; i < rowCount; i++) {
+            reader.setPosition(i);
+            literals.add(toLiteral(reader.readObject(), expr.getType()));
+        }
+        return String.join(", ", literals);
+    }
+
+    /**
+     * Decodes an Athena TIMESTAMP-with-time-zone constraint value to epoch millis.
+     * Athena (Trino engine) packs such values as {@code (millisUtc << 12) | timeZoneKey};
+     * the SDK's {@link DateTimeFormatterUtil#constructZonedDateTime} unpacks that. Other
+     * temporal representations are handled directly for robustness.
+     */
+    static long constraintEpochMillis(final Object value, final ArrowType.Timestamp arrowType)
+    {
+        if (value instanceof Number) {
+            return DateTimeFormatterUtil.constructZonedDateTime(((Number) value).longValue(), arrowType)
+                    .toInstant().toEpochMilli();
+        }
+        if (value instanceof ZonedDateTime) {
+            return ((ZonedDateTime) value).toInstant().toEpochMilli();
+        }
+        if (value instanceof Instant) {
+            return ((Instant) value).toEpochMilli();
+        }
+        if (value instanceof LocalDateTime) {
+            return ((LocalDateTime) value).toInstant(ZoneOffset.UTC).toEpochMilli();
+        }
+        return Instant.parse(String.valueOf(value)).toEpochMilli();
+    }
+
+    /**
+     * Renders a plain epoch-millisecond value as a SQL {@code TIMESTAMP} literal
+     * (UTC, millisecond precision).
+     */
+    static String timestampLiteral(final long epochMillis)
+    {
+        return "TIMESTAMP '" + DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(epochMillis)) + "'";
+    }
+
+    /**
+     * Renders a constraint value (as delivered by Athena) as a SQL literal, based on the column's Arrow type.
+     * Athena packs TIMESTAMP-with-time-zone values ({@code millisUtc << 12 | tzKey}); those are decoded by
+     * {@link #constraintEpochMillis} before formatting.
+     */
+    static String toLiteral(final Object value, final ArrowType type)
+    {
+        if (value == null) {
+            return "NULL";
+        }
+
+        final Types.MinorType minorType = Types.getMinorTypeForArrowType(type);
+        switch (minorType) {
+            case VARCHAR :
+                return "'" + String.valueOf(value).replace("'", "''") + "'";
+            case BIT :
+                return Boolean.TRUE.equals(value) ? "true" : "false";
+            case TIMESTAMPMILLITZ :
+                // getMinorTypeForArrowType returns TIMESTAMPMILLITZ only for an ArrowType.Timestamp.
+                return timestampLiteral(constraintEpochMillis(value, (ArrowType.Timestamp) type));
+            case DATEMILLI : {
+                // Convert epoch millis or LocalDateTime to timestamp literal
+                if (value instanceof LocalDateTime) {
+                    return "'" + DateTimeFormatter.ISO_LOCAL_DATE_TIME.format((LocalDateTime) value) + "'";
+                }
+                if (value instanceof Number) {
+                    final Instant instant = Instant.ofEpochMilli(((Number) value).longValue());
+                    return "'" + DateTimeFormatter.ISO_INSTANT.format(instant) + "'";
+                }
+                return "'" + String.valueOf(value).replace("'", "''") + "'";
+            }
+            case BIGINT :
+            case INT :
+            case FLOAT8 :
+            case FLOAT4 :
+                if (value instanceof Number) {
+                    return String.valueOf(value);
+                }
+                return "'" + String.valueOf(value).replace("'", "''") + "'";
+            case DECIMAL :
+                // An unsigned 64-bit column (DECIMAL(20,0)) compares against a plain integer literal.
+                if (value instanceof BigDecimal) {
+                    return ((BigDecimal) value).toPlainString();
+                }
+                if (value instanceof Number) {
+                    return String.valueOf(value);
+                }
+                return "'" + String.valueOf(value).replace("'", "''") + "'";
+            default :
+                return "'" + String.valueOf(value).replace("'", "''") + "'";
+        }
+    }
+
+    static String quote(final String identifier)
+    {
+        return "\"" + identifier.replace("\"", "\"\"") + "\"";
+    }
+}
