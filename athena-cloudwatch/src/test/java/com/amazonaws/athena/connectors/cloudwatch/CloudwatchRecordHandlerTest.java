@@ -353,6 +353,7 @@ public class CloudwatchRecordHandlerTest
         assertPushedTimeWindow("less than or equal", SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.BIGINT.getType(), 5000L)), null, 5001L);
         assertPushedTimeWindow("exclusive range", SortedRangeSet.of(Range.range(allocator, Types.MinorType.BIGINT.getType(), 1000L, false, 5000L, false)), 1001L, 5000L);
         assertPushedTimeWindow("max inclusive upper bound", SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.BIGINT.getType(), Long.MAX_VALUE)), null, null);
+        assertPushedTimeWindow("max exclusive lower bound", SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.BIGINT.getType(), Long.MAX_VALUE)), null, null);
     }
 
     private void assertPushedTimeWindow(String label, ValueSet timeConstraint, Long expectedStart, Long expectedEnd) throws Exception
