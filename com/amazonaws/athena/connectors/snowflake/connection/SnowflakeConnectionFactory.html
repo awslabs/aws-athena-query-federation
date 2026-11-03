@@ -143,8 +143,19 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <hr>
 <pre>public class <span class="typeNameLabel">SnowflakeConnectionFactory</span>
 extends <a href="../../jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></pre>
-<div class="block">Custom connection factory for Snowflake that supports key-pair authentication.
- Extends GenericJdbcConnectionFactory to handle Snowflake-specific authentication methods.</div>
+<div class="block">Custom connection factory for Snowflake that supports multiple authentication methods.
+ <p>
+ For JWT (key-pair) auth: uses <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/DriverManager.html?is-external=true" title="class or interface in java.sql" class="externalLink"><code>DriverManager</code></a> directly because HikariCP
+ stringifies all property values via <code>toString()</code>, which breaks the
+ <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/security/PrivateKey.html?is-external=true" title="class or interface in java.security" class="externalLink"><code>PrivateKey</code></a> object required by the Snowflake JDBC driver.
+ <p>
+ For password/OAuth auth: always uses HikariCP connection pooling via
+ <a href="../../jdbc/connection/GenericJdbcConnectionFactory.html#getConnectionFromManagedPool(com.amazonaws.athena.connector.credentials.CredentialsProvider)"><code>GenericJdbcConnectionFactory.getConnectionFromManagedPool(com.amazonaws.athena.connector.credentials.CredentialsProvider)</code></a>, bypassing
+ the parent's direct-connection path even when <code>fas_token</code> is present.
+ <p>
+ The Snowflake JDBC driver's <code>SnowflakeConnectString.parse()</code> URL-decodes
+ query parameters internally, so both <code>%22</code> and literal <code>"</code> in the
+ connection string work correctly for case-sensitive identifiers.</div>
 </li>
 </ul>
 </div>
@@ -163,7 +174,7 @@ extends <a href="../../jdbc/connection/GenericJdbcConnectionFactory.html" title=
 <!--   -->
 </a>
 <h3>Fields inherited from class&nbsp;com.amazonaws.athena.connectors.jdbc.connection.<a href="../../jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></h3>
-<code><a href="../../jdbc/connection/GenericJdbcConnectionFactory.html#SECRET_NAME_PATTERN">SECRET_NAME_PATTERN</a></code></li>
+<code><a href="../../jdbc/connection/GenericJdbcConnectionFactory.html#databaseConnectionConfig">databaseConnectionConfig</a>, <a href="../../jdbc/connection/GenericJdbcConnectionFactory.html#databaseConnectionInfo">databaseConnectionInfo</a>, <a href="../../jdbc/connection/GenericJdbcConnectionFactory.html#jdbcProperties">jdbcProperties</a>, <a href="../../jdbc/connection/GenericJdbcConnectionFactory.html#SECRET_NAME_PATTERN">SECRET_NAME_PATTERN</a></code></li>
 </ul>
 </li>
 </ul>
@@ -185,6 +196,13 @@ extends <a href="../../jdbc/connection/GenericJdbcConnectionFactory.html" title=
 <th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo)">SnowflakeConnectionFactory</a></span>&#8203;(<a href="../../jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
                           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;properties,
                           <a href="../../jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a>&nbsp;databaseConnectionInfo)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo,java.util.Map)">SnowflakeConnectionFactory</a></span>&#8203;(<a href="../../jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
+                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;properties,
+                          <a href="../../jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a>&nbsp;databaseConnectionInfo,
+                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -246,18 +264,24 @@ extends <a href="../../jdbc/connection/GenericJdbcConnectionFactory.html" title=
 <a id="&lt;init&gt;(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>SnowflakeConnectionFactory</h4>
 <pre>public&nbsp;SnowflakeConnectionFactory&#8203;(<a href="../../jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
                                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;properties,
                                   <a href="../../jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a>&nbsp;databaseConnectionInfo)</pre>
-<dl>
-<dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>databaseConnectionConfig</code> - database connection configuration <a href="../../jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection"><code>DatabaseConnectionConfig</code></a></dd>
-<dd><code>properties</code> - JDBC connection properties.</dd>
-<dd><code>databaseConnectionInfo</code> - Contains JDBC driver and default port details.</dd>
-</dl>
+</li>
+</ul>
+<a id="&lt;init&gt;(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo,java.util.Map)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>SnowflakeConnectionFactory</h4>
+<pre>public&nbsp;SnowflakeConnectionFactory&#8203;(<a href="../../jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
+                                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;properties,
+                                  <a href="../../jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a>&nbsp;databaseConnectionInfo,
+                                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
 </li>
 </ul>
 </li>
