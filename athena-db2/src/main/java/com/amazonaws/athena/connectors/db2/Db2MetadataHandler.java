@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.db2;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -79,6 +80,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -152,7 +154,7 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(listSchemasRequest)))) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), getSchemaList(connection, Db2Constants.QRY_TO_LIST_SCHEMAS));
         }
@@ -241,7 +243,7 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                 getTableLayoutRequest.getTableName().getTableName());
 
         List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(Db2Constants.PARTITION_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             // check whether the table have partitions or not using PARTITION_QUERY, create a single split for view/non-partition table
@@ -257,7 +259,7 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
             else {
                 LOGGER.debug("Getting data with diff Partitions: ");
                 // get partition details from DB2 meta data tables
-                String columnName = getColumnName(parameters);
+                String columnName = getColumnName(parameters, getRequestOverrideConfig(getTableLayoutRequest));
 
                 do {
                     // 1. Returns all partitions of table, we are not supporting constraints push down to filter partitions.
@@ -297,6 +299,9 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
         Split.Builder splitBuilder;
         Set<Split> splits = new HashSet<>();
 
+        Map<String, String> identityConfigOptions = getSplitsRequest.getIdentity().getConfigOptions();
+        String catalogCasingFilter = identityConfigOptions != null ? identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER) : null;
+
         LOGGER.debug("partitionContd: {}", partitionContd);
 
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
@@ -312,14 +317,19 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
             // Included partition information to split if the table is partitioned
             if (partInfo.contains(":::")) {
                 String[] partInfoAr = partInfo.split(":::");
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITIONING_COLUMN, partInfoAr[0])
                         .add(PARTITION_NUMBER, partInfoAr[1]);
             }
             else {
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfo);
             }
+
+            if (catalogCasingFilter != null) {
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, catalogCasingFilter);
+            }
+
             splits.add(splitBuilder.build());
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
@@ -368,9 +378,9 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @param parameters
      * @throws Exception
      */
-    private String getColumnName(List<String> parameters) throws Exception
+    private String getColumnName(List<String> parameters, AwsRequestOverrideConfiguration requestOverrideConfiguration) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(Db2Constants.COLUMN_INFO_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
@@ -472,7 +482,7 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement stmt = connection.prepareStatement(Db2Constants.COLUMN_INFO_QUERY)) {
             stmt.setString(1, tableName.getSchemaName());
             stmt.setString(2, tableName.getTableName());

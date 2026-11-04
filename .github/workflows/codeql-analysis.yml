@@ -16,7 +16,7 @@ jobs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
     steps:
       - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5.3.1
+        uses: fkirc/skip-duplicate-actions@v5.3.2
         with:
           cancel_others: 'true'
           concurrent_skipping: 'same_content_newer'
@@ -29,7 +29,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
       # Specify custom java build since the autobuild doesn't take advantage of multiple cores.

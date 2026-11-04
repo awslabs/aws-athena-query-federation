@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.datalakegen2;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -219,6 +220,103 @@ public class DataLakeGen2MetadataHandlerTest
         assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         assertEquals(expectedSplits, actualSplits);
+    }
+
+    @Test
+    public void doGetSplits_WithCatalogCasingFilter_PropagatesToSplit()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                null
+        );
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        Schema partitionSchema = this.dataLakeGen2MetadataHandler.getPartitionSchema("testCatalogName");
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutResponse getTableLayoutResponse = this.dataLakeGen2MetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+
+        when(this.federatedIdentity.getConfigOptions()).thenReturn(
+                Collections.singletonMap(EnvironmentConstants.CATALOG_CASING_FILTER, EnvironmentConstants.UPPERCASE_ONLY));
+
+        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.dataLakeGen2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        Split split = getSplitsResponse.getSplits().iterator().next();
+        assertEquals("0", split.getProperty(PARTITION_NUMBER));
+        assertEquals(EnvironmentConstants.UPPERCASE_ONLY, split.getProperty(EnvironmentConstants.CATALOG_CASING_FILTER));
+    }
+
+    @Test
+    public void doGetSplits_WithConfigOptionsButNoCasingFilter_DoesNotAddCasingProperty()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                null
+        );
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        Schema partitionSchema = this.dataLakeGen2MetadataHandler.getPartitionSchema("testCatalogName");
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutResponse getTableLayoutResponse = this.dataLakeGen2MetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+
+        when(this.federatedIdentity.getConfigOptions()).thenReturn(Collections.singletonMap("someOtherKey", "someValue"));
+
+        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.dataLakeGen2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        Split split = getSplitsResponse.getSplits().iterator().next();
+        assertEquals("0", split.getProperty(PARTITION_NUMBER));
+        assertFalse(split.getProperties().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER));
+    }
+
+    @Test
+    public void doGetSplits_WithNullConfigOptions_DoesNotAddCasingProperty()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                null
+        );
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        Schema partitionSchema = this.dataLakeGen2MetadataHandler.getPartitionSchema("testCatalogName");
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutResponse getTableLayoutResponse = this.dataLakeGen2MetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+
+        when(this.federatedIdentity.getConfigOptions()).thenReturn(null);
+
+        BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsResponse getSplitsResponse = this.dataLakeGen2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        Split split = getSplitsResponse.getSplits().iterator().next();
+        assertEquals("0", split.getProperty(PARTITION_NUMBER));
+        assertFalse(split.getProperties().containsKey(EnvironmentConstants.CATALOG_CASING_FILTER));
     }
 
     @Test

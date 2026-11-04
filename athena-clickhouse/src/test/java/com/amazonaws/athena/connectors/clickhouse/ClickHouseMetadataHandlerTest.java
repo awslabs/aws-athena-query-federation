@@ -292,4 +292,11 @@ public class ClickHouseMetadataHandlerTest
         // Verify QPT capability is present when enabled
         Assert.assertTrue("Should have capabilities when QPT is enabled", !response.getCapabilities().isEmpty());
     }
+
+    @Test
+    public void clickHouseMetadataHandler_ConstructorWithDatabaseConnectionConfig_PassesEmptyJdbcProperties()
+    {
+        Assert.assertTrue(ClickHouseConstants.JDBC_PROPERTIES.isEmpty());
+        Assert.assertFalse(ClickHouseConstants.JDBC_PROPERTIES.containsKey("databaseTerm"));
+    }
 }

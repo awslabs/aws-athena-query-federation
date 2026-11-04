@@ -252,14 +252,42 @@ public class JDBCUtilTest
     public void testGetTableMetadataWithSQLException() throws SQLException
     {
         PreparedStatement mockStatement = org.mockito.Mockito.mock(PreparedStatement.class);
-        
-        // Mock SQLException to test exception handling
+
+        // A failure to query the data source must not be reported as "no tables". Returning an
+        // empty list here made a broken session (e.g. a Snowflake session with no active
+        // warehouse) look to the customer like an empty schema on an otherwise successful request.
         org.mockito.Mockito.when(mockStatement.executeQuery()).thenThrow(new SQLException("Test exception"));
-        
-        java.util.List<TableName> tables = JDBCUtil.getTableMetadata(mockStatement, "Tables");
-        
-        // Should return empty list when SQLException occurs
-        Assert.assertTrue(tables.isEmpty());
+
+        SQLException thrown = Assert.assertThrows(SQLException.class,
+                () -> JDBCUtil.getTableMetadata(mockStatement, "Tables"));
+        Assert.assertEquals("Test exception", thrown.getMessage());
+    }
+
+    @Test
+    public void testGetTableMetadataWithNoWarehouseSelectedPropagates() throws SQLException
+    {
+        // The exact Snowflake failure seen in production: ErrorCode(606) / SQLSTATE 57P03.
+        PreparedStatement mockStatement = org.mockito.Mockito.mock(PreparedStatement.class);
+        org.mockito.Mockito.when(mockStatement.executeQuery()).thenThrow(new SQLException(
+                "No active warehouse selected in the current session.  Select an active warehouse with the 'use warehouse' command.",
+                "57P03", 606));
+
+        SQLException thrown = Assert.assertThrows(SQLException.class,
+                () -> JDBCUtil.getTableMetadata(mockStatement, "Tables and Views"));
+        Assert.assertEquals("57P03", thrown.getSQLState());
+        Assert.assertEquals(606, thrown.getErrorCode());
+    }
+
+    @Test
+    public void testGetTableMetadataReturnsEmptyListForEmptySchema() throws SQLException
+    {
+        // A schema that genuinely holds no tables is still an empty list, not an exception.
+        PreparedStatement mockStatement = org.mockito.Mockito.mock(PreparedStatement.class);
+        java.sql.ResultSet mockResultSet = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+        org.mockito.Mockito.when(mockStatement.executeQuery()).thenReturn(mockResultSet);
+        org.mockito.Mockito.when(mockResultSet.next()).thenReturn(false);
+
+        Assert.assertTrue(JDBCUtil.getTableMetadata(mockStatement, "Tables").isEmpty());
     }
 
     @Test

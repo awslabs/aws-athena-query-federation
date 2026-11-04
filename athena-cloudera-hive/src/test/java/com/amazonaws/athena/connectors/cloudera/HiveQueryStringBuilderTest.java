@@ -39,10 +39,10 @@ public class HiveQueryStringBuilderTest
 	Split split;
 	
 	@Test
-	public void getFromClauseWithSplit_WithDifferentSchemas_ReturnsCorrectFromClause()
+	public void getFromClauseWithSplit_whenCatalogSchemaTableProvided_returnsBacktickQuotedFromClause()
 	{
-	    String expectedFrom1 = " FROM default.schema.table ";
-	    String expectedFrom2 = " FROM default.table ";
+	    String expectedFrom1 = " FROM `default`.`schema`.`table` ";
+	    String expectedFrom2 = " FROM `default`.`table` ";
 		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
 		String fromResult1 = builder.getFromClauseWithSplit("default", "schema", "table", split);
 		String fromResult2 = builder.getFromClauseWithSplit("default", "", "table", split);
@@ -51,7 +51,7 @@ public class HiveQueryStringBuilderTest
 	}
 
 	@Test
-	public void getPartitionWhereClauses_WithAllPartitions_ReturnsEmptyList()
+	public void getPartitionWhereClauses_whenAllPartitions_returnsEmptyList()
 	{
 		Mockito.when(split.getProperty(HiveConstants.BLOCK_PARTITION_COLUMN_NAME)).thenReturn("*");
 		

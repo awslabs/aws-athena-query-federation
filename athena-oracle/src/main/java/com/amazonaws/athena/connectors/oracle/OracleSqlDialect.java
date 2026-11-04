@@ -19,18 +19,32 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcCasingSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
+
+import java.util.Locale;
 
 /**
  * Oracle-specific SQL dialect with catalog casing filter support. Uses double-quote ({@code "}) for identifier quoting.
  */
-public class OracleSqlDialect extends JdbcCasingSqlDialect
+public class OracleSqlDialect extends org.apache.calcite.sql.dialect.OracleSqlDialect
 {
     public static final SqlDialect DEFAULT = org.apache.calcite.sql.dialect.OracleSqlDialect.DEFAULT;
 
+    private final boolean catalogCasingFilter;
+
     public OracleSqlDialect(boolean catalogCasingFilter)
     {
-        super(DatabaseProduct.ORACLE, "\"", catalogCasingFilter);
+        super(DEFAULT_CONTEXT);
+        this.catalogCasingFilter = catalogCasingFilter;
+    }
+
+    @Override
+    public StringBuilder quoteIdentifier(StringBuilder buf, String identifier)
+    {
+        if (catalogCasingFilter) {
+            String upper = identifier.toUpperCase(Locale.ROOT);
+            return buf.append("\"").append(upper.replace("\"", "\"\"")).append("\"");
+        }
+        return super.quoteIdentifier(buf, identifier);
     }
 }

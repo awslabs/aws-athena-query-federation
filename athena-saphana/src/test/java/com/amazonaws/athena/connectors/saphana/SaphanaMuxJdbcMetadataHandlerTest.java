@@ -67,7 +67,7 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
         this.jdbcMetadataHandler = new SaphanaMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
     }
     @Test
-    public void doListSchemaNames()
+    public void doListSchemaNames_withCatalogName_returnsListOfSchemas()
             throws Exception
     {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
@@ -77,7 +77,7 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
     }
 
     @Test
-    public void doListTables()
+    public void doListTables_withCatalogName_returnsListOfTables()
             throws Exception
     {
         ListTablesRequest listTablesRequest = Mockito.mock(ListTablesRequest.class);
@@ -87,7 +87,7 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_withCatalogName_returnsTableMetadata()
             throws Exception
     {
         GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
@@ -97,7 +97,7 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_withCatalogName_returnsTableLayout()
             throws Exception
     {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
@@ -108,21 +108,46 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
     }
 
     @Test
-    public void getPartitionSchema()
+    public void getPartitionSchema_withCatalogName_returnsPartitionSchema()
     {
         this.jdbcMetadataHandler.getPartitionSchema("fakedatabase");
         Mockito.verify(this.saphanaMetadataHandler, Mockito.times(1)).getPartitionSchema(Mockito.eq("fakedatabase"));
     }
 
     @Test(expected = RuntimeException.class)
-    public void getPartitionSchemaForUnsupportedCatalog()
+    public void getPartitionSchema_withUnsupportedCatalog_throwsRuntimeException()
     {
         this.jdbcMetadataHandler.getPartitionSchema("unsupportedCatalog");
     }
 
+    @Test(expected = RuntimeException.class)
+    public void doListSchemaNames_withUnsupportedCatalog_throwsRuntimeException()
+            throws Exception
+    {
+        ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
+        Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("unsupportedCatalog");
+        this.jdbcMetadataHandler.doListSchemaNames(this.allocator, listSchemasRequest);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetTable_withUnsupportedCatalog_throwsRuntimeException()
+            throws Exception
+    {
+        GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
+        Mockito.when(getTableRequest.getCatalogName()).thenReturn("unsupportedCatalog");
+        this.jdbcMetadataHandler.doGetTable(this.allocator, getTableRequest);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetSplits_withUnsupportedCatalog_throwsRuntimeException()
+    {
+        GetSplitsRequest getSplitsRequest = Mockito.mock(GetSplitsRequest.class);
+        Mockito.when(getSplitsRequest.getCatalogName()).thenReturn("unsupportedCatalog");
+        this.jdbcMetadataHandler.doGetSplits(this.allocator, getSplitsRequest);
+    }
 
     @Test
-    public void getPartitions()
+    public void getPartitions_withCatalogName_invokesDelegateToWritePartitions()
             throws Exception
     {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
@@ -132,7 +157,7 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_withCatalogName_returnsSplits()
     {
         GetSplitsRequest getSplitsRequest = Mockito.mock(GetSplitsRequest.class);
         Mockito.when(getSplitsRequest.getCatalogName()).thenReturn("fakedatabase");

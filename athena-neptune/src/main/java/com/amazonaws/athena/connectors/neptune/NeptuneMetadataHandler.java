@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
@@ -55,6 +56,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.glue.model.GetTablesRequest;
 import software.amazon.awssdk.services.glue.model.GetTablesResponse;
 import software.amazon.awssdk.services.glue.model.Table;
@@ -125,6 +128,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         super(glue, keyFactory, awsSecretsManager, athena, Constants.SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.glue = glue;
         this.glueDBName = configOptions.get("glue_database_name");
+        this.neptuneConnection = neptuneConnection;
     }
 
     @Override
@@ -314,15 +318,17 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                 if (graphTraversalForSchema.hasNext()) {
                     Object responseObj = graphTraversalForSchema.next();
                     if (responseObj instanceof Map) {
-                        logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with valueMap");
+                        logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with Map-shaped result");
                         Map graphTraversalObj = (Map) responseObj;
                         schema = NeptuneSchemaUtils.getSchemaFromResults(graphTraversalObj, componentTypeValue, tableName);
                         return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
                     }
                     else {
-                        throw new RuntimeException("Unsupported gremlin query format: We are currently supporting only valueMap gremlin queries. " +
-                                "Please make sure you are using valueMap gremlin query. " +
-                                "Example for valueMap query is g.V().hasLabel(\\\"airport\\\").valueMap().limit(5)");
+                        throw new AthenaConnectorException(
+                                "Unsupported gremlin query result shape: inline passthrough requires each row to be a Map. " +
+                                        "Use terminal steps such as valueMap(), elementMap(), or project(...).by(...). " +
+                                        "Example: g.V().hasLabel(\\\"airport\\\").project(\\\"name\\\").by(values(\\\"name\\\"))",
+                                ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                     }
                 }
                 else {

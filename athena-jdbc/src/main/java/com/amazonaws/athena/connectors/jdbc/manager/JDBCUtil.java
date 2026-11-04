@@ -159,7 +159,18 @@ public final class JDBCUtil
        return getTableMetadata(preparedStatement, tablesAndViews);
     }
 
-    public static List<TableName> getTableMetadata(PreparedStatement preparedStatement, String tableType)
+    /**
+     * Lists tables/views for the given prepared statement.
+     * <p>
+     * A {@link SQLException} here means the data source could not be queried, which is not
+     * the same thing as a schema that legitimately holds no tables. Both used to be reported
+     * as an empty list, so a broken session (for example a Snowflake session with no active
+     * warehouse) surfaced to the customer as an empty schema and a successful request. The
+     * exception is propagated so the caller can fail the request instead.
+     *
+     * @throws SQLException if the table listing could not be retrieved.
+     */
+    public static List<TableName> getTableMetadata(PreparedStatement preparedStatement, String tableType) throws SQLException
     {
         ImmutableList.Builder<TableName> list = ImmutableList.builder();
         try (ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -168,7 +179,8 @@ public final class JDBCUtil
             }
         }
         catch (SQLException ex) {
-            LOGGER.warn("Unable to return list of {} from data source!. Returning Empty list of table", tableType, ex);
+            LOGGER.warn("Unable to return list of {} from data source!", tableType, ex);
+            throw ex;
         }
         return list.build();
     }

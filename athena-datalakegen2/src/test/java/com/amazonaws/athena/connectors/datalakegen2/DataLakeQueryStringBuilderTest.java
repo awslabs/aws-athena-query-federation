@@ -21,6 +21,8 @@ package com.amazonaws.athena.connectors.datalakegen2;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.MssqlSqlDialect;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -72,5 +74,21 @@ public class DataLakeQueryStringBuilderTest
                 null
         );
         org.testng.Assert.assertEquals("", builder.appendLimitOffset(split, constraints));
+    }
+
+    @Test
+    public void testGetSqlDialectReturnsMssqlDialect()
+    {
+        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
+        SqlDialect dialect = builder.getSqlDialect();
+        Assert.assertTrue(dialect instanceof MssqlSqlDialect);
+    }
+
+    @Test
+    public void testGetSqlDialectWithCasingFilterReturnsDataLakeGen2Dialect()
+    {
+        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
+        SqlDialect dialect = builder.getSqlDialect(true);
+        Assert.assertTrue(dialect instanceof DataLakeGen2Dialect);
     }
 }

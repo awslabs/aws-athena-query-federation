@@ -387,6 +387,9 @@ public class BigQueryUtils
 
     public static Object getComplexObjectFromFieldValue(Field field, FieldValue fieldValue) throws ParseException
     {
+        if (fieldValue == null || fieldValue.isNull()) {
+            return null;
+        }
         Types.MinorType minorTypeForArrowType = getMinorTypeForArrowType(field.getFieldType().getType());
         if (minorTypeForArrowType.equals(Types.MinorType.LIST)) {
             List<Object> valList = new ArrayList();

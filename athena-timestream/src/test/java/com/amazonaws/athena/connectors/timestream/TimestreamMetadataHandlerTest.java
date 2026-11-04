@@ -262,6 +262,12 @@ public class TimestreamMetadataHandlerTest
             rows.add(Row.builder().data(Datum.builder().scalarValue("time").build(),
                     Datum.builder().scalarValue("timestamp").build(),
                     Datum.builder().scalarValue("timestamp").build()).build());
+            rows.add(Row.builder().data(Datum.builder().scalarValue("sample_int").build(),
+                    Datum.builder().scalarValue("int").build(),
+                    Datum.builder().scalarValue("measure").build()).build());
+            rows.add(Row.builder().data(Datum.builder().scalarValue("sample_date").build(),
+                    Datum.builder().scalarValue("date").build(),
+                    Datum.builder().scalarValue("dimension").build()).build());
 
             return QueryResponse.builder().rows(rows).build();
         });
@@ -274,7 +280,7 @@ public class TimestreamMetadataHandlerTest
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
-        assertEquals(4, res.getSchema().getFields().size());
+        assertEquals(6, res.getSchema().getFields().size());
 
         Field measureName = res.getSchema().findField("measure_name");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(measureName.getType()));
@@ -287,6 +293,12 @@ public class TimestreamMetadataHandlerTest
 
         Field time = res.getSchema().findField("time");
         assertEquals(Types.MinorType.DATEMILLI, Types.getMinorTypeForArrowType(time.getType()));
+
+        Field sampleInt = res.getSchema().findField("sample_int");
+        assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(sampleInt.getType()));
+
+        Field sampleDate = res.getSchema().findField("sample_date");
+        assertEquals(Types.MinorType.DATEDAY, Types.getMinorTypeForArrowType(sampleDate.getType()));
 
         logger.info("doGetTable - exit");
     }
@@ -488,6 +500,18 @@ public class TimestreamMetadataHandlerTest
                 .type(Type.builder().scalarType(ScalarType.DOUBLE).build()).build());
         columnInfos.add(ColumnInfo.builder().name("time")
                 .type(Type.builder().scalarType(ScalarType.TIMESTAMP).build()).build());
+        columnInfos.add(ColumnInfo.builder().name("day")
+                .type(Type.builder().scalarType(ScalarType.DATE).build()).build());
+        columnInfos.add(ColumnInfo.builder().name("cnt")
+                .type(Type.builder().scalarType(ScalarType.INTEGER).build()).build());
+        columnInfos.add(ColumnInfo.builder().name("clock")
+                .type(Type.builder().scalarType(ScalarType.TIME).build()).build());
+        columnInfos.add(ColumnInfo.builder().name("iv_day")
+                .type(Type.builder().scalarType(ScalarType.INTERVAL_DAY_TO_SECOND).build()).build());
+        columnInfos.add(ColumnInfo.builder().name("iv_month")
+                .type(Type.builder().scalarType(ScalarType.INTERVAL_YEAR_TO_MONTH).build()).build());
+        columnInfos.add(ColumnInfo.builder().name("unknown_col")
+                .type(Type.builder().scalarType(ScalarType.UNKNOWN).build()).build());
 
         QueryResponse queryResponse = QueryResponse.builder()
                 .columnInfo(columnInfos)
@@ -497,17 +521,29 @@ public class TimestreamMetadataHandlerTest
 
         GetTableResponse res = handler.doGetQueryPassthroughSchema(allocator, request);
 
-        assertEquals(3, res.getSchema().getFields().size());
+        assertEquals(9, res.getSchema().getFields().size());
         assertEquals(Types.MinorType.VARCHAR,
                 Types.getMinorTypeForArrowType(res.getSchema().findField("id").getType()));
         assertEquals(Types.MinorType.FLOAT8,
                 Types.getMinorTypeForArrowType(res.getSchema().findField("measure_value").getType()));
         assertEquals(Types.MinorType.DATEMILLI,
                 Types.getMinorTypeForArrowType(res.getSchema().findField("time").getType()));
+        assertEquals(Types.MinorType.DATEDAY,
+                Types.getMinorTypeForArrowType(res.getSchema().findField("day").getType()));
+        assertEquals(Types.MinorType.INT,
+                Types.getMinorTypeForArrowType(res.getSchema().findField("cnt").getType()));
+        assertEquals(Types.MinorType.VARCHAR,
+                Types.getMinorTypeForArrowType(res.getSchema().findField("clock").getType()));
+        assertEquals(Types.MinorType.VARCHAR,
+                Types.getMinorTypeForArrowType(res.getSchema().findField("iv_day").getType()));
+        assertEquals(Types.MinorType.VARCHAR,
+                Types.getMinorTypeForArrowType(res.getSchema().findField("iv_month").getType()));
+        assertEquals(Types.MinorType.VARCHAR,
+                Types.getMinorTypeForArrowType(res.getSchema().findField("unknown_col").getType()));
     }
 
     @Test
-    public void doGetQueryPassthroughSchema_timeseriesColumn_throwsException()
+    public void doGetQueryPassthroughSchema_timeseriesColumn_returnsSchema()
             throws Exception
     {
         Map<String, String> queryPassthroughArgs = new HashMap<>();
@@ -519,8 +555,11 @@ public class TimestreamMetadataHandlerTest
         GetTableRequest request = new GetTableRequest(identity, "query-id", "default",
                 new TableName("system", "query"), queryPassthroughArgs);
 
-        // Simulate Timestream returning a timeseries/non-scalar column: Type with no scalar (scalarTypeAsString() null).
-        Type timeseriesType = Type.builder().build();
+        ColumnInfo measureValueInfo = ColumnInfo.builder()
+                .name("cpu_util")
+                .type(Type.builder().scalarType(ScalarType.DOUBLE).build())
+                .build();
+        Type timeseriesType = Type.builder().timeSeriesMeasureValueColumnInfo(measureValueInfo).build();
         ColumnInfo timeseriesColumn = ColumnInfo.builder().name("my_time_series").type(timeseriesType).build();
         QueryResponse queryResponse = QueryResponse.builder()
                 .columnInfo(Collections.singletonList(timeseriesColumn))
@@ -529,14 +568,155 @@ public class TimestreamMetadataHandlerTest
 
         when(mockTsQuery.query(nullable(QueryRequest.class))).thenReturn(queryResponse);
 
+        GetTableResponse res = handler.doGetQueryPassthroughSchema(allocator, request);
+
+        Field ts = res.getSchema().findField("my_time_series");
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(ts.getType()));
+        Field structField = ts.getChildren().get(0);
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(structField.getType()));
+        assertEquals(Types.MinorType.DATEMILLI,
+                Types.getMinorTypeForArrowType(structField.getChildren().get(0).getType()));
+        assertEquals("cpu_util", structField.getChildren().get(1).getName());
+        assertEquals(Types.MinorType.FLOAT8,
+                Types.getMinorTypeForArrowType(structField.getChildren().get(1).getType()));
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema_nullColumnName_defaultsToItem()
+            throws Exception
+    {
+        Map<String, String> queryPassthroughArgs = new HashMap<>();
+        queryPassthroughArgs.put(SCHEMA_FUNCTION_NAME, TimestreamQueryPassthrough.SCHEMA_NAME + "." + TimestreamQueryPassthrough.NAME);
+        queryPassthroughArgs.put(TimestreamQueryPassthrough.QUERY, "SELECT col FROM \"db\".\"table\"");
+
+        GetTableRequest request = new GetTableRequest(identity, "query-id", "default",
+                new TableName("system", "query"), queryPassthroughArgs);
+
+        ColumnInfo unnamedColumn = ColumnInfo.builder()
+                .type(Type.builder().scalarType(ScalarType.VARCHAR).build())
+                .build();
+        QueryResponse queryResponse = QueryResponse.builder()
+                .columnInfo(Collections.singletonList(unnamedColumn))
+                .rows(Collections.emptyList())
+                .build();
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenReturn(queryResponse);
+
+        GetTableResponse res = handler.doGetQueryPassthroughSchema(allocator, request);
+        assertEquals("item", res.getSchema().getFields().get(0).getName());
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema_arrayAndRowColumns_returnsSchema()
+            throws Exception
+    {
+        Map<String, String> queryPassthroughArgs = new HashMap<>();
+        queryPassthroughArgs.put(SCHEMA_FUNCTION_NAME, TimestreamQueryPassthrough.SCHEMA_NAME + "." + TimestreamQueryPassthrough.NAME);
+        queryPassthroughArgs.put(TimestreamQueryPassthrough.QUERY, "SELECT arr, r FROM \"db\".\"table\"");
+
+        GetTableRequest request = new GetTableRequest(identity, "query-id", "default",
+                new TableName("system", "query"), queryPassthroughArgs);
+
+        Type arrayType = Type.builder()
+                .arrayColumnInfo(ColumnInfo.builder()
+                        .type(Type.builder().scalarType(ScalarType.INTEGER).build())
+                        .build())
+                .build();
+        Type rowType = Type.builder()
+                .rowColumnInfo(
+                        ColumnInfo.builder().name("x").type(Type.builder().scalarType(ScalarType.VARCHAR).build()).build(),
+                        ColumnInfo.builder().name("y").type(Type.builder().scalarType(ScalarType.DOUBLE).build()).build(),
+                        ColumnInfo.builder().type(Type.builder().scalarType(ScalarType.INTEGER).build()).build())
+                .build();
+
+        List<ColumnInfo> columnInfos = new ArrayList<>();
+        columnInfos.add(ColumnInfo.builder().name("arr").type(arrayType).build());
+        columnInfos.add(ColumnInfo.builder().name("r").type(rowType).build());
+
+        QueryResponse queryResponse = QueryResponse.builder()
+                .columnInfo(columnInfos)
+                .rows(Collections.emptyList())
+                .build();
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenReturn(queryResponse);
+
+        GetTableResponse res = handler.doGetQueryPassthroughSchema(allocator, request);
+
+        Field arr = res.getSchema().findField("arr");
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(arr.getType()));
+        assertEquals("item", arr.getChildren().get(0).getName());
+        assertEquals(Types.MinorType.INT,
+                Types.getMinorTypeForArrowType(arr.getChildren().get(0).getType()));
+
+        Field rowField = res.getSchema().findField("r");
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(rowField.getType()));
+        assertEquals(3, rowField.getChildren().size());
+        assertEquals("x", rowField.getChildren().get(0).getName());
+        assertEquals(Types.MinorType.VARCHAR,
+                Types.getMinorTypeForArrowType(rowField.getChildren().get(0).getType()));
+        assertEquals("y", rowField.getChildren().get(1).getName());
+        assertEquals(Types.MinorType.FLOAT8,
+                Types.getMinorTypeForArrowType(rowField.getChildren().get(1).getType()));
+        assertEquals("field_2", rowField.getChildren().get(2).getName());
+        assertEquals(Types.MinorType.INT,
+                Types.getMinorTypeForArrowType(rowField.getChildren().get(2).getType()));
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema_missingType_throwsException()
+            throws Exception
+    {
+        Map<String, String> queryPassthroughArgs = new HashMap<>();
+        queryPassthroughArgs.put(SCHEMA_FUNCTION_NAME, TimestreamQueryPassthrough.SCHEMA_NAME + "." + TimestreamQueryPassthrough.NAME);
+        queryPassthroughArgs.put(TimestreamQueryPassthrough.QUERY, "SELECT missing_type FROM \"db\".\"table\"");
+
+        GetTableRequest request = new GetTableRequest(identity, "query-id", "default",
+                new TableName("system", "query"), queryPassthroughArgs);
+
+        QueryResponse queryResponse = QueryResponse.builder()
+                .columnInfo(Collections.singletonList(ColumnInfo.builder().name("missing_type").build()))
+                .rows(Collections.emptyList())
+                .build();
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenReturn(queryResponse);
+
         try {
             handler.doGetQueryPassthroughSchema(allocator, request);
-            fail("Expected AthenaConnectorException for timeseries column");
+            fail("Expected AthenaConnectorException for missing Timestream type");
         }
         catch (AthenaConnectorException e) {
             assertNotNull(e.getMessage());
-            assertTrue("Message should mention supported scalar types",
-                    e.getMessage().contains("varchar") && e.getMessage().contains("double") && e.getMessage().contains("timestamp"));
+            assertTrue("Message should mention missing type information", e.getMessage().contains("has no type information"));
+            assertTrue("Message should mention the column name", e.getMessage().contains("missing_type"));
+        }
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema_emptyType_throwsException()
+            throws Exception
+    {
+        Map<String, String> queryPassthroughArgs = new HashMap<>();
+        queryPassthroughArgs.put(SCHEMA_FUNCTION_NAME, TimestreamQueryPassthrough.SCHEMA_NAME + "." + TimestreamQueryPassthrough.NAME);
+
+        queryPassthroughArgs.put(TimestreamQueryPassthrough.QUERY,
+                "SELECT id, my_time_series FROM \"db\".\"table\"");
+
+        GetTableRequest request = new GetTableRequest(identity, "query-id", "default",
+                new TableName("system", "query"), queryPassthroughArgs);
+
+        Type emptyType = Type.builder().build();
+        ColumnInfo badColumn = ColumnInfo.builder().name("my_time_series").type(emptyType).build();
+        QueryResponse queryResponse = QueryResponse.builder()
+                .columnInfo(Collections.singletonList(badColumn))
+                .rows(Collections.emptyList())
+                .build();
+
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenReturn(queryResponse);
+
+        try {
+            handler.doGetQueryPassthroughSchema(allocator, request);
+            fail("Expected AthenaConnectorException for empty Timestream type");
+        }
+        catch (AthenaConnectorException e) {
+            assertNotNull(e.getMessage());
+            assertTrue("Message should mention mapping failure", e.getMessage().contains("could not map"));
             assertTrue("Message should mention the column name", e.getMessage().contains("my_time_series"));
             assertTrue("Message should mention docs link", e.getMessage().contains("connectors-timestream.html"));
         }

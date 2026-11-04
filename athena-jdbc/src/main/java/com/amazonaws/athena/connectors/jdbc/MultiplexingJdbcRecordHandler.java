@@ -34,6 +34,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -53,6 +55,7 @@ import java.util.Map;
 public class MultiplexingJdbcRecordHandler
         extends JdbcRecordHandler
 {
+    private static final Logger MUX_LOGGER = LoggerFactory.getLogger(MultiplexingJdbcRecordHandler.class);
     private static final int MAX_CATALOGS_TO_MULTIPLEX = 100;
     private final Map<String, JdbcRecordHandler> recordHandlerMap;
 
@@ -104,5 +107,41 @@ public class MultiplexingJdbcRecordHandler
             throws SQLException
     {
         return this.recordHandlerMap.get(catalogName).buildSplitSql(jdbcConnection, catalogName, tableName, schema, constraints, split);
+    }
+
+    /**
+     * Closes this handler's own connection factory along with every delegate's, since each
+     * delegate owns an independent connection pool. Delegates are closed on a best-effort
+     * basis so that one failure cannot leak the remaining pools.
+     */
+    @Override
+    public void close() throws Exception
+    {
+        Exception firstFailure = null;
+
+        for (Map.Entry<String, JdbcRecordHandler> delegate : this.recordHandlerMap.entrySet()) {
+            try {
+                delegate.getValue().close();
+            }
+            catch (Exception e) {
+                MUX_LOGGER.warn("Failed to close record handler for catalog {}", delegate.getKey(), e);
+                if (firstFailure == null) {
+                    firstFailure = e;
+                }
+            }
+        }
+
+        try {
+            super.close();
+        }
+        catch (Exception e) {
+            if (firstFailure == null) {
+                firstFailure = e;
+            }
+        }
+
+        if (firstFailure != null) {
+            throw firstFailure;
+        }
     }
 }

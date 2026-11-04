@@ -44,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.google.common.collect.ImmutableList;
 import com.mongodb.client.FindIterable;
+import com.mongodb.client.ListCollectionNamesIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -304,7 +305,6 @@ public class DocDBMetadataHandlerTest
         when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
@@ -391,7 +391,7 @@ public class DocDBMetadataHandlerTest
 
         when(mockListDatabaseNamesIterable.spliterator()).thenReturn(ImmutableList.of(DEFAULT_SCHEMA).spliterator());
 
-        MongoIterable mockListCollectionsNamesIterable = mock(MongoIterable.class);
+        ListCollectionNamesIterable mockListCollectionsNamesIterable = mock(ListCollectionNamesIterable.class);
         when(mockDatabase.listCollectionNames()).thenReturn(mockListCollectionsNamesIterable);
         when(mockListCollectionsNamesIterable.spliterator()).thenReturn(ImmutableList.of(TEST_TABLE).spliterator());
 
@@ -399,7 +399,6 @@ public class DocDBMetadataHandlerTest
         when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
@@ -750,6 +749,45 @@ public class DocDBMetadataHandlerTest
             assertTrue("Exception message should contain Missing Query Passthrough Argument",
                     ex.getMessage().contains("Missing Query Passthrough Argument"));
         }
+    }
+
+    @Test
+    public void getConnectionStringForFederatedRequestsEncodesCredentials() throws Exception
+    {
+        // Regression test for the DocumentDB connection-URI injection (CWE-75). Credentials read from
+        // Secrets Manager must be percent-encoded before being inserted into the MongoDB URI so that
+        // special characters cannot terminate/restructure the URI authority or inject an authMechanism.
+        String maliciousUser = "attackerHost";
+        String maliciousPassword = "p/ss:w@rd?authMechanism=MONGODB-AWS";
+        String secretJson = "{\"username\":\"" + maliciousUser + "\",\"password\":\"" + maliciousPassword + "\"}";
+
+        when(secretsManager.getSecretValue(any(software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest.class)))
+                .thenReturn(software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse.builder()
+                        .secretString(secretJson).build());
+
+        Map<String, String> connConfigOptions = new HashMap<>();
+        connConfigOptions.put("secret_arn", "arn:aws:secretsmanager:us-east-1:123456789012:secret:docdb-abc");
+        connConfigOptions.put("HOST", "realhost.docdb.amazonaws.com");
+        connConfigOptions.put("PORT", "27017");
+
+        java.lang.reflect.Method method = DocDBMetadataHandler.class
+                .getDeclaredMethod("getConnectionStringForFederatedRequests", Map.class);
+        method.setAccessible(true);
+        String connStr = (String) method.invoke(handler, connConfigOptions);
+
+        logger.info("Constructed federated connStr (encoded): {}", connStr);
+
+        // The real host/port must remain the effective authority (authority not terminated early).
+        assertTrue("real host/port must be preserved as the URI authority",
+                connStr.contains("@realhost.docdb.amazonaws.com:27017"));
+        // Password special characters must be percent-encoded.
+        assertTrue("'/' must be encoded to %2F", connStr.contains("%2F"));
+        assertTrue("'@' must be encoded to %40", connStr.contains("%40"));
+        assertTrue("':' must be encoded to %3A", connStr.contains("%3A"));
+        assertTrue("'?' must be encoded to %3F", connStr.contains("%3F"));
+        // The injected auth mechanism must not appear as an unencoded URI option.
+        assertFalse("authMechanism must not be injectable via credential values",
+                connStr.contains("?authMechanism=MONGODB-AWS"));
     }
 
     private void assertMinorType(Schema schema, String field, Types.MinorType expected)

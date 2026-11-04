@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.teradata;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -29,22 +28,21 @@ import org.mockito.Mockito;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static com.amazonaws.athena.connectors.teradata.TeradataConstants.TERADATA_QUOTE_CHARACTER;
+import static org.junit.Assert.assertEquals;
 
 public class TeradataQueryStringBuilderTest
 {
     private TeradataQueryStringBuilder queryBuilder;
-    private FederationExpressionParser federationExpressionParser;
-
+    
     @Before
     public void setup()
     {
-        federationExpressionParser = Mockito.mock(FederationExpressionParser.class);
-        queryBuilder = new TeradataQueryStringBuilder("\"", federationExpressionParser);
+        queryBuilder = new TeradataQueryStringBuilder(TERADATA_QUOTE_CHARACTER, new TeradataFederationExpressionParser(TERADATA_QUOTE_CHARACTER));
     }
 
     @Test
-    public void testGetFromClauseWithSplitFullyQualified()
+    public void getFromClauseWithSplit_withCatalogSchemaAndTable_includesQuotedQualifiers()
     {
         Split split = Mockito.mock(Split.class);
         String result = queryBuilder.getFromClauseWithSplit("testCatalog", "testSchema", "testTable", split);
@@ -52,7 +50,7 @@ public class TeradataQueryStringBuilderTest
     }
 
     @Test
-    public void testGetFromClauseWithSplitNoSchema()
+    public void getFromClauseWithSplit_withCatalogOnly_omitsNullSchema()
     {
         Split split = Mockito.mock(Split.class);
         String result = queryBuilder.getFromClauseWithSplit("testCatalog", null, "testTable", split);
@@ -60,7 +58,7 @@ public class TeradataQueryStringBuilderTest
     }
 
     @Test
-    public void testGetFromClauseWithSplitNoCatalog()
+    public void getFromClauseWithSplit_withSchemaOnly_omitsNullCatalog()
     {
         Split split = Mockito.mock(Split.class);
         String result = queryBuilder.getFromClauseWithSplit(null, "testSchema", "testTable", split);
@@ -68,7 +66,7 @@ public class TeradataQueryStringBuilderTest
     }
 
     @Test
-    public void testGetFromClauseWithSplitTableOnly()
+    public void getFromClauseWithSplit_withTableOnly_omitsNullCatalogAndSchema()
     {
         Split split = Mockito.mock(Split.class);
         String result = queryBuilder.getFromClauseWithSplit(null, null, "testTable", split);
@@ -76,7 +74,7 @@ public class TeradataQueryStringBuilderTest
     }
 
     @Test
-    public void testGetPartitionWhereClausesWithPartition()
+    public void getPartitionWhereClauses_withConcretePartitionValue_returnsEqualityClause()
     {
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME)).thenReturn("p1");
@@ -88,10 +86,10 @@ public class TeradataQueryStringBuilderTest
     }
 
     @Test
-    public void testGetPartitionWhereClausesWithWildcard()
+    public void getPartitionWhereClauses_withAllPartitionsWildcard_returnsEmptyList()
     {
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME)).thenReturn("*");
+        Mockito.when(split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME)).thenReturn(TeradataMetadataHandler.ALL_PARTITIONS);
         
         List<String> result = queryBuilder.getPartitionWhereClauses(split);
         
@@ -99,7 +97,7 @@ public class TeradataQueryStringBuilderTest
     }
 
     @Test
-    public void testAppendLimitOffset()
+    public void appendLimitOffset_withSplitAndConstraints_returnsEmptyString()
     {
         Split split = Mockito.mock(Split.class);
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -110,7 +108,7 @@ public class TeradataQueryStringBuilderTest
     }
 
     @Test
-    public void testGetSqlDialect()
+    public void getSqlDialect_returnsTeradataSqlDialect()
     {
         assertEquals(TeradataSqlDialect.class, queryBuilder.getSqlDialect().getClass());
     }

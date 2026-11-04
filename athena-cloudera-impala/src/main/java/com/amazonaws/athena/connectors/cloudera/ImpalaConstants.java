@@ -34,7 +34,7 @@ public class ImpalaConstants
     static final String ALL_PARTITIONS = "*";
     static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     static final String COLUMN_NAME = "COLUMN_NAME";
-    static final String IMPALA_QUOTE_CHARACTER = "";
+    static final String IMPALA_QUOTE_CHARACTER = "`";
     static final int FETCH_SIZE = 1000;
 
     public static final String IMPALA_NAME = "impala";
