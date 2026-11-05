@@ -407,6 +407,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#ARGUMENTS">ARGUMENTS</a></span> - Static variable in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#ARGUMENTS">ARGUMENTS</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#ARGUMENTS">ARGUMENTS</a></span> - Static variable in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/qpt/RedisQueryPassthrough.html#ARGUMENTS">ARGUMENTS</a></span> - Static variable in class com.amazonaws.athena.connectors.redis.qpt.<a href="com/amazonaws/athena/connectors/redis/qpt/RedisQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.redis.qpt">RedisQueryPassthrough</a></dt>
@@ -459,6 +461,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/OrderByField.Direction.html#ASC_NULLS_LAST">ASC_NULLS_LAST</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/OrderByField.Direction.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField.Direction</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#assertEnabled(java.util.Map)">assertEnabled(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
+<dd>
+<div class="block">Enforces the <code>enable_query_passthrough</code> flag at execution time.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#assertFieldName(com.fasterxml.jackson.core.JsonParser,java.lang.String)">assertFieldName(JsonParser, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
 <dd>
 <div class="block">Helper used to validate an expected field name.</div>
@@ -1037,6 +1043,16 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/saphana/SaphanaQueryStringBuilder.html#buildSql(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSql(Connection, String, String, String, Schema, Constraints, Split)</a></span> - Method in class com.amazonaws.athena.connectors.saphana.<a href="com/amazonaws/athena/connectors/saphana/SaphanaQueryStringBuilder.html" title="class in com.amazonaws.athena.connectors.saphana">SaphanaQueryStringBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryBuilder.html#buildSql(org.apache.arrow.vector.types.pojo.Schema,java.lang.String,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">buildSql(Schema, String, Constraints)</a></span> - Static method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryBuilder.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryBuilder</a></dt>
+<dd>
+<div class="block">Builds a complete SQL query from the schema, table name, and constraints.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryBuilder.html#buildSql(org.apache.arrow.vector.types.pojo.Schema,java.lang.String,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,java.lang.String,java.lang.String)">buildSql(Schema, String, Constraints, String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryBuilder.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryBuilder</a></dt>
+<dd>
+<div class="block">Builds a complete SQL query, additionally narrowing the query to a single
+ time-based split via a half-open <code>[lower, upper)</code> predicate on the
+ time column.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html#buildSQLStringLiteral(java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split,java.lang.String,java.util.List)">buildSQLStringLiteral(String, String, String, Schema, Constraints, Split, String, List&lt;TypeAndValue&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcSplitQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html#buildSubstraitRelModel(io.substrait.proto.Rel)">buildSubstraitRelModel(Rel)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitRelModel</a></dt>
@@ -1663,6 +1679,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><a href="com/amazonaws/athena/connectors/hbase/qpt/package-summary.html">com.amazonaws.athena.connectors.hbase.qpt</a> - package com.amazonaws.athena.connectors.hbase.qpt</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/hortonworks/package-summary.html">com.amazonaws.athena.connectors.hortonworks</a> - package com.amazonaws.athena.connectors.hortonworks</dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a> - package com.amazonaws.athena.connectors.influxdb</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/jdbc/package-summary.html">com.amazonaws.athena.connectors.jdbc</a> - package com.amazonaws.athena.connectors.jdbc</dt>
 <dd>&nbsp;</dd>
@@ -2322,6 +2340,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#customConnectorVerifications(java.util.Map)">customConnectorVerifications(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#customConnectorVerifications(java.util.Map)">customConnectorVerifications(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneGremlinQueryPassthrough.html#customConnectorVerifications(java.util.Map)">customConnectorVerifications(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.neptune.qpt.<a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneGremlinQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.neptune.qpt">NeptuneGremlinQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneSparqlQueryPassthrough.html#customConnectorVerifications(java.util.Map)">customConnectorVerifications(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.neptune.qpt.<a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneSparqlQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.neptune.qpt">NeptuneSparqlQueryPassthrough</a></dt>
@@ -2354,6 +2374,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html#DATABASE">DATABASE</a></span> - Static variable in class com.amazonaws.athena.connectors.docdb.qpt.<a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.docdb.qpt">DocDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html#DATABASE">DATABASE</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.qpt.<a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.hbase.qpt">HbaseQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#DATABASE">DATABASE</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneGremlinQueryPassthrough.html#DATABASE">DATABASE</a></span> - Static variable in class com.amazonaws.athena.connectors.neptune.qpt.<a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneGremlinQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.neptune.qpt">NeptuneGremlinQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
@@ -2810,11 +2832,19 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeArrowTypeConverter.html#DEFAULT_PRECISION">DEFAULT_PRECISION</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeArrowTypeConverter.html" title="class in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeArrowTypeConverter</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#DEFAULT_QUERY_PARALLELISM_COUNT">DEFAULT_QUERY_PARALLELISM_COUNT</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#DEFAULT_REDIS_DB_NUMBER">DEFAULT_REDIS_DB_NUMBER</a></span> - Static variable in class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#DEFAULT_SCHEMA">DEFAULT_SCHEMA</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#DEFAULT_TIME_COLUMN">DEFAULT_TIME_COLUMN</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#DEFAULT_TIME_ZONE">DEFAULT_TIME_ZONE</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#DEFAULT_TOKEN_KEY">DEFAULT_TOKEN_KEY</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#DEFAULT_TOKEN_REFRESH_MAX_RETRIES">DEFAULT_TOKEN_REFRESH_MAX_RETRIES</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html" title="class in com.amazonaws.athena.connector.credentials"><span class="typeNameLink">DefaultCredentials</span></a> - Class in <a href="com/amazonaws/athena/connector/credentials/package-summary.html">com.amazonaws.athena.connector.credentials</a></dt>
 <dd>
@@ -3213,6 +3243,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Used to describe the types of capabilities supported by a data source.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities(BlockAllocator, GetDataSourceCapabilitiesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities(BlockAllocator, GetDataSourceCapabilitiesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities(BlockAllocator, GetDataSourceCapabilitiesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.mysql.<a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.mysql">MySqlMetadataHandler</a></dt>
@@ -3263,6 +3295,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>
+<div class="block">Derives the result schema for a query passthrough by running the native query and inspecting the Arrow schema of
+ its first result batch.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
@@ -3351,6 +3388,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Used to split-up the reads required to scan the requested batch of partition(s).</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
@@ -3449,6 +3488,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">If Glue is enabled as a source of supplemental metadata we look up the requested Schema/Table in Glue and
  filters out any results that don't have the HBASE_METADATA_FLAG set.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
@@ -3562,6 +3603,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">List namespaces in your HBase instance treating each as a 'schema' (aka database)</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames(BlockAllocator, ListSchemasRequest)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames(BlockAllocator, ListSchemasRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames(BlockAllocator, ListSchemasRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
@@ -3652,6 +3695,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">List tables in the requested schema in your HBase instance treating the requested schema as an HBase
  namespace.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
@@ -4021,6 +4066,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#ENABLE_CASE_INSENSITIVE_MATCH">ENABLE_CASE_INSENSITIVE_MATCH</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#ENABLE_QUERY_PARALLELISM">ENABLE_QUERY_PARALLELISM</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#ENABLE_QUERY_PASSTHROUGH">ENABLE_QUERY_PASSTHROUGH</a></span> - Static variable in interface com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.<a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthroughSignature</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html#enableCaseSensitivelyLookUpSession(java.sql.Connection)">enableCaseSensitivelyLookUpSession(Connection)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></dt>
@@ -4095,6 +4142,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Generates a partition schema with metadata derived from available predicates.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#enhancePartitionSchema(com.amazonaws.athena.connector.lambda.data.SchemaBuilder,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest)">enhancePartitionSchema(SchemaBuilder, GetTableLayoutRequest)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>
+<div class="block">This method can be used to add additional fields to the schema of our
+ partition response.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#enhancePartitionSchema(com.amazonaws.athena.connector.lambda.data.SchemaBuilder,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest)">enhancePartitionSchema(SchemaBuilder, GetTableLayoutRequest)</a></span> - Method in class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeMetadataHandler.html#enhancePartitionSchema(com.amazonaws.athena.connector.lambda.data.SchemaBuilder,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest)">enhancePartitionSchema(SchemaBuilder, GetTableLayoutRequest)</a></span> - Method in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeMetadataHandler.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeMetadataHandler</a></dt>
@@ -4115,11 +4167,19 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/neptune/Enums.TableSchemaMetaType.html" title="enum in com.amazonaws.athena.connectors.neptune"><span class="typeNameLink">Enums.TableSchemaMetaType</span></a> - Enum in <a href="com/amazonaws/athena/connectors/neptune/package-summary.html">com.amazonaws.athena.connectors.neptune</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#ENV_ALLOW_INSECURE_TRANSPORT">ENV_ALLOW_INSECURE_TRANSPORT</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryConstants.html#ENV_BIG_QUERY_CREDS_SM_ID">ENV_BIG_QUERY_CREDS_SM_ID</a></span> - Static variable in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryConstants.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQueryConstants</a></dt>
 <dd>
 <div class="block">The name of the secret within Secrets Manager that contains credentials JSON that provides this Lambda access
  to call Google BigQuery.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#ENV_INFLUXDB_HOST">ENV_INFLUXDB_HOST</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#ENV_INFLUXDB_TOKEN">ENV_INFLUXDB_TOKEN</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#ENV_INFLUXDB_TOKEN_KEY">ENV_INFLUXDB_TOKEN_KEY</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/KafkaConstants.html#ENV_KAFKA_ENDPOINT">ENV_KAFKA_ENDPOINT</a></span> - Static variable in class com.amazonaws.athena.connectors.kafka.<a href="com/amazonaws/athena/connectors/kafka/KafkaConstants.html" title="class in com.amazonaws.athena.connectors.kafka">KafkaConstants</a></dt>
 <dd>
 <div class="block">This is kafka node details</div>
@@ -4332,6 +4392,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Performance considerations:
  If no constraints are provided, it gets THE WHOLE DATASET.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html#executeWithTokenRetry(java.lang.String,com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory.InfluxDBQuery)">executeWithTokenRetry(String, InfluxDBConnectionFactory.InfluxDBQuery&lt;T&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConnectionFactory</a></dt>
+<dd>
+<div class="block">Runs <code>query</code> against a client for <code>database</code>, under <code>InfluxDBConnectionFactory.withCredentialRefresh(com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory.Attempt&lt;T&gt;)</code>.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/CredentialsConstants.html#EXPIRES_IN">EXPIRES_IN</a></span> - Static variable in class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/CredentialsConstants.html" title="class in com.amazonaws.athena.connector.credentials">CredentialsConstants</a></dt>
 <dd>&nbsp;</dd>
@@ -5125,6 +5189,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Gets a default AWS ES client.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html#getClient(java.lang.String)">getClient(String)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConnectionFactory</a></dt>
+<dd>
+<div class="block">Creates an InfluxDBClient for the given database.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html#getClientConfigs()">getClientConfigs()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HbaseConnectionFactory</a></dt>
 <dd>
 <div class="block">Provides access to the current HBase client config options used during connection construction.</div>
@@ -5617,6 +5685,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html#getFunctionArguments()">getFunctionArguments()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.qpt.<a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.hbase.qpt">HbaseQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#getFunctionArguments()">getFunctionArguments()</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#getFunctionArguments()">getFunctionArguments()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneGremlinQueryPassthrough.html#getFunctionArguments()">getFunctionArguments()</a></span> - Method in class com.amazonaws.athena.connectors.neptune.qpt.<a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneGremlinQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.neptune.qpt">NeptuneGremlinQueryPassthrough</a></dt>
@@ -5651,6 +5721,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html#getFunctionName()">getFunctionName()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.qpt.<a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.hbase.qpt">HbaseQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#getFunctionName()">getFunctionName()</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#getFunctionName()">getFunctionName()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneGremlinQueryPassthrough.html#getFunctionName()">getFunctionName()</a></span> - Method in class com.amazonaws.athena.connectors.neptune.qpt.<a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneGremlinQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.neptune.qpt">NeptuneGremlinQueryPassthrough</a></dt>
@@ -5676,6 +5748,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#getFunctionSchema()">getFunctionSchema()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html#getFunctionSchema()">getFunctionSchema()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.qpt.<a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.hbase.qpt">HbaseQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#getFunctionSchema()">getFunctionSchema()</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#getFunctionSchema()">getFunctionSchema()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
@@ -5878,6 +5952,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#getLogger()">getLogger()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html#getLogger()">getLogger()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.qpt.<a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.hbase.qpt">HbaseQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#getLogger()">getLogger()</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#getLogger()">getLogger()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
@@ -6251,6 +6327,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Used to get the hive partitions that must be read from the request table in order to satisfy the requested predicate.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions(BlockWriter, GetTableLayoutRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions(BlockWriter, GetTableLayoutRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions(BlockWriter, GetTableLayoutRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
@@ -8125,6 +8203,69 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Given a value from HBase attempt to infer it's type.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#INFLUXDB_DATABASE">INFLUXDB_DATABASE</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBCompositeHandler.html" title="class in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBCompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>
+<div class="block">The Lambda entry point.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBCompositeHandler.html#%3Cinit%3E()">InfluxDBCompositeHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBCompositeHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBCompositeHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBConnectionFactory</span></a> - Class in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>
+<div class="block">Creates InfluxDB client connections, resolving the auth token from Secrets Manager.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html#%3Cinit%3E(java.util.Map,com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler)">InfluxDBConnectionFactory(Map&lt;String, String&gt;, FederationRequestHandler)</a></span> - Constructor for class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConnectionFactory</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.ColumnInfo.html" title="class in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBConnectionFactory.ColumnInfo</span></a> - Class in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>
+<div class="block">A table column as reported by <code>information_schema.columns</code>: its case-sensitive InfluxDB name and its
+ <code>data_type</code> display name.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.DatabaseInfo.html" title="class in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBConnectionFactory.DatabaseInfo</span></a> - Class in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.InfluxDBQuery.html" title="interface in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBConnectionFactory.InfluxDBQuery</span></a>&lt;<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.InfluxDBQuery.html" title="type parameter in InfluxDBConnectionFactory.InfluxDBQuery">T</a>&gt; - Interface in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>
+<div class="block">A query against an <code>InfluxDBClient</code> that may fail with an auth error.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBConstants</span></a> - Class in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBMetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">InfluxDBMetadataHandler(InfluxDBConnectionFactory, EncryptionKeyFactory, SecretsManagerClient, AthenaClient, String, String, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#%3Cinit%3E(java.util.Map)">InfluxDBMetadataHandler(Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>
+<div class="block">Creates a handler with its own connection factory.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#%3Cinit%3E(java.util.Map,com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory)">InfluxDBMetadataHandler(Map&lt;String, String&gt;, InfluxDBConnectionFactory)</a></span> - Constructor for class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>
+<div class="block">Creates a handler that uses a connection factory shared with an <a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html" title="class in com.amazonaws.athena.connectors.influxdb"><code>InfluxDBRecordHandler</code></a> in the
+ same Lambda container.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryBuilder.html" title="class in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBQueryBuilder</span></a> - Class in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>
+<div class="block">Builds SQL queries for InfluxDB 3 from Athena SDK constraints.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBQueryPassthrough</span></a> - Class in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>
+<div class="block">Query passthrough signature for InfluxDB 3.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#%3Cinit%3E()">InfluxDBQueryPassthrough()</a></span> - Constructor for class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html" title="class in com.amazonaws.athena.connectors.influxdb"><span class="typeNameLink">InfluxDBRecordHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/influxdb/package-summary.html">com.amazonaws.athena.connectors.influxdb</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html#%3Cinit%3E(java.util.Map)">InfluxDBRecordHandler(Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBRecordHandler</a></dt>
+<dd>
+<div class="block">Creates a handler with its own connection factory.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html#%3Cinit%3E(java.util.Map,com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory)">InfluxDBRecordHandler(Map&lt;String, String&gt;, InfluxDBConnectionFactory)</a></span> - Constructor for class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBRecordHandler</a></dt>
+<dd>
+<div class="block">Creates a handler that uses the given connection factory, which may be shared with an
+ <a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb"><code>InfluxDBMetadataHandler</code></a> in the same Lambda container.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html#%3Cinit%3E(software.amazon.awssdk.services.s3.S3Client,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,com.amazonaws.athena.connectors.influxdb.InfluxDBConnectionFactory,java.util.Map)">InfluxDBRecordHandler(S3Client, SecretsManagerClient, AthenaClient, InfluxDBConnectionFactory, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBRecordHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/dto/SplitParameters.html#info">info</a></span> - Variable in class com.amazonaws.athena.connectors.kafka.dto.<a href="com/amazonaws/athena/connectors/kafka/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.kafka.dto">SplitParameters</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/dto/SplitParameters.html#info">info</a></span> - Variable in class com.amazonaws.athena.connectors.msk.dto.<a href="com/amazonaws/athena/connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a></dt>
@@ -8734,6 +8875,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/ListArrowValueProjector.html#%3Cinit%3E(org.apache.arrow.vector.complex.reader.FieldReader)">ListArrowValueProjector(FieldReader)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/ListArrowValueProjector.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ListArrowValueProjector</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html#listColumns(java.lang.String,java.lang.String)">listColumns(String, String)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConnectionFactory</a></dt>
+<dd>
+<div class="block">Lists the columns of an already-resolved table, in the order <code>information_schema.columns</code> returns them.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#listDatabaseNames(java.sql.Connection)">listDatabaseNames(Connection)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#listDatabaseNames(java.sql.Connection)">listDatabaseNames(Connection)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
@@ -9047,10 +9192,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/consumer/BaseMskConsumer.html#MAX_EMPTY_RESULT_FOUND_COUNT">MAX_EMPTY_RESULT_FOUND_COUNT</a></span> - Static variable in class com.amazonaws.athena.connectors.msk.consumer.<a href="com/amazonaws/athena/connectors/msk/consumer/BaseMskConsumer.html" title="class in com.amazonaws.athena.connectors.msk.consumer">BaseMskConsumer</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#MAX_EXCEPTION_CAUSE_SEARCH_DEPTH">MAX_EXCEPTION_CAUSE_SEARCH_DEPTH</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#MAX_PARTITION_COUNT">MAX_PARTITION_COUNT</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
 <dd>
 <div class="block">This constant limits the number of partitions.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#MAX_QUERY_PARALLELISM_COUNT">MAX_QUERY_PARALLELISM_COUNT</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/KafkaConstants.html#MAX_RECORDS_IN_SPLIT">MAX_RECORDS_IN_SPLIT</a></span> - Static variable in class com.amazonaws.athena.connectors.kafka.<a href="com/amazonaws/athena/connectors/kafka/KafkaConstants.html" title="class in com.amazonaws.athena.connectors.kafka">KafkaConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/AmazonMskConstants.html#MAX_RECORDS_IN_SPLIT">MAX_RECORDS_IN_SPLIT</a></span> - Static variable in class com.amazonaws.athena.connectors.msk.<a href="com/amazonaws/athena/connectors/msk/AmazonMskConstants.html" title="class in com.amazonaws.athena.connectors.msk">AmazonMskConstants</a></dt>
@@ -9062,6 +9211,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html#MAX_SPLITS_PER_REQUEST">MAX_SPLITS_PER_REQUEST</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#MAX_TIME_ZONE_KEY">MAX_TIME_ZONE_KEY</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#MAX_TOKEN_REFRESH_RETRIES">MAX_TOKEN_REFRESH_RETRIES</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/kafka/dto/Message.html" title="class in com.amazonaws.athena.connectors.kafka.dto"><span class="typeNameLink">Message</span></a> - Class in <a href="com/amazonaws/athena/connectors/kafka/dto/package-summary.html">com.amazonaws.athena.connectors.kafka.dto</a></dt>
 <dd>&nbsp;</dd>
@@ -9173,6 +9324,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Helper which prepares and filters Cloudwatch Metrics requests.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html#min(com.amazonaws.athena.connector.lambda.domain.predicate.Marker,com.amazonaws.athena.connector.lambda.domain.predicate.Marker)">min(Marker, Marker)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#MIN_QUERY_PARALLELISM_COUNT">MIN_QUERY_PARALLELISM_COUNT</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#MODULUS_FUNCTION_NAME">MODULUS_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>
@@ -9358,6 +9511,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.qpt.<a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.hbase.qpt">HbaseQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
@@ -9804,6 +9959,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/util/PaginationHelper.html" title="class in com.amazonaws.athena.connector.util"><span class="typeNameLink">PaginationHelper</span></a> - Class in <a href="com/amazonaws/athena/connector/util/package-summary.html">com.amazonaws.athena.connector.util</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html#parallelismEnabled()">parallelismEnabled()</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitFunctionParser.html#parseColumnPredicates(java.util.List,io.substrait.proto.Expression,java.util.List)">parseColumnPredicates(List&lt;SimpleExtensionDeclaration&gt;, Expression, List&lt;String&gt;)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitFunctionParser.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitFunctionParser</a></dt>
 <dd>
 <div class="block">Recursively parses a Substrait expression to extract all column predicates.</div>
@@ -9845,6 +10002,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">JDBC Requires wrapping column names in a specific quote char</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#PART_TIME_LOWER">PART_TIME_LOWER</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#PART_TIME_UPPER">PART_TIME_UPPER</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/dto/SplitParameters.html#partition">partition</a></span> - Variable in class com.amazonaws.athena.connectors.kafka.dto.<a href="com/amazonaws/athena/connectors/kafka/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.kafka.dto">SplitParameters</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/dto/SplitParameters.html#partition">partition</a></span> - Variable in class com.amazonaws.athena.connectors.msk.dto.<a href="com/amazonaws/athena/connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a></dt>
@@ -10145,6 +10306,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#QUERY">QUERY</a></span> - Static variable in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#QUERY">QUERY</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#QUERY">QUERY</a></span> - Static variable in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneSparqlQueryPassthrough.html#QUERY">QUERY</a></span> - Static variable in class com.amazonaws.athena.connectors.neptune.qpt.<a href="com/amazonaws/athena/connectors/neptune/qpt/NeptuneSparqlQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.neptune.qpt">NeptuneSparqlQueryPassthrough</a></dt>
@@ -10154,6 +10317,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/Constants.html#QUERY_MODE_CLASS">QUERY_MODE_CLASS</a></span> - Static variable in class com.amazonaws.athena.connectors.neptune.<a href="com/amazonaws/athena/connectors/neptune/Constants.html" title="class in com.amazonaws.athena.connectors.neptune">Constants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/Constants.html#QUERY_MODE_SPARQL">QUERY_MODE_SPARQL</a></span> - Static variable in class com.amazonaws.athena.connectors.neptune.<a href="com/amazonaws/athena/connectors/neptune/Constants.html" title="class in com.amazonaws.athena.connectors.neptune">Constants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#QUERY_PARALLELISM_COUNT">QUERY_PARALLELISM_COUNT</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#QUERY_PARTITION_TYPE">QUERY_PARTITION_TYPE</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
@@ -10445,6 +10610,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Scans HBase using the scan settings set on the requested Split by HbaseMetadataHandler.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint(BlockSpiller, ReadRecordsRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBRecordHandler.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBRecordHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint(BlockSpiller, ReadRecordsRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcRecordHandler.html#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint(BlockSpiller, ReadRecordsRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.<a href="com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcRecordHandler</a></dt>
@@ -10673,6 +10840,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Generic method to render any string template with parameters</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html#resolveDatabase(java.lang.String)">resolveDatabase(String)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConnectionFactory</a></dt>
+<dd>
+<div class="block">Resolves a lowercased schema name back to the original database name.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchMetadataHandler.html#resolveDomainMap(java.util.Map)">resolveDomainMap(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchMetadataHandler.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseFieldResolver.html#resolver(boolean,java.lang.String)">resolver(boolean, String)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseFieldResolver.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseFieldResolver</a></dt>
@@ -10688,6 +10859,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
  repalced by the corresponding value of the secret in AWS Secrets Manager with that name.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html#resolveTableName(java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName)">resolveTableName(String, TableName)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConnectionFactory</a></dt>
+<dd>
+<div class="block">Resolves a lowercased table name back to the original case by querying information_schema given an
+ already-resolved database.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/FederationRequestHandler.html#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials(String)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/FederationRequestHandler.html" title="interface in com.amazonaws.athena.connector.lambda.handlers">FederationRequestHandler</a></dt>
 <dd>
@@ -10718,6 +10894,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Used to convert a specific row in the provided Block to a human readable string.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.InfluxDBQuery.html#run(com.influxdb.v3.client.InfluxDBClient)">run(InfluxDBClient)</a></span> - Method in interface com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.InfluxDBQuery.html" title="interface in com.amazonaws.athena.connectors.influxdb">InfluxDBConnectionFactory.InfluxDBQuery</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/rdf/NeptuneSparqlConnection.html#runQuery(java.lang.String)">runQuery(String)</a></span> - Method in class com.amazonaws.athena.connectors.neptune.rdf.<a href="com/amazonaws/athena/connectors/neptune/rdf/NeptuneSparqlConnection.html" title="class in com.amazonaws.athena.connectors.neptune.rdf">NeptuneSparqlConnection</a></dt>
 <dd>&nbsp;</dd>
 </dl>
@@ -10919,6 +11097,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#SCHEMA_NAME">SCHEMA_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html#SCHEMA_NAME">SCHEMA_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.qpt.<a href="com/amazonaws/athena/connectors/hbase/qpt/HbaseQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.hbase.qpt">HbaseQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html#SCHEMA_NAME">SCHEMA_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#SCHEMA_NAME">SCHEMA_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
@@ -11341,6 +11521,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/dto/MSKField.html#setFormatHint(java.lang.String)">setFormatHint(String)</a></span> - Method in class com.amazonaws.athena.connectors.msk.dto.<a href="com/amazonaws/athena/connectors/msk/dto/MSKField.html" title="class in com.amazonaws.athena.connectors.msk.dto">MSKField</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html#setHandler(com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler)">setHandler(FederationRequestHandler)</a></span> - Method in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConnectionFactory</a></dt>
+<dd>
+<div class="block">Sets the handler reference for secret resolution.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/AmazonMskUtils.html#setIAMAuthKafkaProperties(java.util.Properties)">setIAMAuthKafkaProperties(Properties)</a></span> - Static method in class com.amazonaws.athena.connectors.msk.<a href="com/amazonaws/athena/connectors/msk/AmazonMskUtils.html" title="class in com.amazonaws.athena.connectors.msk">AmazonMskUtils</a></dt>
 <dd>
 <div class="block">Creates the required IAM based settings for kafka consumer.</div>
@@ -11684,6 +11868,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">The source type that is used to aid in logging diagnostic info when raising a support case.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#SOURCE_TYPE">SOURCE_TYPE</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/Constants.html#SOURCE_TYPE">SOURCE_TYPE</a></span> - Static variable in class com.amazonaws.athena.connectors.neptune.<a href="com/amazonaws/athena/connectors/neptune/Constants.html" title="class in com.amazonaws.athena.connectors.neptune">Constants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/resolver/CaseResolver.html#sourceType">sourceType</a></span> - Variable in class com.amazonaws.athena.connector.lambda.resolver.<a href="com/amazonaws/athena/connector/lambda/resolver/CaseResolver.html" title="class in com.amazonaws.athena.connector.lambda.resolver">CaseResolver</a></dt>
@@ -12446,6 +12632,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/PredicateBuilder.html#toConjuncts(java.util.List,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,java.util.HashMap)">toConjuncts(List&lt;Field&gt;, Constraints, HashMap&lt;String, PredicateBuilder.TypeAndValue&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/PredicateBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">PredicateBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html#%3Cinit%3E(java.lang.String,java.lang.Character,int)">Token(String, Character, int)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser.Token</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html#TOKEN_REFRESH_MAX_RETRIES">TOKEN_REFRESH_MAX_RETRIES</a></span> - Static variable in class com.amazonaws.athena.connectors.influxdb.<a href="com/amazonaws/athena/connectors/influxdb/InfluxDBConstants.html" title="class in com.amazonaws.athena.connectors.influxdb">InfluxDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/saphana/SaphanaOAuthCredentialsProvider.html#TOKEN_URL">TOKEN_URL</a></span> - Static variable in class com.amazonaws.athena.connectors.saphana.<a href="com/amazonaws/athena/connectors/saphana/SaphanaOAuthCredentialsProvider.html" title="class in com.amazonaws.athena.connectors.saphana">SaphanaOAuthCredentialsProvider</a></dt>
 <dd>&nbsp;</dd>
