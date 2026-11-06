@@ -383,17 +383,13 @@ public class DynamoDBRecordHandler
         // Only read columns that are needed in the query
         String projectionExpression = disableProjectionAndCasing ? null : schema.getFields()
                 .stream()
-                .map(field -> {
-                    String aliasedName = DDBPredicateUtils.aliasColumn(field.getName());
-                    expressionAttributeNames.put(aliasedName, field.getName());
-                    return aliasedName;
-                })
+                .map(field -> DDBPredicateUtils.aliasColumn(field.getName(), expressionAttributeNames))
                 .collect(Collectors.joining(","));
 
         // prepare key condition expression
         String indexName = split.getProperty(INDEX_METADATA);
         String hashKeyName = split.getProperty(HASH_KEY_NAME_METADATA);
-        String hashKeyAlias = DDBPredicateUtils.aliasColumn(hashKeyName);
+        String hashKeyAlias = DDBPredicateUtils.aliasColumn(hashKeyName, expressionAttributeNames);
         String keyConditionExpression = hashKeyAlias + " = " + HASH_KEY_VALUE_ALIAS;
         if (rangeKeyFilter != null) {
             if (rangeFilterHasIn(rangeKeyFilter)) {
@@ -406,7 +402,6 @@ public class DynamoDBRecordHandler
                 keyConditionExpression += " AND " + rangeKeyFilter;
             }
         }
-        expressionAttributeNames.put(hashKeyAlias, hashKeyName);
 
         AttributeValue hashKeyAttribute = DDBTypeUtils.jsonToAttributeValue(split.getProperty(hashKeyName), hashKeyName);
         expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, hashKeyAttribute);
@@ -458,11 +453,7 @@ public class DynamoDBRecordHandler
         // Only read columns that are needed in the query
         String projectionExpression = disableProjectionAndCasing ? null : schema.getFields()
                 .stream()
-                .map(field -> {
-                    String aliasedName = DDBPredicateUtils.aliasColumn(field.getName());
-                    expressionAttributeNames.put(aliasedName, field.getName());
-                    return aliasedName;
-                })
+                .map(field -> DDBPredicateUtils.aliasColumn(field.getName(), expressionAttributeNames))
                 .collect(Collectors.joining(","));
 
         int segmentId = Integer.parseInt(split.getProperty(SEGMENT_ID_PROPERTY));
