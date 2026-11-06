@@ -33,13 +33,17 @@ import static org.junit.Assert.assertTrue;
 public class GcsExceptionFilterTest
 {
     @Test
-    public void testIsMatch()
+    public void isMatch_withRateExceededAndTooManyRequestsAthenaExceptions_returnsTrueElseFalse()
     {
-        boolean match = EXCEPTION_FILTER.isMatch(AthenaException.builder().message("Rate exceeded").build());
+        final String errorMessage = "Rate exceeded";
+        boolean match = EXCEPTION_FILTER.isMatch(AthenaException.builder().message(errorMessage).build());
         assertTrue(match);
         boolean match1 = EXCEPTION_FILTER.isMatch(AthenaException.builder().message("Too Many Requests").build());
         assertTrue(match1);
         boolean match3 = EXCEPTION_FILTER.isMatch(AthenaException.builder().message("other").build());
         assertFalse(match3);
+        // Test non-AthenaException with "Rate exceeded" - should return false
+        boolean match4 = EXCEPTION_FILTER.isMatch(new RuntimeException(errorMessage));
+        assertFalse(match4);
     }
 }
