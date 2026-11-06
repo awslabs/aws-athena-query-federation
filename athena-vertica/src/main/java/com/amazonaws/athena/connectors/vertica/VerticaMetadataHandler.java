@@ -342,7 +342,6 @@ public class VerticaMetadataHandler
         }
         Set<Split> splits = new HashSet<>();
         String exportBucket = getS3ExportBucket();
-        String queryId = request.getQueryId().replace("-","");
         Constraints constraints  = request.getConstraints();
         String s3ExportBucket = getS3ExportBucket();
         String sqlStatement;
@@ -371,6 +370,18 @@ public class VerticaMetadataHandler
         FieldReader fieldReaderAwsRegion = request.getPartitions().getFieldReader("awsRegionSql");
         String awsRegionSql  = fieldReaderAwsRegion.readText().toString();
 
+        // doGetSplits can run concurrently for one query (UNION ALL, provisioned concurrency).
+        // Those calls share the query id baked into the EXPORT statement, so give this
+        // invocation its own S3 directory before Vertica writes.
+        String uniqueExportId = queryID + SEPARATOR + UUID.randomUUID().toString().replace("-", "");
+        String exportSql = withUniqueExportDirectory(sqlStatement, queryID, uniqueExportId);
+        String exportPrefixId = queryID;
+        if (exportSql != null && !exportSql.equals(sqlStatement)) {
+            sqlStatement = exportSql;
+            exportPrefixId = uniqueExportId;
+        }
+        logger.info("Vertica unique export path [{}]", exportPrefixId);
+
         // Split the string by the first occurrence of "/"
         String[] s3ExportBucketPath = exportBucket.split(SEPARATOR, 2); // The '2' limits the split to 2 parts
         String s3ExportBucketName;
@@ -383,21 +394,20 @@ public class VerticaMetadataHandler
             s3ExportBucketName = s3ExportBucket;
             remainingPath = "";
         }
-        String prefix = remainingPath + queryId;
+        String prefix = remainingPath + exportPrefixId;
 
         List<S3Object> s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
         if (s3ObjectsList.isEmpty()) {
-            // Execute queries on Vertica if S3 export bucket does not contain objects for given queryId
+            // Execute queries on Vertica if this invocation's export path does not already contain objects
             executeQueriesOnVertica(connection, sqlStatement, awsRegionSql);
-            // Retrieve the S3 objects list for given queryId
+            // Retrieve the S3 objects list for this invocation's export path
             s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
         }
 
         Split split;
 
         // Create a split for each s3 object
-        if(!s3ObjectsList.isEmpty())
-        {
+        if (!s3ObjectsList.isEmpty()) {
             for (S3Object s3Object : s3ObjectsList)
             {
                 split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
@@ -410,8 +420,7 @@ public class VerticaMetadataHandler
             }
             return new GetSplitsResponse(catalogName, splits);
         }
-        else
-        {
+        else {
             //No records were exported by Vertica for the issued query, creating a "empty" split
             logger.info("No records were exported by Vertica");
             split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
@@ -422,7 +431,25 @@ public class VerticaMetadataHandler
             splits.add(split);
             return new GetSplitsResponse(catalogName,split);
         }
+    }
 
+    /**
+     * Points the EXPORT TO PARQUET directory at a per-invocation S3 prefix.
+     * Only the directory clause is rewritten, so the exported query text is left unchanged.
+     */
+    static String withUniqueExportDirectory(String sqlStatement, String queryId, String uniqueExportId)
+    {
+        if (StringUtils.isEmpty(sqlStatement) || StringUtils.isEmpty(queryId) || StringUtils.isEmpty(uniqueExportId)) {
+            return sqlStatement;
+        }
+        String directoryToken = SEPARATOR + queryId + "'";
+        int tokenIdx = sqlStatement.indexOf(directoryToken);
+        if (tokenIdx < 0) {
+            return sqlStatement;
+        }
+        return sqlStatement.substring(0, tokenIdx)
+                + SEPARATOR + uniqueExportId + "'"
+                + sqlStatement.substring(tokenIdx + directoryToken.length());
     }
 
     /*
