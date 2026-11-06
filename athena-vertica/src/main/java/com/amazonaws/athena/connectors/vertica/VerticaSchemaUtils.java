@@ -21,10 +21,13 @@ package com.amazonaws.athena.connectors.vertica;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.sun.jna.platform.unix.LibC;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -38,7 +41,7 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Base64;
@@ -54,6 +57,74 @@ public class VerticaSchemaUtils
     private static final String END_CERT = "-----END CERTIFICATE-----";
     private static final String LINE_SEPARATOR = System.getProperty("line.separator");
 
+    /**
+     * Athena sends the schema and table name in lowercase. Vertica stores the original spelling.
+     * The first query finds that stored name by comparing the lowercase spelling.
+     * The second query reads the columns for that exact stored name.
+     */
+    public static final String RESOLVE_TABLE_SQL =
+            "SELECT schema_name, table_name "
+                    + "FROM v_catalog.jdbc_columns "
+                    + "WHERE LOWER(schema_name) = LOWER(?) AND LOWER(table_name) = LOWER(?) "
+                    + "GROUP BY schema_name, table_name";
+
+    public static final String JDBC_COLUMNS_SQL =
+            "SELECT column_name AS COLUMN_NAME, data_type_name AS TYPE_NAME "
+                    + "FROM v_catalog.jdbc_columns "
+                    + "WHERE schema_name = ? AND table_name = ? "
+                    + "ORDER BY ordinal_position";
+
+    public static final class ResolvedTable
+    {
+        private final String schemaName;
+        private final String tableName;
+
+        public ResolvedTable(String schemaName, String tableName)
+        {
+            this.schemaName = schemaName;
+            this.tableName = tableName;
+        }
+
+        public String getSchemaName()
+        {
+            return schemaName;
+        }
+
+        public String getTableName()
+        {
+            return tableName;
+        }
+    }
+
+    public static ResolvedTable resolveTable(Connection connection, String schemaName, String tableName) throws SQLException
+    {
+        try (PreparedStatement statement = connection.prepareStatement(RESOLVE_TABLE_SQL)) {
+            statement.setString(1, schemaName);
+            statement.setString(2, tableName);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    throw new AthenaConnectorException("Table not found: " + schemaName + "." + tableName,
+                            ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
+                }
+                ResolvedTable resolved = new ResolvedTable(
+                        resultSet.getString("schema_name"), resultSet.getString("table_name"));
+                if (resultSet.next()) {
+                    throw new AthenaConnectorException("More than one table matches " + schemaName + "." + tableName,
+                            ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+                }
+                return resolved;
+            }
+        }
+    }
+
+    public static ResultSet queryJdbcColumns(Connection connection, String schemaName, String tableName) throws SQLException
+    {
+        PreparedStatement statement = connection.prepareStatement(JDBC_COLUMNS_SQL);
+        statement.setString(1, schemaName);
+        statement.setString(2, tableName);
+        return statement.executeQuery();
+    }
+
     //Builds the table schema
     protected Schema buildTableSchema(Connection connection, TableName name)
     {
@@ -62,12 +133,13 @@ public class VerticaSchemaUtils
             logger.info("Building the schema for table {} ", name);
             SchemaBuilder tableSchemaBuilder = SchemaBuilder.newBuilder();
 
-            DatabaseMetaData dbMetadata = connection.getMetaData();
-            ResultSet definition = dbMetadata.getColumns(null, name.getSchemaName(), name.getTableName(), null);
-            while(definition.next())
-            {
-                String colType = definition.getString("TYPE_NAME").toUpperCase();
-                convertToArrowType(tableSchemaBuilder, definition.getString("COLUMN_NAME"), colType);
+            ResolvedTable resolved = resolveTable(connection, name.getSchemaName(), name.getTableName());
+            try (ResultSet definition = queryJdbcColumns(connection, resolved.getSchemaName(), resolved.getTableName())) {
+                while (definition.next())
+                {
+                    String colType = definition.getString("TYPE_NAME").toUpperCase();
+                    convertToArrowType(tableSchemaBuilder, definition.getString("COLUMN_NAME"), colType);
+                }
             }
             return tableSchemaBuilder.build();
 

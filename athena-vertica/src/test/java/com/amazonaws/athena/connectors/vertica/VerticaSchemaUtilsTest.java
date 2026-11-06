@@ -35,6 +35,7 @@ import java.sql.Types;
 import java.sql.ResultSet;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,6 +43,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -97,8 +99,8 @@ public class VerticaSchemaUtilsTest extends TestBase
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
 
-        Mockito.when(connection.getMetaData()).thenReturn(databaseMetaData);
-        Mockito.when(databaseMetaData.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null)).thenReturn(resultSet);
+        stubResolveEcho();
+        stubColumnQuery(resultSet);
 
         VerticaSchemaUtils verticaSchemaUtils = new VerticaSchemaUtils();
         Schema mockSchema = verticaSchemaUtils.buildTableSchema(this.connection, tableName);
@@ -122,7 +124,8 @@ public class VerticaSchemaUtilsTest extends TestBase
     @Test
     public void buildTableSchemaSQLException() throws SQLException
     {
-        when(databaseMetaData.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null))
+        stubResolveEcho();
+        when(connection.prepareStatement(VerticaSchemaUtils.JDBC_COLUMNS_SQL))
                 .thenThrow(new SQLException("Database error"));
 
         VerticaSchemaUtils verticaSchemaUtils = new VerticaSchemaUtils();
@@ -133,6 +136,69 @@ public class VerticaSchemaUtilsTest extends TestBase
             assertTrue(e.getMessage().contains("Error in building the table schema"));
             assertTrue(e.getCause() instanceof SQLException);
         }
+    }
+
+    @Test
+    public void queryJdbcColumnsBindsNamesAsParameters() throws SQLException
+    {
+        String quotedTableName = "o'reilly";
+        PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        when(connection.prepareStatement(VerticaSchemaUtils.JDBC_COLUMNS_SQL)).thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(resultSet);
+
+        ResultSet actual = VerticaSchemaUtils.queryJdbcColumns(connection, "public", quotedTableName);
+
+        assertEquals(resultSet, actual);
+        verify(statement).setString(1, "public");
+        verify(statement).setString(2, quotedTableName);
+    }
+
+    @Test
+    public void resolveTableReturnsStoredSpelling() throws SQLException
+    {
+        PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        when(connection.prepareStatement(VerticaSchemaUtils.RESOLVE_TABLE_SQL)).thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.getString("schema_name")).thenReturn("public");
+        when(resultSet.getString("table_name")).thenReturn("Sampledatatypes");
+
+        VerticaSchemaUtils.ResolvedTable resolved = VerticaSchemaUtils.resolveTable(connection, "public", "sampledatatypes");
+
+        assertEquals("public", resolved.getSchemaName());
+        assertEquals("Sampledatatypes", resolved.getTableName());
+        verify(statement).setString(1, "public");
+        verify(statement).setString(2, "sampledatatypes");
+    }
+
+    private void stubResolveEcho() throws SQLException
+    {
+        PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        java.util.concurrent.atomic.AtomicReference<String> schema = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<String> table = new java.util.concurrent.atomic.AtomicReference<>();
+        when(connection.prepareStatement(VerticaSchemaUtils.RESOLVE_TABLE_SQL)).thenReturn(statement);
+        Mockito.doAnswer(invocation -> {
+            schema.set(invocation.getArgument(1));
+            return null;
+        }).when(statement).setString(Mockito.eq(1), Mockito.any());
+        Mockito.doAnswer(invocation -> {
+            table.set(invocation.getArgument(1));
+            return null;
+        }).when(statement).setString(Mockito.eq(2), Mockito.any());
+        when(statement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.getString("schema_name")).thenAnswer(invocation -> schema.get());
+        when(resultSet.getString("table_name")).thenAnswer(invocation -> table.get());
+    }
+
+    private void stubColumnQuery(ResultSet resultSet) throws SQLException
+    {
+        PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+        when(connection.prepareStatement(VerticaSchemaUtils.JDBC_COLUMNS_SQL)).thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(resultSet);
     }
 
     @Test
