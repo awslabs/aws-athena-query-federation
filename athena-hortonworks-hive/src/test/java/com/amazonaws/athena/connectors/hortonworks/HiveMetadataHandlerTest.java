@@ -23,14 +23,19 @@ import com.amazonaws.athena.connector.lambda.data.*;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.*;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -45,14 +50,26 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static org.mockito.ArgumentMatchers.any;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class HiveMetadataHandlerTest
-        extends TestBase {
+        extends TestBase
+{
+    private static final String CATALOG_NAME = "testCatalog";
+    private static final String QUERY_ID = "queryId";
+    private static final String SECRET_NAME = "testSecret";
+    private static final String TEST_SCHEMA = "testSchema";
+    private static final String TEST_TABLE = "testTable";
+    private static final String PARTITION_COLUMN_NAME = "partition";
 
-    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,
-            "jdbc:hive2://3.236.108.56:21050/athena;${testSecret}", "testSecret");
+    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(CATALOG_NAME, HiveConstants.HIVE_NAME,
+            "jdbc:hive2://3.236.108.56:21050/athena;${" + SECRET_NAME + "}", SECRET_NAME);
     private HiveMetadataHandler hiveMetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
@@ -76,22 +93,33 @@ public class HiveMetadataHandlerTest
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId(SECRET_NAME).build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.hiveMetadataHandler = new HiveMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
 
     }
 
-
-    @Test
-    public void getPartitionSchema() {
-        Assert.assertEquals(SchemaBuilder.newBuilder()
-                        .addField("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
-                this.hiveMetadataHandler.getPartitionSchema("testCatalogName"));
+    private void stubPartitionMetadataQueries(String tableName, ResultSet describeResult, ResultSet partitionResult, ResultSet extendedResult)
+            throws SQLException
+    {
+        PreparedStatement preparestatement = Mockito.mock(PreparedStatement.class);
+        Statement statement = Mockito.mock(Statement.class);
+        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + tableName.toUpperCase())).thenReturn(preparestatement);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        Mockito.when(preparestatement.executeQuery()).thenReturn(describeResult);
+        Mockito.when(statement.executeQuery("show partitions " + tableName.toUpperCase())).thenReturn(partitionResult);
+        Mockito.when(statement.executeQuery("show table extended like " + tableName.toUpperCase())).thenReturn(extendedResult);
     }
 
     @Test
-    public void doGetTableLayout()
+    public void getPartitionSchema_whenCatalogProvided_returnsPartitionColumn() {
+        assertEquals(SchemaBuilder.newBuilder()
+                        .addField(PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
+                this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME));
+    }
+
+    @Test
+    public void doGetTableLayout_whenTableIsPartitioned_returnsPartitionValues()
             throws Exception {
 
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -101,11 +129,11 @@ public class HiveMetadataHandlerTest
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tempTableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema("testCatalogName");
-        Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId",
-                "testCatalogName",tempTableName, constraints, partitionSchema, partitionCols);
+        TableName tempTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = new HashSet<>(Arrays.asList(PARTITION_COLUMN_NAME));
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, QUERY_ID,
+                CATALOG_NAME,tempTableName, constraints, partitionSchema, partitionCols);
         String value2 = "case_date=01-01-2000/case_number=0/case_instance=89898989/case_location=__HIVE_DEFAULT_PARTITION__";
         String value3 = "case_date=02-01-2000/case_number=1/case_instance=89898990/case_location=Hyderabad";
         String[] columns2 = {"Partition"};
@@ -115,34 +143,23 @@ public class HiveMetadataHandlerTest
         int[] types3 = {Types.VARCHAR};
         Object[][] values4 = {{"PARTITIONED:true"}};
         ResultSet resultSet2 = mockResultSet(columns3, types3, values4, new AtomicInteger(-1));
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
-        String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        final String getPartitionExistsSql = "show table extended like "  + tableName;
-        final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        Statement statement1 = Mockito.mock(Statement.class);
-        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + tableName)).thenReturn(preparestatement1);
-        Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
-        Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
-        Mockito.when(statement1.executeQuery(getPartitionDetailsSql)).thenReturn(resultSet1);
-        Mockito.when(statement1.executeQuery(getPartitionExistsSql)).thenReturn(resultSet2);
+        stubPartitionMetadataQueries(TEST_TABLE, resultSet, resultSet1, resultSet2);
         Mockito.when(resultSet2.getString(1)).thenReturn("PARTITIONED:true");
         GetTableLayoutResponse getTableLayoutResponse = this.hiveMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         List<String> expectedValues = new ArrayList<>();
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues.get(0), "[partition :  case_date=02-01-2000 and case_number=1 and case_instance=89898990 and case_location='Hyderabad']");
+        assertEquals(expectedValues.get(0), "[partition :  case_date=02-01-2000 and case_number=1 and case_instance=89898990 and case_location='Hyderabad']");
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
-        Schema expectedSchema = expectedSchemaBuilder.build();
-        Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
-        Assert.assertEquals(tempTableName, getTableLayoutResponse.getTableName());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        assertEquals(expectedSchemaBuilder.build(), getTableLayoutResponse.getPartitions().getSchema());
+        assertEquals(tempTableName, getTableLayoutResponse.getTableName());
     }
 
     @Test
-    public void doGetTableLayoutWithNoPartitions()
+    public void doGetTableLayout_whenTableHasNoPartitions_returnsWildcardPartition()
             throws Exception {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         String[] schema = {"data_type", "col_name"};
@@ -151,55 +168,47 @@ public class HiveMetadataHandlerTest
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tempTableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema("testCatalogName");
-        Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId",
-                "testCatalogName",tempTableName, constraints, partitionSchema, partitionCols);
+        TableName tempTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = new HashSet<>(Arrays.asList(PARTITION_COLUMN_NAME));
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, QUERY_ID,
+                CATALOG_NAME,tempTableName, constraints, partitionSchema, partitionCols);
         String[] columns2 = {"Partition"};
         int[] types2 = {Types.VARCHAR};
-        Object[][] values1 = {};
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
-        String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        Statement statement1 = Mockito.mock(Statement.class);
-        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + tableName)).thenReturn(preparestatement1);
-        Mockito.when(this.connection.createStatement()).thenReturn(statement1);
-        ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
-        Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
-        Mockito.when(statement1.executeQuery(getPartitionDetailsSql)).thenReturn(resultSet1);
+        ResultSet resultSet1 = mockResultSet(columns2, types2, new Object[][] {}, new AtomicInteger(-1));
+        stubPartitionMetadataQueries(TEST_TABLE, resultSet, resultSet1, mockResultSet(new String[] {"col"}, new int[] {Types.VARCHAR}, new Object[][] {}, new AtomicInteger(-1)));
         GetTableLayoutResponse getTableLayoutResponse = this.hiveMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         List<String> expectedValues = new ArrayList<>();
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Arrays.asList("[partition : *]"));
+        assertEquals(expectedValues, Arrays.asList("[partition : *]"));
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
-        Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
-        Assert.assertEquals(tempTableName, getTableLayoutResponse.getTableName());
+        assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
+        assertEquals(tempTableName, getTableLayoutResponse.getTableName());
     }
 
     @Test(expected = RuntimeException.class)
-    public void doGetTableLayoutWithSQLException()
+    public void doGetTableLayout_whenConnectionFails_throwsRuntimeException()
             throws Exception {
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema("testCatalogName");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, QUERY_ID,
+                CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        HiveMetadataHandler implalaMetadataHandler = new HiveMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
-        implalaMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
+        HiveMetadataHandler hiveMetadataHandlerWithError = new HiveMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
+        hiveMetadataHandlerWithError.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_whenTableIsPartitioned_returnsSplitPerPartition()
             throws Exception {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         String[] schema = {"data_type", "col_name"};
@@ -212,53 +221,43 @@ public class HiveMetadataHandlerTest
         Object[][] values4 = {{"Partitioned:true"}};
         ResultSet resultSet2 = mockResultSet(columns3, types3, values4, new AtomicInteger(-1));
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tempTableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema("testCatalogName");
-        Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId",
-                "testCatalogName",tempTableName, constraints, partitionSchema, partitionCols);
+        TableName tempTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = new HashSet<>(Arrays.asList(PARTITION_COLUMN_NAME));
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, QUERY_ID,
+                CATALOG_NAME, tempTableName, constraints, partitionSchema, partitionCols);
         String value2 = "case_date=01-01-2000/case_number=0/case_instance=89898989/case_location=__HIVE_DEFAULT_PARTITION__";
         String value3 = "case_date=02-01-2000/case_number=1/case_instance=89898990/case_location=Hyderabad";
         String[] columns2 = {"Partition"};
         int[] types2 = {Types.VARCHAR};
-        Object[][] values1 = {{value2},{value3}};
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
-        String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        final String getPartitionExistsSql = "show table extended like "  + tableName;
-        final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        Statement statement1 = Mockito.mock(Statement.class);
-        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + tableName)).thenReturn(preparestatement1);
-        Mockito.when(this.connection.createStatement()).thenReturn(statement1);
+        Object[][] values1 = {{value2}, {value3}};
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
-        Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
-        Mockito.when(statement1.executeQuery(getPartitionDetailsSql)).thenReturn(resultSet1);
-        Mockito.when(statement1.executeQuery(getPartitionExistsSql)).thenReturn(resultSet2);
+        stubPartitionMetadataQueries(TEST_TABLE, resultSet, resultSet1, resultSet2);
         Mockito.when(resultSet2.getString(1)).thenReturn("PARTITIONED:true");
         GetTableLayoutResponse getTableLayoutResponse = this.hiveMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tempTableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME, tempTableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
         GetSplitsResponse getSplitsResponse = this.hiveMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
-        Assert.assertEquals(2, getSplitsResponse.getSplits().size());
+        assertEquals(2, getSplitsResponse.getSplits().size());
     }
 
 
     @Test
-    public void decodeContinuationToken() throws Exception
+    public void decodeContinuationToken_whenTokenPresent_returnsToken() throws Exception
     {
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Constraints constraints = Mockito.mock(Constraints.class);
-        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema("testCatalogName");
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
 
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName",
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME,
                 tableName, constraints, partitionSchema, partitionCols);
 
         GetTableLayoutResponse getTableLayoutResponse = this.hiveMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId",
-                "testCatalogName", tableName, getTableLayoutResponse.getPartitions(),
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, QUERY_ID,
+                CATALOG_NAME, tableName, getTableLayoutResponse.getPartitions(),
                 new ArrayList<>(partitionCols), constraints, "1");
 
         Integer splitRequestToken=0;
@@ -266,12 +265,12 @@ public class HiveMetadataHandlerTest
             splitRequestToken=Integer.valueOf(getSplitsRequest.getContinuationToken());
         }
 
-        Assert.assertNotNull(splitRequestToken.toString());
+       assertNotNull(splitRequestToken.toString());
 
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_whenTableExists_returnsTableNameAndCatalog()
             throws Exception
     {
         String[] schema = {"data_type", "col_name"};
@@ -286,32 +285,79 @@ public class HiveMetadataHandlerTest
                 {Types.DOUBLE, 91, "case_double", 0, 0},{Types.FLOAT, 91, "case_float", 0, 0}, {Types.BOOLEAN, 1, "case_boolean", 0, 0}};
         ResultSet resultSet1 = mockResultSet(schema1, values1, new AtomicInteger(-1));
         TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
-        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + inputTableName.getTableName().toUpperCase())).thenReturn(preparestatement1);
-        Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
+        PreparedStatement preparestatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + inputTableName.getTableName().toUpperCase())).thenReturn(preparestatement);
+        Mockito.when(preparestatement.executeQuery()).thenReturn(resultSet);
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
-        Mockito.when(this.connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet1);
-        Mockito.when(this.connection.getCatalog()).thenReturn("testCatalog");
+        Mockito.when(this.connection.getMetaData().getColumns(CATALOG_NAME, inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet1);
+        Mockito.when(this.connection.getCatalog()).thenReturn(CATALOG_NAME);
         GetTableResponse getTableResponse = this.hiveMetadataHandler.doGetTable(
-                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
-        Assert.assertEquals(inputTableName, getTableResponse.getTableName());
-        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME, inputTableName, Collections.emptyMap()));
+        assertEquals(inputTableName, getTableResponse.getTableName());
+        assertEquals(CATALOG_NAME, getTableResponse.getCatalogName());
     }
 
     @Test
-    public void doGetTableNoColumns() throws Exception
+    public void doGetTable_whenTableHasNoColumns_returnsWithoutError() throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testTable");
-        this.hiveMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+        TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        this.hiveMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME, inputTableName, Collections.emptyMap()));
     }
 
     @Test(expected = SQLException.class)
-    public void doGetTableSQLException()
+    public void doGetTable_whenMetadataThrows_propagatesSqlException()
             throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testTable");
+        TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.hiveMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+        this.hiveMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME, inputTableName, Collections.emptyMap()));
+    }
+
+    @Test
+    public void doGetSplits_whenQueryPassthroughEnabled_returnsSingleSplitCarryingTheQuery()
+            throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        String query = "SELECT * FROM testSchema.testTable WHERE testCol1 = 1";
+        Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
+                .put(QUERY, query)
+                .put(SCHEMA_FUNCTION_NAME, "system.query")
+                .put(ENABLE_QUERY_PASSTHROUGH, "true")
+                .put("name", "query")
+                .put("schema", "system")
+                .build();
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, queryPassthroughArgs, null);
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME, tableName,
+                Mockito.mock(Block.class), new ArrayList<>(partitionCols), constraints, null);
+
+        GetSplitsResponse getSplitsResponse = this.hiveMetadataHandler.doGetSplits(this.blockAllocator, getSplitsRequest);
+
+        assertEquals(1, getSplitsResponse.getSplits().size());
+        assertEquals(CATALOG_NAME, getSplitsResponse.getCatalogName());
+        assertEquals(query, getSplitsResponse.getSplits().iterator().next().getProperties().get(QUERY));
+    }
+
+    @Test
+    public void doGetDataSourceCapabilities_whenCapabilitiesRequested_returnsFilterComplexAndLimitPushdowns()
+    {
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME);
+        GetDataSourceCapabilitiesResponse response = this.hiveMetadataHandler.doGetDataSourceCapabilities(this.blockAllocator, request);
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+
+        List<String> filterSubTypes = capabilities.get(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.getOptimization())
+                .stream().map(OptimizationSubType::getSubType).collect(Collectors.toList());
+        assertTrue(filterSubTypes.contains(FilterPushdownSubType.SORTED_RANGE_SET.getSubType()));
+        assertTrue(filterSubTypes.contains(FilterPushdownSubType.NULLABLE_COMPARISON.getSubType()));
+
+        OptimizationSubType complexSubType = capabilities.get(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization()).get(0);
+        assertEquals(ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES.getSubType(), complexSubType.getSubType());
+
+        List<String> limitSubTypes = capabilities.get(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.getOptimization())
+                .stream().map(OptimizationSubType::getSubType).collect(Collectors.toList());
+        assertTrue(limitSubTypes.contains(LimitPushdownSubType.INTEGER_CONSTANT.getSubType()));
     }
 }
