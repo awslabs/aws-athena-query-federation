@@ -177,6 +177,22 @@
                         <goals>
                             <goal>shade</goal>
                         </goals>
+                        <!-- The root pom configures shade filters on this execution, and execution-level filters
+                             replace plugin-level ones, so extra filters must be appended here. -->
+                        <configuration>
+                            <filters combine.children="append">
+                                <!-- Netty tcnative native libraries for Windows and macOS. Lambda runs on Linux,
+                                     and the unzipped jar must stay under Lambda's 262,144,000-byte limit for
+                                     zip deployments. The Linux libraries are kept. -->
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/native/*windows*</exclude>
+                                        <exclude>META-INF/native/*osx*</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

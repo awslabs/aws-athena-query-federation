@@ -49,6 +49,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -282,6 +283,10 @@ public class InfluxDBQueryBuilderTest
     {
         assertEquals("'hello'", InfluxDBQueryBuilder.toLiteral("hello", new ArrowType.Utf8()));
         assertEquals("'it''s'", InfluxDBQueryBuilder.toLiteral("it's", new ArrowType.Utf8()));
+        // A backslash is copied unchanged. DataFusion does not treat it as an escape in a string literal
+        // (InfluxDBLocalIntegTest.testBackslashInFilterValueIsNotAnEscape).
+        assertEquals("'\\'' OR 1=1 --'", InfluxDBQueryBuilder.toLiteral("\\' OR 1=1 --", new ArrowType.Utf8()));
+        assertEquals("'ends with \\'", InfluxDBQueryBuilder.toLiteral("ends with \\", new ArrowType.Utf8()));
         assertEquals("42", InfluxDBQueryBuilder.toLiteral(42L, new ArrowType.Int(64, true)));
         assertEquals("3.14", InfluxDBQueryBuilder.toLiteral(3.14, new ArrowType.FloatingPoint(
                 org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE)));
@@ -406,6 +411,67 @@ public class InfluxDBQueryBuilderTest
         final Constraints constraints = new Constraints(new HashMap<>(), Arrays.asList(expr),
                 Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, null, null);
         return InfluxDBQueryBuilder.buildSql(schema, "cpu", constraints);
+    }
+
+    /**
+     * Athena's LIKE has no default escape character; DataFusion's always uses \. Every literal %, _, and \ is
+     * therefore written with a \ for DataFusion, and the wildcards are kept.
+     */
+    @Test
+    public void testToDataFusionLikePattern()
+    {
+        assertEquals("srv%", InfluxDBQueryBuilder.toDataFusionLikePattern("srv%", null));
+        assertEquals("a_b", InfluxDBQueryBuilder.toDataFusionLikePattern("a_b", null));
+        // Without ESCAPE, \ is an ordinary character in Athena.
+        assertEquals("a\\\\%", InfluxDBQueryBuilder.toDataFusionLikePattern("a\\%", null));
+        assertEquals("\\\\' OR 1=1 --", InfluxDBQueryBuilder.toDataFusionLikePattern("\\' OR 1=1 --", null));
+        // With ESCAPE '#', #% and #_ are a literal % and _, and ## is a literal #.
+        assertEquals("100\\%", InfluxDBQueryBuilder.toDataFusionLikePattern("100#%", "#"));
+        assertEquals("a\\_b%", InfluxDBQueryBuilder.toDataFusionLikePattern("a#_b%", "#"));
+        assertEquals("a#b", InfluxDBQueryBuilder.toDataFusionLikePattern("a##b", "#"));
+        // With ESCAPE '\', the pattern already uses DataFusion's form.
+        assertEquals("a\\%\\\\", InfluxDBQueryBuilder.toDataFusionLikePattern("a\\%\\\\", "\\"));
+        // A literal \ is escaped even when another character is the escape.
+        assertEquals("a\\\\\\%", InfluxDBQueryBuilder.toDataFusionLikePattern("a\\#%", "#"));
+    }
+
+    @Test
+    public void testToDataFusionLikePatternRejectsInvalidEscapes()
+    {
+        for (final String[] invalid : new String[][] {{"a#", "#"}, {"a#b", "#"}, {"ab", ""}, {"ab", "##"}}) {
+            try {
+                InfluxDBQueryBuilder.toDataFusionLikePattern(invalid[0], invalid[1]);
+                fail("expected pattern '" + invalid[0] + "' with escape '" + invalid[1] + "' to be rejected");
+            }
+            catch (final AthenaConnectorException e) {
+                InfluxDBErrorsTest.assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+            }
+        }
+    }
+
+    @Test
+    public void testLikeExpressionRendersRewrittenPattern()
+    {
+        assertTrue(sqlForExpression(fce(sf("LIKE_PATTERN_FUNCTION_NAME"), BOOL,
+                var("host", UTF8), constant("a\\%", UTF8))).contains("(\"host\" LIKE 'a\\\\%')"));
+        assertTrue(sqlForExpression(fce(sf("LIKE_PATTERN_FUNCTION_NAME"), BOOL,
+                var("host", UTF8), constant("it's#%", UTF8), constant("#", UTF8)))
+                .contains("(\"host\" LIKE 'it''s\\%')"));
+        // A NULL pattern or ESCAPE NULL makes LIKE return NULL, as in Athena.
+        assertTrue(sqlForExpression(fce(sf("LIKE_PATTERN_FUNCTION_NAME"), BOOL,
+                var("host", UTF8), constant("a%", UTF8), constant(null, UTF8))).contains("(\"host\" LIKE NULL)"));
+    }
+
+    @Test
+    public void testLikeExpressionRejectsNonConstantPattern()
+    {
+        try {
+            sqlForExpression(fce(sf("LIKE_PATTERN_FUNCTION_NAME"), BOOL, var("host", UTF8), var("host", UTF8)));
+            fail("expected a column pattern to be rejected");
+        }
+        catch (final AthenaConnectorException e) {
+            InfluxDBErrorsTest.assertErrorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION, e);
+        }
     }
 
     @Test

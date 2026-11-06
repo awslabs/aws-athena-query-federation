@@ -52,10 +52,11 @@ The connector advertises its capabilities via `doGetDataSourceCapabilities` and 
 
 - **Filter pushdown** — equality, `IN` lists, `IS NULL`/`IS NOT NULL`, and open/closed ranges (`>`, `>=`, `<`, `<=`, `BETWEEN`), derived from the constraint summary `ValueSet`s (`buildWhereClause` → `toPredicate`).
 - **Complex expression pushdown** — `AND`/`OR`/`NOT`, comparison and arithmetic operators, `LIKE`, `IN`, `IS DISTINCT FROM`, `NULLIF`, etc., from `constraints.getExpression()` (`toExpression`). The connector advertises only the functions it translates (`InfluxDBQueryBuilder.SUPPORTED_FUNCTIONS`), so a function added to the SDK later is not pushed down until the connector supports it. If an expression still contains a function or argument the connector cannot translate, the query fails with `OPERATION_NOT_SUPPORTED_EXCEPTION`, rather than leaving out part of the filter.
+  - `LIKE`: Athena's `LIKE` has no escape character unless the query gives one with `ESCAPE`, but DataFusion's `LIKE` always uses `\` as its escape character. The connector rewrites the pattern so that it matches the same strings: wildcards are kept, and every literal `%`, `_`, and `\` is written as `\%`, `\_`, and `\\`. The pattern and the `ESCAPE` character must be constants; a `LIKE` against a column pattern fails with `OPERATION_NOT_SUPPORTED_EXCEPTION`.
 - **`ORDER BY` / Top-N pushdown** — `buildOrderByClause` emits `ORDER BY … [ASC|DESC] [NULLS FIRST|LAST]`.
 - **`LIMIT` pushdown** — appended when `constraints.hasLimit()`.
 
-**Why push down:** InfluxDB/DataFusion is far more efficient at filtering, sorting, and limiting at the source than shipping rows to Athena and filtering there. Pushdown minimizes the bytes marshalled back through the Lambda. Values are rendered as SQL literals with proper quoting/escaping; Athena's Trino-packed `TIMESTAMP WITH TIME ZONE` constants are unpacked to UTC millisecond `TIMESTAMP` literals.
+**Why push down:** InfluxDB/DataFusion is far more efficient at filtering, sorting, and limiting at the source than shipping rows to Athena and filtering there. Pushdown minimizes the bytes marshalled back through the Lambda. Values are rendered as SQL literals: strings are quoted with embedded `'` doubled (DataFusion does not treat `\` as an escape character in string literals, which `InfluxDBLocalIntegTest` checks); Athena's Trino-packed `TIMESTAMP WITH TIME ZONE` constants are unpacked to UTC millisecond `TIMESTAMP` literals.
 
 **Timestamp precision:** reads are at millisecond precision, but InfluxDB stores nanoseconds. A pushed-down `time` bound therefore covers the whole millisecond that Athena compares against (`timestampRange`): `= X` becomes `>= X AND < X + 1ms`, `<= X` becomes `< X + 1ms`, and `> X` becomes `>= X + 1ms`. In complex expressions the column is compared as `date_trunc('millisecond', "time")`. Without this, a row at `...00.000500` (shown in Athena as `...00.000`) would not match `= ...00.000` in InfluxDB and would never reach Athena.
 
@@ -75,7 +76,9 @@ SELECT * FROM TABLE(
 - `DATABASE` — the InfluxDB database the query runs against (the Flight SQL client is per-database, so this is required).
 - `QUERY` — the native InfluxDB 3 SQL to execute.
 
-The result schema is inferred by running the query and inspecting the Arrow schema of its result, mapped to the same Athena types as normal reads (timestamps → millisecond UTC, tags/strings → VARCHAR, etc.). Passthrough is enabled by default; set `enable_query_passthrough=false` to disable it.
+The result schema is inferred by running the query and inspecting the Arrow schema of its result, mapped to the same Athena types as normal reads (timestamps → millisecond UTC, tags/strings → VARCHAR, etc.). InfluxDB 3 sends no column information for a query that matches no rows, so a passthrough query must return at least one row. Otherwise the connector fails with `INVALID_INPUT_EXCEPTION`. Athena shows this, like any error while it gets the passthrough schema, as `GENERIC_USER_ERROR: Failed To Get Query Passthrough Schema`; the connector's message is in the Lambda function's CloudWatch log. (Athena rejects a passthrough schema with no columns with `GENERIC_INTERNAL_ERROR: descriptor has no fields`.)
+
+Passthrough is disabled by default, because it runs caller-supplied SQL against InfluxDB. Set `enable_query_passthrough=true` (the `EnableQueryPassthrough` template parameter) to enable it. The token's permissions still limit what a passthrough query can read, and `influxdb_database` still limits which database it can run against.
 
 ## Split strategy & query parallelism
 A **split** is Athena's unit of parallelism — each split is read by a separate concurrent invocation of the RecordHandler Lambda.
@@ -195,7 +198,7 @@ Timestream for InfluxDB clusters live in a VPC, so the connector Lambda must be 
 
 ### Secret
 
-Create a Secrets Manager secret holding the InfluxDB token and pass its name (not its ARN) as `InfluxDBSecretId`. The Lambda's execution role (created by the template) is granted `secretsmanager:GetSecretValue` for that secret only.
+Create a Secrets Manager secret holding the InfluxDB token and pass its name as `InfluxDBSecretId`. The Lambda's execution role (created by the template) is granted `secretsmanager:GetSecretValue` for that secret only. The policy resource is `secret:<InfluxDBSecretId>-??????`, which matches the six-character suffix that Secrets Manager adds to the secret's ARN.
 
 ## Configuration parameters
 
@@ -210,7 +213,7 @@ Create a Secrets Manager secret holding the InfluxDB token and pass its name (no
 | `influxdb_database` (`InfluxDBDatabase`) | Optional single-database scope. When empty, all databases the token can reach are exposed, except InfluxDB system databases such as `_internal`. When set, it is an **enforced access boundary**: the connector only ever connects to that database — every metadata, record, and query-passthrough request for any other database is rejected, and a request differing only in case is normalized to the configured database rather than reaching a case-sensitive sibling. This is a connector-side guardrail; the token still governs what is ultimately reachable, so for defense in depth scope permissions at the token level as well. |
 | `enable_query_parallelism` | `true` to enable time-based split parallelism (default `false`). |
 | `query_parallelism_count` | Number of time buckets/splits when parallelism is enabled (default `8`, clamped). |
-| `enable_query_passthrough` | `true` (default) to expose the `system.query` passthrough table function. |
+| `enable_query_passthrough` (`EnableQueryPassthrough`) | `true` to expose the `system.query` passthrough table function (default `false`). |
 | `token_refresh_max_retries` | Max token-refresh retries on an authentication failure (HTTP `401`); default `1`, capped at `3`. Authorization denials (HTTP `403`) are never retried. |
 | `SubnetIds` / `SecurityGroupIds` | VPC config (required for Timestream for InfluxDB). |
 | `VpcId` | If set (with `SubnetIds`), the template **creates a dedicated security group** for the Lambda in this VPC and outputs the exact cluster ingress rule to add. If empty, `SecurityGroupIds` is used as-is. |

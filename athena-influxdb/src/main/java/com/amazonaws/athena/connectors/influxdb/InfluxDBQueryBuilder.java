@@ -389,26 +389,9 @@ public class InfluxDBQueryBuilder
         }
         final List<FederationExpression> args = expr.getArguments();
 
-        final List<String> argStrings = args.stream().map(arg -> {
-            if (arg instanceof VariableExpression) {
-                final VariableExpression variable = (VariableExpression) arg;
-                final String column = quote(sourceName(columnNames, variable.getColumnName()));
-                // Athena evaluates the expression against the millisecond value it reads, so a timestamp column
-                // is truncated the same way before InfluxDB compares it (see timestampRange).
-                if (variable.getType() instanceof ArrowType.Timestamp) {
-                    return "date_trunc('millisecond', " + column + ")";
-                }
-                return column;
-            }
-            else if (arg instanceof ConstantExpression) {
-                return constantToLiteral((ConstantExpression) arg);
-            }
-            else if (arg instanceof FunctionCallExpression) {
-                return toExpression((FunctionCallExpression) arg, columnNames);
-            }
-            throw InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
-                    "Unsupported expression type in expression pushdown: " + arg.getClass().getName());
-        }).collect(Collectors.toList());
+        final List<String> argStrings = args.stream()
+                .map(arg -> argumentSql(arg, columnNames))
+                .collect(Collectors.toList());
 
         switch (func) {
             case AND_FUNCTION_NAME :
@@ -436,7 +419,7 @@ public class InfluxDBQueryBuilder
             case IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME :
                 return "(" + argStrings.get(0) + " IS DISTINCT FROM " + argStrings.get(1) + ")";
             case LIKE_PATTERN_FUNCTION_NAME :
-                return "(" + argStrings.get(0) + " LIKE " + argStrings.get(1) + ")";
+                return likeExpression(args, columnNames);
             case IN_PREDICATE_FUNCTION_NAME :
                 return "(" + argStrings.get(0) + " IN (" + argStrings.get(1) + "))";
             case ADD_FUNCTION_NAME :
@@ -463,6 +446,128 @@ public class InfluxDBQueryBuilder
     {
         return InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
                 "Function " + functionName.getFunctionName() + " is not supported in expression pushdown");
+    }
+
+    /**
+     * Renders one argument of a function call: a column reference (by its InfluxDB name), constant literals, or a
+     * nested function call.
+     */
+    private static String argumentSql(final FederationExpression arg, final Map<String, String> columnNames)
+    {
+        if (arg instanceof VariableExpression) {
+            final VariableExpression variable = (VariableExpression) arg;
+            final String column = quote(sourceName(columnNames, variable.getColumnName()));
+            // Athena evaluates the expression against the millisecond value it reads, so a timestamp column
+            // is truncated the same way before InfluxDB compares it (see timestampRange).
+            if (variable.getType() instanceof ArrowType.Timestamp) {
+                return "date_trunc('millisecond', " + column + ")";
+            }
+            return column;
+        }
+        else if (arg instanceof ConstantExpression) {
+            return constantToLiteral((ConstantExpression) arg);
+        }
+        else if (arg instanceof FunctionCallExpression) {
+            return toExpression((FunctionCallExpression) arg, columnNames);
+        }
+        throw InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                "Unsupported expression type in expression pushdown: " + arg.getClass().getName());
+    }
+
+    /**
+     * Renders {@code value LIKE pattern [ESCAPE escape]}. Athena's LIKE has no escape character unless the query
+     * gives one with ESCAPE. DataFusion's LIKE always uses {@code \} as its escape character and accepts no other.
+     * The pattern is therefore rewritten for DataFusion (see {@link #toDataFusionLikePattern}), which requires the
+     * pattern and escape to be constants.
+     *
+     * @throws AthenaConnectorException with {@code OPERATION_NOT_SUPPORTED_EXCEPTION} if the pattern or escape is
+     *             not a single constant value, or the call does not have 2 or 3 arguments
+     */
+    private static String likeExpression(final List<FederationExpression> args, final Map<String, String> columnNames)
+    {
+        if (args.size() != 2 && args.size() != 3) {
+            throw InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                    "LIKE with " + args.size() + " arguments is not supported in expression pushdown");
+        }
+        final String value = argumentSql(args.get(0), columnNames);
+        final String pattern = singleConstantString(args.get(1), "pattern");
+        final String escape = (args.size() == 3) ? singleConstantString(args.get(2), "escape") : null;
+        // A NULL pattern, or an explicit ESCAPE NULL, makes LIKE return NULL in Athena; LIKE NULL does the same.
+        if (pattern == null || (args.size() == 3 && escape == null)) {
+            return "(" + value + " LIKE NULL)";
+        }
+        return "(" + value + " LIKE " + toLiteral(toDataFusionLikePattern(pattern, escape), ArrowType.Utf8.INSTANCE)
+                + ")";
+    }
+
+    /**
+     * Returns the value of a constant that holds exactly one row, as a string, or null for a NULL constant.
+     */
+    private static String singleConstantString(final FederationExpression arg, final String role)
+    {
+        if (!(arg instanceof ConstantExpression) || ((ConstantExpression) arg).getValues().getRowCount() != 1) {
+            throw InfluxDBErrors.error(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION,
+                    "LIKE pushdown requires a constant " + role);
+        }
+        final FieldReader reader = ((ConstantExpression) arg).getValues()
+                .getFieldReader(DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME);
+        reader.setPosition(0);
+        final Object value = reader.readObject();
+        return (value == null) ? null : value.toString();
+    }
+
+    /**
+     * Rewrites an Athena LIKE pattern as a DataFusion LIKE pattern that matches the same strings.
+     *
+     * In Athena, {@code %} and {@code _} are wildcards and every other character, including {@code \}, matches
+     * itself, unless an escape character is given: then the escape character followed by {@code %}, {@code _}, or
+     * itself matches that character literally. DataFusion always treats {@code \} as its escape character. The
+     * rewrite keeps the wildcards and writes every literal {@code %}, {@code _}, and {@code \} as {@code \%},
+     * {@code \_}, and {@code \\}.
+     *
+     * @param escape the ESCAPE character, or null if the query has none
+     * @throws AthenaConnectorException with {@code INVALID_INPUT_EXCEPTION} for an escape that is not a single
+     *             character, or a pattern whose escape character is last or is followed by another character.
+     *             Athena also rejects such patterns.
+     */
+    static String toDataFusionLikePattern(final String pattern, final String escape)
+    {
+        if (escape != null && escape.length() != 1) {
+            throw InfluxDBErrors.error(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION,
+                    "Escape string must be a single character");
+        }
+        final StringBuilder out = new StringBuilder(pattern.length() + 8);
+        for (int i = 0; i < pattern.length(); i++) {
+            final char c = pattern.charAt(i);
+            if (escape != null && c == escape.charAt(0)) {
+                if (i + 1 == pattern.length()) {
+                    throw InfluxDBErrors.error(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION,
+                            "LIKE pattern must not end with escape character");
+                }
+                final char escaped = pattern.charAt(++i);
+                if (escaped != '%' && escaped != '_' && escaped != c) {
+                    throw InfluxDBErrors.error(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION,
+                            "Escape character must be followed by '%', '_' or the escape character itself");
+                }
+                appendLikeLiteral(out, escaped);
+            }
+            else if (c == '%' || c == '_') {
+                out.append(c);
+            }
+            else {
+                appendLikeLiteral(out, c);
+            }
+        }
+        return out.toString();
+    }
+
+    /** Appends a character that a DataFusion LIKE pattern must match literally. */
+    private static void appendLikeLiteral(final StringBuilder out, final char c)
+    {
+        if (c == '%' || c == '_' || c == '\\') {
+            out.append('\\');
+        }
+        out.append(c);
     }
 
     /**

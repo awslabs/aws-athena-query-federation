@@ -127,6 +127,7 @@ public class InfluxDBRecordHandlerTest
         config.put("spill_prefix", "test-prefix");
         config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
         config.put("INFLUXDB3_AUTH_TOKEN", "test-token");
+        config.put("enable_query_passthrough", "true");
 
         handler = new InfluxDBRecordHandler(
                 mock(software.amazon.awssdk.services.s3.S3Client.class),
