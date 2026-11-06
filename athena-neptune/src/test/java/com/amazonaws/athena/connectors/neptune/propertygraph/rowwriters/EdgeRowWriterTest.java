@@ -23,9 +23,11 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connectors.neptune.Constants;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
@@ -52,6 +54,22 @@ import static org.junit.Assert.assertTrue;
  */
 public class EdgeRowWriterTest
 {
+    private static final String ID_FIELD = "id";
+    private static final String IN_FIELD = "in";
+    private static final String OUT_FIELD = "out";
+    private static final String NAME = "name";
+    private static final String NAME_UPPER = "NAME";
+    private static final String TAGS = "tags";
+    private static final String FLAG = "flag";
+    private static final String TIMESTAMP = "timestamp";
+    private static final String NUMBER_FIELD = "numberField";
+    private static final String BIG_INT_FIELD = "bigIntField";
+    private static final String FLOAT_FIELD = "floatField";
+    private static final String DOUBLE_FIELD = "doubleField";
+    private static final String PROPS = "props";
+    private static final String ALICE = "alice";
+    private static final String BOB = "bob";
+
     private BlockAllocatorImpl allocator;
 
     @Before
@@ -75,9 +93,18 @@ public class EdgeRowWriterTest
 
     private Object writeAndReadOneRow(Schema schema, String fieldName, Map<String, Object> context) throws Exception
     {
+        return writeAndReadOneRow(schema, fieldName, context, configOptions());
+    }
+
+    private Object writeAndReadOneRow(
+            Schema schema,
+            String fieldName,
+            Map<String, Object> context,
+            Map<String, String> configOptions) throws Exception
+    {
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder();
-        for (org.apache.arrow.vector.types.pojo.Field f : schema.getFields()) {
-            EdgeRowWriter.writeRowTemplate(builder, f, configOptions());
+        for (Field f : schema.getFields()) {
+            EdgeRowWriter.writeRowTemplate(builder, f, configOptions);
         }
         GeneratedRowWriter rowWriter = builder.build();
         try (Block block = allocator.createBlock(schema)) {
@@ -118,10 +145,10 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_varchar_specialKeyId_writesEdgeId() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addStringField("id").build();
+        Schema schema = SchemaBuilder.newBuilder().addStringField(ID_FIELD).build();
         Map<String, Object> context = edgeContextWithIdInOut("edge-1", "v-in", "v-out");
 
-        Object result = writeAndReadOneRow(schema, "id", context);
+        Object result = writeAndReadOneRow(schema, ID_FIELD, context);
         assertNotNull(result);
         assertEquals("edge-1", result.toString());
     }
@@ -129,10 +156,10 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_varchar_specialKeyIn_writesInVertexId() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addStringField("in").build();
+        Schema schema = SchemaBuilder.newBuilder().addStringField(IN_FIELD).build();
         Map<String, Object> context = edgeContextWithIdInOut("e2", "vertex-in-id", "vertex-out-id");
 
-        Object result = writeAndReadOneRow(schema, "in", context);
+        Object result = writeAndReadOneRow(schema, IN_FIELD, context);
         assertNotNull(result);
         assertEquals("vertex-in-id", result.toString());
     }
@@ -140,10 +167,10 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_varchar_specialKeyOut_writesOutVertexId() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addStringField("out").build();
+        Schema schema = SchemaBuilder.newBuilder().addStringField(OUT_FIELD).build();
         Map<String, Object> context = edgeContextWithIdInOut("e3", "v1", "v2");
 
-        Object result = writeAndReadOneRow(schema, "out", context);
+        Object result = writeAndReadOneRow(schema, OUT_FIELD, context);
         assertNotNull(result);
         assertEquals("v2", result.toString());
     }
@@ -153,71 +180,111 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_varchar_valueMapList_writesFirstElement() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addStringField("name").build();
+        Schema schema = SchemaBuilder.newBuilder().addStringField(NAME).build();
         Map<String, Object> context = new HashMap<>();
         ArrayList<Object> list = new ArrayList<>();
-        list.add("alice");
-        context.put("name", list);
+        list.add(ALICE);
+        context.put(NAME, list);
 
-        Object result = writeAndReadOneRow(schema, "name", context);
+        Object result = writeAndReadOneRow(schema, NAME, context);
         assertNotNull(result);
-        assertEquals("alice", result.toString());
+        assertEquals(ALICE, result.toString());
     }
 
     @Test
     public void writeRowTemplate_varchar_scalarString_writesValue() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addStringField("name").build();
+        Schema schema = SchemaBuilder.newBuilder().addStringField(NAME).build();
         Map<String, Object> context = new HashMap<>();
-        context.put("name", "bob");
+        context.put(NAME, BOB);
 
-        Object result = writeAndReadOneRow(schema, "name", context);
+        Object result = writeAndReadOneRow(schema, NAME, context);
         assertNotNull(result);
-        assertEquals("bob", result.toString());
+        assertEquals(BOB, result.toString());
+    }
+
+    @Test
+    public void writeRowTemplate_withDefaultCaseInsensitive_resolvesMixedCaseKey() throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder().addStringField(NAME).build();
+        Map<String, Object> context = new HashMap<>();
+        context.put(NAME_UPPER, ALICE);
+
+        Object result = writeAndReadOneRow(schema, NAME, context);
+
+        assertNotNull(result);
+        assertEquals(ALICE, result.toString());
+    }
+
+    @Test
+    public void writeRowTemplate_withCaseSensitiveConfig_doesNotMatchDifferentCaseKey() throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder().addStringField(NAME).build();
+        Map<String, Object> context = new HashMap<>();
+        context.put(NAME_UPPER, ALICE);
+        Map<String, String> config = Collections.singletonMap(Constants.SCHEMA_CASE_INSEN, "false");
+
+        Object result = writeAndReadOneRow(schema, NAME, context, config);
+
+        assertNull(result);
     }
 
     @Test
     public void writeRowTemplate_varchar_mapFromByValueMap_writesStringRepresentation() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addStringField("props").build();
+        Schema schema = SchemaBuilder.newBuilder().addStringField(PROPS).build();
         Map<String, Object> context = new HashMap<>();
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("a", 1);
         map.put("b", "two");
-        context.put("props", map);
+        context.put(PROPS, map);
 
-        Object result = writeAndReadOneRow(schema, "props", context);
+        Object result = writeAndReadOneRow(schema, PROPS, context);
         assertNotNull(result);
         String str = result.toString();
         assertTrue(str.contains("a=1"));
         assertTrue(str.contains("b=two"));
     }
 
+    @Test(expected = NullPointerException.class)
+    public void writeRowTemplate_withNullRowWriterBuilder_throwsNullPointerException()
+    {
+        Field field = SchemaBuilder.newBuilder().addStringField(NAME).build().findField(NAME);
+        EdgeRowWriter.writeRowTemplate(null, field, configOptions());
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void writeRowTemplate_withNullField_throwsNullPointerException()
+    {
+        EdgeRowWriter.writeRowTemplate(
+                GeneratedRowWriter.newBuilder(), null, configOptions());
+    }
+
     @Test
     public void writeRowTemplate_varchar_listWithNullFirstElement_doesNotSetValue() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addStringField("name").build();
+        Schema schema = SchemaBuilder.newBuilder().addStringField(NAME).build();
         Map<String, Object> context = new HashMap<>();
         ArrayList<Object> list = new ArrayList<>();
         list.add(null);
-        context.put("name", list);
+        context.put(NAME, list);
 
-        Object result = writeAndReadOneRow(schema, "name", context);
+        Object result = writeAndReadOneRow(schema, NAME, context);
         assertNull(result);
     }
 
     @Test
     public void writeRowTemplate_varchar_multipleValuesWithNull_joinsWithoutNpe() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addStringField("tags").build();
+        Schema schema = SchemaBuilder.newBuilder().addStringField(TAGS).build();
         Map<String, Object> context = new HashMap<>();
         ArrayList<Object> list = new ArrayList<>();
         list.add("x");
         list.add(null);
         list.add("z");
-        context.put("tags", list);
+        context.put(TAGS, list);
 
-        Object result = writeAndReadOneRow(schema, "tags", context);
+        Object result = writeAndReadOneRow(schema, TAGS, context);
         assertNotNull(result);
         assertEquals("x;;z", result.toString());
     }
@@ -225,11 +292,11 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_varchar_nullField_doesNotSetValue() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addStringField("name").build();
+        Schema schema = SchemaBuilder.newBuilder().addStringField(NAME).build();
         Map<String, Object> context = new HashMap<>();
-        context.put("name", null);
+        context.put(NAME, null);
 
-        Object result = writeAndReadOneRow(schema, "name", context);
+        Object result = writeAndReadOneRow(schema, NAME, context);
         assertNull(result);
     }
 
@@ -238,13 +305,13 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_bit_valueMapListTrue_writesOne() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addBitField("flag").build();
+        Schema schema = SchemaBuilder.newBuilder().addBitField(FLAG).build();
         Map<String, Object> context = new HashMap<>();
         ArrayList<Object> list = new ArrayList<>();
         list.add(true);
-        context.put("flag", list);
+        context.put(FLAG, list);
 
-        Object result = writeAndReadOneRow(schema, "flag", context);
+        Object result = writeAndReadOneRow(schema, FLAG, context);
         assertNotNull(result);
         assertTrue((Boolean) result);
     }
@@ -252,23 +319,34 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_bit_scalarTrue_writesOne() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addBitField("flag").build();
+        Schema schema = SchemaBuilder.newBuilder().addBitField(FLAG).build();
         Map<String, Object> context = new HashMap<>();
-        context.put("flag", true);
+        context.put(FLAG, true);
 
-        Object result = writeAndReadOneRow(schema, "flag", context);
+        Object result = writeAndReadOneRow(schema, FLAG, context);
         assertNotNull(result);
         assertTrue((Boolean) result);
     }
 
     @Test
+    public void writeRowTemplate_bit_blankString_doesNotSetValue() throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder().addBitField(FLAG).build();
+        Map<String, Object> context = new HashMap<>();
+        context.put(FLAG, "   ");
+
+        Object result = writeAndReadOneRow(schema, FLAG, context);
+        assertNull(result);
+    }
+
+    @Test
     public void writeRowTemplate_datemilli_longEpoch_writesValue() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addDateMilliField("timestamp").build();
+        Schema schema = SchemaBuilder.newBuilder().addDateMilliField(TIMESTAMP).build();
         Map<String, Object> context = new HashMap<>();
-        context.put("timestamp", 5000L);
+        context.put(TIMESTAMP, 5000L);
 
-        Object result = writeAndReadOneRow(schema, "timestamp", context);
+        Object result = writeAndReadOneRow(schema, TIMESTAMP, context);
         assertNotNull(result);
         assertEquals(5000L, ((LocalDateTime) result).toInstant(ZoneOffset.UTC).toEpochMilli());
     }
@@ -276,12 +354,12 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_datemilli_dateInstance_writesEpochMillis() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addDateMilliField("timestamp").build();
+        Schema schema = SchemaBuilder.newBuilder().addDateMilliField(TIMESTAMP).build();
         Date d = new Date(6000L);
         Map<String, Object> context = new HashMap<>();
-        context.put("timestamp", d);
+        context.put(TIMESTAMP, d);
 
-        Object result = writeAndReadOneRow(schema, "timestamp", context);
+        Object result = writeAndReadOneRow(schema, TIMESTAMP, context);
         assertNotNull(result);
         assertEquals(6000L, ((LocalDateTime) result).toInstant(ZoneOffset.UTC).toEpochMilli());
     }
@@ -289,13 +367,13 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_datemilli_valueMapList_writesFirstElement() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addDateMilliField("timestamp").build();
+        Schema schema = SchemaBuilder.newBuilder().addDateMilliField(TIMESTAMP).build();
         ArrayList<Object> list = new ArrayList<>();
         list.add(7000L);
         Map<String, Object> context = new HashMap<>();
-        context.put("timestamp", list);
+        context.put(TIMESTAMP, list);
 
-        Object result = writeAndReadOneRow(schema, "timestamp", context);
+        Object result = writeAndReadOneRow(schema, TIMESTAMP, context);
         assertNotNull(result);
         assertEquals(7000L, ((LocalDateTime) result).toInstant(ZoneOffset.UTC).toEpochMilli());
     }
@@ -303,11 +381,11 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_int_scalar_writesValue() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addIntField("numberField").build();
+        Schema schema = SchemaBuilder.newBuilder().addIntField(NUMBER_FIELD).build();
         Map<String, Object> context = new HashMap<>();
-        context.put("numberField", 99);
+        context.put(NUMBER_FIELD, 99);
 
-        Object result = writeAndReadOneRow(schema, "numberField", context);
+        Object result = writeAndReadOneRow(schema, NUMBER_FIELD, context);
         assertNotNull(result);
         assertEquals(99, ((Number) result).intValue());
     }
@@ -315,13 +393,13 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_int_valueMapList_writesFirstElement() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addIntField("numberField").build();
+        Schema schema = SchemaBuilder.newBuilder().addIntField(NUMBER_FIELD).build();
         Map<String, Object> context = new HashMap<>();
         ArrayList<Object> list = new ArrayList<>();
         list.add(42);
-        context.put("numberField", list);
+        context.put(NUMBER_FIELD, list);
 
-        Object result = writeAndReadOneRow(schema, "numberField", context);
+        Object result = writeAndReadOneRow(schema, NUMBER_FIELD, context);
         assertNotNull(result);
         assertEquals(42, ((Number) result).intValue());
     }
@@ -329,13 +407,13 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_bigint_valueMapList_writesFirstElement() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addBigIntField("bigIntField").build();
+        Schema schema = SchemaBuilder.newBuilder().addBigIntField(BIG_INT_FIELD).build();
         Map<String, Object> context = new HashMap<>();
         ArrayList<Object> list = new ArrayList<>();
         list.add(999L);
-        context.put("bigIntField", list);
+        context.put(BIG_INT_FIELD, list);
 
-        Object result = writeAndReadOneRow(schema, "bigIntField", context);
+        Object result = writeAndReadOneRow(schema, BIG_INT_FIELD, context);
         assertNotNull(result);
         assertEquals(999L, ((Number) result).longValue());
     }
@@ -343,13 +421,13 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_float4_valueMapList_writesFirstElement() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addFloat4Field("floatField").build();
+        Schema schema = SchemaBuilder.newBuilder().addFloat4Field(FLOAT_FIELD).build();
         Map<String, Object> context = new HashMap<>();
         ArrayList<Object> list = new ArrayList<>();
         list.add(2.5f);
-        context.put("floatField", list);
+        context.put(FLOAT_FIELD, list);
 
-        Object result = writeAndReadOneRow(schema, "floatField", context);
+        Object result = writeAndReadOneRow(schema, FLOAT_FIELD, context);
         assertNotNull(result);
         assertEquals(2.5f, ((Number) result).floatValue(), 1e-6f);
     }
@@ -357,11 +435,11 @@ public class EdgeRowWriterTest
     @Test
     public void writeRowTemplate_float8_scalar_writesValue() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addFloat8Field("doubleField").build();
+        Schema schema = SchemaBuilder.newBuilder().addFloat8Field(DOUBLE_FIELD).build();
         Map<String, Object> context = new HashMap<>();
-        context.put("doubleField", 1.5);
+        context.put(DOUBLE_FIELD, 1.5);
 
-        Object result = writeAndReadOneRow(schema, "doubleField", context);
+        Object result = writeAndReadOneRow(schema, DOUBLE_FIELD, context);
         assertNotNull(result);
         assertEquals(1.5, ((Number) result).doubleValue(), 1e-9);
     }

@@ -64,16 +64,12 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void testVerifyWithValidArguments() {
-        try {
-            queryPassthrough.verify(baseArguments);
-        } catch (Exception e) {
-            fail("Should not throw any exception");
-        }
+    public void verify_withValidArguments_doesNotThrowException() {
+        queryPassthrough.verify(baseArguments);
     }
 
     @Test
-    public void testVerifyWithEmptyArguments() {
+    public void verify_withEmptyArguments_throwsAthenaConnectorException() {
         try {
             queryPassthrough.verify(new HashMap<>());
             fail("Expected AthenaConnectorException");
@@ -83,7 +79,7 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void testVerifyWithMissingDatabase() {
+    public void verify_withMissingDatabase_throwsAthenaConnectorException() {
         baseArguments.remove(DATABASE);
 
         try {
@@ -95,7 +91,7 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void testVerifyWithMissingCollection() {
+    public void verify_withMissingCollection_throwsAthenaConnectorException() {
         baseArguments.remove(COLLECTION);
 
         try {
@@ -107,7 +103,7 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void testVerifyWithMissingComponentType() {
+    public void verify_withMissingComponentType_throwsAthenaConnectorException() {
         baseArguments.remove(COMPONENT_TYPE);
 
         try {
@@ -119,7 +115,7 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void testVerifyWithMissingTraverse() {
+    public void verify_withMissingTraverse_throwsAthenaConnectorException() {
         baseArguments.remove(TRAVERSE);
 
         try {
@@ -131,7 +127,7 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void testVerifyWithTraverseAndQueryArguments_ShouldThrowException() {
+    public void verify_withTraverseAndQueryArguments_throwsAthenaConnectorException() {
         baseArguments.put("QUERY", "g.V().hasLabel('airport')");
 
         try {
@@ -143,35 +139,37 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void verify_withProjectByValues_shouldNotThrowException() {
+    public void verify_withProjectByValuesTraverse_doesNotThrowException() {
         baseArguments.put(TRAVERSE, "g.V().hasLabel('airport').project('name').by(values('name'))");
-
-        try {
-            queryPassthrough.verify(baseArguments);
-        } catch (Exception e) {
-            fail("Should not throw any exception");
-        }
+        queryPassthrough.verify(baseArguments);
     }
 
     @Test
-    public void verify_withElementMap_shouldNotThrowException() {
+    public void verify_withElementMapTraverse_doesNotThrowException() {
         baseArguments.put(TRAVERSE, "g.V().hasLabel('airport').elementMap()");
-
-        try {
-            queryPassthrough.verify(baseArguments);
-        } catch (Exception e) {
-            fail("Should not throw any exception");
-        }
+        queryPassthrough.verify(baseArguments);
     }
 
     @Test
-    public void verify_withTraverseWithoutValueMapSubstring_shouldNotThrowException() {
+    public void verify_withPlainGremlinTraverse_doesNotThrowException() {
         baseArguments.put(TRAVERSE, "g.V().hasLabel('airport')");
+        queryPassthrough.verify(baseArguments);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void verify_withNullArguments_throwsNullPointerException() {
+        queryPassthrough.verify(null);
+    }
+
+    @Test
+    public void verify_withEmptyTraverseValue_throwsAthenaConnectorException() {
+        baseArguments.put(TRAVERSE, "");
 
         try {
             queryPassthrough.verify(baseArguments);
-        } catch (Exception e) {
-            fail("Should not throw any exception");
+            fail("Expected AthenaConnectorException");
+        } catch (AthenaConnectorException e) {
+            assertEquals("Missing Query Passthrough Value for Argument: " + TRAVERSE, e.getMessage());
         }
     }
 }

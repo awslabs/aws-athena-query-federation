@@ -29,10 +29,8 @@ import java.util.Collections;
 public class TestBase {
     protected static final FederatedIdentity IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     protected static final String QUERY_ID = "query_id-" + System.currentTimeMillis();
-    protected static final String PARTITION_ID = "partition_id";
     protected static final String DEFAULT_CATALOG = "default";
     protected static final String TEST_TABLE = "default";
     protected static final String DEFAULT_SCHEMA = "deafult-database";
-    protected static final String CONNECTION_STRING = "connectionString";
     protected static final TableName TABLE_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE);
 }
