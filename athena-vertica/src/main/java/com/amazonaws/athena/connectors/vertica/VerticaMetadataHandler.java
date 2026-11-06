@@ -21,6 +21,7 @@
 package com.amazonaws.athena.connectors.vertica;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -38,6 +39,7 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -53,9 +55,15 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -147,7 +155,7 @@ public class VerticaMetadataHandler
     {
         logger.info("doListSchemaNames: {}", request.getCatalogName());
         List<String> schemas = new ArrayList<>();
-        try (Connection client = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection client = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet rs  = dbMetadata.getTables(null, null, null, TABLE_TYPES);
 
@@ -188,7 +196,7 @@ public class VerticaMetadataHandler
         queryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
         String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableRequest)))) {
             PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
             ResultSetMetaData metadata = preparedStatement.getMetaData();
             if (metadata == null) {
@@ -229,7 +237,7 @@ public class VerticaMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
         Set<String> partitionCols = new HashSet<>();
-        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)));
 
         //build the schema as per columns in Vertica
         Schema schema = verticaSchemaUtils.buildTableSchema(connection, request.getTableName());
@@ -279,7 +287,7 @@ public class VerticaMetadataHandler
         String queryID = request.getQueryId().replace("-","").concat(randomStr);
 
         //Build the SQL query
-        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)));
 
         // if  QPT get input query from Athena console
         //else old logic
@@ -287,7 +295,33 @@ public class VerticaMetadataHandler
         VerticaExportQueryBuilder queryBuilder = queryFactory.createVerticaExportQueryBuilder();
         String preparedSQLStmt;
 
-        if (!request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
+        if (request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
+            preparedSQLStmt = null;
+        }
+        else if (constraints.getQueryPlan() != null) {
+            // Managed-connector (Substrait) path: render the SELECT from the query plan and wrap it in the
+            // EXPORT TO PARQUET statement via the query-passthrough-style template. Predicate, projection,
+            // and limit pushdown are expressed by the plan and rendered through the Vertica dialect. The
+            // legacy (non-plan) branch below is left untouched so existing behavior does not regress.
+            Map<String, String> identityConfigOptions = request.getIdentity() != null ? request.getIdentity().getConfigOptions() : null;
+            String catalogCasingFilter = identityConfigOptions != null ? identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER) : null;
+            SqlDialect dialect = catalogCasingFilter != null
+                    ? new VerticaSqlDialect(catalogCasingFilter.equals(EnvironmentConstants.UPPERCASE_ONLY))
+                    : VerticaSqlDialect.DEFAULT;
+            SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(constraints.getQueryPlan().getSubstraitPlan(), dialect);
+            if (!(sqlNode instanceof SqlSelect)) {
+                throw new UnsupportedOperationException("Unsupported query type for Vertica federation: only SELECT is supported");
+            }
+            // Vertica embeds the SELECT inline inside EXPORT TO PARQUET AS <select> and executes it directly,
+            // so render with inline literals rather than the parameterized form used by the JDBC scan path.
+            String renderedSelect = sqlNode.toSqlString(dialect).getSql();
+            preparedSQLStmt = queryFactory.createQptVerticaExportQueryBuilder()
+                    .withS3ExportBucket(s3ExportBucket)
+                    .withQueryID(queryID)
+                    .withPreparedStatementSQL(renderedSelect)
+                    .build();
+        }
+        else {
 
             DatabaseMetaData dbMetadata = connection.getMetaData();
             ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
@@ -298,8 +332,6 @@ public class VerticaMetadataHandler
                     .fromTable(tableName.getSchemaName(), tableName.getTableName())
                     .withConstraints(constraints, schemaName)
                     .build();
-        } else {
-            preparedSQLStmt = null;
         }
 
         logger.info("Vertica Export Statement: {}", preparedSQLStmt);
@@ -334,9 +366,10 @@ public class VerticaMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
         //ToDo: implement use of a continuation token to use in case of larger queries
+        AwsRequestOverrideConfiguration requestOverrideConfig = getRequestOverrideConfig(request);
         Connection connection;
         try {
-            connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+            connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfig));
         } catch (Exception e) {
             throw new RuntimeException("connection failed ", e);
         }
@@ -385,12 +418,12 @@ public class VerticaMetadataHandler
         }
         String prefix = remainingPath + queryId;
 
-        List<S3Object> s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
+        List<S3Object> s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix, request);
         if (s3ObjectsList.isEmpty()) {
             // Execute queries on Vertica if S3 export bucket does not contain objects for given queryId
-            executeQueriesOnVertica(connection, sqlStatement, awsRegionSql);
+            executeQueriesOnVertica(connection, sqlStatement, awsRegionSql, request);
             // Retrieve the S3 objects list for given queryId
-            s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
+            s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix, request);
         }
 
         Split split;
@@ -400,7 +433,7 @@ public class VerticaMetadataHandler
         {
             for (S3Object s3Object : s3ObjectsList)
             {
-                split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+                split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey(getRequestOverrideConfig(request)))
                         .add(VERTICA_SPLIT_QUERY_ID, queryID)
                         .add(VERTICA_SPLIT_EXPORT_BUCKET, s3ExportBucketName)
                         .add(VERTICA_SPLIT_OBJECT_KEY, s3Object.key())
@@ -414,7 +447,7 @@ public class VerticaMetadataHandler
         {
             //No records were exported by Vertica for the issued query, creating a "empty" split
             logger.info("No records were exported by Vertica");
-            split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+            split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey(getRequestOverrideConfig(request)))
                     .add(VERTICA_SPLIT_QUERY_ID, queryID)
                     .add(VERTICA_SPLIT_EXPORT_BUCKET, exportBucket)
                     .add(VERTICA_SPLIT_OBJECT_KEY, EMPTY_STRING)
@@ -429,30 +462,85 @@ public class VerticaMetadataHandler
      * Generates the necessary Prepared Statements to set the AWS Auth and export S3 bucket Region on Vertica
      * and executes the queries
      */
-    private void executeQueriesOnVertica(Connection connection, String sqlStatement, String awsRegionSql)
+    private void executeQueriesOnVertica(Connection connection, String sqlStatement, String awsRegionSql, GetSplitsRequest request)
     {
+        // Resolve the connection's LakeFormation-vended (FAS-forwarded) session credentials so the
+        // Vertica server-side EXPORT TO PARQUET writes to S3 as the querying user's federated identity
+        // rather than the Vertica host identity. When the request is not federated (no FAS token),
+        // getRequestOverrideConfig returns null; in that case skip credential injection and preserve the
+        // prior region-only behavior.
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(request);
+        AwsCredentials sessionCredentials =
+                (overrideConfig != null && overrideConfig.credentialsProvider().isPresent())
+                        ? overrideConfig.credentialsProvider().get().resolveCredentials()
+                        : null;
+        boolean credentialsInjected = false;
         try {
             PreparedStatement setAwsRegion = connection.prepareStatement(awsRegionSql);
-            PreparedStatement exportSQL = connection.prepareStatement(sqlStatement);
 
             //execute the query to set region
             setAwsRegion.execute();
+
+            // Inject the vended credentials for the Vertica EXPORT, after region and before export.
+            if (sessionCredentials != null) {
+                VerticaExportQueryBuilder credentialQueryBuilder = queryFactory.createVerticaExportQueryBuilder();
+                try {
+                    // Do not log: these statements carry the vended credentials.
+                    PreparedStatement setAwsAuth = connection.prepareStatement(
+                            credentialQueryBuilder.buildSetAwsAuthSql(sessionCredentials.accessKeyId(), sessionCredentials.secretAccessKey()));
+                    setAwsAuth.execute();
+                    credentialsInjected = true;
+                    if (sessionCredentials instanceof AwsSessionCredentials) {
+                        PreparedStatement setAwsSessionToken = connection.prepareStatement(
+                                credentialQueryBuilder.buildSetAwsSessionTokenSql(((AwsSessionCredentials) sessionCredentials).sessionToken()));
+                        setAwsSessionToken.execute();
+                    }
+                }
+                catch (SQLException credEx) {
+                    // Rethrow with only SQLState/errorCode: the failing statement text carries the secret.
+                    throw new RuntimeException("Failed to set S3 credentials on the Vertica session (SQLState="
+                            + credEx.getSQLState() + ", errorCode=" + credEx.getErrorCode() + ")");
+                }
+            }
+            else {
+                logger.warn("No LakeFormation-vended (FAS) credentials present for this request; "
+                        + "running Vertica EXPORT region-only without AWS credential injection");
+            }
+
+            PreparedStatement exportSQL = connection.prepareStatement(sqlStatement);
 
             //execute the query to export the data to S3
             exportSQL.execute();
         } catch (SQLException e) {
             throw new RuntimeException("Exception in executing query in vertica ", e);
+        } finally {
+            // Hardening: clear the session-scoped vended credentials so they cannot persist on a
+            // connection returned to the Hikari pool. Best-effort; a clear failure must not mask the result.
+            if (credentialsInjected) {
+                try {
+                    PreparedStatement clearCredentials = connection.prepareStatement(
+                            queryFactory.createVerticaExportQueryBuilder().buildClearAwsCredentialsSql());
+                    clearCredentials.execute();
+                }
+                catch (SQLException clearEx) {
+                    logger.warn("Failed to clear vended S3 credentials from the Vertica session (SQLState={}, errorCode={})",
+                            clearEx.getSQLState(), clearEx.getErrorCode());
+                }
+            }
         }
     }
 
     /*
      * Get the list of all the exported S3 objects
      */
-    private List<S3Object> getlistExportedObjects(String s3ExportBucket, String prefix){
+    private List<S3Object> getlistExportedObjects(String s3ExportBucket, String prefix, GetSplitsRequest request){
         ListObjectsResponse listObjectsResponse;
         try
         {
-            listObjectsResponse = amazonS3.listObjects(ListObjectsRequest.builder()
+            // Re-source the listing onto the connection's LF-vended (FAS-forwarded) session so it runs as
+            // the connector's federated identity. getS3Client falls back to the base client (amazonS3,
+            // default chain) when the request carries no FAS credentials, preserving prior behavior.
+            listObjectsResponse = getS3Client(getRequestOverrideConfig(request), amazonS3).listObjects(ListObjectsRequest.builder()
                     .bucket(s3ExportBucket)
                     .prefix(prefix)
                     .build());
