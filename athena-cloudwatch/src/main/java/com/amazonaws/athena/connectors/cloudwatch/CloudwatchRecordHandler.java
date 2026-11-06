@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -173,11 +174,14 @@ public class CloudwatchRecordHandler
 
     /**
      * Attempts to push down predicates into Cloudwatch Logs by decorating the Cloudwatch Logs request.
+     * <p>
+     * GetLogEvents includes startTime and excludes endTime. SQL {@code >} therefore starts one millisecond
+     * later, and SQL {@code <=} or {@code =} ends one millisecond later, so the boundary row is not dropped.
      *
      * @param constraints The constraints for the read as provided by Athena based on the customer's query.
      * @param request     The Cloudwatch Logs request to inject predicates to.
      * @return The decorated Cloudwatch Logs request.
-     * @note This impl currently only pushing down SortedRangeSet filters (>=, =<, between) on the log time column.
+     * @note This impl currently only pushing down SortedRangeSet filters ({@code >}, {@code >=}, {@code <}, {@code <=}, between) on the log time column.
      */
     private GetLogEventsRequest pushDownConstraints(Constraints constraints, GetLogEventsRequest request)
     {
@@ -192,16 +196,54 @@ public class CloudwatchRecordHandler
             Range basicPredicate = ((SortedRangeSet) timeConstraint).getSpan();
 
             if (!basicPredicate.getLow().isNullValue()) {
-                Long lowerBound = (Long) basicPredicate.getLow().getValue();
-                requestBuilder.startTime(lowerBound);
+                Long startTime = toInclusiveStartTime(basicPredicate.getLow());
+                if (startTime != null) {
+                    requestBuilder.startTime(startTime);
+                }
             }
 
             if (!basicPredicate.getHigh().isNullValue()) {
-                Long upperBound = (Long) basicPredicate.getHigh().getValue();
-                requestBuilder.endTime(upperBound);
+                Long endTime = toExclusiveEndTime(basicPredicate.getHigh());
+                if (endTime != null) {
+                    requestBuilder.endTime(endTime);
+                }
             }
         }
 
         return requestBuilder.build();
+    }
+
+    /**
+     * CloudWatch startTime includes the millisecond. An exclusive SQL lower bound must start one millisecond later.
+     *
+     * @return the startTime to send, or null when the exclusive bound cannot be represented.
+     */
+    private static Long toInclusiveStartTime(Marker low)
+    {
+        long lowerBound = (Long) low.getValue();
+        if (low.getBound() == Marker.Bound.ABOVE) {
+            if (lowerBound == Long.MAX_VALUE) {
+                return null;
+            }
+            return lowerBound + 1;
+        }
+        return lowerBound;
+    }
+
+    /**
+     * CloudWatch endTime excludes the millisecond. An inclusive SQL upper bound must end one millisecond later.
+     *
+     * @return the endTime to send, or null when the inclusive bound cannot be represented.
+     */
+    private static Long toExclusiveEndTime(Marker high)
+    {
+        long upperBound = (Long) high.getValue();
+        if (high.getBound() == Marker.Bound.EXACTLY) {
+            if (upperBound == Long.MAX_VALUE) {
+                return null;
+            }
+            return upperBound + 1;
+        }
+        return upperBound;
     }
 }
