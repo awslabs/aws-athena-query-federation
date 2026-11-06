@@ -55,6 +55,11 @@ public final class EnvironmentConstants
 
     public static final String FAS_TOKEN = "fas_token";
     public static final String SERVICE_KMS = "service_kms_key_id";
+    // Optional service-managed spill channel: when both are present, spill objects are written with these
+    // per-query credentials instead of the caller's FAS. SPILL_BUCKET_OWNER pins the expected bucket owner account.
+    public static final String SPILL_FAS_TOKEN = "spill_fas_token";
+    public static final String SPILL_SERVICE_KMS = "spill_service_kms_key_id";
+    public static final String SPILL_BUCKET_OWNER = "spill_bucket_owner";
 
     public static final String CATALOG_CASING_FILTER = "CATALOG_CASING_FILTER";
     public static final String UPPERCASE_ONLY = "UPPERCASE_ONLY";
