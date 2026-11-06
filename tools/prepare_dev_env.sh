@@ -42,12 +42,14 @@ echo ""
 echo "Which Java version would you like to install?"
 echo "1) Java 11"
 echo "2) Java 17"
+echo "3) Java 25"
 while true; do
-    read -p "Enter your choice (1 or 2): " java_choice
+    read -p "Enter your choice (1, 2, or 3): " java_choice
     case $java_choice in
         1 ) JAVA_VERSION=11; break;;
         2 ) JAVA_VERSION=17; break;;
-        * ) echo "Please enter 1 or 2.";;
+        3 ) JAVA_VERSION=25; break;;
+        * ) echo "Please enter 1, 2, or 3.";;
     esac
 done
 
