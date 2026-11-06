@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
@@ -41,6 +42,8 @@ import org.apache.calcite.sql.SqlDialect;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -54,7 +57,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -70,6 +72,7 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
 
     private static final String SPATIAL_CONVERSION_FUNCTION_REGEX = "ST_([a-zA-Z]+)\\(\\)";
     private static final Pattern SPATIAL_CONVERSION_FUNCTION_PATTERN = Pattern.compile(SPATIAL_CONVERSION_FUNCTION_REGEX);
+    private static final Pattern POSITIVE_INTEGER_PARTITION_ID = Pattern.compile("^[1-9][0-9]*$");
 
     public SaphanaQueryStringBuilder(String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
@@ -89,6 +92,9 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
         }
         tableName.append(quote(table));
 
+        // Always read the partition id by its known property key. Do not use keySet().iterator().next():
+        // splits may also carry CATALOG_CASING_FILTER (and other properties), and picking an arbitrary
+        // key would interpolate that value into PARTITION (...), producing invalid/unsafe SQL.
         String partitionName = split.getProperty(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME);
 
         String query;
@@ -105,15 +111,33 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
                     "returning query {}, partition {}", query, partitionName);
             return query;
         }
-        Set<String> partitionValues = split.getProperties().keySet();
-        String partValue = split.getProperty(partitionValues.iterator().next());
+
+        // HANA SELECT ... PARTITION (n) requires an integer PART_ID from SYS.TABLE_PARTITIONS.
+        // Identifiers cannot be bound with JDBC '?'; reject anything that is not a positive integer
+        // so a crafted/mis-routed split property cannot change the SQL statement.
+        if (!isValidPartitionId(partitionName)) {
+            throw new AthenaConnectorException(
+                    "Invalid SAP HANA partition id (expected positive integer PART_ID): " + partitionName,
+                    ErrorDetails.builder()
+                            .errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString())
+                            .build());
+        }
 
         // Sample query to fetch data for a partition, e.g., 1
         // SELECT * FROM ATHENA.COVID19_HASHHASHPARTITION  PARTITION (1)
-        query = String.format(" FROM %s ", tableName + " " + "PARTITION " + "(" + partValue + ")");
+        query = String.format(" FROM %s PARTITION (%s) ", tableName, partitionName);
         LOGGER.debug("SaphanaQueryStringBuilder:getFromClauseWithSplit when partitionName found " +
                 "returning query {}, partition {}", query, partitionName);
         return query;
+    }
+
+    /**
+     * SAP HANA physical partition ids are positive integers ({@code PART_ID} in {@code SYS.TABLE_PARTITIONS}).
+     * Caller must already exclude null/empty and {@code ALL_PARTITIONS} ("0").
+     */
+    private static boolean isValidPartitionId(String partitionName)
+    {
+        return POSITIVE_INTEGER_PARTITION_ID.matcher(partitionName).matches();
     }
 
     @Override
