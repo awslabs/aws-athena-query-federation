@@ -69,6 +69,34 @@ public class DateTimeFormatterUtil
     // By default this is enabled because this is the historical behavior
     private static boolean packTimezone = true;
 
+    // Per-thread override of the packing decision. When set (non-null) it takes precedence over the static
+    // default for the current thread only, so a single request/handler can opt out of timezone packing without
+    // mutating process-global state (and racing other threads). Callers must clear it in a finally block.
+    private static final ThreadLocal<Boolean> PACK_TIMEZONE_OVERRIDE = new ThreadLocal<>();
+
+    /**
+     * Sets a thread-scoped override of the timezone-packing decision for the current thread. Prefer this over
+     * {@link #disableTimezonePacking()} when only a specific code path (e.g. one connector's export) should change
+     * behavior. Always pair with {@link #clearTimezonePackingOverride()} in a finally block.
+     */
+    public static void overrideTimezonePacking(boolean enabled)
+    {
+        PACK_TIMEZONE_OVERRIDE.set(enabled);
+    }
+
+    /** Clears the thread-scoped packing override set by {@link #overrideTimezonePacking(boolean)}. */
+    public static void clearTimezonePackingOverride()
+    {
+        PACK_TIMEZONE_OVERRIDE.remove();
+    }
+
+    /** The effective packing decision: the thread override if present, otherwise the static default. */
+    private static boolean isPackTimezone()
+    {
+        Boolean override = PACK_TIMEZONE_OVERRIDE.get();
+        return override != null ? override : packTimezone;
+    }
+
     public static void disableTimezonePacking()
     {
         logger.info("Timezone packing disabled");
@@ -331,7 +359,7 @@ public class DateTimeFormatterUtil
     {
         org.apache.arrow.vector.types.TimeUnit timeunit = arrowType.getUnit();
         ZoneId timeZone = ZoneId.of(arrowType.getTimezone());
-        if (packTimezone) {
+        if (isPackTimezone()) {
             if (!org.apache.arrow.vector.types.TimeUnit.MILLISECOND.equals(timeunit)) {
                 throw new AthenaConnectorException("Unpacking is only supported for milliseconds", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
             }
@@ -389,7 +417,7 @@ public class DateTimeFormatterUtil
         // looking at that field.
         // Also note that we are packing the original timezone for backwards compatibility
         // because this is what Athena expects rather than using the target timezone.
-        if (packTimezone) {
+        if (isPackTimezone()) {
             holder.value = packDateTimeWithZone(holder.value, holder.timezone);
         }
 
@@ -403,7 +431,7 @@ public class DateTimeFormatterUtil
 
     public static org.apache.arrow.vector.holders.TimeStampMicroTZHolder timestampMicroTzHolderFromObject(Object value, String targetTimeZoneId)
     {
-        if (packTimezone) {
+        if (isPackTimezone()) {
             throw new AthenaConnectorException("Packing for TimeStampMicroTZ is not currently supported", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
 
