@@ -37,20 +37,35 @@ public class ListSchemasResponse
         extends MetadataResponse
 {
     private final Collection<String> schemas;
+    private final String nextToken;
+
+    /**
+     * Constructs a new ListSchemasResponse object with no further pages.
+     *
+     * @param catalogName The catalog name that schemas were listed for.
+     * @param schemas The list of schema names (they all must be lowercase).
+     */
+    public ListSchemasResponse(String catalogName, Collection<String> schemas)
+    {
+        this(catalogName, schemas, null);
+    }
 
     /**
      * Constructs a new ListSchemasResponse object.
      *
      * @param catalogName The catalog name that schemas were listed for.
      * @param schemas The list of schema names (they all must be lowercase).
+     * @param nextToken The pagination starting point for the next request (null indicates the end of the pagination).
      */
     @JsonCreator
     public ListSchemasResponse(@JsonProperty("catalogName") String catalogName,
-            @JsonProperty("schemas") Collection<String> schemas)
+            @JsonProperty("schemas") Collection<String> schemas,
+            @JsonProperty("nextToken") String nextToken)
     {
         super(MetadataRequestType.LIST_SCHEMAS, catalogName);
         requireNonNull(schemas, "schemas is null");
         this.schemas = Collections.unmodifiableCollection(schemas);
+        this.nextToken = nextToken;
     }
 
     /**
@@ -61,6 +76,15 @@ public class ListSchemasResponse
     public Collection<String> getSchemas()
     {
         return schemas;
+    }
+
+    /**
+     * Returns the nextToken (the starting schema for the next request).
+     * @return The pagination starting point for the next request (null indicates the end of the pagination).
+     */
+    public String getNextToken()
+    {
+        return nextToken;
     }
 
     @Override
@@ -75,6 +99,7 @@ public class ListSchemasResponse
     {
         return "ListSchemasResponse{" +
                 "schemas=" + schemas +
+                ", nextToken='" + nextToken + '\'' +
                 '}';
     }
 
@@ -92,12 +117,13 @@ public class ListSchemasResponse
 
         return CollectionsUtils.equals(this.schemas, that.schemas) &&
                 Objects.equal(this.getRequestType(), that.getRequestType()) &&
-                Objects.equal(this.getCatalogName(), that.getCatalogName());
+                Objects.equal(this.getCatalogName(), that.getCatalogName()) &&
+                Objects.equal(this.getNextToken(), that.getNextToken());
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(schemas, getRequestType(), getCatalogName());
+        return Objects.hashCode(schemas, getRequestType(), getCatalogName(), getNextToken());
     }
 }
