@@ -289,11 +289,6 @@
             <artifactId>core</artifactId>
             <version>${io.substrait.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -358,6 +353,10 @@
                                 <!-- 1. commons-lang 2.4 (direct vulnerability) -->
                                 <exclude>META-INF/maven/commons-lang/commons-lang/pom.xml</exclude>
                                 <exclude>META-INF/maven/commons-lang/commons-lang/pom.properties</exclude>
+                                <!-- Inspector code scanning CWE-327/328/326/208/1240: aws-cryptographic-material-providers keyring-only primitives (see root pom #16) -->
+                                <exclude>AesKdfCtr/**</exclude>
+                                <exclude>Signature/**</exclude>
+                                <exclude>ECDH/**</exclude>
                             </excludes>
                         </filter>
                     </filters>
