@@ -118,6 +118,7 @@ public class InfluxDBMetadataHandlerTest
         config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
         config.put("INFLUXDB3_AUTH_TOKEN", "test-token");
         config.put("influxdb_database", "testdb");
+        config.put("enable_query_passthrough", "true");
 
         handler = new InfluxDBMetadataHandler(
                 mockFactory,
@@ -461,6 +462,29 @@ public class InfluxDBMetadataHandlerTest
     }
 
     @Test
+    public void testDoGetDataSourceCapabilitiesOmitsQueryPassthroughWhenOptionMissing()
+    {
+        final Map<String, String> config = new HashMap<>();
+        config.put("spill_bucket", "test-bucket");
+        config.put("spill_prefix", "test-prefix");
+        config.put("INFLUXDB3_HOST_URL", "https://localhost:8086");
+        config.put("INFLUXDB3_AUTH_TOKEN", "test-token");
+        final InfluxDBMetadataHandler defaultHandler = new InfluxDBMetadataHandler(
+                mockFactory,
+                new com.amazonaws.athena.connector.lambda.security.LocalKeyFactory(),
+                mock(software.amazon.awssdk.services.secretsmanager.SecretsManagerClient.class),
+                mock(software.amazon.awssdk.services.athena.AthenaClient.class),
+                "test-bucket",
+                "test-prefix",
+                config);
+        final com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse response =
+                defaultHandler.doGetDataSourceCapabilities(allocator,
+                        new com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest(
+                                IDENTITY, "queryId", "catalog"));
+        assertFalse(response.getCapabilities().containsKey("SYSTEM.QUERY"));
+    }
+
+    @Test
     public void testDoGetQueryPassthroughSchemaDerivesSchemaFromResult() throws Exception
     {
         try (BufferAllocator arrow = new RootAllocator()) {
@@ -522,13 +546,20 @@ public class InfluxDBMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetQueryPassthroughSchemaReturnsEmptyWhenQueryReturnsNoBatches() throws Exception
+    public void testDoGetQueryPassthroughSchemaRejectsQueryThatReturnsNoBatches() throws Exception
     {
+        // InfluxDB 3 sends no batches for an empty result, so the columns are unknown.
         when(mockClient.queryBatches(anyString())).thenReturn(Stream.empty());
-        final GetTableResponse response = handler.doGetQueryPassthroughSchema(allocator,
-            new GetTableRequest(IDENTITY, "queryId", "catalog", new TableName("system", "query"),
-                passthroughArgs("SELECT 1 WHERE false")));
-        assertTrue(response.getSchema().getFields().isEmpty());
+        try {
+            handler.doGetQueryPassthroughSchema(allocator,
+                    new GetTableRequest(IDENTITY, "queryId", "catalog", new TableName("system", "query"),
+                            passthroughArgs("SELECT 1 WHERE false")));
+            fail("expected a passthrough query with no rows to be rejected");
+        }
+        catch (final AthenaConnectorException e) {
+            assertErrorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+            assertTrue(e.getMessage(), e.getMessage().contains("returned no rows"));
+        }
     }
 
     @Test
