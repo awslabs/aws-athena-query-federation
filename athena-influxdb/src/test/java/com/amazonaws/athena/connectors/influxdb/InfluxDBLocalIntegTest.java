@@ -230,7 +230,7 @@ public class InfluxDBLocalIntegTest
                     Point.measurement("escapes").setTag("host", "injection").setField("s", BACKSLASH_INJECTION),
                     Point.measurement("escapes").setTag("host", "trailing").setField("s", TRAILING_BACKSLASH),
                     Point.measurement("escapes").setTag("host", "other").setField("s", "plain"),
-                    // For testLikeMatchesAthenaSemantics: a literal % and a value that only the wildcard matches.
+                    // For the LIKE tests: a literal % and a value that only the wildcard matches.
                     Point.measurement("escapes").setTag("host", "percent").setField("s", "100%"),
                     Point.measurement("escapes").setTag("host", "wildcard").setField("s", "1000")));
 
@@ -978,7 +978,11 @@ public class InfluxDBLocalIntegTest
                 escapesHostsMatching(null, Collections.singletonList(equalsInjection)));
     }
 
-    /** Builds {@code s LIKE pattern [ESCAPE escape]} as Athena sends it. */
+    /**
+     * Builds {@code s LIKE pattern [ESCAPE escape]} as a {@code $like_pattern} call, with the ESCAPE character as
+     * an optional third argument. This shape is built by hand: a deployed connector never received
+     * {@code $like_pattern} from Athena (see {@link #testLikeShapesObservedFromAthena}).
+     */
     private FederationExpression sLike(final String pattern, final String escape)
     {
         final ArrowType utf8 = ArrowType.Utf8.INSTANCE;
@@ -1019,5 +1023,25 @@ public class InfluxDBLocalIntegTest
                 escapesHostsMatching(null, Collections.singletonList(sLike("100_", null))));
         assertEquals(Collections.emptyList(),
                 escapesHostsMatching(null, Collections.singletonList(sLike("10_", null))));
+    }
+
+    /**
+     * The filters a deployed connector received from Athena for LIKE queries. Athena did not send
+     * {@code $like_pattern} for any LIKE query tried. It sent a prefix pattern as a range and a pattern with no
+     * wildcard as an equality, both in the constraint summary, and sent no filter for other patterns. Athena
+     * applies the LIKE itself to the rows returned, so the pushed-down filter only has to keep every matching row.
+     */
+    @Test
+    public void testLikeShapesObservedFromAthena() throws Exception
+    {
+        final ArrowType utf8 = ArrowType.Utf8.INSTANCE;
+        // s LIKE '100%' arrived as s >= '100' AND s < '101'.
+        assertEquals(Arrays.asList("percent", "wildcard"),
+                escapesHostsMatching(SortedRangeSet.of(Range.range(allocator, utf8, "100", true, "101", false)),
+                        Collections.emptyList()));
+        // s LIKE '100#%' ESCAPE '#' arrived as s = '100%'.
+        assertEquals(Collections.singletonList("percent"),
+                escapesHostsMatching(SortedRangeSet.of(Range.equal(allocator, utf8, "100%")),
+                        Collections.emptyList()));
     }
 }

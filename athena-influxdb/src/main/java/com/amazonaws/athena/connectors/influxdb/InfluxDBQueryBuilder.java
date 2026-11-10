@@ -480,6 +480,10 @@ public class InfluxDBQueryBuilder
      * The pattern is therefore rewritten for DataFusion (see {@link #toDataFusionLikePattern}), which requires the
      * pattern and escape to be constants.
      *
+     * The ESCAPE character is read as an optional third argument. Athena was not seen sending {@code $like_pattern}
+     * at all: a deployed connector received LIKE filters only as ranges or equalities in the constraint summary,
+     * or not at all (see {@code InfluxDBLocalIntegTest.testLikeShapesObservedFromAthena}).
+     *
      * @throws AthenaConnectorException with {@code OPERATION_NOT_SUPPORTED_EXCEPTION} if the pattern or escape is
      *             not a single constant value, or the call does not have 2 or 3 arguments
      */
