@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.neptune.rdf;
 
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -29,6 +31,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
@@ -59,6 +62,7 @@ public class SparqlRowWriterTest {
     private static final String DATE_FORMAT = "EEE MMM dd HH:mm:ss z yyyy";
     private static final int TEST_INT_VALUE = 42;
     private static final long TEST_LONG_VALUE = 42L;
+    private static final long TEST_BIGINT_BEYOND_INT = 4_294_967_296L;
     private static final float TEST_FLOAT_VALUE = 42.5f;
     private static final double TEST_DOUBLE_VALUE = 42.5d;
     private static final String BIG_INT_STRING = "42";
@@ -159,36 +163,40 @@ public class SparqlRowWriterTest {
         assertNull(result);
     }
 
-    @Test(expected = ClassCastException.class)
-    public void extractValue_WithLongValueAndInt32Field_ThrowsClassCastException() {
+    @Test
+    public void extractValue_WithLongValueAndInt32Field_ReturnsConvertedInteger() {
         Field field = new Field(TEST_FIELD_NAME, FieldType.nullable(new ArrowType.Int(32, true)), null);
         testRow.put(TEST_FIELD_NAME, TEST_LONG_VALUE);
-        
-        SparqlRowWriter.extractValue(testRow, field, Integer.class);
+
+        Object result = SparqlRowWriter.extractValue(testRow, field, Integer.class);
+        assertEquals(TEST_INT_VALUE, result);
     }
 
-    @Test(expected = ClassCastException.class)
-    public void extractValue_WithIntValueAndInt64Field_ThrowsClassCastException() {
+    @Test
+    public void extractValue_WithIntValueAndInt64Field_ReturnsConvertedLong() {
         Field field = new Field(TEST_FIELD_NAME, FieldType.nullable(new ArrowType.Int(64, true)), null);
         testRow.put(TEST_FIELD_NAME, TEST_INT_VALUE);
-        
-        SparqlRowWriter.extractValue(testRow, field, Long.class);
+
+        Object result = SparqlRowWriter.extractValue(testRow, field, Long.class);
+        assertEquals(TEST_LONG_VALUE, result);
     }
 
-    @Test(expected = ClassCastException.class)
-    public void extractValue_WithDoubleValueAndFloat4Field_ThrowsClassCastException() {
+    @Test
+    public void extractValue_WithDoubleValueAndFloat4Field_ReturnsConvertedFloat() {
         Field field = new Field(TEST_FIELD_NAME, FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), null);
         testRow.put(TEST_FIELD_NAME, TEST_DOUBLE_VALUE);
-        
-        SparqlRowWriter.extractValue(testRow, field, Float.class);
+
+        Object result = SparqlRowWriter.extractValue(testRow, field, Float.class);
+        assertEquals(TEST_FLOAT_VALUE, result);
     }
 
-    @Test(expected = ClassCastException.class)
-    public void extractValue_WithFloatValueAndFloat8Field_ThrowsClassCastException() {
+    @Test
+    public void extractValue_WithFloatValueAndFloat8Field_ReturnsConvertedDouble() {
         Field field = new Field(TEST_FIELD_NAME, FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null);
         testRow.put(TEST_FIELD_NAME, TEST_FLOAT_VALUE);
-        
-        SparqlRowWriter.extractValue(testRow, field, Double.class);
+
+        Object result = SparqlRowWriter.extractValue(testRow, field, Double.class);
+        assertEquals(TEST_DOUBLE_VALUE, result);
     }
 
     @Test(expected = NullPointerException.class)
@@ -249,6 +257,23 @@ public class SparqlRowWriterTest {
         Field field = new Field(TEST_FIELD_NAME, FieldType.nullable(new ArrowType.Int(64, true)), null);
         SparqlRowWriter.writeRowTemplate(mockRowWriterBuilder, field);
         verify(mockRowWriterBuilder).withExtractor(eq(TEST_FIELD_NAME), any());
+    }
+
+    @Test
+    public void writeRowTemplate_WithBigIntField_WritesNonZeroLongValue() throws Exception {
+        Field field = new Field(TEST_FIELD_NAME, FieldType.nullable(new ArrowType.Int(64, true)), null);
+        SparqlRowWriter.writeRowTemplate(mockRowWriterBuilder, field);
+
+        ArgumentCaptor<BigIntExtractor> captor = ArgumentCaptor.forClass(BigIntExtractor.class);
+        verify(mockRowWriterBuilder).withExtractor(eq(TEST_FIELD_NAME), captor.capture());
+
+        Map<String, Object> row = new HashMap<>();
+        row.put(TEST_FIELD_NAME, TEST_BIGINT_BEYOND_INT);
+        NullableBigIntHolder holder = new NullableBigIntHolder();
+        captor.getValue().extract(row, holder);
+
+        assertEquals(1, holder.isSet);
+        assertEquals(TEST_BIGINT_BEYOND_INT, holder.value);
     }
 
     @Test

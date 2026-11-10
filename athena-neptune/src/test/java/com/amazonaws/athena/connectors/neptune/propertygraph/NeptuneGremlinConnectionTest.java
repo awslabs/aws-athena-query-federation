@@ -70,11 +70,10 @@ public class NeptuneGremlinConnectionTest {
             // Create connection
             connection = new NeptuneGremlinConnection(TEST_ENDPOINT, TEST_PORT, false, TEST_REGION);
 
-
-            verify(mockBuilder, times(2)).addContactPoint(TEST_ENDPOINT);
-            verify(mockBuilder, times(2)).port(PORT);
-            verify(mockBuilder, times(2)).enableSsl(true);
-            verify(mockBuilder, times(2)).create();
+            verify(mockBuilder, times(1)).addContactPoint(TEST_ENDPOINT);
+            verify(mockBuilder, times(1)).port(PORT);
+            verify(mockBuilder, times(1)).enableSsl(true);
+            verify(mockBuilder, times(1)).create();
         }
     }
 
@@ -88,11 +87,11 @@ public class NeptuneGremlinConnectionTest {
             // Create connection
             connection = new NeptuneGremlinConnection(TEST_ENDPOINT, TEST_PORT, true, TEST_REGION);
             
-            verify(mockBuilder, times(2)).addContactPoint(TEST_ENDPOINT);
-            verify(mockBuilder, times(2)).port(PORT);
-            verify(mockBuilder, times(2)).enableSsl(true);
-            verify(mockBuilder, times(2)).handshakeInterceptor(any());
-            verify(mockBuilder, times(2)).create();
+            verify(mockBuilder, times(1)).addContactPoint(TEST_ENDPOINT);
+            verify(mockBuilder, times(1)).port(PORT);
+            verify(mockBuilder, times(1)).enableSsl(true);
+            verify(mockBuilder, times(1)).handshakeInterceptor(any());
+            verify(mockBuilder, times(1)).create();
         }
     }
 

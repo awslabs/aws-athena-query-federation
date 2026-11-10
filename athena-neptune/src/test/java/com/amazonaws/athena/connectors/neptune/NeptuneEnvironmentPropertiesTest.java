@@ -46,6 +46,7 @@ public class NeptuneEnvironmentPropertiesTest {
     private static final String TEST_PORT = "8182";
     private static final String TEST_CLUSTER_ID = "test-cluster-id";
     private static final String PROPERTYGRAPH_TYPE = "propertygraph";
+    private static final String RDF_TYPE = "rdf";
     private static final String NULL_VALUE = null;
 
     private NeptuneEnvironmentProperties properties;
@@ -62,7 +63,7 @@ public class NeptuneEnvironmentPropertiesTest {
         // Create input connection properties
         connectionProperties.put(HOST, TEST_ENDPOINT);
         connectionProperties.put(PORT, TEST_PORT);
-        connectionProperties.put(CFG_ClUSTER_RES_ID, TEST_CLUSTER_ID);
+        connectionProperties.put(CLUSTER_RES_ID, TEST_CLUSTER_ID);
         connectionProperties.put(GRAPH_TYPE, PROPERTYGRAPH_TYPE);
 
         // Create instance and call method
@@ -72,6 +73,23 @@ public class NeptuneEnvironmentPropertiesTest {
         assertNotNull("Result should not be null", result);
         assertEquals("Endpoint should match", TEST_ENDPOINT, result.get(CFG_ENDPOINT));
         assertEquals("Port should match", TEST_PORT, result.get(CFG_PORT));
+        assertEquals("Cluster resource ID should match", TEST_CLUSTER_ID, result.get(CFG_ClUSTER_RES_ID));
+        assertEquals("Graph type should match", PROPERTYGRAPH_TYPE, result.get(CFG_GRAPH_TYPE));
+    }
+
+    @Test
+    public void connectionPropertiesToEnvironment_WithRdfGraphType_MapsAllGlueInputs() {
+        connectionProperties.put(HOST, TEST_ENDPOINT);
+        connectionProperties.put(PORT, TEST_PORT);
+        connectionProperties.put(CLUSTER_RES_ID, TEST_CLUSTER_ID);
+        connectionProperties.put(GRAPH_TYPE, RDF_TYPE);
+
+        Map<String, String> result = properties.connectionPropertiesToEnvironment(connectionProperties);
+
+        assertEquals("Endpoint should match", TEST_ENDPOINT, result.get(CFG_ENDPOINT));
+        assertEquals("Port should match", TEST_PORT, result.get(CFG_PORT));
+        assertEquals("Cluster resource ID should match", TEST_CLUSTER_ID, result.get(CFG_ClUSTER_RES_ID));
+        assertEquals("Graph type should match", RDF_TYPE, result.get(CFG_GRAPH_TYPE));
     }
 
     @Test
@@ -82,19 +100,13 @@ public class NeptuneEnvironmentPropertiesTest {
         connectionProperties.put(CLUSTER_RES_ID, NULL_VALUE);
         connectionProperties.put(GRAPH_TYPE, NULL_VALUE);
 
-        // Create environment map with null values
-        Map<String, String> environment = new HashMap<>();
-        environment.put(CLUSTER_RES_ID, NULL_VALUE);
-        environment.put(GRAPH_TYPE, NULL_VALUE);
-
-        // Create instance and call method
         Map<String, String> result = properties.connectionPropertiesToEnvironment(connectionProperties);
 
         // Verify results
         assertNotNull("Result should not be null", result);
         assertNull("Endpoint should be null", result.get(CFG_ENDPOINT));
         assertNull("Port should be null", result.get(CFG_PORT));
-        assertEquals("Cluster resource ID should be null", environment.get(CLUSTER_RES_ID), result.get(CFG_ClUSTER_RES_ID));
-        assertEquals("Graph type should be null", environment.get(GRAPH_TYPE), result.get(CFG_GRAPH_TYPE));
+        assertNull("Cluster resource ID should be null", result.get(CFG_ClUSTER_RES_ID));
+        assertNull("Graph type should be null", result.get(CFG_GRAPH_TYPE));
     }
 } 
