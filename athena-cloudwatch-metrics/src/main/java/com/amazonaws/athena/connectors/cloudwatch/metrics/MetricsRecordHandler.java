@@ -33,6 +33,7 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
@@ -128,22 +129,28 @@ public class MetricsRecordHandler
             throws TimeoutException
     {
         invoker.setBlockSpiller(blockSpiller);
+        // Managed-connector (Athena federation) path: apply the customer FAS credentials from configOptions to
+        // every Cloudwatch data-plane call. Null (no-op) on the AppFlow/DNA path, where the injected client
+        // already holds the customer credentials.
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(readRecordsRequest.getIdentity().getConfigOptions());
         if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_TABLE.getName())) {
-            readMetricsWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
+            readMetricsWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker, overrideConfig);
         }
         else if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_DATA_TABLE.getName())) {
-            readMetricSamplesWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
+            readMetricSamplesWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker, overrideConfig);
         }
     }
 
     /**
      * Handles retrieving the list of available metrics when the METRICS_TABLE is queried by listing metrics in Cloudwatch Metrics.
      */
-    private void readMetricsWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
+    private void readMetricsWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker,
+            AwsRequestOverrideConfiguration overrideConfig)
             throws TimeoutException
     {
         ListMetricsRequest.Builder listMetricsRequestBuilder = ListMetricsRequest.builder();
         MetricUtils.pushDownPredicate(request.getConstraints(), listMetricsRequestBuilder);
+        listMetricsRequestBuilder.overrideConfiguration(overrideConfig);
         String prevToken;
         String nextToken;
         Set<String> requiredFields = new HashSet<>();
@@ -200,7 +207,8 @@ public class MetricsRecordHandler
     /**
      * Handles retrieving the samples for a specific metric from Cloudwatch Metrics.
      */
-    private void readMetricSamplesWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
+    private void readMetricSamplesWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker,
+            AwsRequestOverrideConfiguration overrideConfig)
             throws TimeoutException
     {
         GetMetricDataRequest originalDataRequest = MetricUtils.makeGetMetricDataRequest(request);
@@ -209,6 +217,7 @@ public class MetricsRecordHandler
             queries.put(query.id(), query);
         }
         GetMetricDataRequest.Builder dataRequestBuilder = originalDataRequest.toBuilder();
+        dataRequestBuilder.overrideConfiguration(overrideConfig);
 
         String prevToken;
         String nextToken;
