@@ -29,6 +29,7 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connectors.influxdb.InfluxDBErrorsTest.assertErrorCode;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -62,10 +63,17 @@ public class InfluxDBQueryPassthroughTest
     }
 
     @Test
-    public void testAssertEnabledPassesWhenEnabledByDefault()
+    public void testAssertEnabledRejectsWhenOptionMissing()
     {
-        // enable_query_passthrough defaults to true when the key is absent.
-        signature.assertEnabled(new HashMap<>()); // should not throw
+        // Passthrough is opt-in: a missing enable_query_passthrough disables it, unlike the SDK default.
+        assertFalse(signature.allowQueryPassthrough(new HashMap<>()));
+        try {
+            signature.assertEnabled(new HashMap<>());
+            fail("expected assertEnabled to reject when enable_query_passthrough is missing");
+        }
+        catch (final AthenaConnectorException expected) {
+            assertErrorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION, expected);
+        }
     }
 
     @Test
@@ -73,6 +81,8 @@ public class InfluxDBQueryPassthroughTest
     {
         final Map<String, String> config = new HashMap<>();
         config.put(QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH, "true");
+        signature.assertEnabled(config); // should not throw
+        config.put(QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH, "TRUE");
         signature.assertEnabled(config); // should not throw
     }
 

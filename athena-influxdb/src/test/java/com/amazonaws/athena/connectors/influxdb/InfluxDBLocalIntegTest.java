@@ -110,6 +110,11 @@ public class InfluxDBLocalIntegTest
     private static final String TOKEN_SECRET_REFERENCE = "${" + TOKEN_SECRET_NAME + "}";
     // 2023-11-14T22:13:20Z. The "precise" table has one row at this millisecond plus 500 microseconds.
     private static final long PRECISE_MILLIS = 1_700_000_000_000L;
+    // Filter values for testBackslashInFilterValueIsNotAnEscape. Rendered with ' doubled, the first becomes
+    // '\'' OR 1=1 --'. If DataFusion read \' as an escaped quote, the literal would end after it and OR 1=1 would
+    // match every row. The second would leave the literal unterminated.
+    private static final String BACKSLASH_INJECTION = "\\' OR 1=1 --";
+    private static final String TRAILING_BACKSLASH = "ends with \\";
 
     private BlockAllocator allocator;
     private InfluxDBMetadataHandler handler;
@@ -175,6 +180,7 @@ public class InfluxDBLocalIntegTest
         configOptions.put("INFLUXDB3_HOST_URL", host);
         configOptions.put("INFLUXDB3_AUTH_TOKEN", TOKEN_SECRET_REFERENCE);
         configOptions.put("influxdb_database", database);
+        configOptions.put("enable_query_passthrough", "true");
         configOptions.put("spill_bucket", "test-bucket");
         configOptions.put("spill_prefix", "test-prefix");
     }
@@ -218,14 +224,23 @@ public class InfluxDBLocalIntegTest
             // The largest unsigned 64-bit value, which doesn't fit in BIGINT, and a small one.
             writeClient.writeRecord("unsigned,host=max u=18446744073709551615u");
             writeClient.writeRecord("unsigned,host=small u=5u");
+            // String values containing backslashes. A tag value cannot end with a backslash, so the values are in a
+            // string field. Point escapes them for line protocol.
+            writeClient.writePoints(List.of(
+                    Point.measurement("escapes").setTag("host", "injection").setField("s", BACKSLASH_INJECTION),
+                    Point.measurement("escapes").setTag("host", "trailing").setField("s", TRAILING_BACKSLASH),
+                    Point.measurement("escapes").setTag("host", "other").setField("s", "plain"),
+                    // For the LIKE tests: a literal % and a value that only the wildcard matches.
+                    Point.measurement("escapes").setTag("host", "percent").setField("s", "100%"),
+                    Point.measurement("escapes").setTag("host", "wildcard").setField("s", "1000")));
 
             // InfluxDB 3 buffers writes briefly; poll until the seeded tables are queryable.
             final String probe = "SELECT table_name FROM information_schema.tables "
                     + "WHERE table_schema = 'iox' AND table_name IN ('cpu', 'mem', 'CpuStats', 'types', 'precise', "
-                    + "'mixedcase', 'casecollision', 'Sensor', 'sensor', 'unsigned')";
+                    + "'mixedcase', 'casecollision', 'Sensor', 'sensor', 'unsigned', 'escapes')";
             for (int attempt = 0; attempt < 20; attempt++) {
                 try (Stream<Object[]> rows = writeClient.query(probe)) {
-                    if (rows.count() >= 10) {
+                    if (rows.count() >= 11) {
                         return;
                     }
                 }
@@ -531,6 +546,24 @@ public class InfluxDBLocalIntegTest
         assertEquals(InfluxDBTypeMapper.ATHENA_UINT64, tableTypes.get("u"));
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(tableTypes.get("host")));
         assertEquals(InfluxDBTypeMapper.ATHENA_TIMESTAMP, tableTypes.get("time"));
+    }
+
+    /**
+     * InfluxDB 3 sends no batches for a query with no matching rows, so the passthrough schema cannot be derived and
+     * the connector rejects the query with a clear error instead of returning a schema with no columns.
+     */
+    @Test
+    public void testPassthroughWithNoRowsIsRejected() throws Exception
+    {
+        try {
+            passthroughSchema("SELECT host FROM cpu WHERE host = 'no-such-host'");
+            fail("expected a passthrough query with no rows to be rejected");
+        }
+        catch (final AthenaConnectorException e) {
+            InfluxDBErrorsTest.assertErrorCode(
+                    software.amazon.awssdk.services.glue.model.FederationSourceErrorCode.INVALID_INPUT_EXCEPTION, e);
+            assertTrue(e.getMessage(), e.getMessage().contains("returned no rows"));
+        }
     }
 
     /**
@@ -889,5 +922,126 @@ public class InfluxDBLocalIntegTest
         // ...and still returns its two seeded rows.
         final List<String> afterHosts = readHostsFor(new TableName(database, "cpu"), schema, noConstraints());
         assertEquals("cpu still has its two seeded rows", 2, afterHosts.size());
+    }
+
+    /** Reads the "escapes" table with a pushed-down filter on its string field s; returns the hosts, sorted. */
+    private List<String> escapesHostsMatching(final ValueSet sValues, final List<FederationExpression> expressions)
+            throws Exception
+    {
+        final TableName table = new TableName(database, "escapes");
+        final Schema schema = handler.doGetTable(allocator, new GetTableRequest(IDENTITY, "queryId", "catalog",
+                table, Collections.emptyMap())).getSchema();
+        final Map<String, ValueSet> summary = new HashMap<>();
+        if (sValues != null) {
+            summary.put("s", sValues);
+        }
+        final Constraints constraints = new Constraints(summary, expressions, Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, null, null);
+        final List<String> hosts = readHostsFor(table, schema, constraints);
+        Collections.sort(hosts);
+        return hosts;
+    }
+
+    /**
+     * String literals are rendered with ' doubled and \ copied unchanged. This is safe only if DataFusion does not
+     * treat \ as an escape character in a string literal. The block has no constraint evaluator, so the rows
+     * returned are exactly the rows InfluxDB matched.
+     */
+    @Test
+    public void testBackslashInFilterValueIsNotAnEscape() throws Exception
+    {
+        final ArrowType utf8 = ArrowType.Utf8.INSTANCE;
+
+        // Each value matches only its own row, so the literal reached InfluxDB intact.
+        assertEquals(Collections.singletonList("injection"),
+                escapesHostsMatching(SortedRangeSet.of(Range.equal(allocator, utf8, BACKSLASH_INJECTION)),
+                        Collections.emptyList()));
+        assertEquals(Collections.singletonList("trailing"),
+                escapesHostsMatching(SortedRangeSet.of(Range.equal(allocator, utf8, TRAILING_BACKSLASH)),
+                        Collections.emptyList()));
+        assertEquals(Arrays.asList("injection", "trailing"),
+                escapesHostsMatching(SortedRangeSet.of(Range.equal(allocator, utf8, BACKSLASH_INJECTION),
+                        Range.equal(allocator, utf8, TRAILING_BACKSLASH)), Collections.emptyList()));
+
+        // A value that matches no row. If \' ended the literal, OR 1=1 would return all three rows.
+        assertEquals(Collections.emptyList(),
+                escapesHostsMatching(SortedRangeSet.of(Range.equal(allocator, utf8, "x" + BACKSLASH_INJECTION)),
+                        Collections.emptyList()));
+
+        // The complex expression path renders constants the same way.
+        final FederationExpression equalsInjection = new FunctionCallExpression(ArrowType.Bool.INSTANCE,
+                StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getFunctionName(),
+                Arrays.asList(new VariableExpression("s", utf8),
+                        new ConstantExpression(BlockUtils.newBlock(allocator, "col1", utf8, BACKSLASH_INJECTION),
+                                utf8)));
+        assertEquals(Collections.singletonList("injection"),
+                escapesHostsMatching(null, Collections.singletonList(equalsInjection)));
+    }
+
+    /**
+     * Builds {@code s LIKE pattern [ESCAPE escape]} as a {@code $like_pattern} call, with the ESCAPE character as
+     * an optional third argument. This shape is built by hand: a deployed connector never received
+     * {@code $like_pattern} from Athena (see {@link #testLikeShapesObservedFromAthena}).
+     */
+    private FederationExpression sLike(final String pattern, final String escape)
+    {
+        final ArrowType utf8 = ArrowType.Utf8.INSTANCE;
+        final List<FederationExpression> args = new ArrayList<>();
+        args.add(new VariableExpression("s", utf8));
+        args.add(new ConstantExpression(BlockUtils.newBlock(allocator, "col1", utf8, pattern), utf8));
+        if (escape != null) {
+            args.add(new ConstantExpression(BlockUtils.newBlock(allocator, "col1", utf8, escape), utf8));
+        }
+        return new FunctionCallExpression(ArrowType.Bool.INSTANCE,
+                StandardFunctions.LIKE_PATTERN_FUNCTION_NAME.getFunctionName(), args);
+    }
+
+    /**
+     * A pushed-down LIKE must match the rows that Athena's LIKE matches. Athena has no default escape character,
+     * but DataFusion always treats \ as one, so the connector rewrites the pattern. The block has no constraint
+     * evaluator, so the rows returned are exactly the rows InfluxDB matched.
+     */
+    @Test
+    public void testLikeMatchesAthenaSemantics() throws Exception
+    {
+        // In Athena, \ in a pattern is an ordinary character.
+        assertEquals(Collections.singletonList("injection"),
+                escapesHostsMatching(null, Collections.singletonList(sLike("\\%", null))));
+        assertEquals(Collections.singletonList("trailing"),
+                escapesHostsMatching(null, Collections.singletonList(sLike("%\\", null))));
+        assertEquals(Collections.singletonList("injection"),
+                escapesHostsMatching(null, Collections.singletonList(sLike(BACKSLASH_INJECTION, null))));
+        // % is a wildcard unless escaped with the ESCAPE character.
+        assertEquals(Arrays.asList("percent", "wildcard"),
+                escapesHostsMatching(null, Collections.singletonList(sLike("100%", null))));
+        assertEquals(Collections.singletonList("percent"),
+                escapesHostsMatching(null, Collections.singletonList(sLike("100#%", "#"))));
+        assertEquals(Collections.singletonList("percent"),
+                escapesHostsMatching(null, Collections.singletonList(sLike("100\\%", "\\"))));
+        // _ matches exactly one character.
+        assertEquals(Arrays.asList("percent", "wildcard"),
+                escapesHostsMatching(null, Collections.singletonList(sLike("100_", null))));
+        assertEquals(Collections.emptyList(),
+                escapesHostsMatching(null, Collections.singletonList(sLike("10_", null))));
+    }
+
+    /**
+     * The filters a deployed connector received from Athena for LIKE queries. Athena did not send
+     * {@code $like_pattern} for any LIKE query tried. It sent a prefix pattern as a range and a pattern with no
+     * wildcard as an equality, both in the constraint summary, and sent no filter for other patterns. Athena
+     * applies the LIKE itself to the rows returned, so the pushed-down filter only has to keep every matching row.
+     */
+    @Test
+    public void testLikeShapesObservedFromAthena() throws Exception
+    {
+        final ArrowType utf8 = ArrowType.Utf8.INSTANCE;
+        // s LIKE '100%' arrived as s >= '100' AND s < '101'.
+        assertEquals(Arrays.asList("percent", "wildcard"),
+                escapesHostsMatching(SortedRangeSet.of(Range.range(allocator, utf8, "100", true, "101", false)),
+                        Collections.emptyList()));
+        // s LIKE '100#%' ESCAPE '#' arrived as s = '100%'.
+        assertEquals(Collections.singletonList("percent"),
+                escapesHostsMatching(SortedRangeSet.of(Range.equal(allocator, utf8, "100%")),
+                        Collections.emptyList()));
     }
 }
