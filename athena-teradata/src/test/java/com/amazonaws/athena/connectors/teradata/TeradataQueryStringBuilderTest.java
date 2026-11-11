@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.teradata;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -77,12 +78,31 @@ public class TeradataQueryStringBuilderTest
     public void getPartitionWhereClauses_withConcretePartitionValue_returnsEqualityClause()
     {
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME)).thenReturn("p1");
+        Mockito.when(split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME)).thenReturn("1");
         
         List<String> result = queryBuilder.getPartitionWhereClauses(split);
         
         assertEquals(1, result.size());
-        assertEquals("partition = p1", result.get(0));
+        assertEquals("partition = 1", result.get(0));
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void getPartitionWhereClauses_withNonNumericPartitionValue_throwsAthenaConnectorException()
+    {
+        Split split = Mockito.mock(Split.class);
+        Mockito.when(split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))
+                .thenReturn("1 OR 1=1");
+
+        queryBuilder.getPartitionWhereClauses(split);
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void getPartitionWhereClauses_withNullPartitionValue_throwsAthenaConnectorException()
+    {
+        Split split = Mockito.mock(Split.class);
+        Mockito.when(split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME)).thenReturn(null);
+
+        queryBuilder.getPartitionWhereClauses(split);
     }
 
     @Test
