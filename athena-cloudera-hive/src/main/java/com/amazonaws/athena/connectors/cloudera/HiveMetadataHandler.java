@@ -188,17 +188,11 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
                 String columnName = partitionColumns[partitionCounter].split("=")[0];
                 String columnType = columnInfo.get(columnName).toUpperCase();
                 if (partitionValue.equalsIgnoreCase("__HIVE_DEFAULT_PARTITION__")) {
-                    columnCondition.append(" " + columnName).append(" is").append(" NULL");
+                    columnCondition.append(" ").append(HiveUtils.quoteIdentifier(columnName)).append(" is NULL");
                 }
                 else {
-                    if (columnType != null && (columnType.equalsIgnoreCase("STRING") || columnType.equalsIgnoreCase("VARCHAR"))) {
-                        columnCondition.append(" " + columnName).append("=").append("'");
-                        columnCondition.append(partitionValue).append("'");
-                    }
-                    else {
-                        columnCondition.append(" " + columnName).append("=");
-                        columnCondition.append(partitionValue);
-                    }
+                    columnCondition.append(" ").append(HiveUtils.quoteIdentifier(columnName))
+                            .append("=").append(HiveUtils.partitionValueExpression(columnType, partitionValue));
                 }
                 partitionCounter++;
                 if (partitionColumns.length > partitionCounter) {

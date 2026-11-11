@@ -40,6 +40,67 @@ public class ImpalaUtilsTest
     }
 
     @Test
+    public void quoteStringLiteral_whenValueIsSimple_returnsSingleQuotedLiteral()
+    {
+        assertEquals("'1'", ImpalaUtils.quoteStringLiteral("1"));
+    }
+
+    @Test
+    public void quoteStringLiteral_whenValueContainsOrTrue_staysInsideQuotedLiteral()
+    {
+        assertEquals("'1 OR true --'", ImpalaUtils.quoteStringLiteral("1 OR true --"));
+    }
+
+    @Test
+    public void quoteStringLiteral_whenValueContainsSingleQuote_doublesEmbeddedQuote()
+    {
+        assertEquals("'O''REILLY'", ImpalaUtils.quoteStringLiteral("O'REILLY"));
+    }
+
+    @Test
+    public void quoteStringLiteral_whenValueEndsWithBackslash_escapesBackslashSoLiteralStaysClosed()
+    {
+        assertEquals("'x\\\\'", ImpalaUtils.quoteStringLiteral("x\\"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenBooleanTrue_returnsUnquotedTrue()
+    {
+        assertEquals("true", ImpalaUtils.partitionValueExpression("boolean", "true"));
+        assertEquals("TRUE", ImpalaUtils.partitionValueExpression("BOOLEAN", "TRUE"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenBooleanFalse_returnsUnquotedFalse()
+    {
+        assertEquals("false", ImpalaUtils.partitionValueExpression("boolean", "false"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenIntValue_returnsUnquotedLiteral()
+    {
+        assertEquals("2020", ImpalaUtils.partitionValueExpression("int", "2020"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenStringLikeType_quotesAsStringLiteral()
+    {
+        assertEquals("'Hyderabad'", ImpalaUtils.partitionValueExpression("string", "Hyderabad"));
+        assertEquals("'Hyderabad'", ImpalaUtils.partitionValueExpression("varchar", "Hyderabad"));
+        assertEquals("'2'", ImpalaUtils.partitionValueExpression("char(64)", "2"));
+        assertEquals("'1 OR true --'", ImpalaUtils.partitionValueExpression("char(64)", "1 OR true --"));
+        assertEquals("'2020-01-01'", ImpalaUtils.partitionValueExpression("date", "2020-01-01"));
+        assertEquals("'2020-01-01'", ImpalaUtils.partitionValueExpression("date(10)", "2020-01-01"));
+        assertEquals("'2020-01-01'", ImpalaUtils.partitionValueExpression("DATE(", "2020-01-01"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenColumnTypeIsNull_returnsUnquotedValue()
+    {
+        assertEquals("Hyderabad", ImpalaUtils.partitionValueExpression(null, "Hyderabad"));
+    }
+    
+    @Test
     public void quoteIdentifier_whenIdentifierIsEmpty_returnsQuotedEmptyIdentifier()
     {
         assertEquals("``", ImpalaUtils.quoteIdentifier(""));
