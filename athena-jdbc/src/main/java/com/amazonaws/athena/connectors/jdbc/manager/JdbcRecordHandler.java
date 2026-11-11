@@ -312,11 +312,15 @@ public abstract class JdbcRecordHandler
                     // Populate the Arrow vectors directly with BlockUtils.setValue, which already handles the full
                     // type range (including timestamp-with-timezone) that arbitrary export results can contain.
                     long rowsReturnedFromDatabase = 0;
+                    // Resolve the Arrow output vectors by position (schema order) and read each cell by 1-based
+                    // column index -- both avoid a per-cell lookup by column name. The derived schema's field order
+                    // matches the ResultSet column order, so vector c corresponds to column c+1.
+                    final int fieldCount = derivedSchema.getFields().size();
                     while (resultSet.next()) {
                         spiller.writeRows((Block block, int rowNum) -> {
-                            for (Field field : derivedSchema.getFields()) {
-                                BlockUtils.setValue(block.getFieldVector(field.getName()), rowNum,
-                                        resultSet.getObject(field.getName()));
+                            List<FieldVector> vectors = block.getFieldVectors();
+                            for (int c = 0; c < fieldCount; c++) {
+                                BlockUtils.setValue(vectors.get(c), rowNum, resultSet.getObject(c + 1));
                             }
                             return 1;
                         });
@@ -356,7 +360,10 @@ public abstract class JdbcRecordHandler
 
     /**
      * Builds the SpillConfig for the export: forces every batch out to S3 ({@code maxInlineBlockBytes=0}) so the
-     * result is always spill objects (never inline) and uses synchronous spilling.
+     * result is always spill objects (never inline). Uses asynchronous spilling ({@code numSpillThreads>0}) so each
+     * block's encrypt + S3 PUT runs on a background thread and overlaps with fetching/encoding the next block,
+     * instead of blocking the main row loop on every block boundary. In-flight memory is bounded by
+     * (numSpillThreads + queue) blocks * maxBlockBytes, which stays well within the Lambda memory budget.
      */
     protected SpillConfig buildExportSpillConfig(ReadRecordsRequest request)
     {
@@ -366,7 +373,7 @@ public abstract class JdbcRecordHandler
                 .withMaxInlineBlockBytes(0)
                 .withRequestId(request.getQueryId())
                 .withEncryptionKey(request.getSplit().getEncryptionKey())
-                .withNumSpillThreads(0)
+                .withNumSpillThreads(2)
                 .build();
     }
 
