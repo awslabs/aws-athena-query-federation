@@ -40,7 +40,8 @@ import java.util.Map;
 
 /**
  * This class has interfaces used for the parsing and creation of a schema based on an index mapping retrieved
- * from an Elasticsearch instance. It also has an interface for converting Elasticsearch data types to Apache Arrow.
+ * from an Elasticsearch instance. It also has an interface for converting Elasticsearch data types to Apache Arrow,
+ * including support for _meta entries that mark fields as list or expose object fields as JSON-backed VARCHAR values.
  */
 class ElasticsearchSchemaUtils
 {
@@ -51,7 +52,7 @@ class ElasticsearchSchemaUtils
     /**
      * Main parsing method for the GET <index>/_mapping request.
      * @param mappings is the structure that contains the metadata definitions for the index, as well as the _meta
-     *                 property used to define list fields.
+     *                 property used to define list fields and JSON-backed object fields.
      * @return a Schema derived from the mapping.
      */
     protected static Schema parseMapping(Map<String, Object> mappings)
@@ -92,6 +93,12 @@ class ElasticsearchSchemaUtils
     private static Field inferField(String fieldName, String qualifiedName,
                                     Map<String, Object> mapping, Map<String, Object> meta)
     {
+        // Check if the qualified name of the field is present in the _meta property with a "json" value.
+        if ("json".equals(meta.get(qualifiedName))) {
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("json", "true");
+            return new Field(fieldName, new FieldType(true, Types.MinorType.VARCHAR.getType(), null, metadata), null);
+        }
         Field field;
 
         //For ES, only struct will has properties field.
