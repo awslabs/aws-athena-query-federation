@@ -102,6 +102,14 @@ public class JdbcFederationExpressionParserTest
     }
 
     @Test
+    public void testParseVariableExpressionDoublesEmbeddedQuoteCharacters()
+    {
+        VariableExpression expr = new VariableExpression("column\"withquote", new ArrowType.Int(32, true));
+        String result = parser.parseVariableExpression(expr);
+        assertEquals("\"column\"\"withquote\"", result);
+    }
+
+    @Test
     public void testAddFunction()
     {
         String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_ADD_FUNCTION), new ArrowType.Int(32, true), List.of(TEST_ARG_A, TEST_ARG_B));
