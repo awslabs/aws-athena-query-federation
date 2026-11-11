@@ -145,15 +145,15 @@ public class BigQueryMetadataHandler
             logger.info("Dataset does not contain any models");
         }
         else {
-            do {
-                for (Dataset dataset : response.iterateAll()) {
-                    if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
-                        throw new BigQueryExceptions.TooManyTablesException();
-                    }
-                    schemas.add(dataset.getDatasetId().getDataset());
-                    logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
+            // iterateAll() already fetches every page. It does not advance response, so
+            // response.hasNextPage() stays true and must not be used to loop again.
+            for (Dataset dataset : response.iterateAll()) {
+                if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
+                    throw new BigQueryExceptions.TooManyTablesException();
                 }
-            } while (response.hasNextPage());
+                schemas.add(dataset.getDatasetId().getDataset());
+                logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
+            }
         }
 
         logger.info("Found {} schemas!", schemas.size());
