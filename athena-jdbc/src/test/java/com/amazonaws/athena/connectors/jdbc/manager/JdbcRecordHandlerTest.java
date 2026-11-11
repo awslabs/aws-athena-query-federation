@@ -563,4 +563,122 @@ public class JdbcRecordHandlerTest
         boolean result = jdbcRecordHandler.disableCaseSensitivelyLookUpSession(mockConnection);
         Assert.assertFalse(result); // Default implementation returns false
     }
+
+    @Test
+    public void testAesGcmRawEncryptRoundTrip() throws Exception {
+        com.amazonaws.athena.connector.lambda.security.EncryptionKey key =
+            new com.amazonaws.athena.connector.lambda.security.LocalKeyFactory().create();
+        byte[] plain = "hello spill".getBytes(StandardCharsets.UTF_8);
+
+        com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto crypto =
+            new com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto(new BlockAllocatorImpl());
+
+        // New symmetric raw-bytes encrypt: round-trips with the existing raw-bytes decrypt.
+        byte[] encrypted = crypto.encrypt(key, plain);
+        Assert.assertEquals(plain.length + 16, encrypted.length); // AES-GCM appends a 16-byte tag
+        Assert.assertArrayEquals(plain, crypto.decrypt(key, encrypted));
+
+        // NoOp raw encrypt passes bytes through unchanged (key must be null for NoOp).
+        Assert.assertArrayEquals(plain,
+            new com.amazonaws.athena.connector.lambda.security.NoOpBlockCrypto(new BlockAllocatorImpl()).encrypt(null, plain));
+    }
+
+    /**
+     * The query-passthrough export path (UseAndExportResultsetSchema marker) must write records to S3 via the SDK
+     * spill writer and return a RemoteReadRecordsResponse whose spill locations point at the data objects
+     * (&lt;spillKey&gt;.N), while the ONLY bespoke object is the &lt;spillKey&gt;.schema sidecar (which MUST NOT appear
+     * as a spill location). The schema is derived from the live ResultSet at read time (faithful types), NOT from
+     * request.getSchema(). Verified end-to-end using H2, including a TIMESTAMP column.
+     */
+    @Test
+    public void testDoReadRecordsDirectQueryUsesSpillerAndReturnsLocations() throws Exception {
+        Class.forName("org.h2.Driver");
+        java.sql.Connection h2 = java.sql.DriverManager.getConnection("jdbc:h2:mem:jdbcdqspill;DB_CLOSE_DELAY=-1");
+        try (java.sql.Statement st = h2.createStatement()) {
+            st.execute("CREATE TABLE v (created_on TIMESTAMP, name VARCHAR(255))");
+            st.execute("INSERT INTO v VALUES (TIMESTAMP '2021-01-01 00:00:00', 'orders_view')");
+            st.execute("INSERT INTO v VALUES (TIMESTAMP '2021-02-02 12:30:00', 'customers_view')");
+        }
+        JdbcConnectionFactory h2Factory = Mockito.mock(JdbcConnectionFactory.class);
+        when(h2Factory.getConnection(nullable(CredentialsProvider.class))).thenReturn(h2);
+        S3Client mockS3 = Mockito.mock(S3Client.class);
+        DatabaseConnectionConfig cfg = new DatabaseConnectionConfig(TEST_CATALOG, "fakedatabase", CONNECTION_STRING, TEST_SECRET);
+        JdbcRecordHandler handler = new JdbcRecordHandler(mockS3, this.secretsManager, this.athena, cfg, h2Factory,
+                com.google.common.collect.ImmutableMap.of())
+        {
+            @Override
+            public PreparedStatement buildSplitSql(Connection c, String cat, TableName t, Schema s, Constraints con, Split sp)
+            {
+                throw new UnsupportedOperationException("export query must not call buildSplitSql");
+            }
+        };
+
+        // Capture every S3 object the spiller (and the sidecar writer) put.
+        java.util.Map<String, byte[]> written = java.util.Collections.synchronizedMap(new java.util.HashMap<>());
+        when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class))).thenAnswer((InvocationOnMock inv) -> {
+            PutObjectRequest req = (PutObjectRequest) inv.getArguments()[0];
+            RequestBody body = (RequestBody) inv.getArguments()[1];
+            written.put(req.key(), com.google.common.io.ByteStreams.toByteArray(body.contentStreamProvider().newStream()));
+            return PutObjectResponse.builder().build();
+        });
+
+        com.amazonaws.athena.connector.lambda.security.EncryptionKey key =
+            new com.amazonaws.athena.connector.lambda.security.LocalKeyFactory().create();
+        BlockAllocator allocator = new BlockAllocatorImpl();
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket("test-bucket").withPrefix("prefix").withQueryId("q1").withSplitId("split1").withIsDirectory(true).build();
+        Split split = Split.newBuilder(splitLoc, key).build();
+
+        // Export query is delivered via query-passthrough: the UseAndExportResultsetSchema marker triggers the
+        // derive-schema + sidecar path, and the QUERY argument carries the SQL. request.getSchema() is deliberately
+        // a mismatching single-column schema to prove it is NOT used (the schema is derived from the ResultSet).
+        Map<String, String> qptArgs = new HashMap<>();
+        qptArgs.put(JdbcRecordHandler.EXPORT_SCHEMA, "true");
+        qptArgs.put(com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY, "SELECT created_on, name FROM v ORDER BY name");
+
+        ReadRecordsRequest request = new ReadRecordsRequest(this.federatedIdentity, TEST_CATALOG, TEST_QUERY_ID,
+                new TableName(TEST_SCHEMA, TEST_TABLE), SchemaBuilder.newBuilder().addStringField("name").build(), split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                        Constraints.DEFAULT_NO_LIMIT, qptArgs, null),
+                100_000_000_000L, 100_000_000_000L);
+
+        com.amazonaws.athena.connector.lambda.records.RecordResponse response = handler.doReadRecords(allocator, request);
+
+        // Response advertises the spilled data object(s), never the schema sidecar.
+        Assert.assertTrue(response instanceof com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse);
+        com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse remote =
+                (com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse) response;
+        Assert.assertEquals(1, remote.getRemoteBlocks().size());
+        com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation dataLoc =
+                (com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation) remote.getRemoteBlocks().get(0);
+        Assert.assertEquals(splitLoc.getKey() + ".0", dataLoc.getKey());
+        Assert.assertFalse(dataLoc.getKey().endsWith(".schema"));
+
+        // The response schema is the ResultSet-derived schema (2 columns), not request.getSchema() (1 column).
+        Assert.assertEquals(2, remote.getSchema().getFields().size());
+
+        // Both the data object and the schema sidecar were written to S3.
+        Assert.assertTrue(written.containsKey(splitLoc.getKey() + ".0"));
+        Assert.assertTrue(written.containsKey(splitLoc.getKey() + ".schema"));
+
+        // Read the objects back exactly as S3BlockSpillReader does: decrypt sidecar -> schema; decrypt data -> block.
+        com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto crypto =
+            new com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto(new BlockAllocatorImpl());
+        byte[] clearSchema = crypto.decrypt(key, written.get(splitLoc.getKey() + ".schema"));
+        Schema schema = org.apache.arrow.vector.ipc.message.MessageSerializer.deserializeSchema(
+                new org.apache.arrow.vector.ipc.ReadChannel(java.nio.channels.Channels.newChannel(
+                        new java.io.ByteArrayInputStream(clearSchema))));
+        Assert.assertEquals(2, schema.getFields().size()); // created_on, name
+        com.amazonaws.athena.connector.lambda.data.Block block =
+                crypto.decrypt(key, written.get(splitLoc.getKey() + ".0"), schema);
+        Assert.assertEquals(2, block.getRowCount());
+        org.apache.arrow.vector.VarCharVector nameVec =
+                (org.apache.arrow.vector.VarCharVector) block.getFieldVector("NAME");
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (int i = 0; i < block.getRowCount(); i++) {
+            names.add(new String(nameVec.get(i)));
+        }
+        Assert.assertTrue(names.contains("orders_view"));
+        Assert.assertTrue(names.contains("customers_view"));
+    }
 }
