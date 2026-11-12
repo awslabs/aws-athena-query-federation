@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.db2as400;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -28,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
@@ -38,7 +40,12 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -49,6 +56,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -68,6 +76,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -130,7 +139,25 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
     @Override
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
+        // NULLIF is excluded because it is not rendered in a Db2 for i compatible form.
+        Set<StandardFunctions> unsupportedFunctions = ImmutableSet.of(StandardFunctions.NULLIF_FUNCTION_NAME);
         ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+                FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                                .filter(values -> !unsupportedFunctions.contains(values))
+                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
+                TopNPushdownSubType.SUPPORTS_ORDER_BY
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
+                LimitPushdownSubType.INTEGER_CONSTANT
+        ));
 
         jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
@@ -145,7 +172,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(listSchemasRequest)))) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), getSchemaList(connection, Db2As400Constants.QRY_TO_LIST_SCHEMAS));
         }
@@ -161,7 +188,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
     @Override
     public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(listTablesRequest)))) {
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
             List<String> tableNames = getTableList(connection, Db2As400Constants.QRY_TO_LIST_TABLES_AND_VIEWS, listTablesRequest.getSchemaName());
             List<TableName> tables = tableNames.stream().map(tableName -> new TableName(listTablesRequest.getSchemaName(), tableName)).collect(Collectors.toList());
@@ -204,7 +231,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
                 getTableLayoutRequest.getTableName().getTableName());
 
         List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(Db2As400Constants.PARTITION_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             // check whether the table have partitions or not using PARTITION_QUERY, create a single split for view/non-partition table
@@ -220,7 +247,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
             else {
                 LOGGER.debug("Getting data with diff Partitions: ");
                 // get partition details from DB2 meta data tables
-                String columnName = getColumnName(parameters);
+                String columnName = getColumnName(parameters, getRequestOverrideConfig(getTableLayoutRequest));
 
                 do {
                     // 1. Returns all partitions of table, we are not supporting constraints push down to filter partitions.
@@ -260,6 +287,9 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
         Split.Builder splitBuilder;
         Set<Split> splits = new HashSet<>();
 
+        Map<String, String> identityConfigOptions = getSplitsRequest.getIdentity().getConfigOptions();
+        String catalogCasingFilter = identityConfigOptions != null ? identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER) : null;
+
         LOGGER.debug("partitionContd: {}", partitionContd);
 
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
@@ -275,14 +305,19 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
             // Included partition information to split if the table is partitioned
             if (partInfo.contains(":::")) {
                 String[] partInfoAr = partInfo.split(":::");
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITIONING_COLUMN, partInfoAr[0])
                         .add(PARTITION_NUMBER, partInfoAr[1]);
             }
             else {
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                         .add(PARTITION_NUMBER, partInfo);
             }
+
+            if (catalogCasingFilter != null) {
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, catalogCasingFilter);
+            }
+
             splits.add(splitBuilder.build());
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
@@ -299,9 +334,9 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
      * @param parameters
      * @throws Exception
      */
-    private String getColumnName(List<String> parameters) throws Exception
+    private String getColumnName(List<String> parameters, AwsRequestOverrideConfiguration requestOverrideConfiguration) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(Db2As400Constants.COLUMN_INFO_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
@@ -402,7 +437,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement stmt = connection.prepareStatement(Db2As400Constants.COLUMN_INFO_QUERY)) {
             stmt.setString(1, tableName.getSchemaName());
             stmt.setString(2, tableName.getTableName());
