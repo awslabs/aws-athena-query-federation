@@ -11,6 +11,6 @@
   "dependencies": {
     "aws-sdk": "^2.992.0",
     "fs": "^0.0.1-security",
-    "uuid": "^3.3.2"
+    "uuid": "^14.0.0"
   }
 }

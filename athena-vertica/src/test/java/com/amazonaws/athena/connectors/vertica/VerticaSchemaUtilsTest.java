@@ -20,27 +20,39 @@
 package com.amazonaws.athena.connectors.vertica;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.mockito.junit.MockitoJUnitRunner;
 
-import java.sql.*;
+import java.lang.reflect.Method;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
+import java.sql.Types;
+import java.sql.ResultSet;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
+import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.mockito.ArgumentMatchers.nullable;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.when;
 
+@RunWith(MockitoJUnitRunner.class)
 public class VerticaSchemaUtilsTest extends TestBase
 {
-    private static final Logger logger = LoggerFactory.getLogger(VerticaSchemaUtils.class);
     private Connection connection;
     private DatabaseMetaData databaseMetaData;
     private TableName tableName;
 
+    @Mock
+    private X509Certificate mockCertificate;
 
     @Before
     public void setUp() throws SQLException
@@ -60,11 +72,27 @@ public class VerticaSchemaUtilsTest extends TestBase
         int [] types = {Types.INTEGER, Types.INTEGER};*/
 
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
-        Object[][] values = {{"testSchema", "testTable1", "id", "bigint"}, {"testSchema", "testTable1", "date", "timestamp"},
-                {"testSchema", "testTable1", "orders", "integer"}, {"testSchema", "testTable1", "price", "float4"},
-                {"testSchema", "testTable1", "shop", "varchar"}
-               };
-        int[] types = {Types.BIGINT, Types.TIMESTAMP, Types.INTEGER,Types.FLOAT, Types.VARCHAR, Types.VARCHAR};
+        Object[][] values = {
+                {"testSchema", "testTable1", "bit_col", "BIT"},
+                {"testSchema", "testTable1", "tinyint_col", "TINYINT"},
+                {"testSchema", "testTable1", "smallint_col", "SMALLINT"},
+                {"testSchema", "testTable1", "integer_col", "INTEGER"},
+                {"testSchema", "testTable1", "bigint_col", "BIGINT"},
+                {"testSchema", "testTable1", "float4_col", "FLOAT4"},
+                {"testSchema", "testTable1", "float8_col", "FLOAT8"},
+                {"testSchema", "testTable1", "numeric_col", "NUMERIC"},
+                {"testSchema", "testTable1", "boolean_col", "BOOLEAN"},
+                {"testSchema", "testTable1", "varchar_col", "VARCHAR"},
+                {"testSchema", "testTable1", "timestamp_col", "TIMESTAMP"},
+                {"testSchema", "testTable1", "timestamptz_col", "TIMESTAMPTZ"},
+                {"testSchema", "testTable1", "datetime_col", "DATETIME"},
+                {"testSchema", "testTable1", "unknown_col", "UNKNOWN"}
+        };
+        int[] types = {
+                Types.BIT, Types.TINYINT, Types.SMALLINT, Types.INTEGER, Types.BIGINT,
+                Types.FLOAT, Types.DOUBLE, Types.NUMERIC, Types.BOOLEAN, Types.VARCHAR,
+                Types.TIMESTAMP, Types.TIMESTAMP, Types.DATE, Types.OTHER
+        };
 
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
@@ -75,12 +103,67 @@ public class VerticaSchemaUtilsTest extends TestBase
         VerticaSchemaUtils verticaSchemaUtils = new VerticaSchemaUtils();
         Schema mockSchema = verticaSchemaUtils.buildTableSchema(this.connection, tableName);
 
-        Field testDateField = mockSchema.findField("date");
-        Assert.assertEquals("Utf8", testDateField.getType().toString());
-
-        Field testPriceField = mockSchema.findField("price");
-        Assert.assertEquals("FloatingPoint(SINGLE)", testPriceField.getType().toString());
-
-
+        assertEquals("Bool", mockSchema.findField("bit_col").getType().toString());
+        assertEquals("Int(8, true)", mockSchema.findField("tinyint_col").getType().toString());
+        assertEquals("Int(16, true)", mockSchema.findField("smallint_col").getType().toString());
+        assertEquals("Int(64, true)", mockSchema.findField("integer_col").getType().toString());
+        assertEquals("Int(64, true)", mockSchema.findField("bigint_col").getType().toString());
+        assertEquals("FloatingPoint(SINGLE)", mockSchema.findField("float4_col").getType().toString());
+        assertEquals("FloatingPoint(DOUBLE)", mockSchema.findField("float8_col").getType().toString());
+        assertEquals("Decimal(10, 2, 128)", mockSchema.findField("numeric_col").getType().toString());
+        assertEquals("Utf8", mockSchema.findField("boolean_col").getType().toString());
+        assertEquals("Utf8", mockSchema.findField("varchar_col").getType().toString());
+        assertEquals("Utf8", mockSchema.findField("timestamp_col").getType().toString());
+        assertEquals("Utf8", mockSchema.findField("timestamptz_col").getType().toString());
+        assertEquals("Date(DAY)", mockSchema.findField("datetime_col").getType().toString());
+        assertEquals("Utf8", mockSchema.findField("unknown_col").getType().toString());
     }
+
+    @Test
+    public void buildTableSchemaSQLException() throws SQLException
+    {
+        when(databaseMetaData.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null))
+                .thenThrow(new SQLException("Database error"));
+
+        VerticaSchemaUtils verticaSchemaUtils = new VerticaSchemaUtils();
+        try {
+            verticaSchemaUtils.buildTableSchema(connection, tableName);
+            fail("Expected RuntimeException");
+        } catch (RuntimeException e) {
+            assertTrue(e.getMessage().contains("Error in building the table schema"));
+            assertTrue(e.getCause() instanceof SQLException);
+        }
+    }
+
+    @Test
+    public void formatCrtFileContents() throws Exception
+    {
+        when(mockCertificate.getEncoded()).thenReturn("test-cert".getBytes());
+
+        Method formatMethod = VerticaSchemaUtils.class.getDeclaredMethod("formatCrtFileContents", Certificate.class);
+        formatMethod.setAccessible(true);
+        String result = (String) formatMethod.invoke(null, mockCertificate);
+
+        String expectedEncoded = Base64.getMimeEncoder(64, System.lineSeparator().getBytes())
+                .encodeToString("test-cert".getBytes());
+        String expected = "-----BEGIN CERTIFICATE-----" + System.lineSeparator() +
+                expectedEncoded + System.lineSeparator() + "-----END CERTIFICATE-----";
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void formatCrtFileContents_NullCertificate() throws Exception
+    {
+        Method formatMethod = VerticaSchemaUtils.class.getDeclaredMethod("formatCrtFileContents", Certificate.class);
+        formatMethod.setAccessible(true);
+
+        try {
+            formatMethod.invoke(null, (Certificate) null);
+            fail("Expected NullPointerException for null certificate");
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            assertTrue("Should throw NullPointerException for null certificate",
+                e.getCause() instanceof NullPointerException);
+        }
+    }
+
 }

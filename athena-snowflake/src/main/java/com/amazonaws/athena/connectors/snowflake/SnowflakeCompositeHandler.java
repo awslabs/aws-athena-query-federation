@@ -42,7 +42,7 @@ public class SnowflakeCompositeHandler
 {
     public SnowflakeCompositeHandler() throws CertificateEncodingException, IOException, NoSuchAlgorithmException, KeyStoreException
     {
-        super(new SnowflakeMetadataHandler(new SnowflakeEnvironmentProperties(System.getenv()).createEnvironment()), new SnowflakeRecordHandler(new SnowflakeEnvironmentProperties(System.getenv()).createEnvironment()));
+        super(new SnowflakeMetadataHandler(new SnowflakeEnvironmentProperties().createEnvironment()), new SnowflakeRecordHandler(new SnowflakeEnvironmentProperties().createEnvironment()));
         installCaCertificate();
         setupNativeEnvironmentVariables();
     }

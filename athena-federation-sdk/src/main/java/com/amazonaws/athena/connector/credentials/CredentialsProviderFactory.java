@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
@@ -58,9 +59,30 @@ public final class CredentialsProviderFactory
             CachableSecretsManager secretsManager,
             InitializableCredentialsProvider provider)
     {
+        return createCredentialProvider(secretName, secretsManager, provider, null);
+    }
+
+    /**
+     * Creates a credentials provider based on the secret configuration with optional request override configuration.
+     * If OAuth is configured (determined by the provider's isOAuthConfigured method), creates an instance
+     * of the specified OAuth provider. Otherwise, creates a default username/password credentials provider.
+     *
+     * @param secretName The name of the secret in AWS Secrets Manager
+     * @param secretsManager The secrets manager instance
+     * @param provider The InitializableCredentialsProvider instance to check and initialize
+     * @param requestOverrideConfiguration Optional AWS request override configuration for federated requests
+     * @return A new CredentialsProvider instance based on the secret configuration
+     * @throws AthenaConnectorException if there are errors deserializing the secret or creating the provider
+     */
+    public static CredentialsProvider createCredentialProvider(
+            String secretName,
+            CachableSecretsManager secretsManager,
+            InitializableCredentialsProvider provider,
+            AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
         if (StringUtils.isNotBlank(secretName)) {
             try {
-                String secretString = secretsManager.getSecret(secretName);
+                String secretString = secretsManager.getSecret(secretName, requestOverrideConfiguration);
                 Map<String, String> secretMap = OBJECT_MAPPER.readValue(secretString, Map.class);
 
                 if (provider instanceof OAuthCredentialsProvider) {

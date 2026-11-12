@@ -41,8 +41,8 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.tinkerpop.gremlin.structure.T;
 
-import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -51,9 +51,9 @@ import java.util.stream.Collectors;
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public final class VertexRowWriter 
+public final class VertexRowWriter
 {
-    private VertexRowWriter() 
+    private VertexRowWriter()
     {
         // Empty private constructor
     }
@@ -69,10 +69,10 @@ public final class VertexRowWriter
                 rowWriterBuilder.withExtractor(field.getName(),
                         (BitExtractor) (Object context, NullableBitHolder value) -> {
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
-                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+                            List<Object> objValues = FieldValueNormalizer.toValueList(obj.get(field.getName()));
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 Boolean booleanValue = Boolean.parseBoolean(objValues.get(0).toString());
                                 value.value = booleanValue ? 1 : 0;
                                 value.isSet = 1;
@@ -94,13 +94,13 @@ public final class VertexRowWriter
                                     value.value = fieldValue.toString();
                                     value.isSet = 1;
                                 }
-                            } 
+                            }
                             else {
-                                ArrayList<Object> objValues = (ArrayList) obj.get(fieldName);
-                                if (objValues != null && !objValues.isEmpty()) {
+                                List<Object> objValues = FieldValueNormalizer.toValueList(obj.get(fieldName));
+                                if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null) {
                                     if (objValues.size() > 1) {
                                         value.value = String.join(";", objValues.stream()
-                                                .map(Object::toString)
+                                                .map(o -> o == null ? "" : o.toString())
                                                 .collect(Collectors.toList()));
                                     }
                                     else {
@@ -118,12 +118,19 @@ public final class VertexRowWriter
                         (DateMilliExtractor) (Object context, NullableDateMilliHolder value) -> {
                             String fieldName = field.getName();
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
-                            ArrayList<Object> objValues = (ArrayList) obj.get(fieldName);
+                            List<Object> objValues = FieldValueNormalizer.toValueList(obj.get(fieldName));
 
                             value.isSet = 0;
-                            if (objValues != null && (objValues.get(0) != null) && !(objValues.get(0).toString().trim().isEmpty())) {
-                                value.value = ((Date) objValues.get(0)).getTime();
-                                value.isSet = 1;
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                                Object first = objValues.get(0);
+                                if (first instanceof Date) {
+                                    value.value = ((Date) first).getTime();
+                                    value.isSet = 1;
+                                }
+                                else {
+                                    value.value = Long.parseLong(first.toString());
+                                    value.isSet = 1;
+                                }
                             }
                         });
                 break;
@@ -133,11 +140,10 @@ public final class VertexRowWriter
                         (IntExtractor) (Object context, NullableIntHolder value) -> {
                             String fieldName = field.getName();
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
-                            ArrayList<Object> objValues = (ArrayList) obj.get(fieldName);
+                            List<Object> objValues = FieldValueNormalizer.toValueList(obj.get(fieldName));
 
                             value.isSet = 0;
-
-                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 value.value = Integer.parseInt(objValues.get(0).toString());
                                 value.isSet = 1;
                             }
@@ -149,10 +155,10 @@ public final class VertexRowWriter
                         (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
                             String fieldName = field.getName();
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
-                            ArrayList<Object> objValues = (ArrayList) obj.get(fieldName);
+                            List<Object> objValues = FieldValueNormalizer.toValueList(obj.get(fieldName));
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 value.value = Long.parseLong(objValues.get(0).toString());
                                 value.isSet = 1;
                             }
@@ -163,10 +169,10 @@ public final class VertexRowWriter
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float4Extractor) (Object context, NullableFloat4Holder value) -> {
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
-                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+                            List<Object> objValues = FieldValueNormalizer.toValueList(obj.get(field.getName()));
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 value.value = Float.parseFloat(objValues.get(0).toString());
                                 value.isSet = 1;
                             }
@@ -177,10 +183,10 @@ public final class VertexRowWriter
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
-                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+                            List<Object> objValues = FieldValueNormalizer.toValueList(obj.get(field.getName()));
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
+                            if (objValues != null && !objValues.isEmpty() && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 value.value = Double.parseDouble(objValues.get(0).toString());
                                 value.isSet = 1;
                             }
@@ -190,7 +196,7 @@ public final class VertexRowWriter
         }
     }
 
-    private static Map<String, Object> contextAsMap(Object context, boolean caseInsensitive) 
+    private static Map<String, Object> contextAsMap(Object context, boolean caseInsensitive)
     {
         Map<String, Object> contextAsMap = (Map<String, Object>) context;
         Object fieldValueID = contextAsMap.get(T.id);

@@ -34,7 +34,7 @@ public class ImpalaConstants
     static final String ALL_PARTITIONS = "*";
     static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     static final String COLUMN_NAME = "COLUMN_NAME";
-    static final String IMPALA_QUOTE_CHARACTER = "";
+    static final String IMPALA_QUOTE_CHARACTER = "`";
     static final int FETCH_SIZE = 1000;
 
     public static final String IMPALA_NAME = "impala";
@@ -42,4 +42,6 @@ public class ImpalaConstants
     public static final int IMPALA_DEFAULT_PORT = 21050;
     public static final String METADATA_COLUMN_NAME = "name";
     public static final String METADATA_COLUMN_TYPE = "type";
+    public static final String USER = "UID";
+    public static final String PASSWORD = "PWD";
 }

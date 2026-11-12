@@ -42,6 +42,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -90,14 +91,15 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;
     }
-
+    
     @Override
-    protected CredentialsProvider getCredentialProvider()
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         return CredentialsProviderFactory.createCredentialProvider(
             getDatabaseConnectionConfig().getSecret(),
             getCachableSecretsManager(),
-            new DataLakeGen2OAuthCredentialsProvider()
+            new DataLakeGen2OAuthCredentialsProvider(),
+            requestOverrideConfiguration
         );
     }
 
@@ -108,7 +110,7 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(readRecordsRequest)))) {
             String environment = DataLakeGen2Util.checkEnvironment(connection.getMetaData().getURL());
             if (!DataLakeGen2Constants.SQL_POOL.equalsIgnoreCase(environment)) {
                 // For consistency. This is needed to be false to enable streaming for some database types.

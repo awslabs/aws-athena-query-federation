@@ -21,37 +21,31 @@ package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
-import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import com.google.common.collect.Iterables;
-import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.SnowflakeSqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Utf8;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_QUOTE_CHAR;
 
 /**
  * Extends {@link JdbcSplitQueryBuilder} and implements MySql specific SQL clauses for split.
@@ -62,8 +56,6 @@ public class SnowflakeQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeQueryStringBuilder.class);
-    private static final String quoteCharacters = "\"";
-    private static final String singleQuoteCharacters = "\'";
 
     public SnowflakeQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
@@ -87,222 +79,156 @@ public class SnowflakeQueryStringBuilder
         return Collections.emptyList();
     }
 
-    public String buildSqlString(
-            final Connection jdbcConnection,
+    public String getBaseExportSQLString(
             final String catalog,
             final String schema,
             final String table,
             final Schema tableSchema,
-            final Constraints constraints,
-            final Split split
-    )
+            final Constraints constraints)
             throws SQLException
     {
-        StringBuilder sql = new StringBuilder();
-
         String columnNames = tableSchema.getFields().stream()
                 .map(Field::getName)
-                .filter(name -> !name.equalsIgnoreCase("partition"))
+                .filter(name -> !name.equalsIgnoreCase(BLOCK_PARTITION_COLUMN_NAME))
                 .map(this::quote)
                 .collect(Collectors.joining(", "));
 
-        sql.append("SELECT ");
-        sql.append(columnNames);
-
+        // We compute the base Export SQL String at GetSplit stage, at the time we don't have column projection hence getting everything.
         if (columnNames.isEmpty()) {
-            sql.append("null");
+            columnNames = "*";
         }
-        sql.append(getFromClauseWithSplit(catalog, schema, table, null));
 
         List<TypeAndValue> accumulator = new ArrayList<>();
+        String sqlBaseString = this.buildSQLStringLiteral(catalog, schema, table, tableSchema, constraints, new Split(null, null, Map.of()), columnNames, accumulator);
 
-        List<String> clauses = toConjuncts(tableSchema.getFields(), constraints, accumulator);
-        clauses.addAll(getPartitionWhereClauses(null));
-        if (!clauses.isEmpty()) {
-            sql.append(" WHERE ")
-                    .append(Joiner.on(" AND ").join(clauses));
-        }
+        sqlBaseString = expandSql(sqlBaseString, accumulator);
+        LOGGER.info("Expanded Generated SQL : {}", sqlBaseString);
+        return sqlBaseString;
+    }
 
-        String orderByClause = extractOrderByClause(constraints);
-
-        if (!Strings.isNullOrEmpty(orderByClause)) {
-            sql.append(" ").append(orderByClause);
+    @VisibleForTesting
+    String expandSql(String sql, List<TypeAndValue> accumulator)
+    {
+        if (Strings.isNullOrEmpty(sql)) {
+            return null;
         }
-
-        if (constraints.getLimit() > 0) {
-            sql.append(appendLimitOffset(null, constraints));
+        
+        for (TypeAndValue typeAndValue : accumulator) {
+            String sqlLiteral;
+            
+            if (typeAndValue.getValue() == null) {
+                sqlLiteral = "NULL";
+            }
+            else {
+                Types.MinorType minorType = Types.getMinorTypeForArrowType(typeAndValue.getType());
+                
+                switch (minorType) {
+                    case DATEDAY:
+                        long days = ((Number) typeAndValue.getValue()).longValue();
+                        sqlLiteral = "DATE " + singleQuote(LocalDate.ofEpochDay(days).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                        break;
+                    case DATEMILLI:
+                        long millis = ((Number) typeAndValue.getValue()).longValue();
+                        sqlLiteral = "TIMESTAMP " + singleQuote(java.time.Instant.ofEpochMilli(millis).toString());
+                        break;
+                    case TIMESTAMPMILLITZ:
+                    case TIMESTAMPMICROTZ:
+                        if (typeAndValue.getValue() instanceof java.sql.Timestamp) {
+                            sqlLiteral = "TIMESTAMP " + singleQuote(typeAndValue.getValue().toString());
+                        }
+                        else {
+                            long tsMillis = ((Number) typeAndValue.getValue()).longValue();
+                            sqlLiteral = "TIMESTAMP " + singleQuote(java.time.Instant.ofEpochMilli(tsMillis).toString());
+                        }
+                        break;
+                    case INT:
+                    case SMALLINT:
+                    case TINYINT:
+                    case BIGINT:
+                    case FLOAT4:
+                    case FLOAT8:
+                    case DECIMAL:
+                        sqlLiteral = typeAndValue.getValue().toString();
+                        break;
+                    default:
+                        sqlLiteral = singleQuote(typeAndValue.getValue().toString());
+                        break;
+                }
+            }
+            
+            sql = sql.replaceFirst("\\?", sqlLiteral);
         }
-        else {
-            sql.append(appendLimitOffset(null));
-        }
-        LOGGER.info("Generated SQL : {}", sql.toString());
-        return sql.toString();
+        return sql;
     }
 
     protected String quote(String name)
     {
-        name = name.replace(quoteCharacters, quoteCharacters + quoteCharacters);
-        return quoteCharacters + name + quoteCharacters;
+        name = name.replace(DOUBLE_QUOTE_CHAR, DOUBLE_QUOTE_CHAR + DOUBLE_QUOTE_CHAR);
+        return DOUBLE_QUOTE_CHAR + name + DOUBLE_QUOTE_CHAR;
     }
 
     protected String singleQuote(String name)
     {
-        name = name.replace(singleQuoteCharacters, singleQuoteCharacters + singleQuoteCharacters);
-        return singleQuoteCharacters + name + singleQuoteCharacters;
+        name = name.replace(SINGLE_QUOTE_CHAR, SINGLE_QUOTE_CHAR + SINGLE_QUOTE_CHAR);
+        return SINGLE_QUOTE_CHAR + name + SINGLE_QUOTE_CHAR;
     }
 
-    private List<String> toConjuncts(List<Field> columns, Constraints constraints, List<TypeAndValue> accumulator)
+    @Override
+    protected String appendLimitOffset(Split split)
     {
-        List<String> conjuncts = new ArrayList<>();
-        for (Field column : columns) {
-            ArrowType type = column.getType();
-            if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
-                ValueSet valueSet = constraints.getSummary().get(column.getName());
-                if (valueSet != null) {
-                    conjuncts.add(toPredicate(column.getName(), valueSet, type, accumulator));
-                }
-            }
+        if (split == null) {
+            return "";
         }
-        return conjuncts;
-    }
-
-    private String toPredicate(String columnName, ValueSet valueSet, ArrowType type, List<TypeAndValue> accumulator)
-    {
-        List<String> disjuncts = new ArrayList<>();
-        List<Object> singleValues = new ArrayList<>();
-
-        // TODO Add isNone and isAll checks once we have data on nullability.
-
-        if (valueSet instanceof SortedRangeSet) {
-            if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return String.format("(%s IS NULL)", quote(columnName));
-            }
-
-            if (valueSet.isNullAllowed()) {
-                disjuncts.add(String.format("(%s IS NULL)", quote(columnName)));
-            }
-
-            List<Range> rangeList = ((SortedRangeSet) valueSet).getOrderedRanges();
-            if (rangeList.size() == 1 && !valueSet.isNullAllowed() && rangeList.get(0).getLow().isLowerUnbounded() && rangeList.get(0).getHigh().isUpperUnbounded()) {
-                return String.format("(%s IS NOT NULL)", quote(columnName));
-            }
-
-            for (Range range : valueSet.getRanges().getOrderedRanges()) {
-                if (range.isSingleValue()) {
-                    singleValues.add(range.getLow().getValue());
-                }
-                else {
-                    List<String> rangeConjuncts = new ArrayList<>();
-                    if (!range.getLow().isLowerUnbounded()) {
-                        switch (range.getLow().getBound()) {
-                            case ABOVE:
-                                rangeConjuncts.add(toPredicate(columnName, ">", range.getLow().getValue(), type));
-                                break;
-                            case EXACTLY:
-                                rangeConjuncts.add(toPredicate(columnName, ">=", range.getLow().getValue(), type));
-                                break;
-                            case BELOW:
-                                throw new IllegalArgumentException("Low marker should never use BELOW bound");
-                            default:
-                                throw new AssertionError("Unhandled bound: " + range.getLow().getBound());
-                        }
-                    }
-                    if (!range.getHigh().isUpperUnbounded()) {
-                        switch (range.getHigh().getBound()) {
-                            case ABOVE:
-                                throw new IllegalArgumentException("High marker should never use ABOVE bound");
-                            case EXACTLY:
-                                rangeConjuncts.add(toPredicate(columnName, "<=", range.getHigh().getValue(), type));
-                                break;
-                            case BELOW:
-                                rangeConjuncts.add(toPredicate(columnName, "<", range.getHigh().getValue(), type));
-                                break;
-                            default:
-                                throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
-                        }
-                    }
-                    // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
-                    Preconditions.checkState(!rangeConjuncts.isEmpty());
-                    disjuncts.add("(" + Joiner.on(" AND ").join(rangeConjuncts) + ")");
-                }
-            }
-
-            // Add back all of the possible single values either as an equality or an IN predicate
-            if (singleValues.size() == 1) {
-                disjuncts.add(toPredicate(columnName, "=", Iterables.getOnlyElement(singleValues), type));
-            }
-            else if (singleValues.size() > 1) {
-                List<Object> val = new ArrayList<>();
-                for (Object value : singleValues) {
-                    val.add(((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? singleQuote(getObjectForWhereClause(columnName, value, type).toString()) : getObjectForWhereClause(columnName, value, type)));
-                }
-                String values = Joiner.on(",").join(val);
-                disjuncts.add(columnName + " IN (" + values + ")");
-            }
+        // Read the partition value by its known key rather than an arbitrary map entry.
+        // The split may carry additional properties (e.g. CATALOG_CASING_FILTER), and Split
+        // backs its properties with a HashMap, so keySet().iterator().next() is not guaranteed
+        // to return the partition entry. Selecting the wrong value would fail the format check
+        // below, drop the ORDER BY/LIMIT/OFFSET scoping, and duplicate the result set per split.
+        String partitionVal = split.getProperty(BLOCK_PARTITION_COLUMN_NAME);
+        // Expected format: partition-primary-<PRIMARYKEY>-limit-<LIMIT>-offset-<OFFSET>
+        // Use marker-based parsing to handle primary keys that may contain dashes
+        if (partitionVal == null || !partitionVal.contains("-primary-") || !partitionVal.contains("-limit-") || !partitionVal.contains("-offset-")) {
+            return "";
         }
-        return "(" + Joiner.on(" OR ").join(disjuncts) + ")";
-    }
 
-    protected String toPredicate(String columnName, String operator, Object value, ArrowType type)
-    {
-        return columnName + " " + operator + " " + ((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? singleQuote(getObjectForWhereClause(columnName, value, type).toString()) : getObjectForWhereClause(columnName, value, type));
-    }
+        int primaryStart = partitionVal.indexOf("-primary-") + "-primary-".length();
+        int limitMarker = partitionVal.lastIndexOf("-limit-");
+        int offsetMarker = partitionVal.lastIndexOf("-offset-");
 
-    protected static Object getObjectForWhereClause(String columnName, Object value, ArrowType arrowType)
-    {
-        String val;
-        StringBuilder tempVal;
-
-        switch (arrowType.getTypeID()) {
-            case Int:
-                return ((Number) value).longValue();
-            case Decimal:
-                if (value instanceof BigDecimal) {
-                    return (BigDecimal) value;
-                }
-                else if (value instanceof Number) {
-                    return BigDecimal.valueOf(((Number) value).doubleValue());
-                }
-                else {
-                    throw new IllegalArgumentException("Unexpected type for decimal conversion: " + value.getClass().getName());
-                }
-            case FloatingPoint:
-                return (double) value;
-            case Bool:
-                return (Boolean) value;
-            case Utf8:
-                return value.toString();
-            case Date:
-                String dateStr = value.toString();
-                if (dateStr.contains("-") && dateStr.length() == 16) {
-                    LocalDateTime dateTime = LocalDateTime.parse(dateStr);
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                    return dateTime.format(formatter);
-                }
-                else {
-                    long days = Long.parseLong(dateStr);
-                    long milliseconds = TimeUnit.DAYS.toMillis(days);
-                    return new SimpleDateFormat("yyyy-MM-dd").format(new Date(milliseconds));
-                }
-            case Timestamp:
-                long millis = ((Number) value).longValue();
-                Timestamp timestamp = new Timestamp(millis);
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                return sdf.format(timestamp);
-            case Time:
-            case Interval:
-            case Binary:
-            case FixedSizeBinary:
-            case Null:
-            case Struct:
-            case List:
-            case FixedSizeList:
-            case Union:
-            case NONE:
-                throw new UnsupportedOperationException("The Arrow type: " + arrowType.getTypeID().name() + " is currently not supported");
-            default:
-                throw new IllegalArgumentException("Unknown type encountered during processing: " + columnName +
-                        " Field Type: " + arrowType.getTypeID().name());
+        if (primaryStart > limitMarker || limitMarker > offsetMarker) {
+            LOGGER.warn("Malformed partition value: {}", partitionVal);
+            return "";
         }
+
+        String primaryKey = partitionVal.substring(primaryStart, limitMarker);
+        String xLimit = partitionVal.substring(limitMarker + "-limit-".length(), offsetMarker);
+        String xOffset = partitionVal.substring(offsetMarker + "-offset-".length());
+
+        // if no primary key, single split only
+        if (primaryKey.isEmpty()) {
+            return "";
+        }
+
+        // Validate limit and offset are numeric to prevent injection
+        if (!xLimit.matches("\\d+") || !xOffset.matches("\\d+")) {
+            LOGGER.warn("Non-numeric limit/offset in partition value: limit={}, offset={}", xLimit, xOffset);
+            return "";
+        }
+
+        // Primary key is already quoted from getPrimaryKey() (e.g., "\"col1\",\"col2\"")
+        // so it is safe to use directly in ORDER BY
+        return "ORDER BY " + primaryKey + " " + appendLimitOffsetWithValue(xLimit, xOffset);
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+       return SnowflakeSqlDialect.DEFAULT;
+    }
+    
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new SnowflakeDialect(catalogCasingFilterUpperCase);
     }
 }

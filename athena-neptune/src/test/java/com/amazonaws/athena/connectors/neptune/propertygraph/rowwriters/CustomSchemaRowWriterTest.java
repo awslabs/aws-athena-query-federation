@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,28 +19,23 @@
  */
 package com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters;
 
+import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float4Extractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connectors.neptune.Constants;
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
-import org.apache.arrow.vector.holders.NullableFloat4Holder;
-import org.apache.arrow.vector.holders.NullableFloat8Holder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.types.DateUnit;
-import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,456 +43,598 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+
+/**
+ * Unit tests for the changed logic in CustomSchemaRowWriter: FieldValueNormalizer usage,
+ * valueMap vs project().by() (list vs scalar vs Map), and VARCHAR null-first-element handling.
+ */
 @RunWith(MockitoJUnitRunner.class)
 public class CustomSchemaRowWriterTest
 {
-
-    public static final String BOOL_FIELD = "boolField";
+    private static final String FLAG = "flag";
+    private static final String TIMESTAMP = "timestamp";
+    private static final String NUMBER_FIELD = "numberField";
+    private static final String BIG_INT_FIELD = "bigIntField";
+    private static final String FLOAT_FIELD = "floatField";
+    private static final String DOUBLE_FIELD = "doubleField";
+    private static final String NAME = "name";
+    private static final String TAGS = "tags";
+    private static final String ALL_PROPERTIES = "all_properties";
+    private static final String ID = "id";
+    
     public static final String STRING_FIELD = "stringField";
-    public static final String DATE_FIELD = "dateField";
-    public static final String INT_FIELD = "intField";
-    public static final String LONG_FIELD = "longField";
-    public static final String FLOAT_FIELD = "floatField";
-    public static final String DOUBLE_FIELD = "doubleField";
-    public static final String ID = "id";
-    public static final String NULL_FIELD = "nullField";
-    public static final String EMPTY_FIELD = "emptyField";
     public static final String MIXED_CASE_FIELD = "MixedCaseField";
-
+    
     // Test values
-    private static final String TEST_VALUE = "testValue";
-    private static final String VALUE_1 = "value1";
-    private static final String VALUE_2 = "value2";
-    private static final String VALUE_3 = "value3";
-    private static final String SEMICOLON_SEPARATED = ";";
     private static final String EMPTY_STRING = "";
-    private static final String SPACES = "   ";
     private static final String STRING_123 = "123";
-    private static final String BIG_INT_VALUE = "1234567890123456789";
-    private static final String FLOAT_VALUE_3_14 = "3.14";
-    private static final String DOUBLE_VALUE_2_718 = "2.718281828";
     private static final String CASE_INSENSITIVE_FALSE = "false";
+    
+    private BlockAllocatorImpl allocator;
+    
     @Mock
     private GeneratedRowWriter.RowWriterBuilder mockBuilder;
-
+    
     private Map<String, String> configOptions;
     private Map<String, Object> testContext;
-
+    
+    
     @Before
     public void setUp()
     {
+        allocator = new BlockAllocatorImpl();
         configOptions = new HashMap<>();
         configOptions.put(Constants.SCHEMA_CASE_INSEN, "true");
         when(mockBuilder.withExtractor(anyString(), any())).thenReturn(mockBuilder);
         testContext = new HashMap<>();
     }
 
-    @Test
-    public void writeRowTemplate_WithBitField_CreatesBitExtractor()
+    @After
+    public void tearDown()
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldBool(BOOL_FIELD), BOOL_FIELD);
+        if (allocator != null) {
+            allocator.close();
+        }
+    }
+
+    private Map<String, String> configOptions()
+    {
+        return Collections.emptyMap();
+    }
+
+    private Object writeAndReadOneRow(Schema schema, String fieldName, Map<String, Object> context) throws Exception
+    {
+        GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder();
+        for (org.apache.arrow.vector.types.pojo.Field f : schema.getFields()) {
+            CustomSchemaRowWriter.writeRowTemplate(builder, f, configOptions());
+        }
+        GeneratedRowWriter rowWriter = builder.build();
+        try (Block block = allocator.createBlock(schema)) {
+            assertTrue(rowWriter.writeRow(block, 0, context));
+            block.setRowCount(1);
+            FieldReader reader = block.getFieldReaders().stream()
+                    .filter(r -> r.getField().getName().equals(fieldName))
+                    .findFirst()
+                    .orElseThrow();
+            reader.setPosition(0);
+            if (!reader.isSet()) {
+                return null;
+            }
+            return reader.readObject();
+        }
     }
 
     @Test
-    public void writeRowTemplate_WithVarCharFieldAndStringType_CreatesVarCharExtractor()
+    public void writeRowTemplate_varcharValueMapList_writesFirstElement() throws Exception
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldUtf8(STRING_FIELD), STRING_FIELD);
+        Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, listWith("alice")));
+        assertNotNull(result);
+        assertEquals("alice", result.toString());
     }
 
     @Test
-    public void writeRowTemplate_WithDateMilliFieldAndDateType_CreatesDateMilliExtractor()
+    public void writeRowTemplate_varcharScalarString_writesValue() throws Exception
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldDateMilli(DATE_FIELD), DATE_FIELD);
+        Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, "bob"));
+        assertNotNull(result);
+        assertEquals("bob", result.toString());
     }
 
     @Test
-    public void writeRowTemplate_WithIntFieldAndIntegerType_CreatesIntExtractor()
+    public void writeRowTemplate_varcharMapFromByValueMap_writesStringRepresentation() throws Exception
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldInt32(INT_FIELD), INT_FIELD);
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("k1", "v1");
+        map.put("k2", 2);
+        Object result = writeAndReadOneRow(varcharSchema(ALL_PROPERTIES), ALL_PROPERTIES, contextWith(ALL_PROPERTIES, map));
+        assertNotNull(result);
+        String str = result.toString();
+        assertTrue(str.contains("k1=v1"));
+        assertTrue(str.contains("k2=2"));
     }
 
     @Test
-    public void writeRowTemplate_WithBigIntFieldAndLongType_CreatesBigIntExtractor()
+    public void writeRowTemplate_varcharListWithNullFirstElement_doesNotSetValue() throws Exception
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldInt64(LONG_FIELD), LONG_FIELD);
+        Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, listWith(null)));
+        assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_WithFloat4FieldAndFloatType_CreatesFloat4Extractor()
+    public void writeRowTemplate_varcharMultipleValues_joinsWithSemicolon() throws Exception
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldFloat4(FLOAT_FIELD), FLOAT_FIELD);
+        Object result = writeAndReadOneRow(varcharSchema(TAGS), TAGS, contextWith(TAGS, listWith("a", "b", "c")));
+        assertNotNull(result);
+        assertEquals("a;b;c", result.toString());
     }
 
     @Test
-    public void writeRowTemplate_WithFloat8FieldAndDoubleType_CreatesFloat8Extractor()
+    public void writeRowTemplate_varcharMultipleValuesWithNull_joinsWithoutNpe() throws Exception
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldFloat8(DOUBLE_FIELD), DOUBLE_FIELD);
+        Object result = writeAndReadOneRow(varcharSchema(TAGS), TAGS, contextWith(TAGS, listWith("a", null, "c")));
+        assertNotNull(result);
+        assertEquals("a;;c", result.toString());
     }
 
     @Test
-    public void writeRowTemplate_WithIdField_CreatesVarCharExtractor()
+    public void writeRowTemplate_varcharEmptyList_doesNotSetValue() throws Exception
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldUtf8(ID), ID);
+        Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, Collections.emptyList()));
+        assertNull(result);
+    }
+
+    // ---- BIT ----
+
+    @Test
+    public void writeRowTemplate_bitValueMapListTrue_writesOne() throws Exception
+    {
+        Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,listWith(true)));
+        assertNotNull(result);
+        assertTrue((Boolean) result);
     }
 
     @Test
-    public void writeRowTemplate_WithNullValues_CreatesVarCharExtractor()
+    public void writeRowTemplate_bitScalarTrue_writesOne() throws Exception
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldUtf8(NULL_FIELD), NULL_FIELD);
+        Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,true));
+        assertNotNull(result);
+        assertTrue((Boolean) result);
     }
 
     @Test
-    public void writeRowTemplate_WithEmptyValues_CreatesVarCharExtractor()
+    public void writeRowTemplate_bitScalarFalse_writesZero() throws Exception
     {
-        writeTemplateAndVerifyExtractorRegistered(fieldUtf8(EMPTY_FIELD), EMPTY_FIELD);
+        Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,false));
+        assertNotNull(result);
+        assertEquals(Boolean.FALSE, result);
     }
 
     @Test
-    public void writeRowTemplate_WithCaseInsensitiveDisabledAndStringType_CreatesVarCharExtractor()
+    public void writeRowTemplate_bitNullField_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,null));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_bitEmptyList_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,Collections.emptyList()));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_bitListWithNullFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,listWith(null)));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_bitListWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,listWith("   ")));
+        assertNull(result);
+    }
+
+    // ---- DATEMILLI ----
+
+    @Test
+    public void writeRowTemplate_datemilliDateInstance_writesEpochMillis() throws Exception
+    {
+        Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,new Date(1000L)));
+        assertNotNull(result);
+        assertEquals(1000L, ((LocalDateTime) result).toInstant(ZoneOffset.UTC).toEpochMilli());
+    }
+
+    @Test
+    public void writeRowTemplate_datemilliLongEpoch_writesValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,2000L));
+        assertNotNull(result);
+        assertEquals(2000L, ((LocalDateTime) result).toInstant(ZoneOffset.UTC).toEpochMilli());
+    }
+
+    @Test
+    public void writeRowTemplate_datemilliValueMapList_writesFirstElement() throws Exception
+    {
+        Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,listWith(new Date(3000L))));
+        assertNotNull(result);
+        assertEquals(3000L, ((LocalDateTime) result).toInstant(ZoneOffset.UTC).toEpochMilli());
+    }
+
+    @Test
+    public void writeRowTemplate_datemilliNullField_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,null));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_datemilliEmptyList_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,Collections.emptyList()));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_datemilliListWithNullFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,listWith(null)));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_datemilliListWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,listWith("   ")));
+        assertNull(result);
+    }
+
+    // ---- INT, BIGINT, FLOAT4, FLOAT8 ----
+
+    @Test
+    public void writeRowTemplate_intScalar_writesValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,42));
+        assertNotNull(result);
+        assertEquals(42, ((Number) result).intValue());
+    }
+
+    @Test
+    public void writeRowTemplate_intValueMapList_writesFirstElement() throws Exception
+    {
+        Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,listWith(100)));
+        assertNotNull(result);
+        assertEquals(100, ((Number) result).intValue());
+    }
+
+    @Test
+    public void writeRowTemplate_intNullField_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,null));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_intEmptyList_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,Collections.emptyList()));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_intListWithNullFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,listWith(null)));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_intListWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,listWith("   ")));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_bigintScalar_writesValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,12345L));
+        assertNotNull(result);
+        assertEquals(12345L, ((Number) result).longValue());
+    }
+
+    @Test
+    public void writeRowTemplate_bigintNullField_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,null));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_bigintEmptyList_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,Collections.emptyList()));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_bigintListWithNullFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,listWith(null)));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_bigintListWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,listWith("   ")));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_float4Scalar_writesValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,1.5f));
+        assertNotNull(result);
+        assertEquals(1.5f, ((Number) result).floatValue(), 1e-6f);
+    }
+
+    @Test
+    public void writeRowTemplate_float4NullField_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,null));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_float4EmptyList_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,Collections.emptyList()));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_float4ListWithNullFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,listWith(null)));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_float4ListWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,listWith("   ")));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_float8ValueMapList_writesFirstElement() throws Exception
+    {
+        Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,listWith(3.14)));
+        assertNotNull(result);
+        assertEquals(3.14, ((Number) result).doubleValue(), 1e-9);
+    }
+
+    @Test
+    public void writeRowTemplate_float8NullField_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,null));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_float8EmptyList_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,Collections.emptyList()));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_float8ListWithNullFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,listWith(null)));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_float8ListWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,listWith("   ")));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_varcharNullField_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, null));
+        assertNull(result);
+    }
+
+    @Test
+    public void writeRowTemplate_varcharSpecialKeyIdNull_doesNotSetValue() throws Exception
+    {
+        Object result = writeAndReadOneRow(varcharSchema(ID), ID, contextWith("ID", null));
+        assertNull(result);
+    }
+    
+    @Test
+    public void writeRowTemplate_caseInsensitiveDisabledString_createsVarCharExtractor()
     {
         setupCaseSensitiveConfig();
         writeTemplateAndVerifyExtractorRegistered(fieldUtf8(MIXED_CASE_FIELD), MIXED_CASE_FIELD);
     }
-
-    @Test(expected = IllegalAccessException.class)
-    public void constructor_WithPrivateAccess_ThrowsIllegalAccessException() throws Exception
-    {
-        CustomSchemaRowWriter.class.getDeclaredConstructor().newInstance();
-    }
-
+    
     @Test
-    public void writeRowTemplate_WithBitExtractorAndBooleanInContext_ExtractsCorrectValue() throws Exception
-    {
-        // BIT branch: fieldValue is Boolean (not ArrayList)
-        testContext.put(BOOL_FIELD, Boolean.TRUE);
-
-        BitExtractor extractor = captureExtractorAfterWrite(fieldBool(BOOL_FIELD), BitExtractor.class, BOOL_FIELD);
-        NullableBitHolder holder = new NullableBitHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(1, holder.value);
-    }
-
-    @Test
-    public void writeRowTemplate_WithBitExtractorAndArrayListInContext_ExtractsCorrectValue() throws Exception
-    {
-        // BIT branch: fieldValue instanceof ArrayList — Gremlin valueMap often wraps in list
-        putListContext(BOOL_FIELD, true);
-
-        BitExtractor extractor = captureExtractorAfterWrite(fieldBool(BOOL_FIELD), BitExtractor.class, BOOL_FIELD);
-        NullableBitHolder holder = new NullableBitHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(1, holder.value);
-    }
-
-    @Test
-    public void writeRowTemplate_WithBitExtractorAndEmptyString_HandlesEmptyValue() throws Exception
-    {
-        putListContext(BOOL_FIELD, SPACES);
-
-        BitExtractor extractor = captureExtractorAfterWrite(fieldBool(BOOL_FIELD), BitExtractor.class, BOOL_FIELD);
-        NullableBitHolder holder = new NullableBitHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(0, holder.isSet);
-    }
-
-    @Test
-    public void writeRowTemplate_WithVarCharExtractorAndSingleValue_ExtractsCorrectValue() throws Exception
-    {
-        putListContext(STRING_FIELD, TEST_VALUE);
-
-        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
-        NullableVarCharHolder holder = new NullableVarCharHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(TEST_VALUE, holder.value);
-    }
-
-    @Test
-    public void writeRowTemplate_WithVarCharExtractorAndMultipleValues_ConcatenatesValues() throws Exception
-    {
-        putListContext(STRING_FIELD, VALUE_1, VALUE_2, VALUE_3);
-
-        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
-        NullableVarCharHolder holder = new NullableVarCharHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(VALUE_1 + SEMICOLON_SEPARATED + VALUE_2 + SEMICOLON_SEPARATED + VALUE_3, holder.value);
-    }
-
-    @Test
-    public void writeRowTemplate_WithVarCharExtractorAndOtherType_ConvertsToString() throws Exception
-    {
-        testContext.put(STRING_FIELD, 123);
-
-        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
-        NullableVarCharHolder holder = new NullableVarCharHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(STRING_123, holder.value);
-    }
-
-    @Test
-    public void writeRowTemplate_WithDateMilliExtractorAndValidDate_ExtractsCorrectValue() throws Exception
-    {
-        Date testDate = new Date();
-        putListContext(DATE_FIELD, testDate);
-
-        DateMilliExtractor extractor = captureExtractorAfterWrite(fieldDateMilli(DATE_FIELD), DateMilliExtractor.class, DATE_FIELD);
-        NullableDateMilliHolder holder = new NullableDateMilliHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(testDate.getTime(), holder.value);
-    }
-
-    @Test
-    public void writeRowTemplate_WithDateMilliExtractorAndEmptyString_HandlesEmptyValue() throws Exception
-    {
-        putListContext(DATE_FIELD, SPACES);
-
-        DateMilliExtractor extractor = captureExtractorAfterWrite(fieldDateMilli(DATE_FIELD), DateMilliExtractor.class, DATE_FIELD);
-        NullableDateMilliHolder holder = new NullableDateMilliHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(0, holder.isSet);
-    }
-
-    @Test
-    public void writeRowTemplate_WithIntExtractorAndValidInteger_ExtractsCorrectValue() throws Exception
-    {
-        putListContext(INT_FIELD, 42);
-
-        IntExtractor extractor = captureExtractorAfterWrite(fieldInt32(INT_FIELD), IntExtractor.class, INT_FIELD);
-        NullableIntHolder holder = new NullableIntHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(42, holder.value);
-    }
-
-    @Test
-    public void writeRowTemplate_WithIntExtractorAndEmptyString_HandlesEmptyValue() throws Exception
-    {
-        putListContext(INT_FIELD, SPACES);
-
-        IntExtractor extractor = captureExtractorAfterWrite(fieldInt32(INT_FIELD), IntExtractor.class, INT_FIELD);
-        NullableIntHolder holder = new NullableIntHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(0, holder.isSet);
-    }
-
-    @Test
-    public void writeRowTemplate_WithBigIntExtractorAndValidLong_ExtractsCorrectValue() throws Exception
-    {
-        putListContext(LONG_FIELD, Long.parseLong(BIG_INT_VALUE));
-
-        BigIntExtractor extractor = captureExtractorAfterWrite(fieldInt64(LONG_FIELD), BigIntExtractor.class, LONG_FIELD);
-        NullableBigIntHolder holder = new NullableBigIntHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(Long.parseLong(BIG_INT_VALUE), holder.value);
-    }
-
-    @Test
-    public void writeRowTemplate_WithBigIntExtractorAndEmptyString_HandlesEmptyValue() throws Exception
-    {
-        putListContext(LONG_FIELD, SPACES);
-
-        BigIntExtractor extractor = captureExtractorAfterWrite(fieldInt64(LONG_FIELD), BigIntExtractor.class, LONG_FIELD);
-        NullableBigIntHolder holder = new NullableBigIntHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(0, holder.isSet);
-    }
-
-    @Test
-    public void writeRowTemplate_WithFloat4ExtractorAndValidFloat_ExtractsCorrectValue() throws Exception
-    {
-        putListContext(FLOAT_FIELD, Float.parseFloat(FLOAT_VALUE_3_14));
-
-        Float4Extractor extractor = captureExtractorAfterWrite(fieldFloat4(FLOAT_FIELD), Float4Extractor.class, FLOAT_FIELD);
-        NullableFloat4Holder holder = new NullableFloat4Holder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(Float.parseFloat(FLOAT_VALUE_3_14), holder.value, 0.001f);
-    }
-
-    @Test
-    public void writeRowTemplate_WithFloat4ExtractorAndEmptyString_HandlesEmptyValue() throws Exception
-    {
-        putListContext(FLOAT_FIELD, SPACES);
-
-        Float4Extractor extractor = captureExtractorAfterWrite(fieldFloat4(FLOAT_FIELD), Float4Extractor.class, FLOAT_FIELD);
-        NullableFloat4Holder holder = new NullableFloat4Holder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(0, holder.isSet);
-    }
-
-    @Test
-    public void writeRowTemplate_WithFloat8ExtractorAndValidDouble_ExtractsCorrectValue() throws Exception
-    {
-        putListContext(DOUBLE_FIELD, Double.parseDouble(DOUBLE_VALUE_2_718));
-
-        Float8Extractor extractor = captureExtractorAfterWrite(fieldFloat8(DOUBLE_FIELD), Float8Extractor.class, DOUBLE_FIELD);
-        NullableFloat8Holder holder = new NullableFloat8Holder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(Double.parseDouble(DOUBLE_VALUE_2_718), holder.value, 0.000001);
-    }
-
-    @Test
-    public void writeRowTemplate_WithFloat8ExtractorAndEmptyString_HandlesEmptyValue() throws Exception
-    {
-        putListContext(DOUBLE_FIELD, SPACES);
-
-        Float8Extractor extractor = captureExtractorAfterWrite(fieldFloat8(DOUBLE_FIELD), Float8Extractor.class, DOUBLE_FIELD);
-        NullableFloat8Holder holder = new NullableFloat8Holder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(0, holder.isSet);
-    }
-
-    @Test
-    public void writeRowTemplate_WithVarCharExtractorAndNullValue_HandlesNullValue() throws Exception
-    {
-        testContext.put(STRING_FIELD, null);
-
-        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
-        NullableVarCharHolder holder = new NullableVarCharHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(0, holder.isSet);
-    }
-
-    @Test
-    public void writeRowTemplate_WithVarCharExtractorAndEmptyString_HandlesEmptyString() throws Exception
-    {
-        testContext.put(STRING_FIELD, EMPTY_STRING);
-
-        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
-        NullableVarCharHolder holder = new NullableVarCharHolder();
-        extractor.extract(testContext, holder);
-
-        assertEquals(1, holder.isSet);
-        assertEquals(EMPTY_STRING, holder.value);
-    }
-
-    private void setupCaseSensitiveConfig()
-    {
-        configOptions.put(Constants.SCHEMA_CASE_INSEN, CASE_INSENSITIVE_FALSE);
-    }
-
-    @Test
-    public void writeRowTemplate_WithDefaultCaseInsensitiveAndUtf8Type_ResolvesMixedCaseKey() throws Exception
+    public void writeRowTemplate_defaultCaseInsensitiveUtf8_resolvesMixedCaseKey() throws Exception
     {
         configOptions.clear();
         final String mixedCase = "MIXEDCASE";
         final String mixedCaseLower = "mixedcase";
         final String mixedCaseValue = "Mixed Case Value";
         testContext.put(mixedCaseLower, mixedCaseValue);
-
+        
         VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(mixedCase), VarCharExtractor.class, mixedCase);
         NullableVarCharHolder holder = new NullableVarCharHolder();
         extractor.extract(testContext, holder);
         assertEquals(1, holder.isSet);
         assertEquals(mixedCaseValue, holder.value);
     }
-
+    
+    @Test(expected = IllegalAccessException.class)
+    public void constructor_privateAccess_throwsIllegalAccessException() throws Exception
+    {
+        CustomSchemaRowWriter.class.getDeclaredConstructor().newInstance();
+    }
+    
     @Test
-    public void writeRowTemplate_WithDateMilliExtractorAndEmptyStringInContext_HandlesUnset() throws Exception
+    public void writeRowTemplate_idField_createsVarCharExtractor()
+    {
+        writeTemplateAndVerifyExtractorRegistered(fieldUtf8(ID), ID);
+    }
+    
+    @Test
+    public void writeRowTemplate_varcharOtherType_convertsToString() throws Exception
+    {
+        testContext.put(STRING_FIELD, 123);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(testContext, holder);
+        
+        assertEquals(1, holder.isSet);
+        assertEquals(STRING_123, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_varcharEmptyString_setsEmptyValue() throws Exception
+    {
+        testContext.put(STRING_FIELD, EMPTY_STRING);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(testContext, holder);
+        
+        assertEquals(1, holder.isSet);
+        assertEquals(EMPTY_STRING, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_datemilliEmptyString_doesNotSetValue() throws Exception
     {
         final String emptyDateField = "emptyDate";
         testContext.put(emptyDateField, EMPTY_STRING);
-
+        
         DateMilliExtractor extractor = captureExtractorAfterWrite(fieldDateMilli(emptyDateField), DateMilliExtractor.class, emptyDateField);
         NullableDateMilliHolder holder = new NullableDateMilliHolder();
         extractor.extract(testContext, holder);
         assertEquals(0, holder.isSet);
     }
-
+    
     private void writeRowTemplate(Field field)
     {
         CustomSchemaRowWriter.writeRowTemplate(mockBuilder, field, configOptions);
     }
-
+    
     private void writeTemplateAndVerifyExtractorRegistered(Field field, String expectedFieldName)
     {
         writeRowTemplate(field);
         verify(mockBuilder).withExtractor(eq(expectedFieldName), any());
     }
-
-    private Field fieldBool(String name)
-    {
-        return new Field(name, FieldType.nullable(new ArrowType.Bool()), Collections.emptyList());
-    }
-
+    
     private Field fieldUtf8(String name)
     {
         return new Field(name, FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList());
     }
-
+    
     private Field fieldDateMilli(String name)
     {
         return new Field(name, FieldType.nullable(new ArrowType.Date(DateUnit.MILLISECOND)), Collections.emptyList());
     }
-
-    private Field fieldInt32(String name)
+    
+    private void setupCaseSensitiveConfig()
     {
-        return new Field(name, FieldType.nullable(new ArrowType.Int(32, true)), Collections.emptyList());
+        configOptions.put(Constants.SCHEMA_CASE_INSEN, CASE_INSENSITIVE_FALSE);
     }
-
-    private Field fieldInt64(String name)
-    {
-        return new Field(name, FieldType.nullable(new ArrowType.Int(64, true)), Collections.emptyList());
-    }
-
-    private Field fieldFloat4(String name)
-    {
-        return new Field(name, FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), Collections.emptyList());
-    }
-
-    private Field fieldFloat8(String name)
-    {
-        return new Field(name, FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), Collections.emptyList());
-    }
-
-    private void putListContext(String fieldName, Object... elements)
-    {
-        testContext.put(fieldName, new ArrayList<>(Arrays.asList(elements)));
-    }
-
+    
+    
     private <E extends Extractor> E captureExtractorAfterWrite(Field field, Class<E> extractorType, String verifyFieldName)
     {
         writeRowTemplate(field);
         ArgumentCaptor<E> captor = ArgumentCaptor.forClass(extractorType);
         verify(mockBuilder).withExtractor(eq(verifyFieldName), captor.capture());
         return captor.getValue();
+    }
+    
+    private static Map<String, Object> contextWith(String fieldName, Object value)
+    {
+        Map<String, Object> context = new HashMap<>();
+        context.put(fieldName, value);
+        return context;
+    }
+
+    private static List<Object> listWith(Object... elements)
+    {
+        if (elements == null) {
+            return Collections.singletonList(null);
+        }
+        List<Object> list = new ArrayList<>();
+        Collections.addAll(list, elements);
+        return list;
+    }
+
+    private static Schema bitSchema()
+    {
+        return SchemaBuilder.newBuilder().addBitField(FLAG).build();
+    }
+
+    private static Schema datemilliSchema()
+    {
+        return SchemaBuilder.newBuilder().addDateMilliField(TIMESTAMP).build();
+    }
+
+    private static Schema intSchema()
+    {
+        return SchemaBuilder.newBuilder().addIntField(NUMBER_FIELD).build();
+    }
+
+    private static Schema bigintSchema()
+    {
+        return SchemaBuilder.newBuilder().addBigIntField(BIG_INT_FIELD).build();
+    }
+
+    private static Schema float4Schema()
+    {
+        return SchemaBuilder.newBuilder().addFloat4Field(FLOAT_FIELD).build();
+    }
+
+    private static Schema float8Schema()
+    {
+        return SchemaBuilder.newBuilder().addFloat8Field(DOUBLE_FIELD).build();
+    }
+
+    private static Schema varcharSchema(String fieldName)
+    {
+        return SchemaBuilder.newBuilder().addStringField(fieldName).build();
     }
 }

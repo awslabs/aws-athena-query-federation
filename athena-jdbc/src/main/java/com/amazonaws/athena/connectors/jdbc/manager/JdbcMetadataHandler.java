@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -47,8 +45,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
-import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
-import com.amazonaws.athena.connectors.jdbc.splits.SplitterFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -56,10 +52,10 @@ import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -71,11 +67,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -87,14 +82,12 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
  */
 public abstract class JdbcMetadataHandler
         extends MetadataHandler
+        implements AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
-    private static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s;";
-    private static final int DEFAULT_NUM_SPLITS = 20;
     public static final String TABLES_AND_VIEWS = "Tables and Views";
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
-    private final SplitterFactory splitterFactory = new SplitterFactory();
     protected final JDBCCaseResolver caseResolver;
     protected JdbcQueryPassthrough jdbcQueryPassthrough = new JdbcQueryPassthrough();
 
@@ -173,14 +166,13 @@ public abstract class JdbcMetadataHandler
         return databaseConnectionConfig;
     }
 
-    protected CredentialsProvider getCredentialProvider()
+    @Override
+    public String getDatabaseConnectionSecret()
     {
-        final String secretName = databaseConnectionConfig.getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            LOGGER.info("Using Secrets Manager.");
-            return new DefaultCredentialsProvider(getSecret(secretName));
+        DatabaseConnectionConfig databaseConnectionConfig = getDatabaseConnectionConfig();
+        if (Objects.nonNull(databaseConnectionConfig)) {
+            return databaseConnectionConfig.getSecret();
         }
-
         return null;
     }
 
@@ -188,7 +180,7 @@ public abstract class JdbcMetadataHandler
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
             throws Exception
     {
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(listSchemasRequest)))) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
         }
@@ -217,7 +209,7 @@ public abstract class JdbcMetadataHandler
     public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
             throws Exception
     {
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(listTablesRequest)))) {
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
                     listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
 
@@ -302,7 +294,9 @@ public abstract class JdbcMetadataHandler
             throws Exception
     {
         LOGGER.debug("doGetTable getTableName:{}", getTableRequest.getTableName());
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        AwsRequestOverrideConfiguration requestOverrideConfig = getRequestOverrideConfig(getTableRequest);
+
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(requestOverrideConfig))) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             TableName adjustedTableNameObject = caseResolver.getAdjustedTableNameObject(connection,
                     new TableName(getTableRequest.getTableName().getSchemaName(), getTableRequest.getTableName().getTableName()),
@@ -310,7 +304,7 @@ public abstract class JdbcMetadataHandler
 
             return new GetTableResponse(getTableRequest.getCatalogName(),
                     adjustedTableNameObject,
-                    getSchema(connection, adjustedTableNameObject, partitionSchema),
+                    getSchema(connection, adjustedTableNameObject, partitionSchema, requestOverrideConfig),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
     }
@@ -327,7 +321,7 @@ public abstract class JdbcMetadataHandler
         jdbcQueryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
         String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableRequest)))) {
             PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
             ResultSetMetaData metadata = preparedStatement.getMetaData();
             if (metadata == null) {
@@ -391,7 +385,17 @@ public abstract class JdbcMetadataHandler
                 configOptions);
     }
 
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    /**
+     * Gets the schema for a table with optional request override configuration.
+     *
+     * @param jdbcConnection the JDBC connection
+     * @param tableName the table name
+     * @param partitionSchema the partition schema
+     * @param requestOverrideConfiguration optional AWS request override configuration for credential federation
+     * @return the schema
+     * @throws Exception if an error occurs
+     */
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -467,40 +471,6 @@ public abstract class JdbcMetadataHandler
     @Override
     public abstract GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest);
 
-    protected List<String> getSplitClauses(final TableName tableName)
-    {
-        List<String> splitClauses = new ArrayList<>();
-        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-                ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
-            List<String> primaryKeyColumns = new ArrayList<>();
-            while (resultSet.next()) {
-                primaryKeyColumns.add(resultSet.getString("COLUMN_NAME"));
-            }
-            if (!primaryKeyColumns.isEmpty()) {
-                try (Statement statement = jdbcConnection.createStatement();
-                        ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
-                                wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
-                    minMaxResultSet.next(); // expecting one result row
-                    Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
-
-                    if (optionalSplitter.isPresent()) {
-                        Splitter splitter = optionalSplitter.get();
-                        while (splitter.hasNext()) {
-                            String splitClause = splitter.nextRangeClause();
-                            LOGGER.info("Split generated {}", splitClause);
-                            splitClauses.add(splitClause);
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex) {
-            LOGGER.warn("Unable to split data.", ex);
-        }
-
-        return splitClauses;
-    }
-
     /**
      * Converts an ARRAY column's TYPE_NAME (provided by the jdbc metadata) to an ArrowType.
      * @param typeName The column's TYPE_NAME (e.g. _int4, _text, _float8, etc...)
@@ -526,7 +496,7 @@ public abstract class JdbcMetadataHandler
         //Since this is QPT query we return a fixed split.
         Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
         return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(request)))
                         .applyProperties(qptArguments)
                         .build());
     }
@@ -534,5 +504,19 @@ public abstract class JdbcMetadataHandler
     protected String wrapNameWithEscapedCharacter(String input)
     {
         return input;
+    }
+
+    /**
+     * Closes the underlying {@link JdbcConnectionFactory}, releasing any pooled connections
+     * and their associated background threads. Callers that create handler instances per-request
+     * (e.g., multi-tenant wrappers) should call this method when the handler is no longer needed
+     * to prevent thread and memory leaks from unreleased connection pools.
+     */
+    @Override
+    public void close() throws Exception
+    {
+        if (jdbcConnectionFactory != null) {
+            jdbcConnectionFactory.close();
+        }
     }
 }

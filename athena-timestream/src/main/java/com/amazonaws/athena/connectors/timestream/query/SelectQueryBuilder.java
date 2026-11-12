@@ -63,7 +63,9 @@ public class SelectQueryBuilder
 
     public SelectQueryBuilder withProjection(Schema schema)
     {
-        this.projection = schema.getFields().stream().map(next -> next.getName()).collect(Collectors.toList());
+        this.projection = schema.getFields().stream()
+                .map(field -> PredicateBuilder.quoteColumn(field.getName()))
+                .collect(Collectors.toList());
         this.viewText = schema.getCustomMetadata().get(viewTextPropertyName);
         return this;
     }
@@ -83,21 +85,21 @@ public class SelectQueryBuilder
         this.conjucts = PredicateBuilder.buildConjucts(constraints);
         return this;
     }
-
-    public String getTableName()
+    
+    public String getQuotedDatabaseName()
     {
-        return tableName;
+        return PredicateBuilder.quoteColumn(databaseName);
+    }
+    
+    public String getQuotedTableName()
+    {
+        return PredicateBuilder.quoteColumn(tableName);
     }
 
     public SelectQueryBuilder withTableName(String tableName)
     {
         this.tableName = tableName;
         return this;
-    }
-
-    public String getDatabaseName()
-    {
-        return databaseName;
     }
 
     public SelectQueryBuilder withDatabaseName(String databaseName)
@@ -108,7 +110,7 @@ public class SelectQueryBuilder
 
     public String build()
     {
-        Validate.notNull(databaseName, "tableName can not be null.");
+        Validate.notNull(databaseName, "databaseName can not be null.");
         Validate.notNull(tableName, "tableName can not be null.");
         Validate.notNull(projection, "projection can not be null.");
         Validate.notEmpty(projection, "projection can not be empty.");

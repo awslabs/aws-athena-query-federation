@@ -39,29 +39,32 @@ public class ClouderaHiveEnvironmentProperties extends JdbcEnvironmentProperties
     @Override
     protected String getJdbcParameters(Map<String, String> connectionProperties)
     {
-        String params = ";" + connectionProperties.getOrDefault(SESSION_CONFS, "");
+        StringBuilder params = new StringBuilder();
 
-        if (connectionProperties.containsKey(HIVE_CONFS)) {
-            if (connectionProperties.containsKey(SESSION_CONFS)) {
-                params = params + ";";
-            }
-            params = params + connectionProperties.get(HIVE_CONFS);
+        // Add SESSION_CONFS if present
+        if (connectionProperties.containsKey(SESSION_CONFS) && 
+            !connectionProperties.get(SESSION_CONFS).trim().isEmpty()) {
+            params.append(";").append(connectionProperties.get(SESSION_CONFS));
         }
 
-        if (connectionProperties.containsKey(HIVE_VARS)) {
-            if (connectionProperties.containsKey(HIVE_CONFS)) {
-                params = params + ";";
-            }
-            params = params + connectionProperties.get(HIVE_VARS);
+        // Add HIVE_CONFS if present
+        if (connectionProperties.containsKey(HIVE_CONFS) && 
+            !connectionProperties.get(HIVE_CONFS).trim().isEmpty()) {
+            params.append(";").append(connectionProperties.get(HIVE_CONFS));
         }
 
-        if (connectionProperties.containsKey(SECRET_NAME)) {
-            if (connectionProperties.containsKey(HIVE_VARS)) { // need to add delimiter
-                params = params + ";";
-            }
-            params = params + "${" + connectionProperties.get(SECRET_NAME) + "}";
+        // Add HIVE_VARS if present
+        if (connectionProperties.containsKey(HIVE_VARS) && 
+            !connectionProperties.get(HIVE_VARS).trim().isEmpty()) {
+            params.append(";").append(connectionProperties.get(HIVE_VARS));
         }
 
-        return params;
+        // Add SECRET_NAME if present
+        if (connectionProperties.containsKey(SECRET_NAME) && 
+            !connectionProperties.get(SECRET_NAME).trim().isEmpty()) {
+            params.append(";").append("${").append(connectionProperties.get(SECRET_NAME)).append("}");
+        }
+
+        return params.toString();
     }
 }

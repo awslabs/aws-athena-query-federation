@@ -68,7 +68,7 @@ public class SaphanaMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint()
+    public void readWithConstraint_withSaphanaCatalog_invokesDelegateToWriteRecords()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -79,7 +79,7 @@ public class SaphanaMuxJdbcRecordHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void readWithConstraintWithUnsupportedCatalog()
+    public void readWithConstraint_withUnsupportedCatalog_throwsRuntimeException()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -89,7 +89,7 @@ public class SaphanaMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql()
+    public void buildSplitSql_withSaphanaCatalog_returnsPreparedStatement()
             throws SQLException
     {
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -101,5 +101,17 @@ public class SaphanaMuxJdbcRecordHandlerTest
         Split split = Mockito.mock(Split.class);
         this.jdbcRecordHandler.buildSplitSql(jdbcConnection, "saphana", tableName, schema, constraints, split);
         Mockito.verify(this.saphanaRecordHandler, Mockito.times(1)).buildSplitSql(Mockito.eq(jdbcConnection), Mockito.eq("saphana"), Mockito.eq(tableName), Mockito.eq(schema), Mockito.eq(constraints), Mockito.eq(split));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void buildSplitSql_withUnsupportedCatalog_throwsRuntimeException()
+            throws SQLException
+    {
+        Connection jdbcConnection = Mockito.mock(Connection.class);
+        TableName tableName = new TableName("testSchema", "tableName");
+        Schema schema = Mockito.mock(Schema.class);
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Split split = Mockito.mock(Split.class);
+        this.jdbcRecordHandler.buildSplitSql(jdbcConnection, "unsupportedCatalog", tableName, schema, constraints, split);
     }
 }

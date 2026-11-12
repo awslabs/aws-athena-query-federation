@@ -128,7 +128,9 @@ public class BlockAllocatorImpl
         List<FieldVector> vectors = new ArrayList();
         try {
             for (Field next : schema.getFields()) {
-                vectors.add(next.createVector(rootAllocator));
+                FieldVector vector = next.createVector(rootAllocator);
+                vector.allocateNew();
+                vectors.add(vector);
             }
             vectorSchemaRoot = new VectorSchemaRoot(schema, vectors, 0);
             block = new Block(id, schema, vectorSchemaRoot);

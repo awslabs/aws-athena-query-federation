@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.kms.model.KmsException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -145,25 +146,30 @@ public class CompositeHandler
     public final void handleRequest(BlockAllocator allocator, FederationRequest rawReq, OutputStream outputStream, ObjectMapper objectMapper)
             throws Exception
     {
-        if (rawReq instanceof PingRequest) {
-            try (PingResponse response = metadataHandler.doPing((PingRequest) rawReq)) {
-                assertNotNull(response);
-                objectMapper.writeValue(outputStream, response);
+        try {
+            if (rawReq instanceof PingRequest) {
+                try (PingResponse response = metadataHandler.doPing((PingRequest) rawReq)) {
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
+                }
+                return;
             }
-            return;
-        }
 
-        if (rawReq instanceof MetadataRequest) {
-            metadataHandler.doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
+            if (rawReq instanceof MetadataRequest) {
+                metadataHandler.doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
+            }
+            else if (rawReq instanceof RecordRequest) {
+                recordHandler.doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
+            }
+            else if (udfhandler != null && rawReq instanceof UserDefinedFunctionRequest) {
+                udfhandler.doHandleRequest(allocator, objectMapper, (UserDefinedFunctionRequest) rawReq, outputStream);
+            }
+            else {
+                throw new AthenaConnectorException("Unknown request class " + rawReq.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+            }
         }
-        else if (rawReq instanceof RecordRequest) {
-            recordHandler.doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
-        }
-        else if (udfhandler != null && rawReq instanceof UserDefinedFunctionRequest) {
-            udfhandler.doHandleRequest(allocator, objectMapper, (UserDefinedFunctionRequest) rawReq, outputStream);
-        }
-        else {
-            throw new AthenaConnectorException("Unknown request class " + rawReq.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        catch (Exception ex) {
+            throw handleException(ex);
         }
     }
 
@@ -174,6 +180,70 @@ public class CompositeHandler
     {
         if (response == null) {
             throw new AthenaConnectorException("Response was null", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString()).build());
+        }
+    }
+
+    public Exception handleException(Exception e)
+    {
+        if (e instanceof KmsException) {
+            return new AthenaConnectorException(e.getMessage(),
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+        return e;
+    }
+
+    /**
+     * Maps HTTP error codes to appropriate FederationSourceErrorCode.
+     *
+     * @param errorCode HTTP status code
+     * @return Appropriate FederationSourceErrorCode
+     */
+    public static FederationSourceErrorCode mapHTTPErrorCode(int errorCode)
+    {
+        switch (errorCode) {
+            case 400:
+                // Bad Request - invalid query syntax, invalid schema, etc.
+                return FederationSourceErrorCode.INVALID_INPUT_EXCEPTION;
+
+            case 401:
+                // Unauthorized - authentication failed
+                return FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION;
+
+            case 403:
+                // Forbidden - permission denied
+                return FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION;
+
+            case 404:
+                // Not Found - dataset, table, or project doesn't exist
+                return FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION;
+
+            case 408:
+            case 504:
+                // Request Timeout or Gateway Timeout
+                return FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION;
+
+            case 409:
+                // Conflict - resource already exists or operation conflict
+                return FederationSourceErrorCode.INVALID_INPUT_EXCEPTION;
+
+            case 429:
+                // Too Many Requests - rate limiting
+                return FederationSourceErrorCode.THROTTLING_EXCEPTION;
+
+            case 500:
+            case 502:
+            case 503:
+                // Internal Server Error, Bad Gateway, Service Unavailable
+                return FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION;
+
+            case 501:
+                // Not Implemented - operation not supported
+                return FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION;
+
+            default:
+                // Default to invalid input for unknown error codes
+                logger.warn("Unknown error code: {}", errorCode);
+                return FederationSourceErrorCode.INVALID_INPUT_EXCEPTION;
         }
     }
 }

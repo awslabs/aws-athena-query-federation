@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
+import org.apache.calcite.sql.SqlDialect;
 
 import java.util.Collections;
 import java.util.List;
@@ -100,5 +101,17 @@ public class MySqlQueryStringBuilder
                     throw new UnsupportedOperationException("Unsupported sort order: " + orderByField.getDirection());
                 })
                 .collect(Collectors.joining(", "));
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+        return MysqlSqlDialect.DEFAULT;
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect(boolean catalogCasingFilterUpperCase)
+    {
+        return new MysqlSqlDialect(catalogCasingFilterUpperCase);
     }
 }

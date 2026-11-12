@@ -57,14 +57,14 @@ public class DescribeTableQueryBuilder
         return this;
     }
 
-    public String getDatabaseName()
+    public String getQuotedDatabaseName()
     {
-        return databaseName;
+        return PredicateBuilder.quoteColumn(databaseName);
     }
 
-    public String getTableName()
+    public String getQuotedTableName()
     {
-        return tableName;
+        return PredicateBuilder.quoteColumn(tableName);
     }
 
     public String build()

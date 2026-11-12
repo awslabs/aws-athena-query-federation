@@ -19,17 +19,12 @@
  */
 package com.amazonaws.athena.connectors.tpcds.mock.pagination;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -38,12 +33,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
@@ -62,7 +54,6 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
-import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.*;
 import static org.junit.Assert.*;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -82,7 +73,6 @@ public class TPCDSMockMetadataHandlerTest
 
     @Before
     public void setUp()
-            throws Exception
     {
         handler = new TPCDSMockMetadataHandler(new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
@@ -90,13 +80,12 @@ public class TPCDSMockMetadataHandlerTest
 
     @After
     public void tearDown()
-            throws Exception
     {
         allocator.close();
     }
 
     @Test
-    public void doListSchemaNames()
+    public void doListSchemaNames_WithCatalogName_ReturnsAllSchemaNames()
     {
         logger.info("doListSchemas - enter");
 
@@ -108,7 +97,7 @@ public class TPCDSMockMetadataHandlerTest
     }
 
     @Test
-    public void doListTablesNoPagination()
+    public void doListTables_WithUnlimitedPageSize_ReturnsAllTables()
     {
         logger.info("doListTables - enter");
 
@@ -125,7 +114,7 @@ public class TPCDSMockMetadataHandlerTest
     }
 
     @Test
-    public void doListTablesWithPagination()
+    public void doListTables_WithPageTokenAndPageSize_ReturnsPaginatedTables()
     {
         logger.info("doListTables - enter");
         // iteration 1, [0,10)
@@ -164,7 +153,7 @@ public class TPCDSMockMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_WithCatalogSchemaAndTableName_ReturnsTableSchema()
     {
         logger.info("doGetTable - enter");
         String expectedSchema = "tpcds1";
@@ -184,7 +173,7 @@ public class TPCDSMockMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableOnMockTable()
+    public void doGetTable_WithMockTableName_ReturnsMockTableSchema()
     {
         logger.info("doGetTableMockTable - enter");
         String expectedSchema = "tpcds1";
@@ -212,7 +201,7 @@ public class TPCDSMockMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_WithCatalogAndTable_ReturnsSinglePartition()
             throws Exception
     {
         logger.info("doGetTableLayout - enter");
@@ -237,5 +226,23 @@ public class TPCDSMockMetadataHandlerTest
         assertTrue(res.getPartitions().getRowCount() == 1);
 
         logger.info("doGetTableLayout - exit");
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetTable_WithNonexistentTableName_ThrowsRuntimeException()
+    {
+        GetTableRequest req = new GetTableRequest(identity,
+                "queryId",
+                "default",
+                new TableName("tpcds1", "nonexistent_table"), Collections.emptyMap());
+        handler.doGetTable(allocator, req);
+    }
+
+    @Test(expected = NumberFormatException.class)
+    public void doListTables_WithNonNumericNextToken_ThrowsNumberFormatException()
+    {
+        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default",
+                "tpcds1", "not_a_number", 10);
+        handler.doListTables(allocator, req);
     }
 }

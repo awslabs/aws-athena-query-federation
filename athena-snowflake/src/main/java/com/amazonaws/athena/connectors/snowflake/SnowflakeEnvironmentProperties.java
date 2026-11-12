@@ -43,14 +43,7 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
     private static final String DB_PROPERTY_KEY = "db";
     private static final String SCHEMA_PROPERTY_KEY = "schema";
     private static final String SNOWFLAKE_ESCAPE_CHARACTER = "\"";
-    public static final String ENABLE_S3_EXPORT = "SNOWFLAKE_ENABLE_S3_EXPORT";
-
-    private final boolean enableS3Export;
-
-    public SnowflakeEnvironmentProperties(Map<String, String> properties)
-    {
-        this.enableS3Export = Boolean.parseBoolean(properties.getOrDefault(ENABLE_S3_EXPORT, "false"));
-    }
+    private static final String NULL_LITERAL = "null";
 
     @Override
     public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
@@ -66,13 +59,22 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
         StringBuilder connectionStringBuilder = new StringBuilder(getConnectionStringPrefix(connectionProperties));
         connectionStringBuilder.append(connectionProperties.get(HOST));
         if (connectionProperties.containsKey(PORT)) {
-            connectionStringBuilder
-                    .append(":")
-                    .append(connectionProperties.get(PORT));
+            String portValue = connectionProperties.get(PORT);
+            if (portValue != null) {
+                portValue = portValue.trim();
+            }
+            if (isValidPort(portValue)) {
+                connectionStringBuilder
+                        .append(":")
+                        .append(portValue);
+            }
+            else {
+                LOGGER.warn("Invalid port value '{}' provided, skipping port in connection string", connectionProperties.get(PORT));
+            }
         }
 
         String jdbcParametersString = getJdbcParameters(connectionProperties);
-        if (!Strings.isNullOrEmpty(jdbcParametersString)) {
+        if (!Strings.isNullOrEmpty(jdbcParametersString) && !jdbcParametersString.equals(getJdbcParametersSeparator())) {
             LOGGER.info("JDBC parameters found, adding to JDBC String");
             connectionStringBuilder.append(getSnowflakeJDBCParameterPrefix()).append(getJdbcParameters(connectionProperties));
         }
@@ -89,6 +91,7 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
 
     /**
      * For Snowflake, we don't put warehouse, database or schema information to the JDBC String to avoid casing issues.
+     *
      * @param connectionProperties
      * @return
      */
@@ -109,9 +112,47 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
         return "/?";
     }
 
+    /**
+     * Validates if the port value is a valid port number (1-65535).
+     *
+     * @param portValue the port value to validate
+     * @return true if the port is valid, false otherwise
+     */
+    private boolean isValidPort(String portValue)
+    {
+        if (Strings.isNullOrEmpty(portValue)) {
+            return false;
+        }
+
+        try {
+            int port = Integer.parseInt(portValue.trim());
+            return port > 0;
+        }
+        catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
     private static String getValueWrapperWithEscapedCharacter(String input)
     {
         return SNOWFLAKE_ESCAPE_CHARACTER + input + SNOWFLAKE_ESCAPE_CHARACTER;
+    }
+
+    /**
+     * Returns true when a Glue connection value is safe to forward to the Snowflake driver.
+     * <p>
+     * Blank values, and the literal string {@code "null"} that upstream config sometimes
+     * supplies for an unset field, must not be forwarded. Quoting them produces a
+     * case-sensitive identifier such as {@code warehouse="null"} that Snowflake resolves to
+     * a non-existent object, so the session opens with no active warehouse and every
+     * subsequent query fails with {@code No active warehouse selected in the current session}.
+     * Omitting the parameter instead lets Snowflake apply the user's default.
+     */
+    private static boolean isUsableValue(String value)
+    {
+        return !Strings.isNullOrEmpty(value)
+                && !value.trim().isEmpty()
+                && !NULL_LITERAL.equalsIgnoreCase(value.trim());
     }
 
     private static boolean isGlueConnection(Map<String, String> properties)
@@ -132,19 +173,33 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
             logger.debug("No schema specified in connection string");
         }
 
-        parameters.put(WAREHOUSE_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(connectionProperties.get(WAREHOUSE)));
-        parameters.put(DB_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(connectionProperties.get(DATABASE)));
+        String warehouse = connectionProperties.get(WAREHOUSE);
+        if (isUsableValue(warehouse)) {
+            parameters.put(WAREHOUSE_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(warehouse));
+        }
+        else if (warehouse != null) {
+            logger.warn("Ignoring unusable warehouse value; the session will fall back to the user's default warehouse");
+        }
+
+        String database = connectionProperties.get(DATABASE);
+        if (isUsableValue(database)) {
+            parameters.put(DB_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(database));
+        }
+        else if (database != null) {
+            logger.warn("Ignoring unusable database value; the session will fall back to the user's default database");
+        }
 
         if (connectionProperties.containsKey(SCHEMA)) {
-            logger.debug("Found schema specified");
-            parameters.put(SCHEMA_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(connectionProperties.get(SCHEMA)));
+            String schema = connectionProperties.get(SCHEMA);
+            if (isUsableValue(schema)) {
+                logger.debug("Found schema specified");
+                parameters.put(SCHEMA_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(schema));
+            }
+            else if (schema != null) {
+                logger.warn("Ignoring unusable schema value; the session will fall back to the user's default schema");
+            }
         }
 
         return parameters;
-    }
-
-    public boolean isS3ExportEnabled()
-    {
-        return enableS3Export;
     }
 }

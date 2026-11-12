@@ -81,6 +81,17 @@ public class AthenaConnectorException extends RuntimeException
         requireNonNull(e);
     }
 
+    public AthenaConnectorException(@Nonnull final String message,
+                                    @Nonnull final Exception e,
+                                    @Nonnull final ErrorDetails errorDetails)
+    {
+        super(message, e);
+        this.errorDetails = requireNonNull(errorDetails);
+        this.response = null;
+        requireNonNull(message);
+        requireNonNull(e);
+    }
+
     public Object getResponse()
     {
         return response;

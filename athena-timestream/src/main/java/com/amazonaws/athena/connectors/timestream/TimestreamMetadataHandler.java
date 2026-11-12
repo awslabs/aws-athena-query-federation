@@ -325,7 +325,7 @@ public class TimestreamMetadataHandler
         List<ColumnInfo> columnInfo = queryResult.columnInfo();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         for (ColumnInfo column : columnInfo) {
-            Field nextField = TimestreamSchemaUtils.makeField(column.name(), column.type().scalarTypeAsString().toLowerCase());
+            Field nextField = TimestreamSchemaUtils.makeFieldFromColumnInfo(column);
             schemaBuilder.addField(nextField);
         }
 

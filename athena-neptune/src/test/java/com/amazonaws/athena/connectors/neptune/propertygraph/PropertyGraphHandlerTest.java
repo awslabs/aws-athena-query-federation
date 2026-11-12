@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -39,6 +39,7 @@ import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -66,9 +67,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class PropertyGraphHandlerTest
 {
+    private GraphTraversalSource g;
     private static final String VERTEX_TYPE = "VERTEX";
     private static final String EDGE_TYPE = "EDGE";
     private static final String VIEW_TYPE = "VIEW";
@@ -117,6 +122,7 @@ public class PropertyGraphHandlerTest
     public void setUp()
     {
         mocks = MockitoAnnotations.openMocks(this);
+        g = traversal().withEmbedded(TinkerFactory.createModern());
         handler = new PropertyGraphHandler(neptuneConnection);
 
         // Setup common mocks
@@ -158,6 +164,9 @@ public class PropertyGraphHandlerTest
     @After
     public void tearDown() throws Exception
     {
+        if (g != null) {
+            g.getGraph().close();
+        }
         if (mocks != null) {
             mocks.close();
         }
@@ -326,39 +335,77 @@ public class PropertyGraphHandlerTest
     }
 
     @Test
+    public void getResponseFromGremlinQuery_validValueMap_returnsTraversal() throws ScriptException
+    {
+        Object result = handler.getResponseFromGremlinQuery(g, "g.V().hasLabel('person').valueMap().limit(5)");
+        assertNotNull(result);
+        assertTrue(result instanceof GraphTraversal);
+    }
+
+    @Test
+    public void getResponseFromGremlinQuery_validElementMap_returnsTraversal() throws ScriptException
+    {
+        Object result = handler.getResponseFromGremlinQuery(g, "g.V().hasLabel('person').elementMap().limit(5)");
+        assertNotNull(result);
+        assertTrue(result instanceof GraphTraversal);
+    }
+
+    @Test
+    public void getResponseFromGremlinQuery_validProjectByValues_returnsTraversal() throws ScriptException
+    {
+        Object result = handler.getResponseFromGremlinQuery(g,
+                "g.V().hasLabel('person').project('name').by(values('name')).limit(5)");
+        assertNotNull(result);
+        assertTrue(result instanceof GraphTraversal);
+    }
+
+    @Test(expected = ScriptException.class)
+    public void getResponseFromGremlinQuery_nonGremlinThrow_throwsScriptException() throws ScriptException
+    {
+        handler.getResponseFromGremlinQuery(g,
+                "throw new RuntimeException('INVALID_GREMLIN'); g.V().valueMap()");
+    }
+
+    @Test(expected = ScriptException.class)
+    public void getResponseFromGremlinQuery_nonGremlinSystemCall_throwsScriptException() throws ScriptException
+    {
+        handler.getResponseFromGremlinQuery(g, "System.err.println('x'); g.V().valueMap()");
+    }
+    
+    @Test
     public void getResponseFromGremlinQuery_WithValidQuery_ExecutesQuery() throws Exception
     {
         when(graphTraversalSource.V()).thenReturn(graphTraversal);
         when(graphTraversal.count()).thenReturn(graphTraversal);
         when(graphTraversal.next()).thenReturn(42L);
-
+        
         handler.getResponseFromGremlinQuery(graphTraversalSource, GREMLIN_QUERY);
-
+        
         verify(graphTraversalSource).V();
     }
-
+    
     @Test
     public void getResponseFromGremlinQuery_WithInvalidQuery_ThrowsScriptException() throws Exception
     {
         assertThrows(ScriptException.class, () -> handler.getResponseFromGremlinQuery(graphTraversalSource, INVALID_QUERY));
     }
-
+    
     @Test
     public void executeQuery_WithViewTypeAndInvalidSchema_ThrowsRuntimeException() throws Exception
     {
         // Setup view specific mocks with invalid schema (no query)
         customMetadata.put(Constants.SCHEMA_COMPONENT_TYPE, VIEW_TYPE);
-
+        
         // Add count field to schema
         List<Field> fields = new ArrayList<>();
         fields.add(new Field(COUNT_FIELD, FieldType.nullable(new ArrowType.Int(64, true)), null));
         Schema viewSchema = new Schema(fields, customMetadata);
         when(recordsRequest.getSchema()).thenReturn(viewSchema);
-
+        
         // Execute test and verify exception
         assertThrows(RuntimeException.class, () -> handler.executeQuery(recordsRequest, queryStatusChecker, spiller, new HashMap<>()));
     }
-
+    
     @Test
     public void executeQuery_WithQueryPassthroughAndInvalidQuery_ThrowsRuntimeException() throws Exception
     {
@@ -368,11 +415,11 @@ public class PropertyGraphHandlerTest
         qptArgs.put(NeptuneGremlinQueryPassthrough.COLLECTION, PERSON_LABEL);
         qptArgs.put(SCHEMA_FUNCTION_NAME, SYSTEM_QUERY);
         mockQueryPassThroughOnRecordsRequest(qptArgs);
-
+        
         // Execute test and verify exception
         assertThrows(RuntimeException.class, () -> handler.executeQuery(recordsRequest, queryStatusChecker, spiller, new HashMap<>()));
     }
-
+    
     private static Map<String, String> gremlinPassthroughArgs()
     {
         Map<String, String> qptArgs = new HashMap<>();
@@ -383,7 +430,7 @@ public class PropertyGraphHandlerTest
         qptArgs.put(SCHEMA_FUNCTION_NAME, SYSTEM_TRAVERSE);
         return qptArgs;
     }
-
+    
     private void mockQueryPassThroughOnRecordsRequest(Map<String, String> qptArgs)
     {
         Constraints constraints = mock(Constraints.class);

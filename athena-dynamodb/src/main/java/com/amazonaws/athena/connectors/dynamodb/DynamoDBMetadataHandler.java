@@ -78,8 +78,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementResponse;
@@ -90,6 +92,7 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -163,9 +166,7 @@ public class DynamoDBMetadataHandler
     public DynamoDBMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
-        this.ddbClient = DynamoDbClient.builder() 
-                .credentialsProvider(CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
-                .build();
+        this.ddbClient = buildDynamoDbClient(configOptions);
         this.glueClient = getAwsGlue();
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
@@ -189,6 +190,18 @@ public class DynamoDBMetadataHandler
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
         this.queryPassthrough = new DDBQueryPassthrough();
+    }
+
+    private static DynamoDbClient buildDynamoDbClient(java.util.Map<String, String> configOptions)
+    {
+        String region = System.getenv("AWS_REGION");
+        DynamoDbClientBuilder builder = DynamoDbClient.builder()
+                .region(Region.of(region))
+                .credentialsProvider(CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"));
+        if (region != null && region.startsWith("eusc-")) {
+            builder.endpointOverride(URI.create("https://dynamodb." + region + ".amazonaws.eu"));
+        }
+        return builder.build();
     }
 
     @Override
@@ -559,6 +572,8 @@ public class DynamoDBMetadataHandler
             logger.info("QPT Split Requested");
             return setupQueryPassthroughSplit(request);
         }
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
 
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();
@@ -584,7 +599,7 @@ public class DynamoDBMetadataHandler
                 Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
                 splitMetadata.put(hashKeyName, DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue(hashKeyValue), hashKeyName));
 
-                splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
+                splits.add(new Split(spillLocation, makeEncryptionKey(overrideConfig), splitMetadata));
 
                 if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != partitions.getRowCount() - 1) {
                     // We've reached max page size and this is not the last partition
@@ -609,7 +624,7 @@ public class DynamoDBMetadataHandler
                 splitMetadata.put(SEGMENT_ID_PROPERTY, String.valueOf(curPartition));
                 splitMetadata.put(SEGMENT_COUNT_METADATA, String.valueOf(segmentCount));
 
-                splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
+                splits.add(new Split(spillLocation, makeEncryptionKey(overrideConfig), splitMetadata));
 
                 if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != segmentCount - 1) {
                     // We've reached max page size and this is not the last partition
@@ -740,13 +755,15 @@ public class DynamoDBMetadataHandler
      */
     private GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)
     {
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         //Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
 
         //Since this is QPT query we return a fixed split.
         Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
         return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.newBuilder(spillLocation, makeEncryptionKey(overrideConfig))
                         .applyProperties(qptArguments)
                         .build());
     }
