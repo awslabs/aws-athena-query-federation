@@ -21,6 +21,8 @@ package com.amazonaws.athena.connector.lambda.handlers;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
+import com.amazonaws.athena.connector.lambda.domain.spill.ExpectedBucketOwnerInterceptor;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
@@ -34,6 +36,8 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.Map;
@@ -41,6 +45,8 @@ import java.util.Objects;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SERVICE_KMS;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SPILL_BUCKET_OWNER;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SPILL_FAS_TOKEN;
 
 public interface FederationRequestHandler extends RequestStreamHandler
 {
@@ -178,6 +184,78 @@ public interface FederationRequestHandler extends RequestStreamHandler
         else {
             return defaultS3;
         }
+    }
+
+    /**
+     * True when the config options carry the service-managed spill channel ({@code spill_fas_token} or
+     * {@code spill_bucket_owner}), i.e. when {@link #getSpillS3Client} returns a per-request client the caller
+     * must close.
+     */
+    default boolean isServiceManagedSpill(Map<String, String> configOptions)
+    {
+        return configOptions != null && !StringUtils.isAllBlank(configOptions.get(SPILL_FAS_TOKEN),
+                configOptions.get(SPILL_BUCKET_OWNER));
+    }
+
+    /**
+     * Returns the S3 client used to write spill objects for a request.
+     *
+     * For the service-managed spill channel the caller sends {@code spill_fas_token}, a spill write credential,
+     * and {@code spill_bucket_owner}. Spill objects are then written with that credential, and every request
+     * carries {@code x-amz-expected-bucket-owner}. The owner header is the only check that the bucket written to
+     * belongs to the service: the GetSplits spill bucket check runs against the Lambda's configured bucket with the
+     * caller's credentials. So both keys are required, and a channel missing either fails the request. Without the
+     * channel this is {@link #getS3Client(AwsRequestOverrideConfiguration, S3Client)} with the caller's override,
+     * so existing callers are unchanged.
+     *
+     * {@code spill_fas_token} is wrapped the same way as {@code fas_token}, so it is unwrapped with
+     * {@code service_kms_key_id}, which the caller sends for {@code fas_token} too. That key only decrypts the
+     * token. This client sets no server-side encryption key, so spill objects use the bucket's default encryption.
+     *
+     * When the spill channel is used the returned client is new for each request, and the caller closes it once
+     * its writes are done (see {@link #isServiceManagedSpill}).
+     *
+     * @param configOptions the request's federated identity config options
+     * @param callerOverrideConfig the caller's (tenant FAS) override, used when no spill channel is present
+     * @param defaultS3 the handler's default S3 client
+     */
+    default S3Client getSpillS3Client(Map<String, String> configOptions,
+                                      AwsRequestOverrideConfiguration callerOverrideConfig,
+                                      S3Client defaultS3)
+    {
+        if (!isServiceManagedSpill(configOptions)) {
+            return getS3Client(callerOverrideConfig, defaultS3);
+        }
+        String spillToken = configOptions.get(SPILL_FAS_TOKEN);
+        String bucketOwner = configOptions.get(SPILL_BUCKET_OWNER);
+        if (StringUtils.isAnyBlank(spillToken, bucketOwner)) {
+            throw new AthenaConnectorException("Service-managed spill requires both " + SPILL_FAS_TOKEN + " and "
+                    + SPILL_BUCKET_OWNER, ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+        // Key that unwraps spill_fas_token; not used to encrypt spill objects.
+        String tokenKeyId = configOptions.get(SERVICE_KMS);
+        if (StringUtils.isBlank(tokenKeyId)) {
+            throw new AthenaConnectorException(SPILL_FAS_TOKEN + " requires " + SERVICE_KMS + " to decrypt it",
+                    ErrorDetails.builder()
+                            .errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+        ExpectedBucketOwnerInterceptor ownerInterceptor;
+        try {
+            ownerInterceptor = new ExpectedBucketOwnerInterceptor(bucketOwner);
+        }
+        catch (IllegalArgumentException e) {
+            throw new AthenaConnectorException(SPILL_BUCKET_OWNER + " must be a 12-digit AWS account id",
+                    ErrorDetails.builder()
+                            .errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+
+        AwsCredentials spillCredentials = getSessionCredentials(tokenKeyId, spillToken, getKmsEncryptionProvider());
+        // No explicit region: the spill bucket is expected in the Lambda's region (cross-region access is off).
+        return S3Client.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(spillCredentials))
+                .overrideConfiguration(c -> c.addExecutionInterceptor(ownerInterceptor))
+                .build();
     }
 
     default AthenaClient getAthenaClient(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration, AthenaClient defaultAthena)

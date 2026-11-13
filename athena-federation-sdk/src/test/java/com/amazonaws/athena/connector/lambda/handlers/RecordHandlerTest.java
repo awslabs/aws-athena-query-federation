@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.lambda.handlers;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -56,6 +57,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -75,6 +77,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @RunWith(MockitoJUnitRunner.class)
 public class RecordHandlerTest
@@ -193,6 +197,71 @@ public class RecordHandlerTest
                 }
             }
         }
+    }
+
+    @Test
+    public void doReadRecords_serviceManagedSpill_closesSpillClient()
+            throws Exception
+    {
+        Map<String, String> spillOptions = new HashMap<>();
+        spillOptions.put(EnvironmentConstants.SPILL_FAS_TOKEN, "spill-token");
+        spillOptions.put(EnvironmentConstants.SERVICE_KMS, "service-kms");
+        spillOptions.put(EnvironmentConstants.SPILL_BUCKET_OWNER, "123456789012");
+        S3Client spillClient = mock(S3Client.class);
+
+        readWithSpillClient(spillOptions, spillClient).close();
+
+        verify(spillClient).close();
+    }
+
+    @Test
+    public void doReadRecords_withoutSpillChannel_leavesClientOpen()
+            throws Exception
+    {
+        S3Client sharedClient = mock(S3Client.class);
+
+        readWithSpillClient(Collections.emptyMap(), sharedClient).close();
+
+        verify(sharedClient, never()).close();
+    }
+
+    private RecordResponse readWithSpillClient(Map<String, String> identityOptions, S3Client spillClient)
+            throws Exception
+    {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put("spill_bucket", "bucket");
+        RecordHandler handler = new RecordHandler(mock(S3Client.class), mock(SecretsManagerClient.class),
+                mock(AthenaClient.class), "test", configOptions) {
+            @Override
+            protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+            {
+                // no rows, so the response is inline and nothing is written
+            }
+
+            @Override
+            public S3Client getSpillS3Client(Map<String, String> options, AwsRequestOverrideConfiguration callerOverride,
+                                             S3Client defaultS3)
+            {
+                return spillClient;
+            }
+        };
+        FederatedIdentity spillIdentity = new FederatedIdentity("arn", "account", Collections.emptyMap(),
+                Collections.emptyList(), identityOptions);
+        ReadRecordsRequest request = new ReadRecordsRequest(spillIdentity, CATALOG, QUERY_ID,
+                new TableName("testSchema", "testTable"),
+                SchemaBuilder.newBuilder().addBigIntField("id").build(),
+                Split.newBuilder(S3SpillLocation.newBuilder()
+                                .withBucket("bucket")
+                                .withSplitId(UUID.randomUUID().toString())
+                                .withQueryId(UUID.randomUUID().toString())
+                                .withIsDirectory(true)
+                                .build(),
+                        keyFactory.create()).build(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT,
+                        Collections.emptyMap(), null),
+                1_500_000L,
+                1_500_000L);
+        return handler.doReadRecords(blockAllocator, request);
     }
 
     @Test
