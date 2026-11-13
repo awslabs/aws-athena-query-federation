@@ -289,8 +289,10 @@ public class VerticaMetadataHandler
 
         if (!request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
 
-            DatabaseMetaData dbMetadata = connection.getMetaData();
-            ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
+            VerticaSchemaUtils.ResolvedTable resolved = VerticaSchemaUtils.resolveTable(
+                    connection, tableName.getSchemaName(), tableName.getTableName());
+            ResultSet definition = VerticaSchemaUtils.queryJdbcColumns(
+                    connection, resolved.getSchemaName(), resolved.getTableName());
 
             preparedSQLStmt = queryBuilder.withS3ExportBucket(s3ExportBucket)
                     .withQueryID(queryID)
