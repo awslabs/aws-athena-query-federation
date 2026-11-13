@@ -244,7 +244,7 @@ public class GcsMetadataHandlerTest
         listTablesRequest = new ListTablesRequest(federatedIdentity, QUERY_ID, CATALOG, SCHEMA_NAME, null, UNLIMITED_PAGE_SIZE_VALUE);
         tableNamesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
         assertEquals(2, tableNamesResponse.getTables().size());
-        assertNull(null, tableNamesResponse.getNextToken());
+        assertNull(tableNamesResponse.getNextToken());
 
         //Testing next table returned of page size 1 and nextToken 1
         getTablesResponse = GetTablesResponse.builder().tableList(tableList).nextToken("1").build();
