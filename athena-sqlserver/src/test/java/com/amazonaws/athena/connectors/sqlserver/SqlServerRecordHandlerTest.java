@@ -62,7 +62,6 @@ import static com.amazonaws.athena.connector.lambda.metadata.optimizations.query
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.ENABLE_QUERY_PASSTHROUGH;
 import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
 import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
-import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class SqlServerRecordHandlerTest
@@ -113,7 +112,7 @@ public class SqlServerRecordHandlerTest
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER ,new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
+        jdbcSplitQueryBuilder = new SqlServerQueryStringBuilder(new SqlServerFederationExpressionParser());
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, SqlServerConstants.NAME,
                 "sqlserver://jdbc:sqlserver://hostname;databaseName=fakedatabase");
 
@@ -143,7 +142,7 @@ public class SqlServerRecordHandlerTest
                 ImmutableMap.of(TEST_COL4, valueSet)
         );
 
-        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\" FROM \"testSchema\".\"testTable\"  WHERE (\"testCol4\" = ?) AND  $PARTITION.pf(testCol1) = 1";
+        String expectedSql = "SELECT [testCol1], [testCol2], [testCol3], [testCol4] FROM [testSchema].[testTable]  WHERE ([testCol4] = ?) AND  $PARTITION.[pf]([testCol1]) = 1";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -188,7 +187,7 @@ public class SqlServerRecordHandlerTest
                 )
         );
 
-        String expectedSql = "SELECT \"id\", \"name\", \"age\", \"salary\", \"department\", \"is_active\", \"amount\" FROM \"testSchema\".\"testTable\"  WHERE (\"id\" IN (?,?,?,?,?)) AND ((\"age\" >= ? AND \"age\" <= ?)) AND ((\"salary\" > ? AND \"salary\" < ?)) AND (\"department\" = ?) AND (\"is_active\" = ?) AND (\"amount\" = ?)";
+        String expectedSql = "SELECT [id], [name], [age], [salary], [department], [is_active], [amount] FROM [testSchema].[testTable]  WHERE ([id] IN (?,?,?,?,?)) AND (([age] >= ? AND [age] <= ?)) AND (([salary] > ? AND [salary] < ?)) AND ([department] = ?) AND ([is_active] = ?) AND ([amount] = ?)";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -235,7 +234,7 @@ public class SqlServerRecordHandlerTest
                 )
         );
 
-        String expectedSql = "SELECT \"price\", \"quantity\", \"discount\" FROM \"testSchema\".\"testTable\"  WHERE ((\"price\" > ? AND \"price\" <= ?)) AND ((\"quantity\" >= ? AND \"quantity\" < ?)) AND ((\"discount\" > ? AND \"discount\" < ?))";
+        String expectedSql = "SELECT [price], [quantity], [discount] FROM [testSchema].[testTable]  WHERE (([price] > ? AND [price] <= ?)) AND (([quantity] >= ? AND [quantity] < ?)) AND (([discount] > ? AND [discount] < ?))";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -271,7 +270,7 @@ public class SqlServerRecordHandlerTest
                 10
         );
 
-        String expectedSql = "SELECT \"id\", \"name\", \"salary\" FROM \"testSchema\".\"testTable\"  ORDER BY \"salary\" DESC NULLS LAST";
+        String expectedSql = "SELECT [id], [name], [salary] FROM [testSchema].[testTable]  ORDER BY [salary] DESC NULLS LAST";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -303,7 +302,7 @@ public class SqlServerRecordHandlerTest
                 Constraints.DEFAULT_NO_LIMIT
         );
 
-        String expectedSql = "SELECT \"department\", \"salary\", \"name\" FROM \"testSchema\".\"testTable\"  ORDER BY \"department\" ASC NULLS LAST, \"salary\" DESC NULLS FIRST, \"name\" ASC NULLS LAST";
+        String expectedSql = "SELECT [department], [salary], [name] FROM [testSchema].[testTable]  ORDER BY [department] ASC NULLS LAST, [salary] DESC NULLS FIRST, [name] ASC NULLS LAST";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -324,7 +323,7 @@ public class SqlServerRecordHandlerTest
 
         Constraints constraints = createConstraints(Collections.emptyMap());
 
-        String expectedSql = "SELECT \"id\" FROM \"testSchema\".\"testTable\" ";
+        String expectedSql = "SELECT [id] FROM [testSchema].[testTable] ";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -347,7 +346,7 @@ public class SqlServerRecordHandlerTest
         ValueSet singleValueSet = createSingleValueSet(1);
         Constraints constraints = createConstraints(ImmutableMap.of(COL_ID, singleValueSet));
 
-        String expectedSql = "SELECT \"id\" FROM \"testSchema\".\"testTable\"  WHERE (\"id\" = ?)";
+        String expectedSql = "SELECT [id] FROM [testSchema].[testTable]  WHERE ([id] = ?)";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -373,7 +372,7 @@ public class SqlServerRecordHandlerTest
         ValueSet largeInSet = createMultiValueSet(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
         Constraints constraints = createConstraints(ImmutableMap.of(COL_ID, largeInSet));
 
-        String expectedSql = "SELECT \"id\" FROM \"testSchema\".\"testTable\"  WHERE (\"id\" IN (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?))";
+        String expectedSql = "SELECT [id] FROM [testSchema].[testTable]  WHERE ([id] IN (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?))";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -419,7 +418,7 @@ public class SqlServerRecordHandlerTest
         );
 
         // SQL Server doesn't support LIMIT, so it should be ignored
-        String expectedSql = "SELECT \"id\", \"name\" FROM \"testSchema\".\"testTable\" ";
+        String expectedSql = "SELECT [id], [name] FROM [testSchema].[testTable] ";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
@@ -474,7 +473,7 @@ public class SqlServerRecordHandlerTest
 
         Assert.assertFalse("Expected isQueryPassThrough to return false", constraints.isQueryPassThrough());
 
-        String expectedSql = "SELECT \"intCol\", \"varcharCol\", \"bigintCol\", \"floatCol\", \"doubleCol\", \"dateCol\", \"timestampCol\", \"boolCol\" FROM \"testSchema\".\"testTable\"  WHERE (\"intCol\" = ?) AND (\"varcharCol\" = ?)";
+        String expectedSql = "SELECT [intCol], [varcharCol], [bigintCol], [floatCol], [doubleCol], [dateCol], [timestampCol], [boolCol] FROM [testSchema].[testTable]  WHERE ([intCol] = ?) AND ([varcharCol] = ?)";
         PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
 
         PreparedStatement result = this.sqlServerRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);

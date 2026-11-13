@@ -44,8 +44,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
-
 public class SqlServerRecordHandler extends JdbcRecordHandler
 {
     private static final int FETCH_SIZE = 1000;
@@ -65,7 +63,7 @@ public class SqlServerRecordHandler extends JdbcRecordHandler
     public SqlServerRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, S3Client.create(), SecretsManagerClient.create(),
-                AthenaClient.create(), jdbcConnectionFactory, new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER)), configOptions);
+                AthenaClient.create(), jdbcConnectionFactory, new SqlServerQueryStringBuilder(new SqlServerFederationExpressionParser()), configOptions);
     }
 
     @VisibleForTesting
