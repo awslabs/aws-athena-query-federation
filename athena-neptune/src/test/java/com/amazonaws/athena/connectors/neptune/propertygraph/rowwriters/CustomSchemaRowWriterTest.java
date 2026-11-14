@@ -23,11 +23,25 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connectors.neptune.Constants;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableDateMilliHolder;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -44,10 +58,16 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+
 /**
  * Unit tests for the changed logic in CustomSchemaRowWriter: FieldValueNormalizer usage,
  * valueMap vs project().by() (list vs scalar vs Map), and VARCHAR null-first-element handling.
  */
+@RunWith(MockitoJUnitRunner.class)
 public class CustomSchemaRowWriterTest
 {
     private static final String FLAG = "flag";
@@ -60,13 +80,32 @@ public class CustomSchemaRowWriterTest
     private static final String TAGS = "tags";
     private static final String ALL_PROPERTIES = "all_properties";
     private static final String ID = "id";
-
+    
+    public static final String STRING_FIELD = "stringField";
+    public static final String MIXED_CASE_FIELD = "MixedCaseField";
+    
+    // Test values
+    private static final String EMPTY_STRING = "";
+    private static final String STRING_123 = "123";
+    private static final String CASE_INSENSITIVE_FALSE = "false";
+    
     private BlockAllocatorImpl allocator;
-
+    
+    @Mock
+    private GeneratedRowWriter.RowWriterBuilder mockBuilder;
+    
+    private Map<String, String> configOptions;
+    private Map<String, Object> testContext;
+    
+    
     @Before
     public void setUp()
     {
         allocator = new BlockAllocatorImpl();
+        configOptions = new HashMap<>();
+        configOptions.put(Constants.SCHEMA_CASE_INSEN, "true");
+        when(mockBuilder.withExtractor(anyString(), any())).thenReturn(mockBuilder);
+        testContext = new HashMap<>();
     }
 
     @After
@@ -438,7 +477,115 @@ public class CustomSchemaRowWriterTest
         Object result = writeAndReadOneRow(varcharSchema(ID), ID, contextWith("ID", null));
         assertNull(result);
     }
-
+    
+    @Test
+    public void writeRowTemplate_WithCaseInsensitiveDisabledAndStringType_CreatesVarCharExtractor()
+    {
+        setupCaseSensitiveConfig();
+        writeTemplateAndVerifyExtractorRegistered(fieldUtf8(MIXED_CASE_FIELD), MIXED_CASE_FIELD);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithDefaultCaseInsensitiveAndUtf8Type_ResolvesMixedCaseKey() throws Exception
+    {
+        configOptions.clear();
+        final String mixedCase = "MIXEDCASE";
+        final String mixedCaseLower = "mixedcase";
+        final String mixedCaseValue = "Mixed Case Value";
+        testContext.put(mixedCaseLower, mixedCaseValue);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(mixedCase), VarCharExtractor.class, mixedCase);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(testContext, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(mixedCaseValue, holder.value);
+    }
+    
+    @Test(expected = IllegalAccessException.class)
+    public void constructor_WithPrivateAccess_ThrowsIllegalAccessException() throws Exception
+    {
+        CustomSchemaRowWriter.class.getDeclaredConstructor().newInstance();
+    }
+    
+    @Test
+    public void writeRowTemplate_WithIdField_CreatesVarCharExtractor()
+    {
+        writeTemplateAndVerifyExtractorRegistered(fieldUtf8(ID), ID);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithVarCharExtractorAndOtherType_ConvertsToString() throws Exception
+    {
+        testContext.put(STRING_FIELD, 123);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(testContext, holder);
+        
+        assertEquals(1, holder.isSet);
+        assertEquals(STRING_123, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithVarCharExtractorAndEmptyString_HandlesEmptyString() throws Exception
+    {
+        testContext.put(STRING_FIELD, EMPTY_STRING);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(testContext, holder);
+        
+        assertEquals(1, holder.isSet);
+        assertEquals(EMPTY_STRING, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithDateMilliExtractorAndEmptyStringInContext_HandlesUnset() throws Exception
+    {
+        final String emptyDateField = "emptyDate";
+        testContext.put(emptyDateField, EMPTY_STRING);
+        
+        DateMilliExtractor extractor = captureExtractorAfterWrite(fieldDateMilli(emptyDateField), DateMilliExtractor.class, emptyDateField);
+        NullableDateMilliHolder holder = new NullableDateMilliHolder();
+        extractor.extract(testContext, holder);
+        assertEquals(0, holder.isSet);
+    }
+    
+    private void writeRowTemplate(Field field)
+    {
+        CustomSchemaRowWriter.writeRowTemplate(mockBuilder, field, configOptions);
+    }
+    
+    private void writeTemplateAndVerifyExtractorRegistered(Field field, String expectedFieldName)
+    {
+        writeRowTemplate(field);
+        verify(mockBuilder).withExtractor(eq(expectedFieldName), any());
+    }
+    
+    private Field fieldUtf8(String name)
+    {
+        return new Field(name, FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList());
+    }
+    
+    private Field fieldDateMilli(String name)
+    {
+        return new Field(name, FieldType.nullable(new ArrowType.Date(DateUnit.MILLISECOND)), Collections.emptyList());
+    }
+    
+    private void setupCaseSensitiveConfig()
+    {
+        configOptions.put(Constants.SCHEMA_CASE_INSEN, CASE_INSENSITIVE_FALSE);
+    }
+    
+    
+    private <E extends Extractor> E captureExtractorAfterWrite(Field field, Class<E> extractorType, String verifyFieldName)
+    {
+        writeRowTemplate(field);
+        ArgumentCaptor<E> captor = ArgumentCaptor.forClass(extractorType);
+        verify(mockBuilder).withExtractor(eq(verifyFieldName), captor.capture());
+        return captor.getValue();
+    }
+    
     private static Map<String, Object> contextWith(String fieldName, Object value)
     {
         Map<String, Object> context = new HashMap<>();

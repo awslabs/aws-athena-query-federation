@@ -130,7 +130,7 @@ public class NeptuneConnection
         return AnonymousTraversalSource.traversal().withRemote(connection);
     }
 
-    void closeCluster()
+    protected void closeCluster()
     {
         cluster.close();
     }

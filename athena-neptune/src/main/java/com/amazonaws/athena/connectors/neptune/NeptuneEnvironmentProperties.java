@@ -42,8 +42,8 @@ public class NeptuneEnvironmentProperties extends EnvironmentProperties
 
         environment.put(CFG_ENDPOINT, connectionProperties.get(HOST));
         environment.put(CFG_PORT, connectionProperties.get(PORT));
-        environment.put(CFG_ClUSTER_RES_ID, environment.get(CLUSTER_RES_ID));
-        environment.put(CFG_GRAPH_TYPE, environment.get(GRAPH_TYPE));
+        environment.put(CFG_ClUSTER_RES_ID, connectionProperties.get(CLUSTER_RES_ID));
+        environment.put(CFG_GRAPH_TYPE, connectionProperties.get(GRAPH_TYPE));
         return environment;
     }
 }
