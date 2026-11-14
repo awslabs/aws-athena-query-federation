@@ -23,11 +23,25 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connectors.neptune.Constants;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableDateMilliHolder;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -44,10 +58,16 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+
 /**
  * Unit tests for the changed logic in CustomSchemaRowWriter: FieldValueNormalizer usage,
  * valueMap vs project().by() (list vs scalar vs Map), and VARCHAR null-first-element handling.
  */
+@RunWith(MockitoJUnitRunner.class)
 public class CustomSchemaRowWriterTest
 {
     private static final String FLAG = "flag";
@@ -60,13 +80,32 @@ public class CustomSchemaRowWriterTest
     private static final String TAGS = "tags";
     private static final String ALL_PROPERTIES = "all_properties";
     private static final String ID = "id";
-
+    
+    public static final String STRING_FIELD = "stringField";
+    public static final String MIXED_CASE_FIELD = "MixedCaseField";
+    
+    // Test values
+    private static final String EMPTY_STRING = "";
+    private static final String STRING_123 = "123";
+    private static final String CASE_INSENSITIVE_FALSE = "false";
+    
     private BlockAllocatorImpl allocator;
-
+    
+    @Mock
+    private GeneratedRowWriter.RowWriterBuilder mockBuilder;
+    
+    private Map<String, String> configOptions;
+    private Map<String, Object> testContext;
+    
+    
     @Before
     public void setUp()
     {
         allocator = new BlockAllocatorImpl();
+        configOptions = new HashMap<>();
+        configOptions.put(Constants.SCHEMA_CASE_INSEN, "true");
+        when(mockBuilder.withExtractor(anyString(), any())).thenReturn(mockBuilder);
+        testContext = new HashMap<>();
     }
 
     @After
@@ -105,7 +144,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_valueMapList_writesFirstElement() throws Exception
+    public void writeRowTemplate_varcharValueMapList_writesFirstElement() throws Exception
     {
         Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, listWith("alice")));
         assertNotNull(result);
@@ -113,7 +152,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_scalarString_writesValue() throws Exception
+    public void writeRowTemplate_varcharScalarString_writesValue() throws Exception
     {
         Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, "bob"));
         assertNotNull(result);
@@ -121,7 +160,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_mapFromByValueMap_writesStringRepresentation() throws Exception
+    public void writeRowTemplate_varcharMapFromByValueMap_writesStringRepresentation() throws Exception
     {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("k1", "v1");
@@ -134,14 +173,14 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_listWithNullFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_varcharListWithNullFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, listWith(null)));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_varchar_multipleValues_joinsWithSemicolon() throws Exception
+    public void writeRowTemplate_varcharMultipleValues_joinsWithSemicolon() throws Exception
     {
         Object result = writeAndReadOneRow(varcharSchema(TAGS), TAGS, contextWith(TAGS, listWith("a", "b", "c")));
         assertNotNull(result);
@@ -149,7 +188,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_multipleValuesWithNull_joinsWithoutNpe() throws Exception
+    public void writeRowTemplate_varcharMultipleValuesWithNull_joinsWithoutNpe() throws Exception
     {
         Object result = writeAndReadOneRow(varcharSchema(TAGS), TAGS, contextWith(TAGS, listWith("a", null, "c")));
         assertNotNull(result);
@@ -157,7 +196,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_emptyList_doesNotSetValue() throws Exception
+    public void writeRowTemplate_varcharEmptyList_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, Collections.emptyList()));
         assertNull(result);
@@ -166,7 +205,7 @@ public class CustomSchemaRowWriterTest
     // ---- BIT ----
 
     @Test
-    public void writeRowTemplate_bit_valueMapListTrue_writesOne() throws Exception
+    public void writeRowTemplate_bitValueMapListTrue_writesOne() throws Exception
     {
         Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,listWith(true)));
         assertNotNull(result);
@@ -174,7 +213,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_bit_scalarTrue_writesOne() throws Exception
+    public void writeRowTemplate_bitScalarTrue_writesOne() throws Exception
     {
         Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,true));
         assertNotNull(result);
@@ -182,7 +221,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_bit_scalarFalse_writesZero() throws Exception
+    public void writeRowTemplate_bitScalarFalse_writesZero() throws Exception
     {
         Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,false));
         assertNotNull(result);
@@ -190,28 +229,28 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_bit_nullField_doesNotSetValue() throws Exception
+    public void writeRowTemplate_bitNullField_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,null));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_bit_emptyList_doesNotSetValue() throws Exception
+    public void writeRowTemplate_bitEmptyList_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,Collections.emptyList()));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_bit_listWithNullFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_bitListWithNullFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,listWith(null)));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_bit_listWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_bitListWithBlankStringFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(bitSchema(), FLAG, contextWith(FLAG,listWith("   ")));
         assertNull(result);
@@ -220,7 +259,7 @@ public class CustomSchemaRowWriterTest
     // ---- DATEMILLI ----
 
     @Test
-    public void writeRowTemplate_datemilli_dateInstance_writesEpochMillis() throws Exception
+    public void writeRowTemplate_datemilliDateInstance_writesEpochMillis() throws Exception
     {
         Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,new Date(1000L)));
         assertNotNull(result);
@@ -228,7 +267,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_datemilli_longEpoch_writesValue() throws Exception
+    public void writeRowTemplate_datemilliLongEpoch_writesValue() throws Exception
     {
         Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,2000L));
         assertNotNull(result);
@@ -236,7 +275,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_datemilli_valueMapList_writesFirstElement() throws Exception
+    public void writeRowTemplate_datemilliValueMapList_writesFirstElement() throws Exception
     {
         Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,listWith(new Date(3000L))));
         assertNotNull(result);
@@ -244,28 +283,28 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_datemilli_nullField_doesNotSetValue() throws Exception
+    public void writeRowTemplate_datemilliNullField_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,null));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_datemilli_emptyList_doesNotSetValue() throws Exception
+    public void writeRowTemplate_datemilliEmptyList_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,Collections.emptyList()));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_datemilli_listWithNullFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_datemilliListWithNullFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,listWith(null)));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_datemilli_listWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_datemilliListWithBlankStringFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(datemilliSchema(), TIMESTAMP, contextWith(TIMESTAMP,listWith("   ")));
         assertNull(result);
@@ -274,7 +313,7 @@ public class CustomSchemaRowWriterTest
     // ---- INT, BIGINT, FLOAT4, FLOAT8 ----
 
     @Test
-    public void writeRowTemplate_int_scalar_writesValue() throws Exception
+    public void writeRowTemplate_intScalar_writesValue() throws Exception
     {
         Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,42));
         assertNotNull(result);
@@ -282,7 +321,7 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_int_valueMapList_writesFirstElement() throws Exception
+    public void writeRowTemplate_intValueMapList_writesFirstElement() throws Exception
     {
         Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,listWith(100)));
         assertNotNull(result);
@@ -290,35 +329,35 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_int_nullField_doesNotSetValue() throws Exception
+    public void writeRowTemplate_intNullField_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,null));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_int_emptyList_doesNotSetValue() throws Exception
+    public void writeRowTemplate_intEmptyList_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,Collections.emptyList()));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_int_listWithNullFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_intListWithNullFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,listWith(null)));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_int_listWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_intListWithBlankStringFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(intSchema(), NUMBER_FIELD, contextWith(NUMBER_FIELD,listWith("   ")));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_bigint_scalar_writesValue() throws Exception
+    public void writeRowTemplate_bigintScalar_writesValue() throws Exception
     {
         Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,12345L));
         assertNotNull(result);
@@ -326,35 +365,35 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_bigint_nullField_doesNotSetValue() throws Exception
+    public void writeRowTemplate_bigintNullField_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,null));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_bigint_emptyList_doesNotSetValue() throws Exception
+    public void writeRowTemplate_bigintEmptyList_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,Collections.emptyList()));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_bigint_listWithNullFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_bigintListWithNullFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,listWith(null)));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_bigint_listWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_bigintListWithBlankStringFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(bigintSchema(), BIG_INT_FIELD, contextWith(BIG_INT_FIELD,listWith("   ")));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_float4_scalar_writesValue() throws Exception
+    public void writeRowTemplate_float4Scalar_writesValue() throws Exception
     {
         Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,1.5f));
         assertNotNull(result);
@@ -362,35 +401,35 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_float4_nullField_doesNotSetValue() throws Exception
+    public void writeRowTemplate_float4NullField_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,null));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_float4_emptyList_doesNotSetValue() throws Exception
+    public void writeRowTemplate_float4EmptyList_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,Collections.emptyList()));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_float4_listWithNullFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_float4ListWithNullFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,listWith(null)));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_float4_listWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_float4ListWithBlankStringFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(float4Schema(), FLOAT_FIELD, contextWith(FLOAT_FIELD,listWith("   ")));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_float8_valueMapList_writesFirstElement() throws Exception
+    public void writeRowTemplate_float8ValueMapList_writesFirstElement() throws Exception
     {
         Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,listWith(3.14)));
         assertNotNull(result);
@@ -398,47 +437,155 @@ public class CustomSchemaRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_float8_nullField_doesNotSetValue() throws Exception
+    public void writeRowTemplate_float8NullField_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,null));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_float8_emptyList_doesNotSetValue() throws Exception
+    public void writeRowTemplate_float8EmptyList_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,Collections.emptyList()));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_float8_listWithNullFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_float8ListWithNullFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,listWith(null)));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_float8_listWithBlankStringFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_float8ListWithBlankStringFirstElement_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(float8Schema(), DOUBLE_FIELD, contextWith(DOUBLE_FIELD,listWith("   ")));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_varchar_nullField_doesNotSetValue() throws Exception
+    public void writeRowTemplate_varcharNullField_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(varcharSchema(NAME), NAME, contextWith(NAME, null));
         assertNull(result);
     }
 
     @Test
-    public void writeRowTemplate_varchar_specialKeyId_nullId_doesNotSetValue() throws Exception
+    public void writeRowTemplate_varcharSpecialKeyIdNull_doesNotSetValue() throws Exception
     {
         Object result = writeAndReadOneRow(varcharSchema(ID), ID, contextWith("ID", null));
         assertNull(result);
     }
-
+    
+    @Test
+    public void writeRowTemplate_caseInsensitiveDisabledString_createsVarCharExtractor()
+    {
+        setupCaseSensitiveConfig();
+        writeTemplateAndVerifyExtractorRegistered(fieldUtf8(MIXED_CASE_FIELD), MIXED_CASE_FIELD);
+    }
+    
+    @Test
+    public void writeRowTemplate_defaultCaseInsensitiveUtf8_resolvesMixedCaseKey() throws Exception
+    {
+        configOptions.clear();
+        final String mixedCase = "MIXEDCASE";
+        final String mixedCaseLower = "mixedcase";
+        final String mixedCaseValue = "Mixed Case Value";
+        testContext.put(mixedCaseLower, mixedCaseValue);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(mixedCase), VarCharExtractor.class, mixedCase);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(testContext, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(mixedCaseValue, holder.value);
+    }
+    
+    @Test(expected = IllegalAccessException.class)
+    public void constructor_privateAccess_throwsIllegalAccessException() throws Exception
+    {
+        CustomSchemaRowWriter.class.getDeclaredConstructor().newInstance();
+    }
+    
+    @Test
+    public void writeRowTemplate_idField_createsVarCharExtractor()
+    {
+        writeTemplateAndVerifyExtractorRegistered(fieldUtf8(ID), ID);
+    }
+    
+    @Test
+    public void writeRowTemplate_varcharOtherType_convertsToString() throws Exception
+    {
+        testContext.put(STRING_FIELD, 123);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(testContext, holder);
+        
+        assertEquals(1, holder.isSet);
+        assertEquals(STRING_123, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_varcharEmptyString_setsEmptyValue() throws Exception
+    {
+        testContext.put(STRING_FIELD, EMPTY_STRING);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(fieldUtf8(STRING_FIELD), VarCharExtractor.class, STRING_FIELD);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(testContext, holder);
+        
+        assertEquals(1, holder.isSet);
+        assertEquals(EMPTY_STRING, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_datemilliEmptyString_doesNotSetValue() throws Exception
+    {
+        final String emptyDateField = "emptyDate";
+        testContext.put(emptyDateField, EMPTY_STRING);
+        
+        DateMilliExtractor extractor = captureExtractorAfterWrite(fieldDateMilli(emptyDateField), DateMilliExtractor.class, emptyDateField);
+        NullableDateMilliHolder holder = new NullableDateMilliHolder();
+        extractor.extract(testContext, holder);
+        assertEquals(0, holder.isSet);
+    }
+    
+    private void writeRowTemplate(Field field)
+    {
+        CustomSchemaRowWriter.writeRowTemplate(mockBuilder, field, configOptions);
+    }
+    
+    private void writeTemplateAndVerifyExtractorRegistered(Field field, String expectedFieldName)
+    {
+        writeRowTemplate(field);
+        verify(mockBuilder).withExtractor(eq(expectedFieldName), any());
+    }
+    
+    private Field fieldUtf8(String name)
+    {
+        return new Field(name, FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList());
+    }
+    
+    private Field fieldDateMilli(String name)
+    {
+        return new Field(name, FieldType.nullable(new ArrowType.Date(DateUnit.MILLISECOND)), Collections.emptyList());
+    }
+    
+    private void setupCaseSensitiveConfig()
+    {
+        configOptions.put(Constants.SCHEMA_CASE_INSEN, CASE_INSENSITIVE_FALSE);
+    }
+    
+    
+    private <E extends Extractor> E captureExtractorAfterWrite(Field field, Class<E> extractorType, String verifyFieldName)
+    {
+        writeRowTemplate(field);
+        ArgumentCaptor<E> captor = ArgumentCaptor.forClass(extractorType);
+        verify(mockBuilder).withExtractor(eq(verifyFieldName), captor.capture());
+        return captor.getValue();
+    }
+    
     private static Map<String, Object> contextWith(String fieldName, Object value)
     {
         Map<String, Object> context = new HashMap<>();

@@ -81,7 +81,7 @@ public final class SparqlRowWriter
                 return val;
             }
             else if (val instanceof Long) {
-                return (Integer) val;
+                return ((Long) val).intValue();
             }
             else if (val instanceof BigInteger) {
                 return ((BigInteger) val).intValue();
@@ -89,7 +89,7 @@ public final class SparqlRowWriter
         }
         else if (expectedClass.equals(Long.class)) {
             if (val instanceof Integer) {
-                return (Long) val;
+                return ((Integer) val).longValue();
             }
             else if (val instanceof Long) {
                 return val;
@@ -103,7 +103,7 @@ public final class SparqlRowWriter
                 return val;
             }
             else if (val instanceof Double) {
-                return (Float) val;
+                return ((Double) val).floatValue();
             }
             else if (val instanceof BigDecimal) {
                 return ((BigDecimal) val).floatValue();
@@ -111,7 +111,7 @@ public final class SparqlRowWriter
         }
         else if (expectedClass.equals(Double.class)) {
             if (val instanceof Float) {
-                return (Double) val;
+                return ((Float) val).doubleValue();
             }
             else if (val instanceof Double) {
                 return val;
@@ -189,7 +189,7 @@ public final class SparqlRowWriter
             case BIGINT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
-                            Integer val = (Integer) extractValue(context, field, Integer.class);
+                            Long val = (Long) extractValue(context, field, Long.class);
                             value.isSet = val == null ? 0 : 1;
                             if (val != null) {
                                 value.value = val;

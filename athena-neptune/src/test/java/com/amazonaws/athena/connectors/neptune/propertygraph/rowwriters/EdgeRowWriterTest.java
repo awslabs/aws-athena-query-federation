@@ -23,13 +23,28 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter.RowWriterBuilder;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connectors.neptune.Constants;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -45,19 +60,55 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 /**
  * Unit tests for the changed logic in EdgeRowWriter: FieldValueNormalizer usage,
  * valueMap vs project().by() (list vs scalar vs Map), VARCHAR null-first-element handling,
  * and special keys (id, in, out).
  */
+@RunWith(MockitoJUnitRunner.class)
 public class EdgeRowWriterTest
 {
     private BlockAllocatorImpl allocator;
-
+    
+    public static final String TEST_FIELD = "testField";
+    
+    // Field names for edge-context extractor tests (moved from RowWritersComprehensiveTest)
+    private static final String EMPTY_FIELD = "emptyField";
+    private static final String TESTFIELD = "TESTFIELD";
+    private static final String TESTFIELD_LOWER = "testfield";
+    private static final String TEST_VALUE = "Test Value";
+    private static final String SPACES = "   ";
+    
+    // Configuration values
+    private static final String CASE_INSENSITIVE_TRUE = "true";
+    private static final String CASE_INSENSITIVE_FALSE = "false";
+    
+    @Mock
+    private RowWriterBuilder mockRowWriterBuilder;
+    
+    @Mock
+    private Field mockField;
+    
+    private Map<String, String> configOptions;
+    private Map<String, Object> edgeContext;
+    
+    
     @Before
     public void setUp()
     {
         allocator = new BlockAllocatorImpl();
+        when(mockRowWriterBuilder.withExtractor(anyString(), any())).thenReturn(mockRowWriterBuilder);
+        when(mockField.getName()).thenReturn(TEST_FIELD);
+        configOptions = new HashMap<>();
+        edgeContext = new HashMap<>();
+        edgeContext.put(T.id.toString(), "edge456");
+        edgeContext.put(T.label.toString(), "knows");
     }
 
     @After
@@ -116,7 +167,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_specialKeyId_writesEdgeId() throws Exception
+    public void writeRowTemplate_varcharSpecialKeyId_writesEdgeId() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addStringField("id").build();
         Map<String, Object> context = edgeContextWithIdInOut("edge-1", "v-in", "v-out");
@@ -127,7 +178,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_specialKeyIn_writesInVertexId() throws Exception
+    public void writeRowTemplate_varcharSpecialKeyIn_writesInVertexId() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addStringField("in").build();
         Map<String, Object> context = edgeContextWithIdInOut("e2", "vertex-in-id", "vertex-out-id");
@@ -138,7 +189,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_specialKeyOut_writesOutVertexId() throws Exception
+    public void writeRowTemplate_varcharSpecialKeyOut_writesOutVertexId() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addStringField("out").build();
         Map<String, Object> context = edgeContextWithIdInOut("e3", "v1", "v2");
@@ -151,7 +202,7 @@ public class EdgeRowWriterTest
     // ---- VARCHAR: valueMap list, scalar, Map, null first, multi-value ----
 
     @Test
-    public void writeRowTemplate_varchar_valueMapList_writesFirstElement() throws Exception
+    public void writeRowTemplate_varcharValueMapList_writesFirstElement() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addStringField("name").build();
         Map<String, Object> context = new HashMap<>();
@@ -165,7 +216,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_scalarString_writesValue() throws Exception
+    public void writeRowTemplate_varcharScalarString_writesValue() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addStringField("name").build();
         Map<String, Object> context = new HashMap<>();
@@ -177,7 +228,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_mapFromByValueMap_writesStringRepresentation() throws Exception
+    public void writeRowTemplate_varcharMapFromByValueMap_writesStringRepresentation() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addStringField("props").build();
         Map<String, Object> context = new HashMap<>();
@@ -194,7 +245,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_listWithNullFirstElement_doesNotSetValue() throws Exception
+    public void writeRowTemplate_varcharListWithNullFirstElement_doesNotSetValue() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addStringField("name").build();
         Map<String, Object> context = new HashMap<>();
@@ -207,7 +258,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_multipleValuesWithNull_joinsWithoutNpe() throws Exception
+    public void writeRowTemplate_varcharMultipleValuesWithNull_joinsWithoutNpe() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addStringField("tags").build();
         Map<String, Object> context = new HashMap<>();
@@ -223,7 +274,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_varchar_nullField_doesNotSetValue() throws Exception
+    public void writeRowTemplate_varcharNullField_doesNotSetValue() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addStringField("name").build();
         Map<String, Object> context = new HashMap<>();
@@ -236,7 +287,7 @@ public class EdgeRowWriterTest
     // ---- BIT ----
 
     @Test
-    public void writeRowTemplate_bit_valueMapListTrue_writesOne() throws Exception
+    public void writeRowTemplate_bitValueMapListTrue_writesOne() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addBitField("flag").build();
         Map<String, Object> context = new HashMap<>();
@@ -250,7 +301,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_bit_scalarTrue_writesOne() throws Exception
+    public void writeRowTemplate_bitScalarTrue_writesOne() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addBitField("flag").build();
         Map<String, Object> context = new HashMap<>();
@@ -262,7 +313,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_datemilli_longEpoch_writesValue() throws Exception
+    public void writeRowTemplate_datemilliLongEpoch_writesValue() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addDateMilliField("timestamp").build();
         Map<String, Object> context = new HashMap<>();
@@ -274,7 +325,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_datemilli_dateInstance_writesEpochMillis() throws Exception
+    public void writeRowTemplate_datemilliDateInstance_writesEpochMillis() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addDateMilliField("timestamp").build();
         Date d = new Date(6000L);
@@ -287,7 +338,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_datemilli_valueMapList_writesFirstElement() throws Exception
+    public void writeRowTemplate_datemilliValueMapList_writesFirstElement() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addDateMilliField("timestamp").build();
         ArrayList<Object> list = new ArrayList<>();
@@ -301,7 +352,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_int_scalar_writesValue() throws Exception
+    public void writeRowTemplate_intScalar_writesValue() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addIntField("numberField").build();
         Map<String, Object> context = new HashMap<>();
@@ -313,7 +364,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_int_valueMapList_writesFirstElement() throws Exception
+    public void writeRowTemplate_intValueMapList_writesFirstElement() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addIntField("numberField").build();
         Map<String, Object> context = new HashMap<>();
@@ -327,7 +378,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_bigint_valueMapList_writesFirstElement() throws Exception
+    public void writeRowTemplate_bigintValueMapList_writesFirstElement() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addBigIntField("bigIntField").build();
         Map<String, Object> context = new HashMap<>();
@@ -341,7 +392,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_float4_valueMapList_writesFirstElement() throws Exception
+    public void writeRowTemplate_float4ValueMapList_writesFirstElement() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addFloat4Field("floatField").build();
         Map<String, Object> context = new HashMap<>();
@@ -355,7 +406,7 @@ public class EdgeRowWriterTest
     }
 
     @Test
-    public void writeRowTemplate_float8_scalar_writesValue() throws Exception
+    public void writeRowTemplate_float8Scalar_writesValue() throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().addFloat8Field("doubleField").build();
         Map<String, Object> context = new HashMap<>();
@@ -365,4 +416,215 @@ public class EdgeRowWriterTest
         assertNotNull(result);
         assertEquals(1.5, ((Number) result).doubleValue(), 1e-9);
     }
+    
+    @Test
+    public void writeRowTemplate_caseInsensitiveBool_createsBitExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Bool.INSTANCE);
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_TRUE);
+        
+        BitExtractor capturedExtractor = captureExtractorAfterWrite(mockField, BitExtractor.class, TEST_FIELD);
+        assertNotNull("BitExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, Boolean.TRUE);
+        NullableBitHolder holder = new NullableBitHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(1, holder.value);
+        
+        context.put(TEST_FIELD, "false");
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(0, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_caseInsensitiveUtf8_createsVarCharExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_TRUE);
+        
+        VarCharExtractor capturedExtractor = captureExtractorAfterWrite(mockField, VarCharExtractor.class, TEST_FIELD);
+        assertNotNull("VarCharExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "edge-value");
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("edge-value", holder.value);
+        
+        context.put(TEST_FIELD, 12345);
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("12345", holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_caseInsensitiveDisabledUtf8_createsVarCharExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_FALSE);
+        
+        VarCharExtractor capturedExtractor = captureExtractorAfterWrite(mockField, VarCharExtractor.class, TEST_FIELD);
+        assertNotNull("VarCharExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "case-sensitive-key-only");
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("case-sensitive-key-only", holder.value);
+    }
+    @Test
+    public void writeRowTemplate_nullCaseInsensitiveConfigUtf8_createsVarCharExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        
+        VarCharExtractor capturedExtractor = captureExtractorAfterWrite(mockField, VarCharExtractor.class, TEST_FIELD);
+        assertNotNull("VarCharExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "default-config");
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("default-config", holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_emptyConfigOptionsUtf8_createsVarCharExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        
+        VarCharExtractor capturedExtractor = captureExtractorAfterWrite(mockField, VarCharExtractor.class, TEST_FIELD);
+        assertNotNull("VarCharExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "empty-config-options");
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("empty-config-options", holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_caseSensitiveUtf8_doesNotMatchDifferentCaseKey() throws Exception
+    {
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_FALSE);
+        edgeContext.put(TESTFIELD_LOWER, TEST_VALUE);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(edgeFieldUtf8(TESTFIELD), VarCharExtractor.class, TESTFIELD);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(edgeContext, holder);
+        assertEquals(0, holder.isSet);
+    }
+    
+    @Test
+    public void writeRowTemplate_caseInsensitiveBigInt_createsBigIntExtractor() throws Exception
+    {
+        mockFieldArrowType(new ArrowType.Int(64, true));
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_TRUE);
+        
+        BigIntExtractor capturedExtractor = captureExtractorAfterWrite(mockField, BigIntExtractor.class, TEST_FIELD);
+        assertNotNull("BigIntExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "9876543210");
+        NullableBigIntHolder holder = new NullableBigIntHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(9876543210L, holder.value);
+        
+        context.put(TEST_FIELD, 42L);
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(42L, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_caseInsensitiveFloat4_createsFloat4Extractor() throws Exception
+    {
+        mockFieldArrowType(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE));
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_TRUE);
+        
+        Float4Extractor capturedExtractor = captureExtractorAfterWrite(mockField, Float4Extractor.class, TEST_FIELD);
+        assertNotNull("Float4Extractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "2.5");
+        NullableFloat4Holder holder = new NullableFloat4Holder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(2.5f, holder.value, 0.0001f);
+        
+        context.put(TEST_FIELD, 1.25f);
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(1.25f, holder.value, 0.0001f);
+    }
+    
+    @Test(expected = NullPointerException.class)
+    public void writeRowTemplate_nullConfigOptions_throwsNullPointerException()
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        
+        EdgeRowWriter.writeRowTemplate(mockRowWriterBuilder, mockField, null);
+    }
+    
+    @Test(expected = NullPointerException.class)
+    public void writeRowTemplate_nullRowWriterBuilder_throwsNullPointerException()
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        
+        EdgeRowWriter.writeRowTemplate(null, mockField, configOptions);
+    }
+    
+    @Test(expected = NullPointerException.class)
+    public void writeRowTemplate_nullField_throwsNullPointerException()
+    {
+        EdgeRowWriter.writeRowTemplate(mockRowWriterBuilder, null, configOptions);
+    }
+    
+    @Test
+    public void writeRowTemplate_bitWhitespaceValue_doesNotSetValue() throws Exception
+    {
+        edgeContext.put(EMPTY_FIELD, SPACES);
+        
+        BitExtractor extractor = captureExtractorAfterWrite(edgeFieldBool(EMPTY_FIELD), BitExtractor.class, EMPTY_FIELD);
+        NullableBitHolder holder = new NullableBitHolder();
+        extractor.extract(edgeContext, holder);
+        assertEquals(0, holder.isSet);
+    }
+    
+    private void setupSchemaCaseInsensitive(String caseInsensitiveValue)
+    {
+        configOptions.put(Constants.SCHEMA_CASE_INSEN, caseInsensitiveValue);
+    }
+    
+    private void mockFieldArrowType(ArrowType arrowType)
+    {
+        when(mockField.getType()).thenReturn(arrowType);
+    }
+    
+    private <E extends Extractor> E captureExtractorAfterWrite(Field field, Class<E> extractorType, String registeredFieldName)
+    {
+        EdgeRowWriter.writeRowTemplate(mockRowWriterBuilder, field, configOptions);
+        ArgumentCaptor<E> captor = ArgumentCaptor.forClass(extractorType);
+        verify(mockRowWriterBuilder).withExtractor(eq(registeredFieldName), captor.capture());
+        return captor.getValue();
+    }
+    
+    private Field edgeFieldBool(String name)
+    {
+        return new Field(name, FieldType.nullable(new ArrowType.Bool()), null);
+    }
+    
+    private Field edgeFieldUtf8(String name)
+    {
+        return new Field(name, FieldType.nullable(new ArrowType.Utf8()), null);
+    }
+    
+
 }
