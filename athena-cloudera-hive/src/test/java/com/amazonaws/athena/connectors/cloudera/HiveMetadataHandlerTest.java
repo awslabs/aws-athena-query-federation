@@ -186,13 +186,97 @@ public class HiveMetadataHandlerTest
             actualValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
         assertEquals(2, actualValues.size());
-        assertEquals("[partition :  case_date=02-01-2000 and case_number=1 and case_instance=89898990 and case_location='Hyderabad']", actualValues.get(0));
-        assertEquals("[partition :  case_date=01-01-2000 and case_number=0 and case_instance=89898989 and case_location is NULL]", actualValues.get(1));
+        assertEquals("[partition :  `case_date`='02-01-2000' and `case_number`=1 and `case_instance`=89898990 and `case_location`='Hyderabad']", actualValues.get(0));
+        assertEquals("[partition :  `case_date`='01-01-2000' and `case_number`=0 and `case_instance`=89898989 and `case_location` is NULL]", actualValues.get(1));
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
         assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         assertEquals(tempTableName, getTableLayoutResponse.getTableName());
+    }
+
+    @Test
+    public void doGetTableLayout_whenCharPartitionValueContainsOr_quotesValueAsStringLiteral()
+            throws Exception
+    {
+        String[] schema = {"data_type", "col_name"};
+        Object[][] values = {{"char(64)", "country"}};
+        ResultSet describeResultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tempTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, QUERY_ID,
+                CATALOG_NAME, tempTableName, constraints, partitionSchema, partitionCols);
+        String[] partitionColumns = {"Partition"};
+        int[] partitionTypes = {Types.VARCHAR};
+        Object[][] partitionValues = {{"country=1 OR true --"}};
+        ResultSet showPartitionsResultSet = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        String[] partitionedColumns = {"col"};
+        int[] partitionedTypes = {Types.VARCHAR};
+        Object[][] partitionedValues = {{"PARTITIONED:true"}};
+        ResultSet partitionedResultSet = mockResultSet(partitionedColumns, partitionedTypes, partitionedValues, new AtomicInteger(-1));
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
+        final String qualifiedTable = HiveUtils.qualifiedTableForMetadataSql(getTableLayoutRequest.getTableName());
+        final String describeSql = HiveMetadataHandler.GET_METADATA_QUERY + qualifiedTable;
+        final String getPartitionExistsSql = "show table extended in "
+                + HiveUtils.quoteIdentifier(getTableLayoutRequest.getTableName().getSchemaName().toUpperCase())
+                + " like " + HiveUtils.likePatternLiteral(getTableLayoutRequest.getTableName().getTableName());
+        final String getPartitionDetailsSql = "show partitions " + qualifiedTable;
+        Statement statement = Mockito.mock(Statement.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        Mockito.when(statement.executeQuery(describeSql)).thenReturn(describeResultSet);
+        Mockito.when(statement.executeQuery(getPartitionDetailsSql)).thenReturn(showPartitionsResultSet);
+        Mockito.when(statement.executeQuery(getPartitionExistsSql)).thenReturn(partitionedResultSet);
+        Mockito.when(partitionedResultSet.getString(1)).thenReturn("PARTITIONED:true");
+
+        GetTableLayoutResponse getTableLayoutResponse = this.hiveMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+
+        assertEquals(1, getTableLayoutResponse.getPartitions().getRowCount());
+        assertEquals("[partition :  `country`='1 OR true --']",
+                BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), 0));
+    }
+
+    @Test
+    public void doGetTableLayout_whenBooleanPartition_emitsUnquotedTrueLiteral()
+            throws Exception
+    {
+        String[] schema = {"data_type", "col_name"};
+        Object[][] values = {{"boolean", "active"}};
+        ResultSet describeResultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tempTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(CATALOG_NAME);
+        Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, QUERY_ID,
+                CATALOG_NAME, tempTableName, constraints, partitionSchema, partitionCols);
+        String[] partitionColumns = {"Partition"};
+        int[] partitionTypes = {Types.VARCHAR};
+        Object[][] partitionValues = {{"active=true"}};
+        ResultSet showPartitionsResultSet = mockResultSet(partitionColumns, partitionTypes, partitionValues, new AtomicInteger(-1));
+        String[] partitionedColumns = {"col"};
+        int[] partitionedTypes = {Types.VARCHAR};
+        Object[][] partitionedValues = {{"PARTITIONED:true"}};
+        ResultSet partitionedResultSet = mockResultSet(partitionedColumns, partitionedTypes, partitionedValues, new AtomicInteger(-1));
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
+        final String qualifiedTable = HiveUtils.qualifiedTableForMetadataSql(getTableLayoutRequest.getTableName());
+        final String describeSql = HiveMetadataHandler.GET_METADATA_QUERY + qualifiedTable;
+        final String getPartitionExistsSql = "show table extended in "
+                + HiveUtils.quoteIdentifier(getTableLayoutRequest.getTableName().getSchemaName().toUpperCase())
+                + " like " + HiveUtils.likePatternLiteral(getTableLayoutRequest.getTableName().getTableName());
+        final String getPartitionDetailsSql = "show partitions " + qualifiedTable;
+        Statement statement = Mockito.mock(Statement.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        Mockito.when(statement.executeQuery(describeSql)).thenReturn(describeResultSet);
+        Mockito.when(statement.executeQuery(getPartitionDetailsSql)).thenReturn(showPartitionsResultSet);
+        Mockito.when(statement.executeQuery(getPartitionExistsSql)).thenReturn(partitionedResultSet);
+        Mockito.when(partitionedResultSet.getString(1)).thenReturn("PARTITIONED:true");
+
+        GetTableLayoutResponse getTableLayoutResponse = this.hiveMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+
+        assertEquals(1, getTableLayoutResponse.getPartitions().getRowCount());
+        assertEquals("[partition :  `active`=true]",
+                BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), 0));
     }
 
     @Test
