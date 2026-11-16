@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
@@ -158,6 +159,13 @@ public class InfluxDBMetadataHandler
      * Derives the result schema for a query passthrough by running the native query and inspecting the Arrow schema of
      * its first result batch. {@link InfluxDBTypeMapper} maps the column types, the same mapping that
      * {@link #doGetTable} uses, so a column has the same Athena type on both paths.
+     *
+     * @throws AthenaConnectorException with {@code INVALID_INPUT_EXCEPTION} if the query returns no rows.
+     *             InfluxDB 3 sends no result batches for an empty result, and the InfluxDB client does not expose
+     *             the result schema without a batch, so the columns are unknown. Athena rejects a passthrough schema
+     *             with no columns ({@code GENERIC_INTERNAL_ERROR: descriptor has no fields}). Athena reports this
+     *             error to the user as {@code GENERIC_USER_ERROR: Failed To Get Query Passthrough Schema}; the
+     *             message is in the Lambda function's log.
      */
     @Override
     public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator allocator, final GetTableRequest request)
@@ -179,11 +187,14 @@ public class InfluxDBMetadataHandler
         final Schema schema = connectionFactory.executeWithTokenRetry(database, client -> {
             final SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
             try (Stream<VectorSchemaRoot> batches = client.queryBatches(query)) {
-                batches.findFirst().ifPresent(first -> {
-                    for (final Field field : first.getSchema().getFields()) {
-                        schemaBuilder.addField(field.getName(), InfluxDBTypeMapper.toAthenaType(field));
-                    }
-                });
+                final VectorSchemaRoot first = batches.findFirst().orElseThrow(() -> InfluxDBErrors.error(
+                        FederationSourceErrorCode.INVALID_INPUT_EXCEPTION,
+                        "The passthrough query returned no rows, so the connector cannot determine its columns. "
+                                + "InfluxDB 3 does not send column information for an empty result. Change the "
+                                + "query so that it returns at least one row."));
+                for (final Field field : first.getSchema().getFields()) {
+                    schemaBuilder.addField(field.getName(), InfluxDBTypeMapper.toAthenaType(field));
+                }
             }
             return schemaBuilder.build();
         });
