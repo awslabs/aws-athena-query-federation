@@ -37,6 +37,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Dataset;
@@ -71,6 +72,7 @@ import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -84,12 +86,15 @@ import static com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryP
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -101,6 +106,8 @@ public class BigQueryMetadataHandlerTest
     private static final String SCHEMA = "testSchema";
     private static final String TABLE = "testTable";
     private static final TableName TABLE_NAME = new TableName("dataset1", "table1");
+    private static final String LIST_SCHEMAS_CATALOG = BigQueryTestUtils.PROJECT_1_NAME.toLowerCase();
+    private static final String CONFIG_PROJECT_NAME = "testproject";
 
     @Mock
     BigQuery bigQuery;
@@ -155,20 +162,156 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames() throws IOException
+    public void testDoListSchemaNames() throws Exception
     {
         final int numDatasets = 5;
-        BigQueryPage<Dataset> datasetPage =
-                new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(nullable(String.class), nullable(BigQuery.DatasetListOption.class))).thenReturn(datasetPage);
+        mockUnlimitedListDatasets(numDatasets);
 
-        //This will test case insenstivity
-        ListSchemasRequest request = new ListSchemasRequest(federatedIdentity,
-                QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase());
-        ListSchemasResponse schemaNames = bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
+        ListSchemasResponse schemaNames = invokeListSchemaNames(newUnlimitedListSchemasRequest());
 
         assertNotNull(schemaNames);
         assertEquals("Schema count does not match!", numDatasets, schemaNames.getSchemas().size());
+        assertNull(schemaNames.getNextToken());
+        assertEquals(LIST_SCHEMAS_CATALOG, schemaNames.getCatalogName());
+        assertTrue(schemaNames.getSchemas().contains("dataset0"));
+        verifyUnlimitedListDatasetsInvoked();
+        verify(bigQuery, never()).listDatasets(nullable(String.class),
+                nullable(BigQuery.DatasetListOption.class), nullable(BigQuery.DatasetListOption.class));
+    }
+
+    @Test
+    public void testDoListSchemaNames_withUnlimitedPageSize_returnsAllSchemasWithNullNextToken() throws Exception
+    {
+        final int numDatasets = 3;
+        mockUnlimitedListDatasets(numDatasets);
+
+        ListSchemasResponse schemaNames = invokeListSchemaNames(
+                newListSchemasRequest(null, UNLIMITED_PAGE_SIZE_VALUE));
+
+        assertEquals(numDatasets, schemaNames.getSchemas().size());
+        assertNull(schemaNames.getNextToken());
+        verifyUnlimitedListDatasetsInvoked();
+    }
+
+    @Test
+    public void testDoListSchemaNames_withEmptyDatasets_returnsEmptyListWithNullNextToken() throws Exception
+    {
+        mockUnlimitedListDatasets(0);
+
+        ListSchemasResponse schemaNames = invokeListSchemaNames(newUnlimitedListSchemasRequest());
+
+        assertEmptyListSchemasResponseWithNullNextToken(schemaNames);
+    }
+
+    @Test
+    public void testDoListSchemaNames_withNullListDatasetsResponseUnlimited_returnsEmptyListWithNullNextToken() throws Exception
+    {
+        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(null);
+
+        ListSchemasResponse schemaNames = invokeListSchemaNames(newUnlimitedListSchemasRequest());
+
+        assertEmptyListSchemasResponseWithNullNextToken(schemaNames);
+    }
+
+    @Test
+    public void testDoListSchemaNames_withNullListDatasetsResponsePaginated_returnsEmptyListWithNullNextToken() throws Exception
+    {
+        when(bigQuery.listDatasets(nullable(String.class),
+                nullable(BigQuery.DatasetListOption.class), nullable(BigQuery.DatasetListOption.class)))
+                .thenReturn(null);
+
+        ListSchemasResponse schemaNames = invokeListSchemaNames(newListSchemasRequest(null, 5));
+
+        assertEmptyListSchemasResponseWithNullNextToken(schemaNames);
+    }
+
+    @Test
+    public void testDoListSchemaNames_withExceedsMaxResults_throwsTooManyTablesException() throws IOException
+    {
+        Dataset dataset = mock(Dataset.class);
+        when(dataset.getDatasetId()).thenReturn(DatasetId.of(BigQueryTestUtils.PROJECT_1_NAME, "dataset"));
+
+        @SuppressWarnings("unchecked")
+        Page<Dataset> datasetPage = mock(Page.class);
+        when(datasetPage.iterateAll()).thenReturn(() -> new Iterator<Dataset>()
+        {
+            @Override
+            public boolean hasNext()
+            {
+                return true;
+            }
+
+            @Override
+            public Dataset next()
+            {
+                return dataset;
+            }
+        });
+        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(datasetPage);
+
+        ListSchemasRequest request = newListSchemasRequest(null, UNLIMITED_PAGE_SIZE_VALUE);
+
+        BigQueryExceptions.TooManyTablesException ex = assertThrows(
+                BigQueryExceptions.TooManyTablesException.class,
+                () -> invokeListSchemaNames(request));
+        assertTrue(ex.getMessage().contains("max metadata results"));
+    }
+
+    @Test
+    public void testDoListSchemaNames_withFirstPaginatedPage_returnsSchemasAndNextToken() throws Exception
+    {
+        final int pageSize = 2;
+        final String nextPageToken = "next-page-token";
+        mockPaginatedListDatasets(pageSize, nextPageToken, true);
+
+        ListSchemasResponse schemaNames = invokeListSchemaNames(newListSchemasRequest(null, pageSize));
+
+        assertNotNull(schemaNames);
+        assertEquals(pageSize, schemaNames.getSchemas().size());
+        assertEquals(nextPageToken, schemaNames.getNextToken());
+        assertTrue(schemaNames.getSchemas().contains("dataset0"));
+        verifyPaginatedListDatasetsInvoked();
+        verify(bigQuery, never()).listDatasets(nullable(String.class));
+    }
+
+    @Test
+    public void testDoListSchemaNames_withNextToken_returnsSchemasAndNextToken() throws Exception
+    {
+        final int pageSize = 2;
+        final String requestToken = "incoming-page-token";
+        final String responseToken = "next-page-token";
+        mockPaginatedListDatasets(pageSize, responseToken, true);
+
+        ListSchemasResponse schemaNames = invokeListSchemaNames(newListSchemasRequest(requestToken, pageSize));
+
+        assertEquals(pageSize, schemaNames.getSchemas().size());
+        assertEquals(responseToken, schemaNames.getNextToken());
+        verifyPaginatedListDatasetsInvoked();
+    }
+
+    @Test
+    public void testDoListSchemaNames_withLastPage_returnsSchemasWithNullNextToken() throws Exception
+    {
+        final int pageSize = 3;
+        mockPaginatedListDatasets(pageSize, null, false);
+
+        ListSchemasResponse schemaNames = invokeListSchemaNames(newListSchemasRequest("final-page-token", pageSize));
+
+        assertEquals(pageSize, schemaNames.getSchemas().size());
+        assertEquals(null, schemaNames.getNextToken());
+    }
+
+    @Test
+    public void testDoListSchemaNames_withEmptyPaginatedPage_returnsEmptyListWithNextToken() throws Exception
+    {
+        final int pageSize = 5;
+        final String nextPageToken = "next-page-token";
+        mockPaginatedListDatasets(0, nextPageToken, true);
+
+        ListSchemasResponse schemaNames = invokeListSchemaNames(newListSchemasRequest(null, pageSize));
+
+        assertTrue(schemaNames.getSchemas().isEmpty());
+        assertEquals(nextPageToken, schemaNames.getNextToken());
     }
 
     @Test
@@ -283,15 +426,6 @@ public class BigQueryMetadataHandlerTest
         GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
 
         assertEquals(1, response.getSplits().size());
-    }
-
-    @Test(expected = Exception.class)
-    public void testDoListSchemaNamesForException() throws IOException
-    {
-        ListSchemasRequest request = new ListSchemasRequest(federatedIdentity,
-                QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase());
-        when(bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request)).thenThrow(new BigQueryExceptions.TooManyTablesException());
-        bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
     }
 
     @Test
@@ -430,5 +564,56 @@ public class BigQueryMetadataHandlerTest
         Exception e = assertThrows(IllegalArgumentException.class, () ->
                 bigQueryMetadataHandler.doGetQueryPassthroughSchema(blockAllocator, getTableRequest));
         assertTrue(e.getMessage().contains("No Query passed through"));
+    }
+
+    private ListSchemasRequest newUnlimitedListSchemasRequest()
+    {
+        return new ListSchemasRequest(federatedIdentity, QUERY_ID, LIST_SCHEMAS_CATALOG);
+    }
+
+    private ListSchemasRequest newListSchemasRequest(String nextToken, int pageSize)
+    {
+        return new ListSchemasRequest(federatedIdentity, QUERY_ID, LIST_SCHEMAS_CATALOG, nextToken, pageSize);
+    }
+
+    private ListSchemasResponse invokeListSchemaNames(ListSchemasRequest request) throws Exception
+    {
+        return bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
+    }
+
+    private void mockUnlimitedListDatasets(int numDatasets)
+    {
+        BigQueryPage<Dataset> datasetPage = new BigQueryPage<>(
+                BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
+        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(datasetPage);
+    }
+
+    private void mockPaginatedListDatasets(int numDatasets, String nextPageToken, boolean hasNextPage)
+    {
+        BigQueryPage<Dataset> datasetPage = new BigQueryPage<>(
+                BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets),
+                nextPageToken,
+                hasNextPage);
+        when(bigQuery.listDatasets(nullable(String.class),
+                nullable(BigQuery.DatasetListOption.class), nullable(BigQuery.DatasetListOption.class)))
+                .thenReturn(datasetPage);
+    }
+
+    private void assertEmptyListSchemasResponseWithNullNextToken(ListSchemasResponse response)
+    {
+        assertNotNull(response);
+        assertTrue(response.getSchemas().isEmpty());
+        assertNull(response.getNextToken());
+    }
+
+    private void verifyUnlimitedListDatasetsInvoked()
+    {
+        verify(bigQuery).listDatasets(eq(CONFIG_PROJECT_NAME));
+    }
+
+    private void verifyPaginatedListDatasetsInvoked()
+    {
+        verify(bigQuery).listDatasets(eq(CONFIG_PROJECT_NAME),
+                nullable(BigQuery.DatasetListOption.class), nullable(BigQuery.DatasetListOption.class));
     }
 }
