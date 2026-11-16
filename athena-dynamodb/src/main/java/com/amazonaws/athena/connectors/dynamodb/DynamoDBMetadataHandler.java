@@ -411,13 +411,14 @@ public class DynamoDBMetadataHandler
         Set<String> columnsToIgnore = new HashSet<>();
         List<AttributeValue> valueAccumulator = new ArrayList<>();
         IncrementingValueNameProducer valueNameProducer = new IncrementingValueNameProducer();
+        Map<String, String> columnAliasMap = new HashMap<>();
         
         if (!hashKeyInfo.isEmpty()) {
             // can "partition" on hash key
             setupQueryPartition(partitionSchemaBuilder, hashKeyName, hashKeyInfo.arrowType(), table, index, columnsToIgnore);
 
             setupRangeKeyFilter(partitionSchemaBuilder, index, summary, filterPredicates, useQueryPlan, 
-                              valueAccumulator, valueNameProducer, recordMetadata, columnsToIgnore);
+                              valueAccumulator, valueNameProducer, recordMetadata, columnsToIgnore, columnAliasMap);
         }
         else {
             // always fall back to a scan
@@ -431,7 +432,7 @@ public class DynamoDBMetadataHandler
         columnsToIgnore.addAll(recordMetadata.getNonComparableColumns());
 
         precomputeAdditionalMetadata(columnsToIgnore, summary, valueAccumulator, valueNameProducer,
-                partitionSchemaBuilder, recordMetadata, filterPredicates, useQueryPlan);
+                partitionSchemaBuilder, recordMetadata, filterPredicates, useQueryPlan, columnAliasMap);
     }
 
     /**
@@ -512,15 +513,15 @@ public class DynamoDBMetadataHandler
      */
     private void precomputeAdditionalMetadata(Set<String> columnsToIgnore, Map<String, ValueSet> predicates, List<AttributeValue> accumulator,
                                               IncrementingValueNameProducer valueNameProducer, SchemaBuilder partitionsSchemaBuilder, DDBRecordMetadata recordMetadata,
-                                              Map<String, List<ColumnPredicate>> filterPredicates, boolean useQueryPlan)
+                                              Map<String, List<ColumnPredicate>> filterPredicates, boolean useQueryPlan, Map<String, String> columnAliasMap)
     {
         // precompute non-key filter
         String filterExpression = null;
         if (!useQueryPlan) {
-            filterExpression = DDBPredicateUtils.generateFilterExpression(columnsToIgnore, predicates, accumulator, valueNameProducer, recordMetadata);
+            filterExpression = DDBPredicateUtils.generateFilterExpression(columnsToIgnore, predicates, accumulator, valueNameProducer, recordMetadata, columnAliasMap);
         }
         else {
-            filterExpression = DDBPredicateUtils.generateFilterExpressionForPlan(columnsToIgnore, filterPredicates, accumulator, valueNameProducer, recordMetadata);
+            filterExpression = DDBPredicateUtils.generateFilterExpressionForPlan(columnsToIgnore, filterPredicates, accumulator, valueNameProducer, recordMetadata, columnAliasMap);
         }
 
         if (filterExpression != null) {
@@ -528,18 +529,13 @@ public class DynamoDBMetadataHandler
         }
 
         if (!accumulator.isEmpty()) {
-            // add in mappings for aliased columns and value placeholders
-            Map<String, String> aliasedColumns = new HashMap<>();
-            Set<String> filterColumns = new HashSet<>();
-            if (useQueryPlan) {
-                filterColumns = filterPredicates.keySet();
-            }
-            else {
-                filterColumns = predicates.keySet();
-            }
+            // Register aliases for all predicate columns (including hash/range keys and ignored columns),
+            // reusing aliases already assigned during filter generation.
+            Set<String> filterColumns = useQueryPlan ? filterPredicates.keySet() : predicates.keySet();
             for (String column : filterColumns) {
-                aliasedColumns.put(DDBPredicateUtils.aliasColumn(column), column);
+                DDBPredicateUtils.aliasColumn(column, columnAliasMap);
             }
+
             Map<String, AttributeValue> expressionValueMapping = new HashMap<>();
             // IncrementingValueNameProducer is repeatable for simplicity
             IncrementingValueNameProducer valueNameProducer2 = new IncrementingValueNameProducer();
@@ -549,7 +545,7 @@ public class DynamoDBMetadataHandler
 
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
-                partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, objectMapper.writeValueAsString(aliasedColumns));
+                partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, objectMapper.writeValueAsString(columnAliasMap));
             }
             catch (Exception e) {
                 throw new RuntimeException(e);
@@ -722,7 +718,7 @@ public class DynamoDBMetadataHandler
                                    Map<String, ValueSet> summary, Map<String, List<ColumnPredicate>> filterPredicates,
                                    boolean useQueryPlan, List<AttributeValue> valueAccumulator,
                                    IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata,
-                                   Set<String> columnsToIgnore)
+                                   Set<String> columnsToIgnore, Map<String, String> columnAliasMap)
     {
         Optional<String> rangeKey = index.getRangeKey();
         if (rangeKey.isEmpty()) {
@@ -734,11 +730,11 @@ public class DynamoDBMetadataHandler
         
         if (!useQueryPlan && summary.containsKey(rangeKeyName)) {
             rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(
-                rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true);
+                rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true, columnAliasMap);
         }
         else if (useQueryPlan && filterPredicates.containsKey(rangeKeyName)) {
             rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(
-                rangeKeyName, filterPredicates.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true);
+                rangeKeyName, filterPredicates.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true, columnAliasMap);
         }
         
         if (rangeKeyFilter != null) {

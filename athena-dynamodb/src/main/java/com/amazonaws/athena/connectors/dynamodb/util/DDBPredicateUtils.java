@@ -132,18 +132,33 @@ public class DDBPredicateUtils
     }
 
     /**
-     * Generates a simple alias for a column to satisfy filter expressions. Uses a regex to convert illegal characters
-     * (any character or combination of characters that are NOT included in [a-zA-Z_0-9]) to underscore.
-     * Example: "column-$1`~!@#$%^&*()-=+[]{}\\|;:'\",.<>/?f3" -> "#column_1_f3"
+     * Returns a unique DynamoDB expression attribute name alias for the column. Illegal characters are replaced
+     * with underscores. Pass the same map for all columns in one expression to avoid name collisions
+     * (e.g. {@code my-column} and {@code my/column} both normalize to {@code my_column}).
      *
      * @see <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ExpressionAttributeNames.html">
      *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ExpressionAttributeNames.html</a>
+    
      * @param columnName the input column name
+     * @param columnAliasMap map used to store and reuse generated column aliases,
+     *                       ensuring alias uniqueness within a query
      * @return the aliased column name
-     */
-    public static String aliasColumn(String columnName)
+      */
+    public static String aliasColumn(String columnName, Map<String, String> columnAliasMap)
     {
-        return "#" + columnName.replaceAll("\\W+", "_");
+        for (Map.Entry<String, String> entry : columnAliasMap.entrySet()) {
+            if (entry.getValue().equals(columnName)) {
+                return entry.getKey();
+            }
+        }
+        String base = columnName.replaceAll("\\W+", "_");
+        String alias = "#" + base;
+        int counter = 1;
+        while (columnAliasMap.containsKey(alias)) {
+            alias = "#" + base + "_" + counter++;
+        }
+        columnAliasMap.put(alias, columnName);
+        return alias;
     }
 
     /**
@@ -256,10 +271,10 @@ public class DDBPredicateUtils
     Adds a value to the value accumulator and also returns an expression with given operands.
      */
     private static String toPredicate(String columnName, String operator, Object value, List<AttributeValue> accumulator,
-                                      String valueName, DDBRecordMetadata recordMetadata)
+                                      String valueName, DDBRecordMetadata recordMetadata, Map<String, String> columnAliasMap)
     {
         bindValue(columnName, value, accumulator, recordMetadata);
-        return aliasColumn(columnName) + " " + operator + " " + valueName;
+        return aliasColumn(columnName, columnAliasMap) + " " + operator + " " + valueName;
     }
 
     private static void validateColumnRange(Range range)
@@ -304,14 +319,22 @@ public class DDBPredicateUtils
     public static String generateSingleColumnFilter(String originalColumnName, ValueSet predicate, List<AttributeValue> accumulator,
             IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata, boolean columnIsSortKey)
     {
-        String columnName = aliasColumn(originalColumnName);
+        return generateSingleColumnFilter(originalColumnName, predicate, accumulator, valueNameProducer, recordMetadata,
+                columnIsSortKey, new HashMap<>());
+    }
+
+    public static String generateSingleColumnFilter(String originalColumnName, ValueSet predicate, List<AttributeValue> accumulator,
+            IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata, boolean columnIsSortKey,
+            Map<String, String> columnAliasMap)
+    {
+        String columnName = aliasColumn(originalColumnName, columnAliasMap);
 
         if (predicate.isNone()) {
-            return "(attribute_not_exists(" + columnName + ") OR " + toPredicate(originalColumnName, "=", null, accumulator, valueNameProducer.getNext(), recordMetadata) + ")";
+            return "(attribute_not_exists(" + columnName + ") OR " + toPredicate(originalColumnName, "=", null, accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap) + ")";
         }
 
         if (predicate.isAll()) {
-            return "(attribute_exists(" + columnName + ") AND " + toPredicate(originalColumnName, "<>", null, accumulator, valueNameProducer.getNext(), recordMetadata) + ")";
+            return "(attribute_exists(" + columnName + ") AND " + toPredicate(originalColumnName, "<>", null, accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap) + ")";
         }
 
         List<String> disjuncts = new ArrayList<>();
@@ -329,7 +352,7 @@ public class DDBPredicateUtils
                 // DDB Only supports one condition per sort key, so here we attempt to combine the situations wherever we
                 // have both inclusive upper and lower bounds (BETWEEN).
                 if (range.getLow().getBound().equals(Marker.Bound.EXACTLY) && range.getHigh().getBound().equals(Marker.Bound.EXACTLY)) {
-                    String startBetweenPredicate = toPredicate(originalColumnName, "BETWEEN", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata);
+                    String startBetweenPredicate = toPredicate(originalColumnName, "BETWEEN", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap);
                     String endBetweenPredicate = valueNameProducer.getNext();
                     bindValue(originalColumnName, range.getHigh().getValue(), accumulator, recordMetadata);
                     rangeConjuncts.add(startBetweenPredicate);
@@ -345,11 +368,11 @@ public class DDBPredicateUtils
                     if (!range.getHigh().isUpperUnbounded()) {
                         switch (range.getHigh().getBound()) {
                             case EXACTLY:
-                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
                                 upperBoundConditionAdded = true;
                                 break;
                             case BELOW:
-                                rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
                                 upperBoundConditionAdded = true;
                                 break;
                         }
@@ -362,10 +385,10 @@ public class DDBPredicateUtils
                     if (canAddLowerBound && !range.getLow().isLowerUnbounded()) {
                         switch (range.getLow().getBound()) {
                             case ABOVE:
-                                rangeConjuncts.add(toPredicate(originalColumnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                rangeConjuncts.add(toPredicate(originalColumnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
                                 break;
                             case EXACTLY:
-                                rangeConjuncts.add(toPredicate(originalColumnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                rangeConjuncts.add(toPredicate(originalColumnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
                                 break;
                         }
                     }
@@ -386,7 +409,7 @@ public class DDBPredicateUtils
 
         // Add back all of the possible single values either as an equality or an IN predicate
         if (singleValues.size() == 1) {
-            disjuncts.add(toPredicate(originalColumnName, isWhitelist ? "=" : "<>", getOnlyElement(singleValues), accumulator, valueNameProducer.getNext(), recordMetadata));
+            disjuncts.add(toPredicate(originalColumnName, isWhitelist ? "=" : "<>", getOnlyElement(singleValues), accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
         }
         else if (singleValues.size() > 1) {
             for (Object value : singleValues) {
@@ -402,7 +425,7 @@ public class DDBPredicateUtils
         // add nullability disjuncts
         if (predicate.isNullAllowed()) {
             disjuncts.add("attribute_not_exists(" + columnName + ") OR " +
-                    toPredicate(originalColumnName, "=", null, accumulator, valueNameProducer.getNext(), recordMetadata));
+                    toPredicate(originalColumnName, "=", null, accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
         }
 
         // DDB doesn't like redundant parentheses
@@ -420,16 +443,25 @@ public class DDBPredicateUtils
                                                     List<AttributeValue> accumulator, IncrementingValueNameProducer valueNameProducer,
                                                     DDBRecordMetadata recordMetadata, boolean columnIsSortKey)
     {
+        return generateSingleColumnFilter(originalColumnName, predicates, accumulator, valueNameProducer, recordMetadata,
+                columnIsSortKey, new HashMap<>());
+    }
+
+    public static String generateSingleColumnFilter(String originalColumnName, List<ColumnPredicate> predicates,
+                                                    List<AttributeValue> accumulator, IncrementingValueNameProducer valueNameProducer,
+                                                    DDBRecordMetadata recordMetadata, boolean columnIsSortKey,
+                                                    Map<String, String> columnAliasMap)
+    {
         if (predicates.isEmpty()) {
             return null;
         }
 
-        String columnName = aliasColumn(originalColumnName);
+        String columnName = aliasColumn(originalColumnName, columnAliasMap);
 
         // Handle null checks for single predicates
         if (predicates.size() == 1) {
             String nullCheckFilter = handleNullCheckPredicates(originalColumnName, columnName, predicates.get(0),
-                    accumulator, valueNameProducer, recordMetadata);
+                    accumulator, valueNameProducer, recordMetadata, columnAliasMap);
             if (nullCheckFilter != null) {
                 return nullCheckFilter;
             }
@@ -439,14 +471,14 @@ public class DDBPredicateUtils
 
         if (areEquatablePredicates(predicates)) {
             String equalityFilter = buildEqualityFilter(originalColumnName, columnName, predicates,
-                    accumulator, valueNameProducer, recordMetadata);
+                    accumulator, valueNameProducer, recordMetadata, columnAliasMap);
             if (equalityFilter != null) {
                 disjuncts.add(equalityFilter);
             }
         }
         else {
             String rangeFilter = buildRangeFilter(originalColumnName, predicates, accumulator,
-                    valueNameProducer, recordMetadata, columnIsSortKey);
+                    valueNameProducer, recordMetadata, columnIsSortKey, columnAliasMap);
             if (rangeFilter != null) {
                 disjuncts.add(rangeFilter);
             }
@@ -472,11 +504,17 @@ public class DDBPredicateUtils
     public static String generateFilterExpression(Set<String> columnsToIgnore, Map<String, ValueSet> predicates, List<AttributeValue> accumulator,
             IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata)
     {
+        return generateFilterExpression(columnsToIgnore, predicates, accumulator, valueNameProducer, recordMetadata, new HashMap<>());
+    }
+
+    public static String generateFilterExpression(Set<String> columnsToIgnore, Map<String, ValueSet> predicates, List<AttributeValue> accumulator,
+            IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata, Map<String, String> columnAliasMap)
+    {
         ImmutableList.Builder<String> builder = ImmutableList.builder();
         for (Map.Entry<String, ValueSet> predicate : predicates.entrySet()) {
             String columnName = predicate.getKey();
             if (!columnsToIgnore.contains(columnName)) {
-                String columnFilter = generateSingleColumnFilter(columnName, predicate.getValue(), accumulator, valueNameProducer, recordMetadata, false);
+                String columnFilter = generateSingleColumnFilter(columnName, predicate.getValue(), accumulator, valueNameProducer, recordMetadata, false, columnAliasMap);
                 builder.add(columnFilter);
             }
         }
@@ -490,11 +528,17 @@ public class DDBPredicateUtils
     public static String generateFilterExpressionForPlan(Set<String> columnsToIgnore, Map<String, List<ColumnPredicate>> predicates, List<AttributeValue> accumulator,
                                                   IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata)
     {
+        return generateFilterExpressionForPlan(columnsToIgnore, predicates, accumulator, valueNameProducer, recordMetadata, new HashMap<>());
+    }
+
+    public static String generateFilterExpressionForPlan(Set<String> columnsToIgnore, Map<String, List<ColumnPredicate>> predicates, List<AttributeValue> accumulator,
+                                                  IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata, Map<String, String> columnAliasMap)
+    {
         ImmutableList.Builder<String> builder = ImmutableList.builder();
         for (Map.Entry<String, List<ColumnPredicate>> predicate : predicates.entrySet()) {
             String columnName = predicate.getKey();
             if (!columnsToIgnore.contains(columnName)) {
-                String columnFilter = generateSingleColumnFilter(columnName, predicate.getValue(), accumulator, valueNameProducer, recordMetadata, false);
+                String columnFilter = generateSingleColumnFilter(columnName, predicate.getValue(), accumulator, valueNameProducer, recordMetadata, false, columnAliasMap);
                 if (columnFilter != null) {
                     builder.add(columnFilter);
                 }
@@ -608,35 +652,35 @@ public class DDBPredicateUtils
      */
     private static String handleNullCheckPredicates(String originalColumnName, String columnName, ColumnPredicate predicate,
                                                    List<AttributeValue> accumulator, IncrementingValueNameProducer valueNameProducer,
-                                                   DDBRecordMetadata recordMetadata)
+                                                   DDBRecordMetadata recordMetadata, Map<String, String> columnAliasMap)
     {
         SubstraitOperator substraitOperator = predicate.getOperator();
         if (substraitOperator == SubstraitOperator.IS_NOT_NULL) {
-            return "(attribute_exists(" + columnName + ") AND " + 
-                   toPredicate(originalColumnName, "=", null, accumulator, valueNameProducer.getNext(), recordMetadata) + ")";
+            return "(attribute_exists(" + columnName + ") AND " +
+                   toPredicate(originalColumnName, "=", null, accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap) + ")";
         }
         if (substraitOperator == SubstraitOperator.IS_NULL) {
-            return "(attribute_not_exists(" + columnName + ") OR " + 
-                   toPredicate(originalColumnName, "<>", null, accumulator, valueNameProducer.getNext(), recordMetadata) + ")";
+            return "(attribute_not_exists(" + columnName + ") OR " +
+                   toPredicate(originalColumnName, "<>", null, accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap) + ")";
         }
         return null;
     }
-    
+
     /**
      * Builds equality filter expressions (=, !=, IN, NOT IN).
      */
     private static String buildEqualityFilter(String originalColumnName, String columnName, List<ColumnPredicate> predicates,
                                             List<AttributeValue> accumulator, IncrementingValueNameProducer valueNameProducer,
-                                            DDBRecordMetadata recordMetadata)
+                                            DDBRecordMetadata recordMetadata, Map<String, String> columnAliasMap)
     {
         boolean isAllowlist = isAllowListPredicate(predicates);
         List<Object> singleValues = predicates.stream()
                 .map(ColumnPredicate::getValue)
                 .collect(Collectors.toList());
-        
+
         if (singleValues.size() == 1) {
-            return toPredicate(originalColumnName, isAllowlist ? "=" : "<>", 
-                             getOnlyElement(singleValues), accumulator, valueNameProducer.getNext(), recordMetadata);
+            return toPredicate(originalColumnName, isAllowlist ? "=" : "<>",
+                             getOnlyElement(singleValues), accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap);
         }
         else if (singleValues.size() > 1) {
             for (Object value : singleValues) {
@@ -648,32 +692,32 @@ public class DDBPredicateUtils
         }
         return null;
     }
-    
+
     /**
      * Builds range filter expressions (>, >=, <, <=, BETWEEN).
      */
     private static String buildRangeFilter(String originalColumnName, List<ColumnPredicate> predicates,
                                          List<AttributeValue> accumulator, IncrementingValueNameProducer valueNameProducer,
-                                         DDBRecordMetadata recordMetadata, boolean columnIsSortKey)
+                                         DDBRecordMetadata recordMetadata, boolean columnIsSortKey, Map<String, String> columnAliasMap)
     {
         List<String> rangeConjuncts = new ArrayList<>();
-        
+
         if (hasStrictIncludeRange(predicates)) {
             Pair<ColumnPredicate, ColumnPredicate> rangePredicates = getIncludedRangeBounds(predicates);
             String startBetweenPredicate = toPredicate(originalColumnName, "BETWEEN",
-                    rangePredicates.getLeft().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata);
+                    rangePredicates.getLeft().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap);
             String endBetweenPredicate = valueNameProducer.getNext();
             bindValue(originalColumnName, rangePredicates.getRight().getValue(), accumulator, recordMetadata);
             rangeConjuncts.add(startBetweenPredicate);
             rangeConjuncts.add(endBetweenPredicate);
         }
         else {
-            addUpperBoundCondition(originalColumnName, predicates, accumulator, valueNameProducer, recordMetadata, rangeConjuncts);
+            addUpperBoundCondition(originalColumnName, predicates, accumulator, valueNameProducer, recordMetadata, rangeConjuncts, columnAliasMap);
             boolean upperBoundAdded = !rangeConjuncts.isEmpty();
-            addLowerBoundCondition(originalColumnName, predicates, accumulator, valueNameProducer, recordMetadata, 
-                                 rangeConjuncts, columnIsSortKey, upperBoundAdded);
+            addLowerBoundCondition(originalColumnName, predicates, accumulator, valueNameProducer, recordMetadata,
+                                 rangeConjuncts, columnIsSortKey, upperBoundAdded, columnAliasMap);
         }
-        
+
         checkState(!rangeConjuncts.isEmpty());
         return "(" + AND_JOINER.join(rangeConjuncts) + ")";
     }
@@ -698,33 +742,33 @@ public class DDBPredicateUtils
      */
     private static void addUpperBoundCondition(String originalColumnName, List<ColumnPredicate> predicates,
                                              List<AttributeValue> accumulator, IncrementingValueNameProducer valueNameProducer,
-                                             DDBRecordMetadata recordMetadata, List<String> rangeConjuncts)
+                                             DDBRecordMetadata recordMetadata, List<String> rangeConjuncts, Map<String, String> columnAliasMap)
     {
         Predicate<ColumnPredicate> isLessThanPredicate = predicate ->
                 (predicate.getOperator() == SubstraitOperator.LESS_THAN || predicate.getOperator() == SubstraitOperator.LESS_THAN_OR_EQUAL_TO);
         ColumnPredicate upperBoundPredicate = getColumnPredicate(predicates, isLessThanPredicate);
-        
+
         if (upperBoundPredicate != null) {
             switch (upperBoundPredicate.getOperator()) {
                 case LESS_THAN_OR_EQUAL_TO:
-                    rangeConjuncts.add(toPredicate(originalColumnName, "<=", upperBoundPredicate.getValue(), 
-                                                 accumulator, valueNameProducer.getNext(), recordMetadata));
+                    rangeConjuncts.add(toPredicate(originalColumnName, "<=", upperBoundPredicate.getValue(),
+                                                 accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
                     break;
                 case LESS_THAN:
-                    rangeConjuncts.add(toPredicate(originalColumnName, "<", upperBoundPredicate.getValue(), 
-                                                 accumulator, valueNameProducer.getNext(), recordMetadata));
+                    rangeConjuncts.add(toPredicate(originalColumnName, "<", upperBoundPredicate.getValue(),
+                                                 accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
                     break;
             }
         }
     }
-    
+
     /**
      * Adds lower bound conditions to range conjuncts.
      */
     private static void addLowerBoundCondition(String originalColumnName, List<ColumnPredicate> predicates,
                                              List<AttributeValue> accumulator, IncrementingValueNameProducer valueNameProducer,
                                              DDBRecordMetadata recordMetadata, List<String> rangeConjuncts,
-                                             boolean columnIsSortKey, boolean upperBoundAdded)
+                                             boolean columnIsSortKey, boolean upperBoundAdded, Map<String, String> columnAliasMap)
     {
         // We can always add the lower bound if the column is not a sort key.
         // But if it is a sort key, then we can only add it if we have not already added the upper bound.
@@ -741,12 +785,12 @@ public class DDBPredicateUtils
         if (lowerBoundPredicate != null) {
             switch (lowerBoundPredicate.getOperator()) {
                 case GREATER_THAN:
-                    rangeConjuncts.add(toPredicate(originalColumnName, ">", lowerBoundPredicate.getValue(), 
-                                                 accumulator, valueNameProducer.getNext(), recordMetadata));
+                    rangeConjuncts.add(toPredicate(originalColumnName, ">", lowerBoundPredicate.getValue(),
+                                                 accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
                     break;
                 case GREATER_THAN_OR_EQUAL_TO:
-                    rangeConjuncts.add(toPredicate(originalColumnName, ">=", lowerBoundPredicate.getValue(), 
-                                                 accumulator, valueNameProducer.getNext(), recordMetadata));
+                    rangeConjuncts.add(toPredicate(originalColumnName, ">=", lowerBoundPredicate.getValue(),
+                                                 accumulator, valueNameProducer.getNext(), recordMetadata, columnAliasMap));
                     break;
             }
         }
