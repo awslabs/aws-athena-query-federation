@@ -58,6 +58,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
@@ -93,7 +94,9 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_NAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -536,6 +539,102 @@ public class VerticaMetadataHandlerTest extends TestBase
         assertEquals("query123/part1.parquet", split.getProperty("s3ObjectKey"));
     }
 
+    @Test
+    public void withUniqueExportDirectory_replacesOnlyExportDirectory_preservesSqlContent()
+    {
+        String queryId = "athenaqid123";
+        String sql = "EXPORT TO PARQUET(directory = 's3://bucket/" + queryId
+                + "', Compression='snappy') AS SELECT id FROM t WHERE name = '" + queryId + "'";
+        String uniqueExportId = queryId + "/inv1";
+
+        String rewritten = VerticaMetadataHandler.withUniqueExportDirectory(sql, queryId, uniqueExportId);
+
+        assertEquals("EXPORT TO PARQUET(directory = 's3://bucket/" + uniqueExportId
+                + "', Compression='snappy') AS SELECT id FROM t WHERE name = '" + queryId + "'", rewritten);
+    }
+
+    @Test
+    public void withUniqueExportDirectory_withEmptyInputs_returnsOriginal()
+    {
+        String sql = "EXPORT TO PARQUET(directory = 's3://bucket/qid') AS SELECT 1";
+        assertNull(VerticaMetadataHandler.withUniqueExportDirectory(null, "qid", "qid/inv"));
+        assertEquals("", VerticaMetadataHandler.withUniqueExportDirectory("", "qid", "qid/inv"));
+        assertEquals(sql, VerticaMetadataHandler.withUniqueExportDirectory(sql, null, "qid/inv"));
+        assertEquals(sql, VerticaMetadataHandler.withUniqueExportDirectory(sql, "", "qid/inv"));
+        assertEquals(sql, VerticaMetadataHandler.withUniqueExportDirectory(sql, "qid", null));
+        assertEquals(sql, VerticaMetadataHandler.withUniqueExportDirectory(sql, "qid", ""));
+    }
+
+    @Test
+    public void withUniqueExportDirectory_whenDirectoryTokenMissing_returnsOriginalSql()
+    {
+        String sql = "EXPORT TO PARQUET(directory = 's3://bucket/other') AS SELECT id FROM t WHERE name = 'qid'";
+        assertEquals(sql, VerticaMetadataHandler.withUniqueExportDirectory(sql, "qid", "qid/inv"));
+    }
+
+    @Test
+    public void doGetSplits_samePartitionQuery_usesUniqueExportDirectoryPerInvocation() throws Exception
+    {
+        String partitionQueryId = "athenaqid" + UUID.randomUUID().toString().replace("-", "");
+        String exportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" + partitionQueryId
+                + "', Compression='snappy') AS SELECT id FROM t";
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("preparedStmt")
+                .addStringField(TEST_QUERY_ID)
+                .addStringField(AWS_REGION_SQL_FIELD)
+                .build();
+        Block partitions = allocator.createBlock(schema);
+        BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), 0, exportSql);
+        BlockUtils.setValue(partitions.getFieldVector(TEST_QUERY_ID), 0, partitionQueryId);
+        BlockUtils.setValue(partitions.getFieldVector(AWS_REGION_SQL_FIELD), 0, "ALTER SESSION SET AWSRegion='us-west-2'");
+
+        Map<String, Integer> listCounts = new HashMap<>();
+        Mockito.when(amazonS3.listObjects(nullable(ListObjectsRequest.class))).thenAnswer(invocation -> {
+            ListObjectsRequest listRequest = invocation.getArgument(0);
+            String prefix = listRequest.prefix();
+            int seen = listCounts.merge(prefix, 1, Integer::sum);
+            if (seen == 1) {
+                return ListObjectsResponse.builder().contents(Collections.emptyList()).build();
+            }
+            return ListObjectsResponse.builder()
+                    .contents(Collections.singletonList(S3Object.builder().key(prefix + "/part.parquet").build()))
+                    .build();
+        });
+
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(TEST_S3_BUCKET);
+
+        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, TEST_QUERY_ID, "catalog_name",
+                new TableName("schema", "table_name"), partitions, Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                        DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
+
+        GetSplitsResponse first = verticaMetadataHandlerMocked.doGetSplits(allocator, req);
+        GetSplitsResponse second = verticaMetadataHandlerMocked.doGetSplits(allocator, req);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(connection, Mockito.atLeastOnce()).prepareStatement(sqlCaptor.capture());
+        List<String> exportStatements = new ArrayList<>();
+        for (String sql : sqlCaptor.getAllValues()) {
+            if (sql.startsWith("EXPORT TO PARQUET")) {
+                exportStatements.add(sql);
+            }
+        }
+        assertEquals(2, exportStatements.size());
+
+        String firstDirectory = exportDirectory(exportStatements.get(0));
+        String secondDirectory = exportDirectory(exportStatements.get(1));
+
+        assertTrue(firstDirectory.startsWith(partitionQueryId + "/"));
+        assertTrue(secondDirectory.startsWith(partitionQueryId + "/"));
+        assertNotEquals(firstDirectory, secondDirectory);
+    }
+
+    private static String exportDirectory(String exportSql)
+    {
+        String marker = "directory = 's3://testS3Bucket/";
+        int start = exportSql.indexOf(marker) + marker.length();
+        return exportSql.substring(start, exportSql.indexOf("'", start));
+    }
 
     @Test
     public void testBuildQueryPassthroughSql() {
