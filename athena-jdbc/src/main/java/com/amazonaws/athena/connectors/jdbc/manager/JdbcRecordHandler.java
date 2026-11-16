@@ -21,9 +21,13 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
@@ -45,15 +49,25 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBin
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.records.RecordResponse;
+import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto;
+import com.amazonaws.athena.connector.lambda.security.BlockCrypto;
+import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
+import com.amazonaws.athena.connector.lambda.security.NoOpBlockCrypto;
 import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
+import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
@@ -74,10 +88,12 @@ import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Array;
@@ -88,9 +104,11 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TimeZone;
 
 /**
  * Abstracts JDBC record handler and provides common reusable split records handling.
@@ -102,7 +120,15 @@ public abstract class JdbcRecordHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
+    // Default S3 client retained from the constructor. The base RecordHandler keeps its own copy private, so we hold
+    // a reference here to use as the fallback for getS3Client(...) on the direct-query spill-write path.
+    private final S3Client amazonS3Client;
     private static final String CLICKHOUSE_DB = "clickhouse";
+    // Query-passthrough marker argument: when present, the direct query's results are written to S3 and its
+    // ResultSet-derived schema is exported to a sidecar object (see doReadRecords / writeDirectQueryToSpill).
+    public static final String EXPORT_SCHEMA = "ExportSchema";
+    // Suffix for the sidecar object that carries the ResultSet-derived Arrow schema for pass through query spills.
+    private static final String SCHEMA_SUFFIX = ".schema";
 
     protected final JdbcQueryPassthrough queryPassthrough = new JdbcQueryPassthrough();
 
@@ -114,6 +140,7 @@ public abstract class JdbcRecordHandler
         super(sourceType, configOptions);
         this.jdbcConnectionFactory = null;
         this.databaseConnectionConfig = null;
+        this.amazonS3Client = null;
     }
 
     protected JdbcRecordHandler(
@@ -127,6 +154,7 @@ public abstract class JdbcRecordHandler
         super(amazonS3, secretsManager, athena, databaseConnectionConfig.getEngine(), configOptions);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
+        this.amazonS3Client = amazonS3;
     }
 
     protected JdbcConnectionFactory getJdbcConnectionFactory()
@@ -147,6 +175,47 @@ public abstract class JdbcRecordHandler
             return databaseConnectionConfig.getSecret();
         }
         return null;
+    }
+
+    /**
+     * Intercepts the query-passthrough export path (the {@code ExportSchema} marker). The results are
+     * written to S3 in the SDK spill format (schema-less, AES-GCM encrypted, {@code <spillKey>.N} naming) with the
+     * same credential path the base spiller uses, so the only bespoke object is the {@code <spillKey>.schema} sidecar
+     * carrying the schema derived from the live result at read time. The response advertises the written data objects
+     * as spill locations and carries that same derived schema. For all other reads it delegates to the base.
+     */
+    @Override
+    public RecordResponse doReadRecords(BlockAllocator allocator, ReadRecordsRequest request) throws Exception
+    {
+        Map<String, String> queryPassthroughArguments = request.getConstraints().getQueryPassthroughArguments();
+        if (queryPassthroughArguments == null || !queryPassthroughArguments.containsKey(EXPORT_SCHEMA)) {
+            return super.doReadRecords(allocator, request);
+        }
+
+        List<SpillLocation> spillLocations = new ArrayList<>();
+        // The row source (live JDBC vs a pre-exported artifact) is an overridable detail; the response contract is
+        // the same: a schema derived from the actual result at read time, the written spill locations, and a
+        // <spillKey>.schema sidecar. We never rely on request.getSchema() here.
+        Schema derivedSchema = exportResultSetToSpill(request, allocator, spillLocations);
+
+        return new RemoteReadRecordsResponse(request.getCatalogName(), derivedSchema, spillLocations,
+                request.getSplit().getEncryptionKey());
+    }
+
+    /**
+     * Produces the export results as SDK spill objects plus a {@code <spillKey>.schema} sidecar, and returns the
+     * schema derived from the actual result at read time (faithful types; no connector-specific normalization). The
+     * default implementation runs the query over JDBC and derives the schema from {@link java.sql.ResultSetMetaData}.
+     * Connectors that can materialize results more efficiently (e.g. Snowflake's S3 {@code COPY INTO} export) may
+     * override this to read the pre-exported artifact instead, as long as they still derive the schema from the
+     * actual result, spill the rows, write the sidecar, and append the written data-object locations to
+     * {@code spillLocations}.
+     */
+    protected Schema exportResultSetToSpill(ReadRecordsRequest request, BlockAllocator allocator, List<SpillLocation> spillLocations)
+            throws Exception
+    {
+        String directQuery = request.getConstraints().getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
+        return writePassThroughQueryUsingResultSchema(request, directQuery, allocator, spillLocations);
     }
 
     @Override
@@ -199,6 +268,147 @@ public abstract class JdbcRecordHandler
                 disableCaseSensitivelyLookUpSession(connection); // For certain connectors, we require to apply session config first to enable case
             }
         }
+    }
+
+    /**
+     * Executes the export query and writes its results to S3 via the SDK {@link S3BlockSpiller} (which handles
+     * credentials, encryption, {@code <spillKey>.N} naming and location tracking); the only bespoke object is the
+     * {@code <spillKey>.schema} sidecar carrying the schema derived from the live {@link java.sql.ResultSetMetaData}. The
+     * derived schema uses faithful Arrow types (via {@link JdbcToArrowUtils}) with no connector-specific
+     * normalization, and {@link BlockUtils#setValue} populates the vectors (it covers the full type range, including
+     * timestamp-with-timezone). Written data-object locations are appended to {@code spillLocations}; the sidecar is
+     * intentionally NOT added (it is not a data block).
+     *
+     * @return the Arrow schema derived from the live result (the schema the data was written with).
+     */
+    private Schema writePassThroughQueryUsingResultSchema(ReadRecordsRequest request, String passThroughQuery, BlockAllocator allocator,
+                                                          List<SpillLocation> spillLocations)
+            throws Exception
+    {
+        S3SpillLocation spillLocation = (S3SpillLocation) request.getSplit().getSpillLocation();
+        SpillConfig spillConfig = buildExportSpillConfig(request);
+        S3Client s3Client = resolveScopedS3Client(request);
+
+        LOGGER.info("writePassThroughQueryUsingResultSchema: executing export query; writing records via spiller to s3://{}/{}.N and schema to {}{}",
+                spillLocation.getBucket(), spillLocation.getKey(), spillLocation.getKey(), SCHEMA_SUFFIX);
+
+        // This separate-schema export targets plain Arrow readers, so disable Presto/Athena timezone packing for
+        // this thread: timestamp-with-tz values are written as plain epoch millis (cleared in finally below).
+        DateTimeFormatterUtil.overrideTimezonePacking(false);
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
+            connection.setAutoCommit(false); // enable server-side streaming for large result sets
+            try (PreparedStatement preparedStatement = connection.prepareStatement(passThroughQuery);
+                    ResultSet resultSet = preparedStatement.executeQuery()) {
+                // Derive the Arrow schema from the ResultSet itself (faithful column names AND types).
+                // Overridable so connectors can adjust the type mapping (e.g. preserve NUMBER(p,0) precision).
+                Schema derivedSchema = deriveExportSchema(resultSet);
+
+                // Write the schema sidecar BEFORE any record is written, so a reader can discover the schema
+                // as soon as the first data object appears (and even if the row-writing loop later fails).
+                writeSchemaSidecar(s3Client, spillLocation, request.getSplit().getEncryptionKey(), derivedSchema, allocator);
+
+                try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, derivedSchema, request.getConstraints());
+                        S3BlockSpiller spiller = new S3BlockSpiller(s3Client, spillConfig, allocator, derivedSchema, evaluator, configOptions)) {
+                    // Populate the Arrow vectors directly with BlockUtils.setValue, which already handles the full
+                    // type range (including timestamp-with-timezone) that arbitrary export results can contain.
+                    long rowsReturnedFromDatabase = 0;
+                    // Resolve the Arrow output vectors by position (schema order) and read each cell by 1-based
+                    // column index -- both avoid a per-cell lookup by column name. The derived schema's field order
+                    // matches the ResultSet column order, so vector c corresponds to column c+1.
+                    final int fieldCount = derivedSchema.getFields().size();
+                    while (resultSet.next()) {
+                        spiller.writeRows((Block block, int rowNum) -> {
+                            List<FieldVector> vectors = block.getFieldVectors();
+                            for (int c = 0; c < fieldCount; c++) {
+                                BlockUtils.setValue(vectors.get(c), rowNum, resultSet.getObject(c + 1));
+                            }
+                            return 1;
+                        });
+                        rowsReturnedFromDatabase++;
+                    }
+                    connection.commit();
+
+                    if (spiller.spilled()) {
+                        spillLocations.addAll(spiller.getSpillLocations());
+                    }
+
+                    LOGGER.info("writePassThroughQueryUsingResultSchema: wrote {} row(s) across {} spill object(s) + 1 schema sidecar under s3://{}/{}",
+                            rowsReturnedFromDatabase, spillLocations.size(), spillLocation.getBucket(), spillLocation.getKey());
+                    return derivedSchema;
+                }
+            }
+        }
+        finally {
+            DateTimeFormatterUtil.clearTimezonePackingOverride();
+        }
+    }
+
+    /**
+     * Derives the Arrow schema for the pass-through export from the live {@link ResultSet}. The default uses the
+     * faithful JDBC-to-Arrow mapping ({@link JdbcToArrowUtils}). Connectors may override to adjust the mapping, for
+     * example to preserve the declared precision of integer-like {@code NUMBER(p,0)} columns (which the default maps
+     * to an Arrow integer type, dropping the precision) by mapping them to {@code Decimal(p,0)} instead.
+     *
+     * @param resultSet the live result set whose {@link java.sql.ResultSetMetaData} drives the schema
+     * @return the Arrow schema the export data will be written with
+     */
+    protected Schema deriveExportSchema(ResultSet resultSet) throws SQLException
+    {
+        return JdbcToArrowUtils.jdbcToArrowSchema(resultSet.getMetaData(),
+                Calendar.getInstance(TimeZone.getTimeZone("UTC")));
+    }
+
+    /**
+     * Builds the SpillConfig for the export: forces every batch out to S3 ({@code maxInlineBlockBytes=0}) so the
+     * result is always spill objects (never inline). Uses asynchronous spilling ({@code numSpillThreads>0}) so each
+     * block's encrypt + S3 PUT runs on a background thread and overlaps with fetching/encoding the next block,
+     * instead of blocking the main row loop on every block boundary. In-flight memory is bounded by
+     * (numSpillThreads + queue) blocks * maxBlockBytes, which stays well within the Lambda memory budget.
+     */
+    protected SpillConfig buildExportSpillConfig(ReadRecordsRequest request)
+    {
+        return SpillConfig.newBuilder()
+                .withSpillLocation(request.getSplit().getSpillLocation())
+                .withMaxBlockBytes(getSpillConfig(request).getMaxBlockBytes())
+                .withMaxInlineBlockBytes(0)
+                .withRequestId(request.getQueryId())
+                .withEncryptionKey(request.getSplit().getEncryptionKey())
+                .withNumSpillThreads(2)
+                .build();
+    }
+
+    /**
+     * Returns the S3 client to use for export spill writes, using the same credential path as the base spiller:
+     * the request config options carry FAS session credentials for the (cross-account) spill bucket.
+     */
+    protected S3Client resolveScopedS3Client(ReadRecordsRequest request)
+    {
+        S3Client s3Client = getS3Client(getRequestOverrideConfig(request.getIdentity().getConfigOptions()), amazonS3Client);
+        return (s3Client != null) ? s3Client : S3Client.create();
+    }
+
+    /**
+     * Writes the derived schema to the {@code <spillKey>.schema} sidecar, encrypted with the SAME SDK crypto as the
+     * data objects (AesGcmBlockCrypto when a key is present, NoOp otherwise).
+     */
+    protected void writeSchemaSidecar(S3Client s3Client, S3SpillLocation spillLocation, EncryptionKey encryptionKey,
+            Schema derivedSchema, BlockAllocator allocator)
+    {
+        BlockCrypto blockCrypto = (encryptionKey != null)
+                ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
+        byte[] schemaBytes = blockCrypto.encrypt(encryptionKey, derivedSchema.serializeAsMessage());
+        putSchema(s3Client, spillLocation.getBucket(), spillLocation.getKey() + SCHEMA_SUFFIX, schemaBytes);
+    }
+
+    private void putSchema(S3Client client, String bucket, String key, byte[] payload)
+    {
+        PutObjectRequest putRequest = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .contentLength((long) payload.length)
+                .build();
+        client.putObject(putRequest, RequestBody.fromBytes(payload));
+        LOGGER.info("putSchema: wrote {} bytes to s3://{}/{}", payload.length, bucket, key);
     }
 
     /**
