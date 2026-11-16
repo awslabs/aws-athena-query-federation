@@ -37,6 +37,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Dataset;
@@ -71,6 +72,7 @@ import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -88,6 +90,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
@@ -169,6 +172,27 @@ public class BigQueryMetadataHandlerTest
 
         assertNotNull(schemaNames);
         assertEquals("Schema count does not match!", numDatasets, schemaNames.getSchemas().size());
+    }
+
+    @Test
+    public void testDoListSchemaNamesMultiplePages() throws IOException
+    {
+        // More datasets than one 100-item page: iterateAll() returns all of them,
+        // while the first page still reports hasNextPage() == true.
+        final int numDatasets = 150;
+        List<Dataset> datasets = BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets);
+        @SuppressWarnings("unchecked")
+        Page<Dataset> firstPage = mock(Page.class);
+        when(firstPage.iterateAll()).thenReturn(datasets);
+        lenient().when(firstPage.hasNextPage()).thenReturn(true);
+        when(bigQuery.listDatasets(nullable(String.class), nullable(BigQuery.DatasetListOption.class))).thenReturn(firstPage);
+
+        ListSchemasRequest request = new ListSchemasRequest(federatedIdentity,
+                QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase());
+        ListSchemasResponse schemaNames = bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
+
+        assertEquals("Each dataset should be listed once", numDatasets, schemaNames.getSchemas().size());
+        assertEquals(numDatasets, new HashSet<>(schemaNames.getSchemas()).size());
     }
 
     @Test
