@@ -93,7 +93,7 @@ public class ClickHouseMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint()
+    public void readWithConstraint_withSupportedCatalog_invokesDelegateReadWithConstraint()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -102,7 +102,7 @@ public class ClickHouseMuxJdbcRecordHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void readWithConstraintWithUnsupportedCatalog()
+    public void readWithConstraint_withUnsupportedCatalog_throwsRuntimeException()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -111,7 +111,7 @@ public class ClickHouseMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql()
+    public void buildSplitSql_withSupportedCatalog_invokesDelegateBuildSplitSql()
             throws SQLException
     {
         this.jdbcRecordHandler.buildSplitSql(jdbcConnection, CLICKHOUSE_CATALOG, tableName, schema, constraints, split);
@@ -119,21 +119,21 @@ public class ClickHouseMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithQueryPassThrough()
+    public void buildSplitSql_withQueryPassthrough_invokesDelegateBuildSplitSql()
             throws SQLException
     {
         mockAndAssertBuildSplitSql(true);
     }
 
     @Test
-    public void testBuildSplitSqlWithNormalQuery()
+    public void buildSplitSql_withNormalQuery_invokesDelegateBuildSplitSql()
             throws SQLException
     {
         mockAndAssertBuildSplitSql(false);
     }
 
     @Test
-    public void testBuildSplitSqlWithSQLException()
+    public void buildSplitSql_whenRecordHandlerThrowsSQLException_propagatesSQLException()
             throws SQLException
     {
         // Mock SQLException from the record handler
@@ -147,7 +147,7 @@ public class ClickHouseMuxJdbcRecordHandlerTest
             Assert.assertTrue("Expected SQLException", e instanceof SQLException);
             Assert.assertEquals("Exception message should match", DATABASE_CONNECTION_FAILED_MESSAGE, e.getMessage());
         }
-        assertRecordHandlerCalled(this.recordHandler, 1);
+        assertRecordHandlerCalled(this.recordHandler);
     }
 
     private void mockAndAssertBuildSplitSql(boolean isQueryPassThrough) throws SQLException
@@ -160,12 +160,12 @@ public class ClickHouseMuxJdbcRecordHandlerTest
         PreparedStatement result = this.jdbcRecordHandler.buildSplitSql(jdbcConnection, CLICKHOUSE_CATALOG, tableName, schema, constraints, split);
 
         Assert.assertEquals("PreparedStatement should match", mockPreparedStatement, result);
-        assertRecordHandlerCalled(this.recordHandler, 1);
+        assertRecordHandlerCalled(this.recordHandler);
     }
 
-    private void assertRecordHandlerCalled(ClickHouseRecordHandler recordHandler, int expectedTimes) {
+    private void assertRecordHandlerCalled(ClickHouseRecordHandler recordHandler) {
         try {
-            Mockito.verify(recordHandler, Mockito.times(expectedTimes)).buildSplitSql(
+            Mockito.verify(recordHandler, Mockito.times(1)).buildSplitSql(
                     Mockito.any(Connection.class), Mockito.eq(CLICKHOUSE_CATALOG),
                     Mockito.any(TableName.class), Mockito.any(Schema.class),
                     Mockito.any(Constraints.class), Mockito.any(Split.class));
