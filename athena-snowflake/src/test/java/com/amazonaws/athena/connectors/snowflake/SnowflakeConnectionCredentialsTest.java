@@ -162,6 +162,36 @@ public class SnowflakeConnectionCredentialsTest
     }
 
     @Test
+    public void getCredentialMap_PasswordSecretWithSfUser_ReturnsSfUserAsUser()
+    {
+        String secretJson = new ObjectMapper().createObjectNode()
+                .put(SnowflakeConstants.SF_USER, TEST_USERNAME)
+                .put(SnowflakeConstants.PASSWORD, TEST_PASSWORD)
+                .toString();
+        assertPasswordCredentialMap(provider(secretJson, mock(CachableSecretsManager.class)).getCredentialMap());
+    }
+
+    @Test
+    public void getCredentialMap_PasswordSecretUppercaseKeys_ResolvesUsernameAndPassword()
+    {
+        String secretJson = new ObjectMapper().createObjectNode()
+                .put("USERNAME", TEST_USERNAME)
+                .put("PASSWORD", TEST_PASSWORD)
+                .toString();
+        assertPasswordCredentialMap(provider(secretJson, mock(CachableSecretsManager.class)).getCredentialMap());
+    }
+
+    @Test
+    public void getCredentialMap_PasswordSecretWithoutPassword_ThrowsIllegalArgument()
+    {
+        String secretJson = new ObjectMapper().createObjectNode()
+                .put(SnowflakeConstants.USERNAME, TEST_USERNAME)
+                .toString();
+        assertThrows(IllegalArgumentException.class,
+                () -> provider(secretJson, mock(CachableSecretsManager.class)));
+    }
+
+    @Test
     public void getCredentialMap_OAuthTokenHttpError_ThrowsRuntimeException() throws Exception
     {
         assertGetCredentialMapThrowsRuntimeContaining(

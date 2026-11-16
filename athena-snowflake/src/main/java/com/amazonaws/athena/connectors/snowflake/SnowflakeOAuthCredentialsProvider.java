@@ -2,14 +2,14 @@
  * #%L
  * athena-snowflake
  * %%
- * Copyright (C) 2019 - 2025 Amazon Web Services
+ * Copyright (C) 2019 - 2026 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,11 +19,11 @@
  */
 package com.amazonaws.athena.connectors.snowflake;
 
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.DefaultCredentials;
+import com.amazonaws.athena.connector.credentials.Credentials;
+import com.amazonaws.athena.connector.credentials.CredentialsConstants;
+import com.amazonaws.athena.connector.credentials.OAuthCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthType;
 import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -34,8 +34,6 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.utils.Validate;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -45,174 +43,107 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.amazonaws.athena.connector.credentials.CredentialsConstants.USER;
 import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthType.OAUTH;
-import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils.getUsername;
-import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils.validateCredentials;
 
 /**
- * Snowflake credentials provider that manages multiple authentication methods.
- * This provider handles OAuth token lifecycle, key-pair authentication, and password authentication.
- * Authentication method is automatically determined based on the secret contents.
+ * OAuth-only credentials provider for Snowflake in the Athena federation connector.
+ * Snowflake OAuth uses the shared {@link OAuthCredentialsProvider} integration point so
+ * {@link com.amazonaws.athena.connector.credentials.CredentialsProviderFactory} can treat Snowflake like other JDBC
+ * connectors that support OAuth. Snowflake uses authorization_code and refresh_token grants with HTTP Basic client
+ * authentication, so {@link #getCredential()} is overridden; {@link #buildTokenRequest} is unused.
  */
-public class SnowflakeCredentialsProvider implements CredentialsProvider
+public class SnowflakeOAuthCredentialsProvider extends OAuthCredentialsProvider
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeCredentialsProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeOAuthCredentialsProvider.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    public static final String ACCESS_TOKEN = "access_token";
-    public static final String FETCHED_AT = "fetched_at";
-    public static final String REFRESH_TOKEN = "refresh_token";
-    public static final String EXPIRES_IN = "expires_in";
-    private final String oauthSecretName;
-    private final CachableSecretsManager secretsManager;
-    private final ObjectMapper objectMapper;
+    private static final String REFRESH_TOKEN = "refresh_token";
+
+    private String initializedSecretName;
+    private Map<String, String> initializedSecretMap;
+    private CachableSecretsManager initializedSecretsManager;
     private final AwsRequestOverrideConfiguration requestOverrideConfiguration;
 
-    public SnowflakeCredentialsProvider(String oauthSecretName)
+    public SnowflakeOAuthCredentialsProvider()
     {
-        this(oauthSecretName, SecretsManagerClient.create(), null);
+        this(null);
     }
 
-    public SnowflakeCredentialsProvider(String oauthSecretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    public SnowflakeOAuthCredentialsProvider(AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
-        this(oauthSecretName, SecretsManagerClient.create(), requestOverrideConfiguration);
-    }
-
-    @VisibleForTesting
-    public SnowflakeCredentialsProvider(String oauthSecretName, SecretsManagerClient secretsClient, AwsRequestOverrideConfiguration requestOverrideConfiguration)
-    {
-        this.oauthSecretName = Validate.notNull(oauthSecretName, "oauthSecretName must not be null");
-        this.secretsManager = new CachableSecretsManager(secretsClient);
-        this.objectMapper = new ObjectMapper();
+        super();
         this.requestOverrideConfiguration = requestOverrideConfiguration;
     }
 
     @Override
-    public DefaultCredentials getCredential()
+    public void initialize(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager)
     {
-        Map<String, String> credentialMap = getCredentialMap();
-        return new DefaultCredentials(
-            credentialMap.get(SnowflakeConstants.USER),
-            credentialMap.get(SnowflakeConstants.PASSWORD)
-        );
+        super.initialize(secretName, secretMap, secretsManager);
+        this.initializedSecretName = secretName;
+        this.initializedSecretMap = secretMap;
+        this.initializedSecretsManager = secretsManager;
     }
 
     @Override
-    public Map<String, String> getCredentialMap()
+    protected boolean isOAuthConfigured(Map<String, String> secretMap)
+    {
+        if (secretMap == null || secretMap.isEmpty()) {
+            return false;
+        }
+        boolean hasUsername = StringUtils.isNotBlank(secretMap.get(SnowflakeConstants.SF_USER))
+                || StringUtils.isNotBlank(secretMap.get(SnowflakeConstants.USERNAME))
+                || StringUtils.isNotBlank(secretMap.get(SnowflakeConstants.USERNAME_UPPERCASE));
+        return StringUtils.isNotBlank(secretMap.get(SnowflakeConstants.AUTH_CODE))
+                && StringUtils.isNotBlank(secretMap.get(SnowflakeConstants.REDIRECT_URI))
+                && StringUtils.isNotBlank(secretMap.get(SnowflakeConstants.CLIENT_SECRET))
+                && StringUtils.isNotBlank(secretMap.get(SnowflakeConstants.TOKEN_URL))
+                && StringUtils.isNotBlank(secretMap.get(SnowflakeConstants.CLIENT_ID))
+                && hasUsername;
+    }
+
+    /**
+     * Satisfies the {@link OAuthCredentialsProvider} contract; Snowflake does not use the base class token path
+     * ({@link java.net.http.HttpClient} plus a single built {@link HttpRequest}).
+     * <p>
+     * Snowflake OAuth exchanges authorization codes and refresh tokens over {@link HttpURLConnection} with HTTP Basic
+     * client authentication in {@link #getCredential()} / {@code fetchAccessTokenFromSecret}, so this method is never
+     * invoked for normal operation. If called, it fails fast rather than building an incorrect request.
+     *
+     * @param secretMap secret fields (unused; Snowflake token exchange does not use this hook)
+     * @return never returns normally
+     * @throws UnsupportedOperationException always; Snowflake OAuth is not wired to the default OAuth request builder
+     */
+    @Override
+    protected HttpRequest buildTokenRequest(Map<String, String> secretMap)
+    {
+        throw new UnsupportedOperationException("Snowflake OAuth uses authorization_code / refresh_token exchange, not the default OAuthCredentialsProvider token path");
+    }
+
+    @Override
+    public Credentials getCredential()
     {
         try {
-            String secretString = secretsManager.getSecret(oauthSecretName, this.requestOverrideConfiguration);
-            Map<String, String> secretMap = objectMapper.readValue(secretString, Map.class);
-
-            // Determine authentication type based on secret contents
-            SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(secretMap);
-            // Validate credentials once after determining auth type
-            validateCredentials(secretMap, authType);
-            switch (authType) {
-                case SNOWFLAKE_JWT:
-                    // Key-pair authentication
-                    return handleKeyPairAuthentication(secretMap);
-                case OAUTH:
-                    // OAuth flow
-                    return handleOAuthAuthentication(secretMap);
-                case SNOWFLAKE:
-                default:
-                    // Password authentication (backward compatible)
-                    return handlePasswordAuthentication(secretMap);
-            }
+            Map<String, String> oauthConfig = initializedSecretMap;
+            String accessToken = fetchAccessTokenFromSecret(oauthConfig);
+            String username = SnowflakeAuthUtils.getUsername(oauthConfig);
+            return new SnowflakeOAuthJdbcCredentials(username, accessToken);
         }
-        catch (IllegalArgumentException ex) {
-            // Client configuration errors — propagate without wrapping
-            throw ex;
-        }
-        catch (AthenaConnectorException ex) {
-            // Already properly typed (e.g., invalid private key format)
-            throw ex;
+        catch (AthenaConnectorException e) {
+            throw e;
         }
         catch (Exception ex) {
-            throw new RuntimeException("Error retrieving Snowflake credentials: " + ex.getMessage(), ex);
-        }
-    }
-
-    /**
-     * Handles key-pair authentication.
-     */
-    private Map<String, String> handleKeyPairAuthentication(Map<String, String> oauthConfig)
-    {
-        Map<String, String> credentialMap = new HashMap<>();
-        String username = getUsername(oauthConfig);
-        credentialMap.put(USER, username);
-        credentialMap.put(SnowflakeConstants.PEM_PRIVATE_KEY, oauthConfig.get(SnowflakeConstants.PEM_PRIVATE_KEY));
-        credentialMap.put(SnowflakeConstants.PEM_PRIVATE_KEY_PASSPHRASE, oauthConfig.get(SnowflakeConstants.PEM_PRIVATE_KEY_PASSPHRASE));
-        LOGGER.debug("Using key-pair authentication for user: {}", username);
-        return credentialMap;
-    }
-
-    /**
-     * Handles OAuth authentication.
-     */
-    private Map<String, String> handleOAuthAuthentication(Map<String, String> oauthConfig) throws Exception
-    {
-        String accessToken = fetchAccessTokenFromSecret(oauthConfig);
-        Map<String, String> credentialMap = new HashMap<>();
-        String username = getUsername(oauthConfig);
-        credentialMap.put(SnowflakeConstants.USER, username);
-        credentialMap.put(SnowflakeConstants.PASSWORD, accessToken);
-        credentialMap.put(SnowflakeConstants.AUTHENTICATOR, OAUTH.getValue());
-        LOGGER.debug("Using OAuth authentication for user: {}", username);
-        return credentialMap;
-    }
-
-    /**
-     * Handles password authentication (backward compatible).
-     */
-    private Map<String, String> handlePasswordAuthentication(Map<String, String> oauthConfig)
-    {
-        Map<String, String> credentialMap = new HashMap<>();
-        credentialMap.put(SnowflakeConstants.USER, getUsername(oauthConfig));
-        String password = oauthConfig.getOrDefault(SnowflakeConstants.PASSWORD, oauthConfig.get(SnowflakeConstants.PASSWORD_UPPERCASE));
-        if (password == null) {
-            throw new IllegalArgumentException("Missing required parameter: password/PASSWORD");
-        }
-        credentialMap.put(SnowflakeConstants.PASSWORD, password);
-        LOGGER.debug("Using password authentication for user: {}", getUsername(oauthConfig));
-        return credentialMap;
-    }
-
-    private String loadTokenFromSecretsManager(Map<String, String> oauthConfig)
-    {
-        if (oauthConfig.containsKey(ACCESS_TOKEN)) {
-            return oauthConfig.get(ACCESS_TOKEN);
-        }
-        return null;
-    }
-
-    private void saveTokenToSecretsManager(ObjectNode tokenJson, Map<String, String> oauthConfig)
-    {
-        // Update token related fields
-        tokenJson.put(FETCHED_AT, System.currentTimeMillis() / 1000);
-        oauthConfig.put(ACCESS_TOKEN, tokenJson.get(ACCESS_TOKEN).asText());
-        oauthConfig.put(REFRESH_TOKEN, tokenJson.get(REFRESH_TOKEN).asText());
-        oauthConfig.put(EXPIRES_IN, String.valueOf(tokenJson.get(EXPIRES_IN).asInt()));
-        oauthConfig.put(FETCHED_AT, String.valueOf(tokenJson.get(FETCHED_AT).asLong()));
-
-        // Save updated secret
-        try {
-            String updatedSecretString = objectMapper.writeValueAsString(oauthConfig);
-            secretsManager.getSecretsManager().putSecretValue(builder -> builder
-                    .secretId(this.oauthSecretName)
-                    .secretString(updatedSecretString)
-                    .overrideConfiguration(this.requestOverrideConfiguration)
-                    .build());
-        }
-        catch (Exception e) {
-            LOGGER.error("Failed to save updated secret: ", e);
-            throw new RuntimeException("Failed to save updated secret: ", e);
+            throw new AthenaConnectorException("Error retrieving Snowflake credentials: " + ex.getMessage(), ex,
+                    ErrorDetails.builder()
+                            .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                            .errorMessage(ex.getMessage())
+                            .build());
         }
     }
 
@@ -225,17 +156,17 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
         String clientSecret = requireNonBlank(oauthConfig.get(SnowflakeConstants.CLIENT_SECRET), "Missing required property: client_secret");
         String authCode = requireNonBlank(oauthConfig.get(SnowflakeConstants.AUTH_CODE), "Missing required property: auth_code");
 
-        accessToken = loadTokenFromSecretsManager(oauthConfig);
+        accessToken = loadTokenFromSecret(oauthConfig);
 
         if (accessToken == null) {
             LOGGER.debug("First time auth. Using authorization_code...");
             ObjectNode tokenJson = getTokenFromAuthCode(authCode, redirectUri, tokenEndpoint, clientId, clientSecret);
             saveTokenToSecretsManager(tokenJson, oauthConfig);
-            accessToken = tokenJson.get(ACCESS_TOKEN).asText();
+            accessToken = tokenJson.get(CredentialsConstants.ACCESS_TOKEN).asText();
         }
         else {
-            long expiresIn = Long.parseLong(oauthConfig.get(EXPIRES_IN));
-            long fetchedAt = Long.parseLong(oauthConfig.getOrDefault(FETCHED_AT, String.valueOf(0L)));
+            long expiresIn = Long.parseLong(oauthConfig.get(CredentialsConstants.EXPIRES_IN));
+            long fetchedAt = Long.parseLong(oauthConfig.getOrDefault(CredentialsConstants.FETCHED_AT, String.valueOf(0L)));
             long now = System.currentTimeMillis() / 1000;
 
             if ((now - fetchedAt) < expiresIn - 60) {
@@ -246,10 +177,52 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
                 ObjectNode refreshed = refreshAccessToken(oauthConfig.get(REFRESH_TOKEN), tokenEndpoint, clientId, clientSecret);
                 refreshed.put(REFRESH_TOKEN, oauthConfig.get(REFRESH_TOKEN));
                 saveTokenToSecretsManager(refreshed, oauthConfig);
-                accessToken = refreshed.get(ACCESS_TOKEN).asText();
+                accessToken = refreshed.get(CredentialsConstants.ACCESS_TOKEN).asText();
             }
         }
         return accessToken;
+    }
+
+    private String loadTokenFromSecret(Map<String, String> oauthConfig)
+    {
+        if (oauthConfig.containsKey(CredentialsConstants.ACCESS_TOKEN)) {
+            return oauthConfig.get(CredentialsConstants.ACCESS_TOKEN);
+        }
+        return null;
+    }
+
+    private void saveTokenToSecretsManager(ObjectNode tokenJson, Map<String, String> oauthConfig)
+    {
+        tokenJson.put(CredentialsConstants.FETCHED_AT, System.currentTimeMillis() / 1000);
+        oauthConfig.put(CredentialsConstants.ACCESS_TOKEN, tokenJson.get(CredentialsConstants.ACCESS_TOKEN).asText());
+        oauthConfig.put(REFRESH_TOKEN, tokenJson.get(REFRESH_TOKEN).asText());
+        oauthConfig.put(CredentialsConstants.EXPIRES_IN, String.valueOf(tokenJson.get(CredentialsConstants.EXPIRES_IN).asInt()));
+        oauthConfig.put(CredentialsConstants.FETCHED_AT, String.valueOf(tokenJson.get(CredentialsConstants.FETCHED_AT).asLong()));
+
+        try {
+            String updatedSecretString = OBJECT_MAPPER.writeValueAsString(oauthConfig);
+            initializedSecretsManager.getSecretsManager().putSecretValue(builder -> builder
+                    .secretId(initializedSecretName)
+                    .secretString(updatedSecretString)
+                    .overrideConfiguration(this.requestOverrideConfiguration)
+                    .build());
+        }
+        catch (Exception e) {
+            LOGGER.error("Failed to save updated secret: ", e);
+            throw new AthenaConnectorException("Failed to save updated secret: " + e.getMessage(), e,
+                    ErrorDetails.builder()
+                            .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                            .errorMessage(e.getMessage())
+                            .build());
+        }
+    }
+
+    private String requireNonBlank(String value, String message)
+    {
+        if (StringUtils.isBlank(value)) {
+            throw new IllegalArgumentException(message);
+        }
+        return value;
     }
 
     private ObjectNode getTokenFromAuthCode(String authCode, String redirectUri, String tokenEndpoint, String clientId, String clientSecret) throws Exception
@@ -290,19 +263,12 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
             throw new AthenaConnectorException("OAuth authentication failed with status: " + responseCode, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString()).build());
         }
 
-        ObjectNode tokenJson = objectMapper.readValue(response, ObjectNode.class);
-        tokenJson.put(FETCHED_AT, System.currentTimeMillis() / 1000);
+        ObjectNode tokenJson = OBJECT_MAPPER.readValue(response, ObjectNode.class);
+        tokenJson.put(CredentialsConstants.FETCHED_AT, System.currentTimeMillis() / 1000);
         return tokenJson;
     }
 
-    private String requireNonBlank(String value, String message)
-    {
-        if (StringUtils.isBlank(value)) {
-            throw new IllegalArgumentException(message);
-        }
-        return value;
-    }
-
+    @VisibleForTesting
     static HttpURLConnection getHttpURLConnection(String tokenEndpoint, String clientId, String clientSecret) throws IOException
     {
         URL url = new URL(tokenEndpoint);
@@ -316,5 +282,27 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
         conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
         conn.setDoOutput(true);
         return conn;
+    }
+
+    private static final class SnowflakeOAuthJdbcCredentials implements Credentials
+    {
+        private final String user;
+        private final String accessToken;
+
+        SnowflakeOAuthJdbcCredentials(String user, String accessToken)
+        {
+            this.user = user;
+            this.accessToken = accessToken;
+        }
+
+        @Override
+        public Map<String, String> getProperties()
+        {
+            Map<String, String> m = new HashMap<>();
+            m.put(SnowflakeConstants.USER, user);
+            m.put(SnowflakeConstants.PASSWORD, accessToken);
+            m.put(SnowflakeConstants.AUTHENTICATOR, OAUTH.getValue());
+            return Collections.unmodifiableMap(m);
+        }
     }
 }

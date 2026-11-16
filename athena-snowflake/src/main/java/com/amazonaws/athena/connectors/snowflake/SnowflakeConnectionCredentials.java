@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.connectors.snowflake;
 
+import com.amazonaws.athena.connector.credentials.Credentials;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthType;
@@ -32,6 +32,8 @@ import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -63,13 +65,13 @@ public final class SnowflakeConnectionCredentials
                     return CredentialsProviderFactory.createCredentialProvider(
                             secretName,
                             secretsManager,
-                            new SnowflakeOAuthCredentialsProvider(),
+                            new SnowflakeOAuthCredentialsProvider(requestOverrideConfiguration),
                             requestOverrideConfiguration);
                 case SNOWFLAKE_JWT:
                     return new SnowflakeKeyPairCredentialsProvider(secretMap);
                 case SNOWFLAKE:
                 default:
-                    return new DefaultCredentialsProvider(secretString);
+                    return new SnowflakePasswordCredentialsProvider(secretMap);
             }
         }
         catch (IOException ioException) {
@@ -78,6 +80,33 @@ public final class SnowflakeConnectionCredentials
                             .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
                             .errorMessage(ioException.getMessage())
                             .build());
+        }
+    }
+
+    /**
+     * Handles password authentication (backward compatible).
+     */
+    static final class SnowflakePasswordCredentialsProvider implements CredentialsProvider
+    {
+        private final Map<String, String> credentialMap;
+
+        SnowflakePasswordCredentialsProvider(Map<String, String> secretMap)
+        {
+            String password = secretMap.getOrDefault(SnowflakeConstants.PASSWORD, secretMap.get(SnowflakeConstants.PASSWORD_UPPERCASE));
+            if (password == null) {
+                throw new IllegalArgumentException("Missing required parameter: password/PASSWORD");
+            }
+            Map<String, String> m = new HashMap<>();
+            m.put(SnowflakeConstants.USER, SnowflakeAuthUtils.getUsername(secretMap));
+            m.put(SnowflakeConstants.PASSWORD, password);
+            this.credentialMap = Collections.unmodifiableMap(m);
+        }
+
+        @Override
+        public Credentials getCredential()
+        {
+            Map<String, String> props = credentialMap;
+            return () -> props;
         }
     }
 }
