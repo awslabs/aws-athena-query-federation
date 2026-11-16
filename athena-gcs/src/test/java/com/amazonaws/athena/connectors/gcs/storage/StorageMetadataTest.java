@@ -234,8 +234,55 @@ public class StorageMetadataTest extends GenericGcsTest
         assertEquals(partValue4, ImmutableList.of());
     }
 
+    @Test
+    public void testGetPartitionFoldersUnclosedGroupInLocationPrefix() throws Exception
+    {
+        getStorageList(ImmutableList.of("data(foo/year=2024/month=01/file.parquet"));
+        assertYearMonthPartitionFolders("gs://mydatalake1test/data(foo/");
+    }
+
+    @Test
+    public void testGetPartitionFoldersLocationWithoutPathSegment() throws Exception
+    {
+        getStorageList(ImmutableList.of("year=2024/month=01/file.parquet"));
+        assertYearMonthPartitionFolders("gs://mydatalake1test");
+    }
+
+    @Test
+    public void testGetPartitionFoldersEmptyLocationPath() throws Exception
+    {
+        getStorageList(ImmutableList.of("year=2024/month=01/file.parquet"));
+        assertYearMonthPartitionFolders("gs://mydatalake1test/");
+    }
+
+    @Test
+    public void testGetPartitionFoldersWhenBlobNameDoesNotStartWithPrefix() throws Exception
+    {
+        getStorageList(ImmutableList.of("year=2024/month=01/file.parquet"));
+        assertYearMonthPartitionFolders("gs://mydatalake1test/datafoo/");
+    }
+
+    private void assertYearMonthPartitionFolders(String location) throws Exception
+    {
+        GlueClient glue = Mockito.mock(GlueClient.class);
+        List<Field> fieldList = ImmutableList.of(
+                new Field("year", FieldType.nullable(new ArrowType.Utf8()), null),
+                new Field("month", FieldType.nullable(new ArrowType.Utf8()), null));
+        List<Column> partKeys = ImmutableList.of(createColumn("year", "varchar"), createColumn("month", "varchar"));
+        Schema schema = getSchema(glue, fieldList, partKeys, "year=${year}/month=${month}/", location);
+        List<Map<String, String>> partValue = storageMetadata.getPartitionFolders(schema, new TableName("testSchema", "testTable"),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), glue);
+        assertEquals(ImmutableList.of(ImmutableMap.of("year", "2024", "month", "01")), partValue);
+    }
+
     @NotNull
     private Schema getSchema(GlueClient glue, List<Field> fieldList, List<Column> partKeys, String partitionPattern)
+    {
+        return getSchema(glue, fieldList, partKeys, partitionPattern, LOCATION);
+    }
+
+    @NotNull
+    private Schema getSchema(GlueClient glue, List<Field> fieldList, List<Column> partKeys, String partitionPattern, String location)
     {
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", "parquet");
@@ -247,7 +294,7 @@ public class StorageMetadataTest extends GenericGcsTest
                                 PARTITION_PATTERN_KEY, partitionPattern))
                         .partitionKeys(partKeys)
                         .storageDescriptor(StorageDescriptor.builder()
-                                .location(LOCATION)
+                                .location(location)
                                 .build())
                         .build())
                 .build();
