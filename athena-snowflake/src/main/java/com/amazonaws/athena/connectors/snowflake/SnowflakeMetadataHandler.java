@@ -650,7 +650,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.debug("getPrimaryKey tableName: " + tableName);
         List<String> primaryKeys = new ArrayList<String>();
-        try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
+        try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + qualifiedTableName(tableName));
              ResultSet rs = preparedStatement.executeQuery()) {
             while (rs.next()) {
                 // Concatenate multiple primary keys if they exist
@@ -658,7 +658,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             }
         }
 
-        String primaryKeyString = primaryKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
+        String primaryKeyString = primaryKeys.stream().map(s -> snowflakeQueryStringBuilder.quote(s)).collect(Collectors.joining(","));
         if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString, connection)) {
             return Optional.of(primaryKeyString);
         }
@@ -671,7 +671,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      */
     private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey, Connection connection) throws Exception
     {
-        try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC LIMIT 1")) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + qualifiedTableName(tableName) + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC LIMIT 1")) {
             preparedStatement.setQueryTimeout(UNIQUENESS_CHECK_TIMEOUT_SECONDS);
             try (ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
@@ -816,5 +816,12 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     request.getConstraints());
         }
         return generatedSql;
+    }
+
+    private String qualifiedTableName(TableName tableName)
+    {
+        return snowflakeQueryStringBuilder.quote(tableName.getSchemaName())
+                + "."
+                + snowflakeQueryStringBuilder.quote(tableName.getTableName());
     }
 }

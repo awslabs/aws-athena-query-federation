@@ -356,7 +356,7 @@ public class SnowflakeMetadataHandlerTest
 
         assertTrue(res.getPartitions().getRowCount() > 0);
         verify(connection).prepareStatement("SHOW PRIMARY KEYS IN \"schema1\".\"table1\"");
-        verify(connection).prepareStatement("SELECT \"ID\", count(*) as COUNTS FROM \"schema1\".\"table1\" GROUP BY \"ID\" ORDER BY COUNTS DESC");
+        verify(connection).prepareStatement("SELECT \"ID\", count(*) as COUNTS FROM \"schema1\".\"table1\" GROUP BY \"ID\" ORDER BY COUNTS DESC LIMIT 1");
     }
 
     @Test
