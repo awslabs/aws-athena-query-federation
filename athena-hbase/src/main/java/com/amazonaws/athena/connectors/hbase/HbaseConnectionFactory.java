@@ -125,7 +125,7 @@ public class HbaseConnectionFactory
                 config.set(nextConfig.getKey(), nextConfig.getValue());
             }
 
-            Map<String, String> configOptions = new HbaseEnvironmentProperties().createEnvironment();
+            Map<String, String> configOptions = getEnvironmentProperties().createEnvironment();
             boolean kerberosAuthEnabled = configOptions.get(KERBEROS_AUTH_ENABLED) != null && "true".equalsIgnoreCase(configOptions.get(KERBEROS_AUTH_ENABLED));
             logger.info("Kerberos Authentication Enabled: " + kerberosAuthEnabled);
             if (kerberosAuthEnabled) {
@@ -199,5 +199,14 @@ public class HbaseConnectionFactory
     protected synchronized void addConnection(String conStr, Connection conn)
     {
         clientCache.put(conStr, conn);
+    }
+
+    /**
+     * Extracted method for environment properties to allow overriding in tests.
+     */
+    @VisibleForTesting
+    protected HbaseEnvironmentProperties getEnvironmentProperties()
+    {
+        return new HbaseEnvironmentProperties();
     }
 }
