@@ -123,6 +123,38 @@ public class VerticaExportQueryBuilderTest {
     }
 
     @Test
+    public void buildSetAwsAuthSql_ValidKeys_ShouldJoinWithColonInSingleQuotedLiteral() {
+        assertEquals("ALTER SESSION SET AWSAuth='AKIAEXAMPLE:secretExample'",
+                builder.buildSetAwsAuthSql("AKIAEXAMPLE", "secretExample"));
+    }
+
+    @Test
+    public void buildSetAwsAuthSql_EmbeddedSingleQuote_ShouldDoubleQuotes() {
+        // A single quote in either the access key or the secret must be doubled ('') so it cannot
+        // terminate the literal early or inject SQL.
+        assertEquals("ALTER SESSION SET AWSAuth='AK''IA:sec''ret'",
+                builder.buildSetAwsAuthSql("AK'IA", "sec'ret"));
+    }
+
+    @Test
+    public void buildSetAwsSessionTokenSql_ValidToken_ShouldReturnExpectedStatement() {
+        assertEquals("ALTER SESSION SET AWSSessionToken='FQoGZXIvYXdzToken'",
+                builder.buildSetAwsSessionTokenSql("FQoGZXIvYXdzToken"));
+    }
+
+    @Test
+    public void buildSetAwsSessionTokenSql_EmbeddedSingleQuote_ShouldDoubleQuotes() {
+        assertEquals("ALTER SESSION SET AWSSessionToken='to''ken'",
+                builder.buildSetAwsSessionTokenSql("to'ken"));
+    }
+
+    @Test
+    public void buildClearAwsCredentialsSql_ShouldClearSessionScopedCredentialParameters() {
+        assertEquals("ALTER SESSION CLEAR PARAMETER AWSAuth, AWSSessionToken",
+                builder.buildClearAwsCredentialsSql());
+    }
+
+    @Test
     public void build_ValidSetup_ShouldReturnExpectedTemplate() {
         builder.withPreparedStatementSQL(PREPARED_SQL)
                 .withS3ExportBucket(TEST_BUCKET)

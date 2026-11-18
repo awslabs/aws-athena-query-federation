@@ -217,6 +217,36 @@ public class VerticaExportQueryBuilder {
         return "ALTER SESSION SET AWSRegion='" + escapeSqlStringLiteral(awsRegion) + "'";
     }
 
+    /**
+     * Builds the Vertica SQL that sets the S3 access-key/secret-key auth used by EXPORT TO PARQUET.
+     * Both values are rendered into a single single-quoted {@code '<accessKey>:<secretKey>'} literal
+     * (the Vertica AWSAuth format) with embedded single quotes doubled so a value containing a quote
+     * cannot terminate the literal early or inject SQL. Do not log the returned value.
+     */
+    public String buildSetAwsAuthSql(String accessKey, String secretKey)
+    {
+        return "ALTER SESSION SET AWSAuth='" + escapeSqlStringLiteral(accessKey) + ":" + escapeSqlStringLiteral(secretKey) + "'";
+    }
+
+    /**
+     * Builds the Vertica SQL that sets the S3 session token required alongside AWSAuth when the vended
+     * credentials are temporary (STS) credentials. Do not log the returned value.
+     */
+    public String buildSetAwsSessionTokenSql(String sessionToken)
+    {
+        return "ALTER SESSION SET AWSSessionToken='" + escapeSqlStringLiteral(sessionToken) + "'";
+    }
+
+    /**
+     * Builds the Vertica SQL that clears the session-scoped S3 credential parameters set for this export.
+     * Uses ALTER SESSION CLEAR PARAMETER (the Vertica session-scoped clear) so the vended credentials do
+     * not persist on a connection returned to the pool.
+     */
+    public String buildClearAwsCredentialsSql()
+    {
+        return "ALTER SESSION CLEAR PARAMETER AWSAuth, AWSSessionToken";
+    }
+
     public String getS3ExportBucket(){return s3ExportBucket;}
 
     public VerticaExportQueryBuilder withS3ExportBucket(String s3ExportBucket)

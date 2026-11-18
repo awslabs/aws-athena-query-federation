@@ -50,8 +50,12 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_EXPORT_BUCKET;
@@ -60,6 +64,9 @@ import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_S
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -69,6 +76,11 @@ public class VerticaRecordHandler
         extends RecordHandler {
     private static final Logger logger = LoggerFactory.getLogger(VerticaRecordHandler.class);
     private static final String SOURCE_TYPE = "vertica";
+
+    // Base S3 client (default credential chain). Reads are re-sourced onto the connection's LF-vended
+    // (FAS-forwarded) session via getS3Client when the request carries FAS credentials; otherwise
+    // getS3Client returns this base client, preserving prior behavior.
+    private final S3Client amazonS3;
 
     public VerticaRecordHandler(java.util.Map<String, String> configOptions)
     {
@@ -81,6 +93,7 @@ public class VerticaRecordHandler
     protected VerticaRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient amazonAthena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
+        this.amazonS3 = amazonS3;
     }
 
     /**
@@ -132,26 +145,53 @@ public class VerticaRecordHandler
             GeneratedRowWriter rowWriter = builder.build();
 
             /*
-            Using Arrow Dataset to read the S3 Parquet file generated in the split
+            Using Arrow Dataset to read the S3 Parquet file generated in the split. When the request carries
+            LakeFormation-vended (FAS-forwarded) credentials, download the export object with those
+            credentials via the SDK to a local temp file and read that, since Arrow's native S3 filesystem
+            does not take SDK credentials; otherwise read it in place over Arrow's native S3 filesystem on the
+            default credential chain (prior behavior). Any downloaded temp file is always cleaned up.
             */
-            try (ArrowReader reader = constructArrowReader(constructS3Uri(exportBucket, s3ObjectKey)))
-            {
-                while (reader.loadNextBatch()) {
-                    VectorSchemaRoot root = reader.getVectorSchemaRoot();
-                    for (int row = 0; row < root.getRowCount(); row++) {
-                        HashMap<String, Object> map = new HashMap<>();
-                        for (Field field : root.getSchema().getFields()) {
-                            map.put(field.getName(), root.getVector(field).getObject(row));
-                        }
-                        rowContext.setNameValue(map);
-    
-                        //Passing the RowContext to BlockWriter;
-                        spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
-                    }
+            AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(recordsRequest);
+            Path downloadedExport = null;
+            try {
+                String readerUri;
+                if (overrideConfig != null && overrideConfig.credentialsProvider().isPresent()) {
+                    downloadedExport = Files.createTempFile("vertica-export-", ".parquet");
+                    downloadExportObject(overrideConfig, exportBucket, s3ObjectKey, downloadedExport);
+                    readerUri = downloadedExport.toUri().toString();
                 }
-                reader.close();
+                else {
+                    readerUri = constructS3Uri(exportBucket, s3ObjectKey);
+                }
+
+                try (ArrowReader reader = constructArrowReader(readerUri))
+                {
+                    while (reader.loadNextBatch()) {
+                        VectorSchemaRoot root = reader.getVectorSchemaRoot();
+                        for (int row = 0; row < root.getRowCount(); row++) {
+                            HashMap<String, Object> map = new HashMap<>();
+                            for (Field field : root.getSchema().getFields()) {
+                                map.put(field.getName(), root.getVector(field).getObject(row));
+                            }
+                            rowContext.setNameValue(map);
+
+                            //Passing the RowContext to BlockWriter;
+                            spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
+                        }
+                    }
+                    reader.close();
+                }
             } catch (Exception e) {
                 throw new RuntimeException("Error in connecting to S3 and selecting the object content for object : " + s3ObjectKey, e);
+            } finally {
+                if (downloadedExport != null) {
+                    try {
+                        Files.deleteIfExists(downloadedExport);
+                    }
+                    catch (IOException ioe) {
+                        logger.warn("Failed to delete temporary Vertica export file {}", downloadedExport, ioe);
+                    }
+                }
             }
         }
 
@@ -330,6 +370,22 @@ public class VerticaRecordHandler
         }
         public HashMap<String, Object> getNameValue() {
             return this.nameValue;
+        }
+    }
+
+    /**
+     * Streams the exported parquet object to a local file using the connection's LF-vended
+     * (FAS-forwarded) session, so the read runs as the connector's federated identity rather than the
+     * Lambda execution role. The object is copied straight to disk and never fully buffered in memory.
+     * getS3Client falls back to the base client only when the override lacks credentials.
+     */
+    private void downloadExportObject(AwsRequestOverrideConfiguration overrideConfig, String bucket, String key, Path destination)
+            throws IOException
+    {
+        S3Client s3Client = getS3Client(overrideConfig, amazonS3);
+        try (ResponseInputStream<GetObjectResponse> objectStream = s3Client.getObject(
+                GetObjectRequest.builder().bucket(bucket).key(key).build())) {
+            Files.copy(objectStream, destination, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
