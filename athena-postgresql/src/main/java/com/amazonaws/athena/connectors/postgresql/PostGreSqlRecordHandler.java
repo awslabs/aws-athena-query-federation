@@ -145,7 +145,7 @@ public class PostGreSqlRecordHandler
             ArrowType type;
             if (metadata.getColumnType(column) == Types.NUMERIC && metadata.getPrecision(column) == 0 && metadata.getScale(column) <= 0) {
                 type = new ArrowType.Decimal(JdbcArrowTypeConverter.DEFAULT_PRECISION,
-                        Integer.parseInt(configOptions.getOrDefault(DEFAULT_SCALE_KEY, "0")), DECIMAL_BIT_WIDTH);
+                        Integer.parseInt(configOptions.getOrDefault(DEFAULT_SCALE_KEY, "18")), DECIMAL_BIT_WIDTH);
             }
             else {
                 try {

@@ -1305,7 +1305,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         Schema schema = this.postGreSqlRecordHandler.deriveExportSchema(postgresExportResultSet());
 
         Assert.assertEquals(Types.MinorType.INT.getType(), schema.getFields().get(0).getType());
-        Assert.assertEquals(new ArrowType.Decimal(38, 0, 128), schema.getFields().get(1).getType());
+        Assert.assertEquals(new ArrowType.Decimal(38, 18, 128), schema.getFields().get(1).getType());
         Assert.assertEquals(new ArrowType.Decimal(10, 2, 128), schema.getFields().get(2).getType());
         Assert.assertEquals(Types.MinorType.TIMESTAMPMILLITZ, Types.getMinorTypeForArrowType(schema.getFields().get(3).getType()));
         Assert.assertEquals(ArrowType.Utf8.INSTANCE, schema.getFields().get(4).getType());
