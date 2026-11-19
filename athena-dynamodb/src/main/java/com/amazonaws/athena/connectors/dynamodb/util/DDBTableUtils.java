@@ -70,6 +70,8 @@ public final class DDBTableUtils
     private static final int MIN_SCAN_SEGMENTS = 1;
     private static final long MAX_BYTES_PER_SEGMENT = 1024L * 1024L * 1024L;
     private static final double MIN_IO_PER_SEGMENT = 100.0;
+    private static final long MIN_BYTES_PER_ON_DEMAND_SEGMENT = 128L * 1024L * 1024L;
+    private static final int MAX_ON_DEMAND_SEGMENTS = 32;
     public static final int SCHEMA_INFERENCE_NUM_RECORDS = 4;
 
     private DDBTableUtils() {}
@@ -101,8 +103,11 @@ public final class DDBTableUtils
         long approxItemCount = table.itemCount();
 
         ProvisionedThroughputDescription provisionedThroughputDescription = table.provisionedThroughput();
-        // #todo: from the Documentation; this doesn't seem to be returning null from the looks of it; but test;
-        final long provisionedReadCapacity =  provisionedThroughputDescription != null ? provisionedThroughputDescription.readCapacityUnits() : PSUEDO_CAPACITY_FOR_ON_DEMAND;
+        final long declaredReadCapacity = provisionedThroughputDescription != null
+                ? provisionedThroughputDescription.readCapacityUnits() : 0L;
+        final long provisionedReadCapacity = declaredReadCapacity > 0
+                ? declaredReadCapacity
+                : pseudoCapacityForOnDemand(approxTableSizeInBytes);
 
         // get secondary indexes
         List<LocalSecondaryIndexDescription> localSecondaryIndexes = table.hasLocalSecondaryIndexes() ? table.localSecondaryIndexes() : ImmutableList.of();
@@ -123,6 +128,35 @@ public final class DDBTableUtils
               });
 
         return new DynamoDBTable(tableName, keys.getHashKey(), keys.getRangeKey(), table.attributeDefinitions(), indices.build(), approxTableSizeInBytes, approxItemCount, provisionedReadCapacity);
+    }
+
+    /**
+     * Synthesises a read capacity for an on-demand (PAY_PER_REQUEST) table, for the sole purpose of
+     * sizing scan segments in {@link #getNumSegments(long, long)}.
+     *
+     * <p>On-demand tables report 0 RCU, so there is no real throughput figure to size against.
+     * {@link #PSUEDO_CAPACITY_FOR_ON_DEMAND} stands in for the account-default on-demand ceiling,
+     * but that is headroom the table may never serve — using it unconditionally would segment a
+     * 10 MB table 400 ways. So the stand-in is additionally capped by how many segments the table's
+     * data volume can usefully fill, at {@link #MIN_BYTES_PER_ON_DEMAND_SEGMENT} each.
+     *
+     * @param tableSizeBytes the table's approximate size in bytes, per DescribeTable
+     * @return a read capacity to feed to {@link #getNumSegments(long, long)}
+     */
+    private static long pseudoCapacityForOnDemand(long tableSizeBytes)
+    {
+        // Bound 1: how many segments the data volume can usefully fill.
+        long segmentsSupportedBySize = Math.max(MIN_SCAN_SEGMENTS,
+                tableSizeBytes / MIN_BYTES_PER_ON_DEMAND_SEGMENT);
+        // Bound 2: the measured ceiling past which more segments cost more than they return.
+        long segments = Math.min(segmentsSupportedBySize, MAX_ON_DEMAND_SEGMENTS);
+
+        long capacityForSegments = (long) (segments * MIN_IO_PER_SEGMENT);
+        long pseudoCapacity = Math.min(PSUEDO_CAPACITY_FOR_ON_DEMAND, capacityForSegments);
+        logger.debug("On-demand table ({} bytes): {} segments by size, capped to {}, "
+                        + "using pseudo read capacity {}",
+                tableSizeBytes, segmentsSupportedBySize, segments, pseudoCapacity);
+        return pseudoCapacity;
     }
 
     /*
