@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -136,7 +137,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
         String showExtendedSql = "show table extended in "
                 + HiveUtils.quoteIdentifier(table.getSchemaName().toUpperCase())
                 + " like " + HiveUtils.likePatternLiteral(table.getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableLayoutRequest)));
              Statement stmt = connection.createStatement()) {
             boolean isTablePartitioned = false;
             ResultSet partitionResultset = stmt.executeQuery(showExtendedSql);
@@ -237,12 +238,18 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
         Set<Split> splits = new HashSet<>();
         Block partitions = getSplitsRequest.getPartitions();
 
+        Map<String, String> identityConfigOptions = getSplitsRequest.getIdentity().getConfigOptions();
+        String catalogCasingFilter = identityConfigOptions != null ? identityConfigOptions.get(EnvironmentConstants.CATALOG_CASING_FILTER) : null;
+
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
             FieldReader locationReader = partitions.getFieldReader(HiveConstants.BLOCK_PARTITION_COLUMN_NAME);
             locationReader.setPosition(curPartition);
             SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(getSplitsRequest)))
                     .add(HiveConstants.BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
+            if (catalogCasingFilter != null) {
+                splitBuilder.add(EnvironmentConstants.CATALOG_CASING_FILTER, catalogCasingFilter);
+            }
             splits.add(splitBuilder.build());
             if (splits.size() >= HiveConstants.MAX_SPLITS_PER_REQUEST) {
                 return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits,
@@ -310,7 +317,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-                Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+                Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration))) {
             try (Statement stmt = connection.createStatement()) {
                 Map<String, String> meteHashMap = getMetadataForGivenTable(stmt,
                         GET_METADATA_QUERY + HiveUtils.qualifiedTableForMetadataSql(tableName));
