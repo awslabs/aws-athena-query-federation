@@ -57,6 +57,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -71,6 +72,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -84,6 +87,8 @@ public class RecordHandlerTest
     private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private static final String CATALOG = "catalog";
     private static final String QUERY_ID = "queryId";
+    private static final String SPILL_BUCKET = "bucket";
+    private static final String SPILL_PREFIX = "prefix";
     private S3BlockSpillReader spillReader;
     private final EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     @Mock
@@ -94,10 +99,8 @@ public class RecordHandlerTest
     {
         blockAllocator = new BlockAllocatorImpl();
         Map<String, String> configOptions = new HashMap<>();
-        String bucket = "bucket";
-        configOptions.put("spill_bucket", bucket);
-        String prefix = "prefix";
-        configOptions.put("spill_prefix", prefix);
+        configOptions.put(MetadataHandler.SPILL_BUCKET_ENV, SPILL_BUCKET);
+        configOptions.put(MetadataHandler.SPILL_PREFIX_ENV, SPILL_PREFIX);
         spillReader = new S3BlockSpillReader(mockS3, blockAllocator);
 
         recordHandler = new RecordHandler(mock(S3Client.class), mock(SecretsManagerClient.class), mock(AthenaClient.class), "test", configOptions) {
@@ -150,6 +153,96 @@ public class RecordHandlerTest
             // Verify that the exception is logged and rethrown
             assertTrue(e.getCause() instanceof IOException);
         }
+    }
+
+    @Test
+    public void doReadRecordsWithQueryPassthroughDisabledThrows()
+            throws Exception
+    {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(MetadataHandler.SPILL_BUCKET_ENV, SPILL_BUCKET);
+        configOptions.put(MetadataHandler.SPILL_PREFIX_ENV, SPILL_PREFIX);
+        configOptions.put(ENABLE_QUERY_PASSTHROUGH, "false");
+        RecordHandler disabledHandler = new RecordHandler(mock(S3Client.class), mock(SecretsManagerClient.class),
+                mock(AthenaClient.class), "test", configOptions) {
+            @Override
+            protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+            {
+                fail("readWithConstraint should not run when Query Passthrough is disabled");
+            }
+        };
+        ReadRecordsRequest request = buildQueryPassthroughReadRecordsRequest();
+
+        try {
+            disabledHandler.doReadRecords(blockAllocator, request);
+            fail("Expected AthenaConnectorException when Query Passthrough is disabled");
+        }
+        catch (AthenaConnectorException e) {
+            assertTrue(e.getMessage().contains("Query Passthrough is disabled"));
+            assertEquals(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString(), e.getErrorDetails().errorCode());
+        }
+    }
+
+    @Test
+    public void doReadRecordsWithQueryPassthroughEnabledReadsRecords()
+            throws Exception
+    {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(MetadataHandler.SPILL_BUCKET_ENV, SPILL_BUCKET);
+        configOptions.put(MetadataHandler.SPILL_PREFIX_ENV, SPILL_PREFIX);
+        configOptions.put(ENABLE_QUERY_PASSTHROUGH, "true");
+        RecordHandler enabledHandler = new RecordHandler(mock(S3Client.class), mock(SecretsManagerClient.class),
+                mock(AthenaClient.class), "test", configOptions) {
+            @Override
+            protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+            {
+                // no-op: QPT execution is allowed and should reach the record path
+            }
+        };
+
+        RecordResponse response = enabledHandler.doReadRecords(blockAllocator, buildQueryPassthroughReadRecordsRequest());
+
+        assertNotNull(response);
+        assertEquals(CATALOG, response.getCatalogName());
+    }
+
+    @Test
+    public void doReadRecordsWithoutQueryPassthrough()
+            throws Exception
+    {
+        RecordResponse response = recordHandler.doReadRecords(blockAllocator, buildReadRecordsRequest(Collections.emptyMap()));
+
+        assertNotNull(response);
+        assertEquals(CATALOG, response.getCatalogName());
+    }
+
+    private ReadRecordsRequest buildQueryPassthroughReadRecordsRequest()
+    {
+        Map<String, String> qptArguments = new HashMap<>();
+        qptArguments.put("schemaFunctionName", "system.traverse");
+        qptArguments.put("TRAVERSE", "g.V().limit(1)");
+        return buildReadRecordsRequest(qptArguments);
+    }
+
+    private ReadRecordsRequest buildReadRecordsRequest(Map<String, String> queryPassthroughArguments)
+    {
+        return new ReadRecordsRequest(identity,
+                CATALOG,
+                QUERY_ID,
+                new TableName("testSchema", "testTable"),
+                SchemaBuilder.newBuilder().build(),
+                Split.newBuilder(S3SpillLocation.newBuilder()
+                                        .withBucket(UUID.randomUUID().toString())
+                                        .withSplitId(UUID.randomUUID().toString())
+                                        .withQueryId(UUID.randomUUID().toString())
+                                        .withIsDirectory(true)
+                                        .build(),
+                                keyFactory.create())
+                        .build(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, queryPassthroughArguments, null),
+                1_500_000L,
+                0
+        );
     }
 
     @Test
