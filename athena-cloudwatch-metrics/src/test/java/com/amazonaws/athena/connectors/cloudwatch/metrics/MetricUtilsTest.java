@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -236,5 +237,99 @@ public class MetricUtilsTest
         assertEquals(2, metricStat.metric().dimensions().size());
         assertEquals(1000L, actual.startTime().toEpochMilli());
         assertTrue(actual.startTime().toEpochMilli() <= System.currentTimeMillis() + 1_000);
+    }
+
+    // Managed-connector (Athena federation) Substrait plans over the metric_samples table schema
+    // [namespace, metric_name, dim_name, dim_value, period, timestamp(BIGINT), value, statistic].
+    // Produced by the same Isthmus SqlToSubstrait path the DNA test runner uses; embedded as constants
+    // because the connector does not depend on Isthmus/Calcite. Regenerate from the SQL on each constant
+    // if the schema or Substrait version changes. The timestamp column is epoch seconds.
+    // SELECT * FROM metric_samples WHERE "timestamp" > 1704067200
+    private static final String PLAN_TS_GT =
+            "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEhoQCAEQARoKZ3Q6YW55X2FueRqpAxKmAwrRAjrOAgoMEgoKCAgJCgsMDQ4PEt8BEtwBCgIKABKvAQqsAQoCCgAShgEKCW5hbWVzcGFjZQoLbWV0cmljX25hbWUKCGRpbV9uYW1lCglkaW1fdmFsdWUKBnBlcmlvZAoJdGltZXN0YW1wCgV2YWx1ZQoJc3RhdGlzdGljEjIKBGICEAIKBGICEAIKBGICEAIKBGICEAIKBCoCEAIKBDoCEAIKBFoCEAIKBGICEAIYAjodCgt0ZXN0X3NjaGVtYQoObWV0cmljX3NhbXBsZXMaJBoiCAEaBAoCEAIiDBoKEggKBBICCAUiACIKGggKBjiAgcisBhoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgASCW5hbWVzcGFjZRILbWV0cmljX25hbWUSCGRpbV9uYW1lEglkaW1fdmFsdWUSBnBlcmlvZBIJdGltZXN0YW1wEgV2YWx1ZRIJc3RhdGlzdGljMgsQSioHaXN0aG11cw==";
+    // SELECT * FROM metric_samples WHERE "timestamp" >= 1704067200 AND "timestamp" <= 1704070800
+    private static final String PLAN_TS_BETWEEN =
+            "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIQGg4IARABGghhbmQ6Ym9vbBITGhEIAhACGgtndGU6YW55X2FueRITGhEIAhADGgtsdGU6YW55X2FueRrfAxLcAwqHAzqEAwoMEgoKCAgJCgsMDQ4PEpUCEpICCgIKABKvAQqsAQoCCgAShgEKCW5hbWVzcGFjZQoLbWV0cmljX25hbWUKCGRpbV9uYW1lCglkaW1fdmFsdWUKBnBlcmlvZAoJdGltZXN0YW1wCgV2YWx1ZQoJc3RhdGlzdGljEjIKBGICEAIKBGICEAIKBGICEAIKBGICEAIKBCoCEAIKBDoCEAIKBFoCEAIKBGICEAIYAjodCgt0ZXN0X3NjaGVtYQoObWV0cmljX3NhbXBsZXMaWhpYCAEaBAoCEAIiJhokGiIIAhoECgIQAiIMGgoSCAoEEgIIBSIAIgoaCAoGOICByKwGIiYaJBoiCAMaBAoCEAIiDBoKEggKBBICCAUiACIKGggKBjiQncisBhoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgASCW5hbWVzcGFjZRILbWV0cmljX25hbWUSCGRpbV9uYW1lEglkaW1fdmFsdWUSBnBlcmlvZBIJdGltZXN0YW1wEgV2YWx1ZRIJc3RhdGlzdGljMgsQSioHaXN0aG11cw==";
+    // SELECT * FROM metric_samples WHERE "timestamp" = 1704067200
+    private static final String PLAN_TS_EQUAL =
+            "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRqpAxKmAwrRAjrOAgoMEgoKCAgJCgsMDQ4PEt8BEtwBCgIKABKvAQqsAQoCCgAShgEKCW5hbWVzcGFjZQoLbWV0cmljX25hbWUKCGRpbV9uYW1lCglkaW1fdmFsdWUKBnBlcmlvZAoJdGltZXN0YW1wCgV2YWx1ZQoJc3RhdGlzdGljEjIKBGICEAIKBGICEAIKBGICEAIKBGICEAIKBCoCEAIKBDoCEAIKBFoCEAIKBGICEAIYAjodCgt0ZXN0X3NjaGVtYQoObWV0cmljX3NhbXBsZXMaJBoiCAEaBAoCEAIiDBoKEggKBBICCAUiACIKGggKBjiAgcisBhoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgASCW5hbWVzcGFjZRILbWV0cmljX25hbWUSCGRpbV9uYW1lEglkaW1fdmFsdWUSBnBlcmlvZBIJdGltZXN0YW1wEgV2YWx1ZRIJc3RhdGlzdGljMgsQSioHaXN0aG11cw==";
+    // SELECT * FROM metric_samples WHERE namespace = 'AWS/Lambda' (non-time predicate; not pushable)
+    private static final String PLAN_NS_EQUAL =
+            "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRqtAxKqAwrVAjrSAgoMEgoKCAgJCgsMDQ4PEuMBEuABCgIKABKvAQqsAQoCCgAShgEKCW5hbWVzcGFjZQoLbWV0cmljX25hbWUKCGRpbV9uYW1lCglkaW1fdmFsdWUKBnBlcmlvZAoJdGltZXN0YW1wCgV2YWx1ZQoJc3RhdGlzdGljEjIKBGICEAIKBGICEAIKBGICEAIKBGICEAIKBCoCEAIKBDoCEAIKBFoCEAIKBGICEAIYAjodCgt0ZXN0X3NjaGVtYQoObWV0cmljX3NhbXBsZXMaKBomCAEaBAoCEAIiChoIEgYKAhIAIgAiEBoOCgxiCkFXUy9MYW1iZGEaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAGgoSCAoEEgIIAyIAGgoSCAoEEgIIBCIAGgoSCAoEEgIIBSIAGgoSCAoEEgIIBiIAGgoSCAoEEgIIByIAEgluYW1lc3BhY2USC21ldHJpY19uYW1lEghkaW1fbmFtZRIJZGltX3ZhbHVlEgZwZXJpb2QSCXRpbWVzdGFtcBIFdmFsdWUSCXN0YXRpc3RpYzILEEoqB2lzdGhtdXM=";
+    // Valid base64 that does not decode to a Substrait Plan protobuf.
+    private static final String PLAN_MALFORMED = "Zm9vYmFy";
+    private static final long TS_LOWER = 1_704_067_200L;
+    private static final long TS_UPPER = 1_704_070_800L;
+
+    private ReadRecordsRequest substraitReadRecordsRequest(String planBase64)
+    {
+        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
+        metricDataQueries.add(MetricDataQuery.builder()
+                .metricStat(MetricStat.builder()
+                        .metric(Metric.builder().namespace("ns").metricName("m").build())
+                        .period(60)
+                        .stat("p90")
+                        .build())
+                .id("m1")
+                .build());
+        Split split = Split.newBuilder(null, null)
+                .add(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME, MetricDataQuerySerDe.serialize(metricDataQueries))
+                .build();
+
+        return new ReadRecordsRequest(identity,
+                catalog,
+                "queryId-" + System.currentTimeMillis(),
+                new TableName("default", "metric_samples"),
+                SchemaBuilder.newBuilder().addBigIntField(TIMESTAMP_FIELD).build(),
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                        DEFAULT_NO_LIMIT, Collections.emptyMap(), new QueryPlan("", planBase64)),
+                100_000_000_000L,
+                100_000_000_000L);
+    }
+
+    @Test
+    public void makeGetMetricDataRequestSubstraitTimeGreaterThanPushesStartTime()
+    {
+        GetMetricDataRequest actual = MetricUtils.makeGetMetricDataRequest(substraitReadRecordsRequest(PLAN_TS_GT));
+        assertEquals(1, actual.metricDataQueries().size());
+        assertEquals(TS_LOWER, actual.startTime().getEpochSecond());
+        // No upper bound in the plan -> endTime defaults to "now".
+        assertTrue(actual.endTime().toEpochMilli() >= System.currentTimeMillis() - 60_000);
+    }
+
+    @Test
+    public void makeGetMetricDataRequestSubstraitTimeRangePushesStartAndEndTime()
+    {
+        GetMetricDataRequest actual = MetricUtils.makeGetMetricDataRequest(substraitReadRecordsRequest(PLAN_TS_BETWEEN));
+        assertEquals(TS_LOWER, actual.startTime().getEpochSecond());
+        assertEquals(TS_UPPER, actual.endTime().getEpochSecond());
+    }
+
+    @Test
+    public void makeGetMetricDataRequestSubstraitTimeEqualPushesBothBounds()
+    {
+        GetMetricDataRequest actual = MetricUtils.makeGetMetricDataRequest(substraitReadRecordsRequest(PLAN_TS_EQUAL));
+        assertEquals(TS_LOWER, actual.startTime().getEpochSecond());
+        assertEquals(TS_LOWER, actual.endTime().getEpochSecond());
+    }
+
+    @Test
+    public void makeGetMetricDataRequestSubstraitNonTimePredicateIsNotPushed()
+    {
+        // A predicate on a non-timestamp column leaves the full window (startTime = epoch, endTime = now).
+        GetMetricDataRequest actual = MetricUtils.makeGetMetricDataRequest(substraitReadRecordsRequest(PLAN_NS_EQUAL));
+        assertEquals(0L, actual.startTime().toEpochMilli());
+        assertTrue(actual.endTime().toEpochMilli() >= System.currentTimeMillis() - 60_000);
+    }
+
+    @Test
+    public void makeGetMetricDataRequestMalformedSubstraitPlanDoesNotThrowAndSkipsPushdown()
+    {
+        // Best-effort: an unparseable plan must not fail the query; the full window is used.
+        GetMetricDataRequest actual = MetricUtils.makeGetMetricDataRequest(substraitReadRecordsRequest(PLAN_MALFORMED));
+        assertEquals(1, actual.metricDataQueries().size());
+        assertEquals(0L, actual.startTime().toEpochMilli());
+        assertTrue(actual.endTime().toEpochMilli() >= System.currentTimeMillis() - 60_000);
     }
 }
