@@ -377,6 +377,47 @@ public class S3BlockSpillerTest
         }
     }
 
+    @Test
+    public void getSpillLocationsRethrowsSyncFinalSpillError()
+    {
+        SpillConfig syncSpillConfig = SpillConfig.newBuilder()
+                .withEncryptionKey(keyFactory.create())
+                .withRequestId(requestId)
+                .withSpillLocation(S3SpillLocation.newBuilder()
+                        .withBucket(bucket)
+                        .withPrefix(prefix)
+                        .withQueryId(requestId)
+                        .withSplitId(splitId)
+                        .withIsDirectory(true)
+                        .build())
+                .withMaxBlockBytes(1_000_000) // keep the row in the in-progress block until getSpillLocations
+                .withMaxInlineBlockBytes(0)
+                .withNumSpillThreads(0)
+                .build();
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField("col1", new ArrowType.Int(32, true))
+                .build();
+        S3BlockSpiller syncSpiller = new S3BlockSpiller(mockS3, syncSpillConfig, allocator, schema,
+                ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
+        RuntimeException s3Error = new RuntimeException("The specified bucket is not valid.");
+        when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class))).thenThrow(s3Error);
+
+        try {
+            syncSpiller.writeRows((Block block, int rowNum) -> {
+                BlockUtils.setValue(block.getFieldVector("col1"), rowNum, 100);
+                return 1;
+            });
+            syncSpiller.getSpillLocations();
+            fail("expected the S3 error");
+        }
+        catch (RuntimeException ex) {
+            assertSame(s3Error, ex);
+        }
+        finally {
+            syncSpiller.close();
+        }
+    }
+
     @Test(expected = RuntimeException.class)
     public void spilledThrowsOnAsyncS3Error()
             throws IOException

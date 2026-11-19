@@ -269,23 +269,21 @@ public class S3BlockSpiller
             throw new AthenaConnectorException("Blocks have not spilled, calls to getSpillLocations not permitted. use getBlock instead.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
 
+        Block block = inProgressBlock.get();
+        if (block.getRowCount() > 0) {
+            logger.info("getSpillLocations: Spilling final block with {} rows and {} bytes and config {} bytes",
+                    new Object[] {block.getRowCount(), block.getSize(), spillConfig.getMaxBlockBytes()});
+
+            spillBlock(block);
+
+            inProgressBlock.set(this.allocator.createBlock(this.schema));
+            inProgressBlock.get().constrain(constraintEvaluator);
+        }
+
+        // Lock only after the final spill: an async spill holds the read lock, and a failed spill must not reach unlock().
         Lock lock = spillLock.writeLock();
+        lock.lock();
         try {
-            /**
-             * Flush the in-progress block in nessesary.
-             */
-            Block block = inProgressBlock.get();
-            if (block.getRowCount() > 0) {
-                logger.info("getSpillLocations: Spilling final block with {} rows and {} bytes and config {} bytes",
-                        new Object[] {block.getRowCount(), block.getSize(), spillConfig.getMaxBlockBytes()});
-
-                spillBlock(block);
-
-                inProgressBlock.set(this.allocator.createBlock(this.schema));
-                inProgressBlock.get().constrain(constraintEvaluator);
-            }
-
-            lock.lock();
             if (asyncException.get() != null) {
                 throw asyncException.get();
             }
