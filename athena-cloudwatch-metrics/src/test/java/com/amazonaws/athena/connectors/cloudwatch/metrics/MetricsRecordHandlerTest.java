@@ -31,13 +31,14 @@ import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
+import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.connectors.cloudwatch.metrics.MetricDataQuerySerDe;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import org.junit.After;
 import org.junit.Before;
@@ -53,6 +54,7 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.CloudWatchException;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataResponse;
@@ -79,6 +81,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.TestUtils.makeStringEquals;
@@ -94,7 +97,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -107,6 +109,12 @@ public class MetricsRecordHandlerTest
     private static final Table METRIC_DATA_TABLE = new MetricSamplesTable();
     private static final TableName METRICS_TABLE_NAME = new TableName("default", METRIC_TABLE.getName());
     private static final TableName METRIC_SAMPLES_TABLE_NAME = new TableName("default", METRIC_DATA_TABLE.getName());
+    private static final String TEST_NAMESPACE = "namespace";
+    private static final String TEST_METRIC_NAME = "metricName";
+    private static final String TEST_STATISTIC = "p90";
+    private static final String TEST_PERIOD = "60";
+    private static final String TEST_DIMENSION_NAME = "dimName";
+    private static final String TEST_DIMENSION_VALUE = "dimValue";
 
     private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private List<ByteHolder> mockS3Storage;
@@ -129,11 +137,10 @@ public class MetricsRecordHandlerTest
 
     @Before
     public void setUp()
-            throws Exception
     {
         mockS3Storage = new ArrayList<>();
         allocator = new BlockAllocatorImpl();
-        handler = new MetricsRecordHandler(mockS3, mockSecretsManager, mockAthena, mockMetrics, com.google.common.collect.ImmutableMap.of());
+        handler = new MetricsRecordHandler(mockS3, mockSecretsManager, mockAthena, mockMetrics, ImmutableMap.of());
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
         Mockito.lenient().when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
@@ -162,7 +169,6 @@ public class MetricsRecordHandlerTest
 
     @After
     public void tearDown()
-            throws Exception
     {
         allocator.close();
     }
@@ -173,39 +179,35 @@ public class MetricsRecordHandlerTest
     {
         logger.info("readMetricsWithConstraint: enter");
 
-        String namespace = "namespace";
-        String dimName = "dimName";
-        String dimValue = "dimValye";
-
         int numMetrics = 100;
         AtomicLong numCalls = new AtomicLong(0);
         when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             ListMetricsRequest request = invocation.getArgument(0, ListMetricsRequest.class);
             numCalls.incrementAndGet();
             //assert that the namespace filter was indeed pushed down
-            assertEquals(namespace, request.namespace());
+            assertEquals(TEST_NAMESPACE, request.namespace());
             String nextToken = (request.nextToken() == null) ? "valid" : null;
             List<Metric> metrics = new ArrayList<>();
 
             for (int i = 0; i < numMetrics; i++) {
                 metrics.add(Metric.builder()
-                        .namespace(namespace)
+                        .namespace(TEST_NAMESPACE)
                         .metricName("metric-" + i)
                         .dimensions(Dimension.builder()
-                                .name(dimName)
-                                .value(dimValue)
+                                .name(TEST_DIMENSION_NAME)
+                                .value(TEST_DIMENSION_VALUE)
                                 .build())
                         .build());
-                metrics.add(Metric.builder().namespace(namespace + i).metricName("metric-" + i).build());
+                metrics.add(Metric.builder().namespace(TEST_NAMESPACE + i).metricName("metric-" + i).build());
             }
 
             return ListMetricsResponse.builder().nextToken(nextToken).metrics(metrics).build();
         });
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
-        constraintsMap.put(NAMESPACE_FIELD, makeStringEquals(allocator, namespace));
-        constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, dimName));
-        constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, dimValue));
+        constraintsMap.put(NAMESPACE_FIELD, makeStringEquals(allocator, TEST_NAMESPACE));
+        constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, TEST_DIMENSION_NAME));
+        constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, TEST_DIMENSION_VALUE));
 
         S3SpillLocation spillLocation = S3SpillLocation.newBuilder()
                 .withBucket(UUID.randomUUID().toString())
@@ -246,14 +248,6 @@ public class MetricsRecordHandlerTest
     {
         logger.info("readMetricSamplesWithConstraint: enter");
 
-        String namespace = "namespace";
-        String metricName = "metricName";
-        String statistic = "p90";
-        String period = "60";
-        String dimName = "dimName";
-        String dimValue = "dimValue";
-        List<Dimension> dimensions = Collections.singletonList(Dimension.builder().name(dimName).value(dimValue).build());
-
         int numMetrics = 10;
         int numSamples = 10;
         AtomicLong numCalls = new AtomicLong(0);
@@ -262,51 +256,8 @@ public class MetricsRecordHandlerTest
             return mockMetricData(invocation, numMetrics, numSamples);
         });
 
-        Map<String, ValueSet> constraintsMap = new HashMap<>();
-        constraintsMap.put(NAMESPACE_FIELD, makeStringEquals(allocator, namespace));
-        constraintsMap.put(STATISTIC_FIELD, makeStringEquals(allocator, statistic));
-        constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, dimName));
-        constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, dimValue));
-
-        S3SpillLocation spillLocation = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
-
-        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
-        metricDataQueries.add(MetricDataQuery.builder()
-                .metricStat(MetricStat.builder()
-                        .metric(Metric.builder()
-                                .namespace(namespace)
-                                .metricName(metricName)
-                                .dimensions(dimensions)
-                                .build())
-                        .period(60)
-                        .stat(statistic)
-                        .build())
-                .id("m1")
-                .build());
-
-        Split split = Split.newBuilder(spillLocation, keyFactory.create())
-                .add(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME, MetricDataQuerySerDe.serialize(metricDataQueries))
-                .add(METRIC_NAME_FIELD, metricName)
-                .add(NAMESPACE_FIELD, namespace)
-                .add(STATISTIC_FIELD, statistic)
-                .add(PERIOD_FIELD, period)
-                .build();
-
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                METRIC_SAMPLES_TABLE_NAME,
-                METRIC_DATA_TABLE.getSchema(),
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
-                100_000_000_000L,
-                100_000_000_000L//100GB don't expect this to spill
-        );
+        // 100GB max block size, so no spill is expected
+        ReadRecordsRequest request = makeMetricSamplesRequest(100_000_000_000L);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -319,6 +270,134 @@ public class MetricsRecordHandlerTest
         logger.info("readMetricSamplesWithConstraint: {}", BlockUtils.rowToString(response.getRecords(), 0));
 
         logger.info("readMetricSamplesWithConstraint: exit");
+    }
+
+    @Test
+    public void readMetricSamplesRetriesWhenCloudWatchThrottles()
+            throws Exception
+    {
+        logger.info("readMetricSamplesRetriesWhenCloudWatchThrottles: enter");
+
+        int numMetrics = 10;
+        int numSamples = 10;
+        AtomicInteger attempts = new AtomicInteger(0);
+        AtomicLong successfulCalls = new AtomicLong(0);
+        when(mockMetrics.getMetricData(nullable(GetMetricDataRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            if (attempts.getAndIncrement() == 0) {
+                throw CloudWatchException.builder()
+                        .message("Request has been throttled. (Service: CloudWatch, Status Code: 400)")
+                        .statusCode(400)
+                        .build();
+            }
+            successfulCalls.incrementAndGet();
+            return mockMetricData(invocation, numMetrics, numSamples);
+        });
+
+        ReadRecordsRequest request = makeMetricSamplesRequest(100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        assertEquals(successfulCalls.get() * numMetrics * numSamples, response.getRecords().getRowCount());
+        assertTrue(attempts.get() > successfulCalls.get());
+
+        logger.info("readMetricSamplesRetriesWhenCloudWatchThrottles: exit");
+    }
+
+    @Test
+    public void readMetricSamplesRetriesThrottleAfterRowsSpilled()
+            throws Exception
+    {
+        logger.info("readMetricSamplesRetriesThrottleAfterRowsSpilled: enter");
+
+        int numMetrics = 10;
+        int numSamples = 10;
+        // Call 0: first page succeeds. Call 1: second page is throttled. Call 2: retry succeeds.
+        AtomicInteger attempts = new AtomicInteger(0);
+        when(mockMetrics.getMetricData(nullable(GetMetricDataRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            if (attempts.getAndIncrement() == 1) {
+                throw CloudWatchException.builder()
+                        .message("Request has been throttled. (Service: CloudWatch, Status Code: 400)")
+                        .statusCode(400)
+                        .build();
+            }
+            return mockMetricData(invocation, numMetrics, numSamples);
+        });
+
+        // A max block size of 1 byte makes every written row spill, so the first page spills before the second page is requested.
+        ReadRecordsRequest request = makeMetricSamplesRequest(1L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        // Rows spilled, so the response must be remote. Page 2 was throttled once and then retried successfully.
+        assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
+        try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
+            assertTrue(response.getNumberBlocks() > 0);
+        }
+        assertEquals(3, attempts.get());
+
+        logger.info("readMetricSamplesRetriesThrottleAfterRowsSpilled: exit");
+    }
+
+    /**
+     * Builds a metric_samples read request for the shared test metric. The inline block size is 100GB, so only
+     * the max block size decides whether rows spill.
+     */
+    private ReadRecordsRequest makeMetricSamplesRequest(long maxBlockSize)
+    {
+        return new ReadRecordsRequest(identity,
+                "catalog",
+                "queryId-" + System.currentTimeMillis(),
+                METRIC_SAMPLES_TABLE_NAME,
+                METRIC_DATA_TABLE.getSchema(),
+                makeMetricSamplesSplit(),
+                new Constraints(makeMetricSamplesConstraints(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                maxBlockSize,
+                100_000_000_000L);
+    }
+
+    private Map<String, ValueSet> makeMetricSamplesConstraints()
+    {
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put(NAMESPACE_FIELD, makeStringEquals(allocator, TEST_NAMESPACE));
+        constraintsMap.put(STATISTIC_FIELD, makeStringEquals(allocator, TEST_STATISTIC));
+        constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, TEST_DIMENSION_NAME));
+        constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, TEST_DIMENSION_VALUE));
+        return constraintsMap;
+    }
+
+    private Split makeMetricSamplesSplit()
+    {
+        S3SpillLocation spillLocation = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        List<Dimension> dimensions = Collections.singletonList(Dimension.builder().name(TEST_DIMENSION_NAME).value(TEST_DIMENSION_VALUE).build());
+        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
+        metricDataQueries.add(MetricDataQuery.builder()
+                .metricStat(MetricStat.builder()
+                        .metric(Metric.builder()
+                                .namespace(TEST_NAMESPACE)
+                                .metricName(TEST_METRIC_NAME)
+                                .dimensions(dimensions)
+                                .build())
+                        .period(60)
+                        .stat(TEST_STATISTIC)
+                        .build())
+                .id("m1")
+                .build());
+
+        return Split.newBuilder(spillLocation, keyFactory.create())
+                .add(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME, MetricDataQuerySerDe.serialize(metricDataQueries))
+                .add(METRIC_NAME_FIELD, TEST_METRIC_NAME)
+                .add(NAMESPACE_FIELD, TEST_NAMESPACE)
+                .add(STATISTIC_FIELD, TEST_STATISTIC)
+                .add(PERIOD_FIELD, TEST_PERIOD)
+                .build();
     }
 
     private GetMetricDataResponse mockMetricData(InvocationOnMock invocation, int numMetrics, int numSamples)

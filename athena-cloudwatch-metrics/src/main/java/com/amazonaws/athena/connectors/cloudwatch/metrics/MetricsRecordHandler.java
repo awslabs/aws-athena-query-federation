@@ -91,6 +91,8 @@ public class MetricsRecordHandler
     //Throttling configs derived from benchmarking
     private static final long THROTTLING_INITIAL_DELAY = 140;
     private static final long THROTTLING_INCREMENTAL_INCREASE = 20;
+    //How long to wait and retry GetMetricData after CloudWatch throttles, before failing the query.
+    private static final long GET_METRIC_DATA_RETRY_MS = 30_000L;
 
     //Used to handle throttling events by applying AIMD congestion control
     private final ThrottlingInvoker invoker;
@@ -217,7 +219,7 @@ public class MetricsRecordHandler
         do {
             GetMetricDataRequest dataRequest = dataRequestBuilder.build();
             prevToken = dataRequest.nextToken();
-            GetMetricDataResponse result = invoker.invoke(() -> cloudwatchClient.getMetricData(dataRequest));
+            GetMetricDataResponse result = getMetricDataWithRetry(blockSpiller, dataRequest);
             for (MetricDataResult nextMetric : result.metricDataResults()) {
                 MetricStat metricStat = queries.get(nextMetric.id()).metricStat();
                 List<Instant> timestamps = nextMetric.timestamps();
@@ -274,5 +276,27 @@ public class MetricsRecordHandler
             dataRequestBuilder.nextToken(result.nextToken());
         }
         while (nextToken != null && !nextToken.equalsIgnoreCase(prevToken) && queryStatusChecker.isQueryRunning());
+    }
+
+    /**
+     * Calls GetMetricData and, while this Lambda has not spilled any rows, waits through CloudWatch throttling.
+     * ThrottlingInvoker fails the query on the first throttle when a spiller is attached and still empty. Detaching
+     * it lets the same call sleep and retry for up to 30 seconds. After rows have spilled, the invoker must
+     * keep its normal retry path so Athena does not discard results it has already received.
+     */
+    private GetMetricDataResponse getMetricDataWithRetry(BlockSpiller blockSpiller, GetMetricDataRequest dataRequest)
+            throws TimeoutException
+    {
+        if (blockSpiller.spilled()) {
+            return invoker.invoke(() -> cloudwatchClient.getMetricData(dataRequest));
+        }
+
+        invoker.setBlockSpiller(null);
+        try {
+            return invoker.invoke(() -> cloudwatchClient.getMetricData(dataRequest), GET_METRIC_DATA_RETRY_MS);
+        }
+        finally {
+            invoker.setBlockSpiller(blockSpiller);
+        }
     }
 }
