@@ -76,7 +76,7 @@ public class JdbcExportTypesTest
     @Test
     public void testUnboundedNumericUsesDefaultScale() throws SQLException
     {
-        assertEquals(JdbcExportTypes.decimal(38, 0), map(Types.NUMERIC, 0, 0));
+        assertEquals(JdbcExportTypes.decimal(38, 18), map(Types.NUMERIC, 0, 0));
         assertEquals(JdbcExportTypes.decimal(38, 4), map(Types.NUMERIC, 0, -127, Map.of("default_scale", "4")));
     }
 

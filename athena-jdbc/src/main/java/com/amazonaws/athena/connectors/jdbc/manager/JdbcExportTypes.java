@@ -120,10 +120,16 @@ public final class JdbcExportTypes
         return new ArrowType.Decimal(precision, scale, DECIMAL_BIT_WIDTH);
     }
 
-    /** The scale for a numeric column that declares none, from the {@code default_scale} option. */
+    /**
+     * The scale for a numeric column that declares none (precision 0), from the {@code default_scale} option.
+     * Defaults to 18 rather than 0: an unconstrained numeric reports no scale, and a 0 default would silently
+     * drop every fractional digit (e.g. {@code 3.14159 -> 3}, {@code 0.001 -> 0}). 18 preserves them and matches
+     * Spark's {@code DecimalType} default and the Databricks connector's {@code DECIMAL(38,18)} fallback. A
+     * connection can still override it via {@code default_scale}.
+     */
     public static int defaultScale(Map<String, String> configOptions)
     {
-        return Integer.parseInt(configOptions.getOrDefault(DEFAULT_SCALE_KEY, "0"));
+        return Integer.parseInt(configOptions.getOrDefault(DEFAULT_SCALE_KEY, "18"));
     }
 
     /**
