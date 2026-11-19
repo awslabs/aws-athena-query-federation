@@ -44,7 +44,9 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.google.common.io.ByteStreams;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
@@ -83,6 +85,10 @@ import static org.mockito.Mockito.when;
 public abstract class AbstractTableProviderTest
 {
     private static final Logger logger = LoggerFactory.getLogger(AbstractTableProviderTest.class);
+
+    private static final long EXPECTED_DATE_EPOCH_MILLI = 100_000L;
+    private static final String DATA_COLUMN = "$data$";
+    private static final String DIRECTION_COLUMN = "direction";
 
     private BlockAllocator allocator;
 
@@ -123,7 +129,93 @@ public abstract class AbstractTableProviderTest
 
     protected abstract int getExpectedRows();
 
-    protected abstract void validateRow(Block block, int pos);
+    /** Override for S3 objects table, which has a BIGINT {@code bytes} column. */
+    protected boolean validateBigIntFields()
+    {
+        return false;
+    }
+
+    /** Override when {@code direction} is populated but not equal to the column name. */
+    protected boolean directionColumnNotNullOnly()
+    {
+        return false;
+    }
+
+    protected void validateRow(Block block, int pos)
+    {
+        for (FieldReader fieldReader : block.getFieldReaders()) {
+            fieldReader.setPosition(pos);
+            Field field = fieldReader.getField();
+            if (field.getName().equals(idField)) {
+                assertEquals(idValue, fieldReader.readText().toString());
+            }
+            else {
+                validateFieldReader(fieldReader);
+            }
+        }
+    }
+
+    private void validateFieldReader(FieldReader fieldReader)
+    {
+        Field field = fieldReader.getField();
+        Types.MinorType type = Types.getMinorTypeForArrowType(field.getType());
+        try {
+            switch (type) {
+                case VARCHAR:
+                    validateVarchar(fieldReader, field);
+                    break;
+                case DATEMILLI:
+                    assertEquals(EXPECTED_DATE_EPOCH_MILLI,
+                            fieldReader.readLocalDateTime().atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
+                    break;
+                case BIT:
+                    assertTrue(fieldReader.readBoolean());
+                    break;
+                case INT:
+                    assertTrue(fieldReader.readInteger() > 0);
+                    break;
+                case BIGINT:
+                    if (validateBigIntFields()) {
+                        assertTrue(fieldReader.readLong() > 0);
+                    }
+                    else {
+                        throw unsupportedField(field, type);
+                    }
+                    break;
+                case STRUCT:
+                    for (Field child : field.getChildren()) {
+                        validateFieldReader(fieldReader.reader(child.getName()));
+                    }
+                    break;
+                case LIST:
+                    validateFieldReader(fieldReader.reader());
+                    break;
+                default:
+                    throw unsupportedField(field, type);
+            }
+        }
+        catch (RuntimeException ex) {
+            throw new RuntimeException("Error validating field " + field.getName(), ex);
+        }
+    }
+
+    private void validateVarchar(FieldReader fieldReader, Field field)
+    {
+        Object text = fieldReader.readText();
+        if (DATA_COLUMN.equals(field.getName())
+                || (directionColumnNotNullOnly() && DIRECTION_COLUMN.equals(field.getName()))) {
+            assertNotNull("Field " + field.getName(), text);
+        }
+        else {
+            assertNotNull("Field " + field.getName(), text);
+            assertEquals(field.getName(), text.toString());
+        }
+    }
+
+    private static RuntimeException unsupportedField(Field field, Types.MinorType type)
+    {
+        return new RuntimeException("No validation configured for field " + field.getName() + ":" + type + " " + field.getChildren());
+    }
 
     @Before
     public void setUp()
