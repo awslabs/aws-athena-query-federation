@@ -256,6 +256,31 @@ public class TPCDSMetadataHandlerTest
     }
 
     @Test
+    public void doGetSplits_WhenManagedIdentityConfigOptions_ReturnsSplitsWithEncryptionKey()
+    {
+        FederatedIdentity managedIdentity = new FederatedIdentity(TEST_IDENTITY_ARN, TEST_IDENTITY_ACCOUNT,
+                Collections.emptyMap(), Collections.emptyList(),
+                com.google.common.collect.ImmutableMap.of("spill_bucket", TEST_SPILL_BUCKET));
+
+        GetSplitsRequest req = new GetSplitsRequest(managedIdentity,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME_ALT,
+                new TableName(TEST_SCHEMA_TPCDS1, TEST_TABLE_CUSTOMER),
+                createPartitionsBlock(),
+                Collections.EMPTY_LIST,
+                createConstraints(Collections.emptyMap(), Collections.emptyMap()),
+                null);
+
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
+
+        assertTrue(response.getSplits().size() > 0);
+        for (Split nextSplit : response.getSplits()) {
+            validateSplitProperties(nextSplit);
+            assertNotNull("Split should carry an encryption key", nextSplit.getEncryptionKey());
+        }
+    }
+
+    @Test
     public void doGetDataSourceCapabilities_WhenQptDisabled_ReturnsCapabilities()
     {
         GetDataSourceCapabilitiesRequest req = new GetDataSourceCapabilitiesRequest(identity, TEST_QUERY_ID, TEST_CATALOG_NAME);

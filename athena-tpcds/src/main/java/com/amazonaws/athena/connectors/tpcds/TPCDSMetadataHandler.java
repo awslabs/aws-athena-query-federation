@@ -237,7 +237,7 @@ public class TPCDSMetadataHandler
         int nextSplit = request.getContinuationToken() == null ? 0 : Integer.parseInt(request.getContinuationToken());
         Set<Split> splits = new HashSet<>();
         for (int i = nextSplit; i < totalSplits; i++) {
-            splits.add(Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+            splits.add(Split.newBuilder(makeSpillLocation(request), makeEncryptionKey(getRequestOverrideConfig(request)))
                     .add(SPLIT_NUMBER_FIELD, String.valueOf(i))
                     .add(SPLIT_TOTAL_NUMBER_FIELD, String.valueOf(totalSplits))
                     .add(SPLIT_SCALE_FACTOR_FIELD, String.valueOf(scaleFactor))
@@ -263,7 +263,7 @@ public class TPCDSMetadataHandler
         //Since this is QPT query we return a fixed split.
         Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
         return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.newBuilder(spillLocation, makeEncryptionKey(getRequestOverrideConfig(request)))
                         .applyProperties(qptArguments)
                         .build());
     }
