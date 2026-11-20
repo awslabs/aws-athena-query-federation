@@ -23,6 +23,9 @@ package com.amazonaws.athena.connector.lambda.security;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 /**
@@ -50,6 +53,35 @@ public class EncryptionKey
     public byte[] getNonce()
     {
         return nonce;
+    }
+
+    /**
+     * Derives a key that shares this key's secret but uses a distinct, deterministic nonce bound to the given
+     * label. AES-GCM must never encrypt two different payloads under the same key and nonce; callers that need
+     * to encrypt an auxiliary object (for example a schema sidecar) alongside the blocks spilled with this key
+     * should encrypt it with a derived key instead of reusing this one.
+     *
+     * @param label a non-empty label identifying the purpose of the derived key
+     * @return a new key with the same secret and a nonce of the same length derived from (nonce, label)
+     */
+    public EncryptionKey deriveWithLabel(String label)
+    {
+        if (label == null || label.isEmpty()) {
+            throw new IllegalArgumentException("label must not be empty");
+        }
+        if (nonce == null || nonce.length == 0) {
+            throw new IllegalStateException("cannot derive from a key without a nonce");
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(nonce);
+            digest.update(label.getBytes(StandardCharsets.UTF_8));
+            byte[] derivedNonce = Arrays.copyOf(digest.digest(), nonce.length);
+            return new EncryptionKey(key, derivedNonce);
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
     }
 
     @Override

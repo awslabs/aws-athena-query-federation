@@ -236,6 +236,26 @@ public abstract class RecordHandler
     protected abstract void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws Exception;
 
+    /**
+     * @return The default S3 client this handler was constructed with. Subclasses that write their own spill objects
+     * should pass this as the fallback to {@link #getS3Client} so the request-scoped (FAS) client is preferred.
+     */
+    protected S3Client getAmazonS3()
+    {
+        return amazonS3;
+    }
+
+    /**
+     * Creates a {@link QueryStatusChecker} for the given request using the same Athena client and throttling policy
+     * as {@link #doReadRecords}. Subclasses that bypass {@code doReadRecords} must use this to stop work once the
+     * upstream Athena query has terminated. The caller owns the returned checker and must close it.
+     */
+    protected QueryStatusChecker createQueryStatusChecker(ReadRecordsRequest request)
+    {
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(request.getIdentity().getConfigOptions());
+        return new QueryStatusChecker(getAthenaClient(overrideConfig, athena), athenaInvoker, request.getQueryId());
+    }
+
     protected SpillConfig getSpillConfig(ReadRecordsRequest request)
     {
         long maxBlockSize = request.getMaxBlockSize();
