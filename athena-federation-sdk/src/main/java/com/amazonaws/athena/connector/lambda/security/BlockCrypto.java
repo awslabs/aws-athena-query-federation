@@ -42,11 +42,19 @@ public interface BlockCrypto
      * {@link #encrypt(EncryptionKey, Block)}. This is the symmetric counterpart of {@link #decrypt(EncryptionKey,
      * byte[])} and is helpful when you want to encrypt a payload that is not an Arrow Block/record batch.
      *
+     * <p>This is a default method so that existing third-party implementations of {@code BlockCrypto} keep compiling;
+     * the default throws {@link UnsupportedOperationException}. The payload must be encrypted under a (key, nonce)
+     * pair that is not shared with any Block written by {@link #encrypt(EncryptionKey, Block)}: AES-GCM is only
+     * secure when each nonce is used for a single message under a given key.
+     *
      * @param key The EncryptionKey to use when encrypting the bytes.
      * @param bytes The plaintext bytes to encrypt.
      * @return The encrypted bytes.
      */
-    byte[] encrypt(EncryptionKey key, byte[] bytes);
+    default byte[] encrypt(EncryptionKey key, byte[] bytes)
+    {
+        throw new UnsupportedOperationException(getClass().getName() + " does not support encrypting raw bytes");
+    }
 
     /**
      * Used to decrypt and deserialize a Block from the provided bytes and schema.
