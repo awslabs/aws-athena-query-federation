@@ -79,6 +79,7 @@ import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -320,8 +321,9 @@ public class BlockUtils
                     if (value instanceof Number) {
                         //This may seem odd at first but many frameworks (like Presto) use long as the preferred
                         //native java type for representing integers. We do this to keep type conversions simple.
-                        //Accept any Number (Long, Integer, BigDecimal from drivers like Snowflake, etc.).
-                        ((IntVector) vector).setSafe(pos, ((Number) value).intValue());
+                        //Accept any Number (Long, Integer, BigDecimal from drivers like Snowflake, etc.), but
+                        //convert exactly: a fraction or an out-of-range value throws instead of silently wrapping.
+                        ((IntVector) vector).setSafe(pos, toRangeCheckedInt((Number) value, Integer.MIN_VALUE, Integer.MAX_VALUE));
                     }
                     else {
                         ((IntVector) vector).setSafe(pos, (int) value);
@@ -332,7 +334,7 @@ public class BlockUtils
                         ((TinyIntVector) vector).setSafe(pos, (byte) value);
                     }
                     else if (value instanceof Number) {
-                        ((TinyIntVector) vector).setSafe(pos, ((Number) value).intValue());
+                        ((TinyIntVector) vector).setSafe(pos, toRangeCheckedInt((Number) value, Byte.MIN_VALUE, Byte.MAX_VALUE));
                     }
                     else {
                         ((TinyIntVector) vector).setSafe(pos, (int) value);
@@ -343,7 +345,7 @@ public class BlockUtils
                         ((SmallIntVector) vector).setSafe(pos, (short) value);
                     }
                     else if (value instanceof Number) {
-                        ((SmallIntVector) vector).setSafe(pos, ((Number) value).intValue());
+                        ((SmallIntVector) vector).setSafe(pos, toRangeCheckedInt((Number) value, Short.MIN_VALUE, Short.MAX_VALUE));
                     }
                     else {
                         ((SmallIntVector) vector).setSafe(pos, (int) value);
@@ -380,8 +382,9 @@ public class BlockUtils
                     if (value instanceof Number) {
                         //Accept any Number (Integer, BigDecimal, BigInteger, etc.), not just Long. Some JDBC
                         //drivers (e.g. Snowflake) return NUMBER columns as BigDecimal even when the column maps
-                        //to Arrow BIGINT; a plain (long) cast on those would throw ClassCastException.
-                        ((BigIntVector) vector).setSafe(pos, ((Number) value).longValue());
+                        //to Arrow BIGINT; a plain (long) cast on those would throw ClassCastException. The
+                        //conversion is exact: a fraction or a value outside the long range throws.
+                        ((BigIntVector) vector).setSafe(pos, toLongExact((Number) value));
                     }
                     else {
                         ((BigIntVector) vector).setSafe(pos, (long) value);
@@ -406,7 +409,8 @@ public class BlockUtils
                         decimalValue = new BigDecimal(value.toString());
                     }
                     else {
-                        decimalValue = (BigDecimal) value;
+                        throw new AthenaConnectorException("Cannot convert " + value.getClass().getName() + " to DECIMAL",
+                                ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                     }
                     decimalValue = decimalValue.setScale(dVector.getScale(), RoundingMode.HALF_UP);
                     dVector.setSafe(pos, decimalValue);
@@ -441,6 +445,44 @@ public class BlockUtils
                 + " using value " + value
                 + " of type " + vector.getMinorType(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
+    }
+
+    /**
+     * Converts a Number to a long without loss: Long/Integer/Short/Byte are widened, BigDecimal/BigInteger use their
+     * exact conversions, and floating point values must be whole and within the long range.
+     *
+     * @throws ArithmeticException if the value has a fractional part or does not fit in a long.
+     */
+    private static long toLongExact(Number value)
+    {
+        if (value instanceof Long || value instanceof Integer || value instanceof Short || value instanceof Byte) {
+            return value.longValue();
+        }
+        if (value instanceof BigDecimal) {
+            return ((BigDecimal) value).longValueExact();
+        }
+        if (value instanceof BigInteger) {
+            return ((BigInteger) value).longValueExact();
+        }
+        if (value instanceof Double || value instanceof Float) {
+            return BigDecimal.valueOf(value.doubleValue()).longValueExact();
+        }
+        // Unknown Number subtype (e.g. AtomicLong): go through its decimal representation so overflow still throws.
+        return new BigDecimal(value.toString()).longValueExact();
+    }
+
+    /**
+     * Converts a Number to an int exactly and checks it lies within [min, max] (used for TINYINT / SMALLINT).
+     *
+     * @throws ArithmeticException if the value has a fractional part or is outside the range.
+     */
+    private static int toRangeCheckedInt(Number value, int min, int max)
+    {
+        long asLong = toLongExact(value);
+        if (asLong < min || asLong > max) {
+            throw new ArithmeticException("Value " + value + " is outside the range [" + min + ", " + max + "]");
+        }
+        return (int) asLong;
     }
 
     /**
