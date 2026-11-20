@@ -88,6 +88,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
@@ -562,5 +563,326 @@ public class JdbcRecordHandlerTest
         Connection mockConnection = Mockito.mock(Connection.class);
         boolean result = jdbcRecordHandler.disableCaseSensitivelyLookUpSession(mockConnection);
         Assert.assertFalse(result); // Default implementation returns false
+    }
+
+    @Test
+    public void testAesGcmRawEncryptRoundTrip() throws Exception {
+        com.amazonaws.athena.connector.lambda.security.EncryptionKey key =
+            new com.amazonaws.athena.connector.lambda.security.LocalKeyFactory().create();
+        byte[] plain = "hello spill".getBytes(StandardCharsets.UTF_8);
+
+        com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto crypto =
+            new com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto(new BlockAllocatorImpl());
+
+        // New symmetric raw-bytes encrypt: round-trips with the existing raw-bytes decrypt.
+        byte[] encrypted = crypto.encrypt(key, plain);
+        Assert.assertEquals(plain.length + 16, encrypted.length); // AES-GCM appends a 16-byte tag
+        Assert.assertArrayEquals(plain, crypto.decrypt(key, encrypted));
+
+        // NoOp raw encrypt passes bytes through unchanged (key must be null for NoOp).
+        Assert.assertArrayEquals(plain,
+            new com.amazonaws.athena.connector.lambda.security.NoOpBlockCrypto(new BlockAllocatorImpl()).encrypt(null, plain));
+    }
+
+    /**
+     * The query-passthrough export path (ExportSchema marker) must write records to S3 via the SDK
+     * spill writer and return a RemoteReadRecordsResponse whose spill locations point at the data objects
+     * (&lt;spillKey&gt;.N), while the ONLY bespoke object is the &lt;spillKey&gt;.schema sidecar (which MUST NOT appear
+     * as a spill location). The schema is derived from the live ResultSet at read time (faithful types), NOT from
+     * request.getSchema(). Verified end-to-end using H2, including a TIMESTAMP column.
+     */
+    @Test
+    public void testDoReadRecordsDirectQueryUsesSpillerAndReturnsLocations() throws Exception {
+        Class.forName("org.h2.Driver");
+        java.sql.Connection h2 = java.sql.DriverManager.getConnection("jdbc:h2:mem:jdbcdqspill;DB_CLOSE_DELAY=-1");
+        try (java.sql.Statement st = h2.createStatement()) {
+            st.execute("CREATE TABLE v (created_on TIMESTAMP, name VARCHAR(255))");
+            st.execute("INSERT INTO v VALUES (TIMESTAMP '2021-01-01 00:00:00', 'orders_view')");
+            st.execute("INSERT INTO v VALUES (TIMESTAMP '2021-02-02 12:30:00', 'customers_view')");
+        }
+        JdbcConnectionFactory h2Factory = Mockito.mock(JdbcConnectionFactory.class);
+        when(h2Factory.getConnection(nullable(CredentialsProvider.class))).thenReturn(h2);
+        S3Client mockS3 = Mockito.mock(S3Client.class);
+        DatabaseConnectionConfig cfg = new DatabaseConnectionConfig(TEST_CATALOG, "fakedatabase", CONNECTION_STRING, TEST_SECRET);
+        JdbcRecordHandler handler = new JdbcRecordHandler(mockS3, this.secretsManager, this.athena, cfg, h2Factory,
+                com.google.common.collect.ImmutableMap.of())
+        {
+            @Override
+            public PreparedStatement buildSplitSql(Connection c, String cat, TableName t, Schema s, Constraints con, Split sp)
+            {
+                throw new UnsupportedOperationException("export query must not call buildSplitSql");
+            }
+        };
+
+        // Capture every S3 object the spiller (and the sidecar writer) put.
+        java.util.Map<String, byte[]> written = java.util.Collections.synchronizedMap(new java.util.HashMap<>());
+        when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class))).thenAnswer((InvocationOnMock inv) -> {
+            PutObjectRequest req = (PutObjectRequest) inv.getArguments()[0];
+            RequestBody body = (RequestBody) inv.getArguments()[1];
+            written.put(req.key(), com.google.common.io.ByteStreams.toByteArray(body.contentStreamProvider().newStream()));
+            return PutObjectResponse.builder().build();
+        });
+
+        com.amazonaws.athena.connector.lambda.security.EncryptionKey key =
+            new com.amazonaws.athena.connector.lambda.security.LocalKeyFactory().create();
+        BlockAllocator allocator = new BlockAllocatorImpl();
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket("test-bucket").withPrefix("prefix").withQueryId("q1").withSplitId("split1").withIsDirectory(true).build();
+        Split split = Split.newBuilder(splitLoc, key).build();
+
+        // Export query is delivered via query-passthrough: the ExportSchema marker triggers the
+        // derive-schema + sidecar path, and the QUERY argument carries the SQL. The request must still carry a
+        // valid passthrough signature (schemaFunctionName) or it is rejected before any SQL runs. request.getSchema() is deliberately
+        // a mismatching single-column schema to prove it is NOT used (the schema is derived from the ResultSet).
+        Map<String, String> qptArgs = new HashMap<>();
+        qptArgs.put(JdbcRecordHandler.EXPORT_SCHEMA, "true");
+        qptArgs.put(com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME,
+                new com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough().getFunctionSignature());
+        qptArgs.put(com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY, "SELECT created_on, name FROM v ORDER BY name");
+
+        ReadRecordsRequest request = new ReadRecordsRequest(this.federatedIdentity, TEST_CATALOG, TEST_QUERY_ID,
+                new TableName(TEST_SCHEMA, TEST_TABLE), SchemaBuilder.newBuilder().addStringField("name").build(), split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                        Constraints.DEFAULT_NO_LIMIT, qptArgs, null),
+                100_000_000_000L, 100_000_000_000L);
+
+        com.amazonaws.athena.connector.lambda.records.RecordResponse response = handler.doReadRecords(allocator, request);
+
+        // Response advertises the spilled data object(s), never the schema sidecar.
+        Assert.assertTrue(response instanceof com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse);
+        com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse remote =
+                (com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse) response;
+        Assert.assertEquals(1, remote.getRemoteBlocks().size());
+        com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation dataLoc =
+                (com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation) remote.getRemoteBlocks().get(0);
+        Assert.assertEquals(splitLoc.getKey() + ".0", dataLoc.getKey());
+        Assert.assertFalse(dataLoc.getKey().endsWith(".schema"));
+
+        // The response schema is the ResultSet-derived schema (2 columns), not request.getSchema() (1 column).
+        Assert.assertEquals(2, remote.getSchema().getFields().size());
+
+        // Both the data object and the schema sidecar were written to S3.
+        Assert.assertTrue(written.containsKey(splitLoc.getKey() + ".0"));
+        Assert.assertTrue(written.containsKey(splitLoc.getKey() + ".schema"));
+
+        // Read the objects back exactly as S3BlockSpillReader does: decrypt sidecar -> schema; decrypt data -> block.
+        // The sidecar is encrypted under a key derived from the split key (same secret, distinct nonce) so that the
+        // split key's nonce is never reused for two different payloads.
+        com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto crypto =
+            new com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto(new BlockAllocatorImpl());
+        com.amazonaws.athena.connector.lambda.security.EncryptionKey sidecarKey = JdbcRecordHandler.schemaSidecarEncryptionKey(key);
+        Assert.assertFalse(java.util.Arrays.equals(key.getNonce(), sidecarKey.getNonce()));
+        byte[] clearSchema = crypto.decrypt(sidecarKey, written.get(splitLoc.getKey() + ".schema"));
+        Schema schema = org.apache.arrow.vector.ipc.message.MessageSerializer.deserializeSchema(
+                new org.apache.arrow.vector.ipc.ReadChannel(java.nio.channels.Channels.newChannel(
+                        new java.io.ByteArrayInputStream(clearSchema))));
+        Assert.assertEquals(2, schema.getFields().size()); // created_on, name
+        com.amazonaws.athena.connector.lambda.data.Block block =
+                crypto.decrypt(key, written.get(splitLoc.getKey() + ".0"), schema);
+        Assert.assertEquals(2, block.getRowCount());
+        org.apache.arrow.vector.VarCharVector nameVec =
+                (org.apache.arrow.vector.VarCharVector) block.getFieldVector("NAME");
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (int i = 0; i < block.getRowCount(); i++) {
+            names.add(new String(nameVec.get(i)));
+        }
+        Assert.assertTrue(names.contains("orders_view"));
+        Assert.assertTrue(names.contains("customers_view"));
+    }
+
+    // ---- Export-schema passthrough: hardening tests ----
+
+    private static final String EXPORT_FN_SIG = new com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough().getFunctionSignature();
+
+    private static Map<String, String> exportArgs(String query)
+    {
+        Map<String, String> qptArgs = new HashMap<>();
+        qptArgs.put(JdbcRecordHandler.EXPORT_SCHEMA, "true");
+        qptArgs.put(com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME, EXPORT_FN_SIG);
+        qptArgs.put(com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY, query);
+        return qptArgs;
+    }
+
+    private ReadRecordsRequest exportRequest(Map<String, String> qptArgs, Split split)
+    {
+        return new ReadRecordsRequest(this.federatedIdentity, TEST_CATALOG, TEST_QUERY_ID,
+                new TableName(TEST_SCHEMA, TEST_TABLE), SchemaBuilder.newBuilder().addStringField("name").build(), split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                        Constraints.DEFAULT_NO_LIMIT, qptArgs, null),
+                100_000_000_000L, 100_000_000_000L);
+    }
+
+    private static Split exportSplit(com.amazonaws.athena.connector.lambda.security.EncryptionKey key)
+    {
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket("test-bucket").withPrefix("prefix").withQueryId("q1").withSplitId("split1").withIsDirectory(true).build();
+        return Split.newBuilder(splitLoc, key).build();
+    }
+
+    private JdbcRecordHandler h2ExportHandler(String url, S3Client s3, Map<String, String> configOptions) throws Exception
+    {
+        Class.forName("org.h2.Driver");
+        java.sql.Connection h2 = java.sql.DriverManager.getConnection(url);
+        JdbcConnectionFactory h2Factory = Mockito.mock(JdbcConnectionFactory.class);
+        when(h2Factory.getConnection(nullable(CredentialsProvider.class))).thenReturn(h2);
+        DatabaseConnectionConfig cfg = new DatabaseConnectionConfig(TEST_CATALOG, "fakedatabase", CONNECTION_STRING, TEST_SECRET);
+        return new JdbcRecordHandler(s3, this.secretsManager, this.athena, cfg, h2Factory, configOptions)
+        {
+            @Override
+            public PreparedStatement buildSplitSql(Connection c, String cat, TableName t, Schema s, Constraints con, Split sp)
+            {
+                throw new UnsupportedOperationException("export query must not call buildSplitSql");
+            }
+        };
+    }
+
+    private static java.util.Map<String, PutObjectRequest> captureS3Puts(S3Client mockS3, java.util.Map<String, byte[]> bodies)
+    {
+        java.util.Map<String, PutObjectRequest> requests = java.util.Collections.synchronizedMap(new java.util.HashMap<>());
+        when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class))).thenAnswer((InvocationOnMock inv) -> {
+            PutObjectRequest req = (PutObjectRequest) inv.getArguments()[0];
+            RequestBody body = (RequestBody) inv.getArguments()[1];
+            requests.put(req.key(), req);
+            bodies.put(req.key(), com.google.common.io.ByteStreams.toByteArray(body.contentStreamProvider().newStream()));
+            return PutObjectResponse.builder().build();
+        });
+        return requests;
+    }
+
+    /**
+     * Duplicate column labels (e.g. {@code SELECT a.id, b.id FROM ...}) are legal in SQL. The export must keep both
+     * columns, in order, with their own values: vectors are resolved by position, never by name.
+     */
+    @Test
+    public void testExportKeepsDuplicateColumnLabelsByPosition() throws Exception
+    {
+        S3Client mockS3 = Mockito.mock(S3Client.class);
+        java.util.Map<String, byte[]> written = java.util.Collections.synchronizedMap(new java.util.HashMap<>());
+        captureS3Puts(mockS3, written);
+        JdbcRecordHandler handler = h2ExportHandler("jdbc:h2:mem:jdbcdup;DB_CLOSE_DELAY=-1", mockS3, com.google.common.collect.ImmutableMap.of());
+        com.amazonaws.athena.connector.lambda.security.EncryptionKey key =
+            new com.amazonaws.athena.connector.lambda.security.LocalKeyFactory().create();
+        Split split = exportSplit(key);
+
+        com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse remote =
+                (com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse) handler.doReadRecords(new BlockAllocatorImpl(),
+                        exportRequest(exportArgs("SELECT CAST(1 AS INT) AS id, CAST(2 AS INT) AS id"), split));
+
+        Assert.assertEquals(java.util.Arrays.asList("ID", "ID"),
+                remote.getSchema().getFields().stream().map(Field::getName).collect(java.util.stream.Collectors.toList()));
+        com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto crypto =
+            new com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto(new BlockAllocatorImpl());
+        String dataKey = ((S3SpillLocation) split.getSpillLocation()).getKey() + ".0";
+        com.amazonaws.athena.connector.lambda.data.Block block = crypto.decrypt(key, written.get(dataKey), remote.getSchema());
+        Assert.assertEquals(1, block.getRowCount());
+        Assert.assertEquals(1, ((org.apache.arrow.vector.IntVector) block.getFieldVectors().get(0)).get(0));
+        Assert.assertEquals(2, ((org.apache.arrow.vector.IntVector) block.getFieldVectors().get(1)).get(0));
+    }
+
+    /**
+     * {@code ExportSchema=false} is not an export request: the normal read path (buildSplitSql) is used.
+     */
+    @Test
+    public void testExportSchemaFalseUsesNormalReadPath() throws Exception
+    {
+        JdbcRecordHandler handler = h2ExportHandler("jdbc:h2:mem:jdbcfalse;DB_CLOSE_DELAY=-1", Mockito.mock(S3Client.class),
+                com.google.common.collect.ImmutableMap.of());
+        Map<String, String> qptArgs = exportArgs("SELECT 1");
+        qptArgs.put(JdbcRecordHandler.EXPORT_SCHEMA, "false");
+
+        Assert.assertFalse(JdbcRecordHandler.isExportSchemaRequest(new Constraints(Collections.emptyMap(), Collections.emptyList(),
+                Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, qptArgs, null)));
+        try {
+            handler.doReadRecords(new BlockAllocatorImpl(), exportRequest(qptArgs, exportSplit(null)));
+            Assert.fail("expected the normal read path (buildSplitSql) to be taken");
+        }
+        catch (UnsupportedOperationException expected) {
+            Assert.assertEquals("export query must not call buildSplitSql", expected.getMessage());
+        }
+    }
+
+    /**
+     * An export request without the passthrough function signature is rejected before any SQL runs or any S3 write
+     * happens, exactly like the normal passthrough path.
+     */
+    @Test
+    public void testExportWithoutSignatureIsRejected() throws Exception
+    {
+        S3Client mockS3 = Mockito.mock(S3Client.class);
+        JdbcRecordHandler handler = h2ExportHandler("jdbc:h2:mem:jdbcnosig;DB_CLOSE_DELAY=-1", mockS3, com.google.common.collect.ImmutableMap.of());
+        Map<String, String> qptArgs = exportArgs("SELECT 1");
+        qptArgs.remove(com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME);
+
+        try {
+            handler.doReadRecords(new BlockAllocatorImpl(), exportRequest(qptArgs, exportSplit(null)));
+            Assert.fail("expected the missing signature to be rejected");
+        }
+        catch (AthenaConnectorException expected) {
+            // verify() failed
+        }
+        Mockito.verify(mockS3, Mockito.never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    }
+
+    /**
+     * The schema sidecar is written with the same {@code spill_put_request_headers} the spiller applies to data
+     * objects, so bucket policies that require e.g. SSE-KMS or an expected bucket owner accept both.
+     */
+    @Test
+    public void testExportSidecarCarriesSpillPutRequestHeaders() throws Exception
+    {
+        S3Client mockS3 = Mockito.mock(S3Client.class);
+        java.util.Map<String, byte[]> written = java.util.Collections.synchronizedMap(new java.util.HashMap<>());
+        java.util.Map<String, PutObjectRequest> requests = captureS3Puts(mockS3, written);
+        JdbcRecordHandler handler = h2ExportHandler("jdbc:h2:mem:jdbchdr;DB_CLOSE_DELAY=-1", mockS3,
+                com.google.common.collect.ImmutableMap.of("spill_put_request_headers", "{\"x-amz-expected-bucket-owner\":\"123456789012\"}"));
+        Split split = exportSplit(new com.amazonaws.athena.connector.lambda.security.LocalKeyFactory().create());
+
+        handler.doReadRecords(new BlockAllocatorImpl(), exportRequest(exportArgs("SELECT 1 AS x"), split));
+
+        String spillKey = ((S3SpillLocation) split.getSpillLocation()).getKey();
+        for (String objectKey : new String[] {spillKey + ".0", spillKey + ".schema"}) {
+            PutObjectRequest req = requests.get(objectKey);
+            Assert.assertNotNull(objectKey, req);
+            Assert.assertTrue(objectKey, req.overrideConfiguration().isPresent());
+            Assert.assertEquals(objectKey, java.util.Collections.singletonList("123456789012"),
+                    req.overrideConfiguration().get().headers().get("x-amz-expected-bucket-owner"));
+        }
+    }
+
+    /**
+     * Columns with no faithful Arrow/BlockUtils mapping are exported as VARCHAR (read via getString) instead of
+     * failing the whole export: TIME, unconstrained NUMERIC (precision 0) and vendor types (OTHER/JAVA_OBJECT).
+     */
+    @Test
+    public void testDeriveExportSchemaFallsBackToVarcharForUnmappableTypes() throws Exception
+    {
+        ResultSetMetaData metadata = Mockito.mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(5);
+        String[] labels = {"t", "n0", "obj", "ts", "i"};
+        int[] types = {java.sql.Types.TIME, java.sql.Types.NUMERIC, java.sql.Types.OTHER, java.sql.Types.TIMESTAMP, java.sql.Types.INTEGER};
+        for (int c = 1; c <= 5; c++) {
+            when(metadata.getColumnLabel(c)).thenReturn(labels[c - 1]);
+            when(metadata.getColumnType(c)).thenReturn(types[c - 1]);
+            when(metadata.getColumnTypeName(c)).thenReturn("T" + c);
+            when(metadata.isNullable(c)).thenReturn(ResultSetMetaData.columnNullable);
+            when(metadata.getPrecision(c)).thenReturn(c == 2 ? 0 : 10);
+            when(metadata.getScale(c)).thenReturn(0);
+        }
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        when(resultSet.getMetaData()).thenReturn(metadata);
+        JdbcRecordHandler handler = h2ExportHandler("jdbc:h2:mem:jdbcfallback;DB_CLOSE_DELAY=-1", Mockito.mock(S3Client.class),
+                com.google.common.collect.ImmutableMap.of());
+
+        Schema schema = handler.deriveExportSchema(resultSet);
+
+        Assert.assertEquals(5, schema.getFields().size());
+        Assert.assertTrue(schema.getFields().get(0).getType() instanceof org.apache.arrow.vector.types.pojo.ArrowType.Utf8);
+        Assert.assertTrue(schema.getFields().get(1).getType() instanceof org.apache.arrow.vector.types.pojo.ArrowType.Utf8);
+        Assert.assertTrue(schema.getFields().get(2).getType() instanceof org.apache.arrow.vector.types.pojo.ArrowType.Utf8);
+        // TIMESTAMP is mapped with a UTC calendar -> Arrow timestamp-with-tz, which BlockUtils can populate
+        org.apache.arrow.vector.types.pojo.ArrowType.Timestamp ts =
+                (org.apache.arrow.vector.types.pojo.ArrowType.Timestamp) schema.getFields().get(3).getType();
+        Assert.assertEquals("UTC", ts.getTimezone());
+        Assert.assertTrue(schema.getFields().get(4).getType() instanceof org.apache.arrow.vector.types.pojo.ArrowType.Int);
     }
 }

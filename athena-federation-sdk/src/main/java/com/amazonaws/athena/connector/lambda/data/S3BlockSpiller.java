@@ -326,7 +326,43 @@ public class S3BlockSpiller
      */
     private Map<String, String> getRequestHeadersFromEnv()
     {
-        String headersFromEnvStr = configOptions.get(SPILL_PUT_REQUEST_HEADERS_ENV);
+        return getSpillPutRequestHeaders(configOptions);
+    }
+
+    /**
+     * Creates an AwsRequestOverrideConfiguration with custom headers from the environment
+     */
+    private Optional<AwsRequestOverrideConfiguration> createRequestOverrideConfig()
+    {
+        return createSpillPutRequestOverrideConfig(configOptions);
+    }
+
+    /**
+     * Builds the request override configuration (custom headers) that every PutObject to the spill bucket
+     * must carry, as configured by the {@code spill_put_request_headers} option. Exposed so that other
+     * components writing to the spill bucket (for example the schema sidecar written by export-schema
+     * passthrough queries) apply exactly the same headers as spilled blocks.
+     *
+     * @param configOptions the connector configuration options (usually the Lambda environment)
+     * @return the override configuration, or empty when no headers are configured
+     */
+    public static Optional<AwsRequestOverrideConfiguration> createSpillPutRequestOverrideConfig(Map<String, String> configOptions)
+    {
+        Map<String, String> headers = getSpillPutRequestHeaders(configOptions);
+        if (headers.isEmpty()) {
+            return Optional.empty();
+        }
+
+        AwsRequestOverrideConfiguration.Builder overrideConfigBuilder = AwsRequestOverrideConfiguration.builder();
+        for (Map.Entry<String, String> header : headers.entrySet()) {
+            overrideConfigBuilder.putHeader(header.getKey(), header.getValue());
+        }
+        return Optional.of(overrideConfigBuilder.build());
+    }
+
+    private static Map<String, String> getSpillPutRequestHeaders(Map<String, String> configOptions)
+    {
+        String headersFromEnvStr = configOptions == null ? null : configOptions.get(SPILL_PUT_REQUEST_HEADERS_ENV);
         if (headersFromEnvStr == null || headersFromEnvStr.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -342,23 +378,6 @@ public class S3BlockSpiller
             logger.error(message, e);
         }
         return Collections.emptyMap();
-    }
-
-    /**
-     * Creates an AwsRequestOverrideConfiguration with custom headers from the environment
-     */
-    private Optional<AwsRequestOverrideConfiguration> createRequestOverrideConfig()
-    {
-        Map<String, String> headers = getRequestHeadersFromEnv();
-        if (headers.isEmpty()) {
-            return Optional.empty();
-        }
-
-        AwsRequestOverrideConfiguration.Builder overrideConfigBuilder = AwsRequestOverrideConfiguration.builder();
-        for (Map.Entry<String, String> header : headers.entrySet()) {
-            overrideConfigBuilder.putHeader(header.getKey(), header.getValue());
-        }
-        return Optional.of(overrideConfigBuilder.build());
     }
 
     /**

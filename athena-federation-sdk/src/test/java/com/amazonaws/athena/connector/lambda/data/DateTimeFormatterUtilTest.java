@@ -195,6 +195,35 @@ public class DateTimeFormatterUtilTest {
         assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedMicros, arrowType));
     }
 
+    @Test
+    public void overrideTimezonePackingIsThreadScopedAndClearable() throws Exception {
+        long expectedPackedLong = 5942221840384541L;
+        ZonedDateTime zdt = ZonedDateTime.of(LocalDateTime.of(2015, 12, 21, 17, 42, 34, 0), ZoneId.of("-05:00"));
+        long expectedUnpackedLong = zdt.toInstant().toEpochMilli();
+
+        // Static default (packing enabled) applies with no override.
+        assertEquals(expectedPackedLong, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zdt, null).value);
+
+        DateTimeFormatterUtil.overrideTimezonePacking(false);
+        try {
+            // This thread writes plain epoch millis...
+            assertEquals(expectedUnpackedLong, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zdt, null).value);
+
+            // ...while another thread still sees the static default: the override never leaks across threads.
+            long[] otherThreadValue = new long[1];
+            Thread other = new Thread(() -> otherThreadValue[0] = DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zdt, null).value);
+            other.start();
+            other.join();
+            assertEquals(expectedPackedLong, otherThreadValue[0]);
+        }
+        finally {
+            DateTimeFormatterUtil.clearTimezonePackingOverride();
+        }
+
+        // Cleared: back to the static default on this thread.
+        assertEquals(expectedPackedLong, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zdt, null).value);
+    }
+
     // Adapted the test cases from: https://github.com/awslabs/aws-athena-query-federation/issues/293#issue-740925274
     @Test
     public void dateTimePackingRoundTrip() {

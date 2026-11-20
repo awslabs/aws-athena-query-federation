@@ -21,6 +21,11 @@ package com.amazonaws.athena.connector.lambda.data;
  */
 
 import com.google.common.collect.ImmutableList;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.Types;
@@ -35,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -194,5 +200,80 @@ public class BlockUtilsTest
 
         Block block = allocator.createBlock(schema);
         BlockUtils.setValue(block.getFieldVector("col1"), 0, date);
+    }
+
+    /**
+     * setValue accepts any Number for the integer and decimal vectors (some JDBC drivers hand back BigDecimal for
+     * integer columns), but the conversion must be exact: in-range values are written as-is.
+     */
+    @Test
+    public void setValueNumberConversionsInRange() throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField("tiny", Types.MinorType.TINYINT.getType())
+                .addField("small", Types.MinorType.SMALLINT.getType())
+                .addField("int", Types.MinorType.INT.getType())
+                .addField("big", Types.MinorType.BIGINT.getType())
+                .addField("dec", new ArrowType.Decimal(10, 2, 128))
+                .build();
+        try (Block block = allocator.createBlock(schema)) {
+            BlockUtils.setValue(block.getFieldVector("tiny"), 0, new BigDecimal("-128"));
+            BlockUtils.setValue(block.getFieldVector("small"), 0, 32767L);
+            BlockUtils.setValue(block.getFieldVector("int"), 0, new BigDecimal("2147483647"));
+            BlockUtils.setValue(block.getFieldVector("big"), 0, new BigDecimal("9223372036854775807"));
+            BlockUtils.setValue(block.getFieldVector("big"), 1, new BigInteger("-9223372036854775808"));
+            BlockUtils.setValue(block.getFieldVector("big"), 2, 42);
+            BlockUtils.setValue(block.getFieldVector("big"), 3, 7.0d);
+            BlockUtils.setValue(block.getFieldVector("dec"), 0, 5L);
+            BlockUtils.setValue(block.getFieldVector("dec"), 1, 1.25d);
+            block.setRowCount(4);
+
+            assertEquals((byte) -128, ((TinyIntVector) block.getFieldVector("tiny")).get(0));
+            assertEquals((short) 32767, ((SmallIntVector) block.getFieldVector("small")).get(0));
+            assertEquals(2147483647, ((IntVector) block.getFieldVector("int")).get(0));
+            assertEquals(9223372036854775807L, ((BigIntVector) block.getFieldVector("big")).get(0));
+            assertEquals(-9223372036854775808L, ((BigIntVector) block.getFieldVector("big")).get(1));
+            assertEquals(42L, ((BigIntVector) block.getFieldVector("big")).get(2));
+            assertEquals(7L, ((BigIntVector) block.getFieldVector("big")).get(3));
+            assertEquals(new BigDecimal("5.00"), ((DecimalVector) block.getFieldVector("dec")).getObject(0));
+            assertEquals(new BigDecimal("1.25"), ((DecimalVector) block.getFieldVector("dec")).getObject(1));
+        }
+    }
+
+    /**
+     * A Number that does not fit the target vector (or has a fractional part) must fail loudly rather than be
+     * written truncated or wrapped. The failure is surfaced as the SDK's AthenaConnectorException naming the field.
+     */
+    @Test
+    public void setValueNumberConversionsOutOfRangeThrow() throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField("tiny", Types.MinorType.TINYINT.getType())
+                .addField("small", Types.MinorType.SMALLINT.getType())
+                .addField("int", Types.MinorType.INT.getType())
+                .addField("big", Types.MinorType.BIGINT.getType())
+                .build();
+        try (Block block = allocator.createBlock(schema)) {
+            assertSetValueThrows(block, "big", new BigDecimal("99999999999999999999"));   // 20 digits: wraps to 7766279631452241919 with longValue()
+            assertSetValueThrows(block, "big", new BigInteger("9223372036854775808"));    // Long.MAX_VALUE + 1
+            assertSetValueThrows(block, "big", new BigDecimal("1.5"));                    // fraction
+            assertSetValueThrows(block, "int", new BigDecimal("3000000000.7"));           // wraps to -1294967296 with intValue()
+            assertSetValueThrows(block, "int", 2147483648L);                              // Integer.MAX_VALUE + 1
+            assertSetValueThrows(block, "int", 3.7d);                                     // truncates to 3 with intValue()
+            assertSetValueThrows(block, "small", 32768);                                  // Short.MAX_VALUE + 1
+            assertSetValueThrows(block, "tiny", 300);                                     // wraps to 44 with the byte narrowing
+            assertSetValueThrows(block, "tiny", -129);
+        }
+    }
+
+    private static void assertSetValueThrows(Block block, String field, Object value)
+    {
+        try {
+            BlockUtils.setValue(block.getFieldVector(field), 0, value);
+            fail("Expected setValue to reject " + value + " for " + field);
+        }
+        catch (com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException ex) {
+            assertTrue(ex.getMessage(), ex.getMessage().contains("Unable to set value for field " + field));
+        }
     }
 }

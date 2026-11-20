@@ -956,4 +956,71 @@ public class SnowflakeRecordHandlerTest
     private void fail(String message) {
         org.junit.Assert.fail(message);
     }
+
+    /**
+     * Export-schema passthrough with S3 export enabled but an empty export (no object key): the handler falls back to
+     * JDBC, but only to fetch the ResultSet metadata (the query is wrapped in LIMIT 0), and still emits the
+     * {@code <spillKey>.schema} sidecar plus an empty remote result whose schema preserves NUMBER(p,0) as Decimal(p,0).
+     */
+    @Test
+    public void testExportSchemaEmptyExportFallsBackToLimitZeroJdbcQuery() throws Exception {
+        try (MockedStatic<SnowflakeConstants> snowflakeConstantsMockedStatic = mockStatic(SnowflakeConstants.class)) {
+            snowflakeConstantsMockedStatic.when(() -> SnowflakeConstants.isS3ExportEnabled(any())).thenReturn(true);
+
+            S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket("bucket").withPrefix("prefix").withSplitId("split").withQueryId("query").withIsDirectory(true).build();
+            Split split = Split.newBuilder(splitLoc, keyFactory.create())
+                .add(SNOWFLAKE_SPLIT_QUERY_ID, "query_id")
+                .add(SNOWFLAKE_SPLIT_EXPORT_BUCKET, "export_bucket")
+                .add(SNOWFLAKE_SPLIT_OBJECT_KEY, "")
+                .build();
+
+            java.util.Map<String, String> qptArgs = new java.util.HashMap<>();
+            qptArgs.put(com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler.EXPORT_SCHEMA, "true");
+            qptArgs.put(com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME,
+                new com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough().getFunctionSignature());
+            qptArgs.put(com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY, "SELECT id FROM t");
+            ReadRecordsRequest request = new ReadRecordsRequest(
+                identity, DEFAULT_CATALOG, QUERY_ID, TABLE_NAME,
+                SchemaBuilder.newBuilder().addStringField("unused").build(), split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, qptArgs, null),
+                100_000_000_000L, 100_000_000_000L);
+
+            java.sql.PreparedStatement mockPreparedStatement = mock(java.sql.PreparedStatement.class);
+            org.mockito.ArgumentCaptor<String> sql = org.mockito.ArgumentCaptor.forClass(String.class);
+            when(connection.prepareStatement(sql.capture())).thenReturn(mockPreparedStatement);
+            java.sql.ResultSet mockResultSet = mock(java.sql.ResultSet.class);
+            when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+            when(mockResultSet.next()).thenReturn(false);
+            java.sql.ResultSetMetaData mockMetadata = mock(java.sql.ResultSetMetaData.class);
+            when(mockResultSet.getMetaData()).thenReturn(mockMetadata);
+            when(mockMetadata.getColumnCount()).thenReturn(1);
+            when(mockMetadata.getColumnLabel(1)).thenReturn("ID");
+            when(mockMetadata.getColumnType(1)).thenReturn(java.sql.Types.BIGINT);
+            when(mockMetadata.getColumnTypeName(1)).thenReturn("NUMBER");
+            when(mockMetadata.getPrecision(1)).thenReturn(38);
+            when(mockMetadata.getScale(1)).thenReturn(0);
+            when(mockMetadata.isNullable(1)).thenReturn(java.sql.ResultSetMetaData.columnNullable);
+            when(amazonS3.putObject(any(software.amazon.awssdk.services.s3.model.PutObjectRequest.class),
+                any(software.amazon.awssdk.core.sync.RequestBody.class)))
+                .thenReturn(software.amazon.awssdk.services.s3.model.PutObjectResponse.builder().build());
+
+            RecordResponse response = handler.doReadRecords(allocator, request);
+
+            assertEquals("SELECT * FROM (SELECT id FROM t) LIMIT 0", sql.getValue());
+            assertTrue(response instanceof com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse);
+            com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse remote =
+                (com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse) response;
+            assertEquals(0, remote.getRemoteBlocks().size());
+            org.apache.arrow.vector.types.pojo.ArrowType.Decimal idType =
+                (org.apache.arrow.vector.types.pojo.ArrowType.Decimal) remote.getSchema().getFields().get(0).getType();
+            assertEquals(38, idType.getPrecision());
+            assertEquals(0, idType.getScale());
+            // Only the schema sidecar is written (no rows -> no data objects).
+            org.mockito.ArgumentCaptor<software.amazon.awssdk.services.s3.model.PutObjectRequest> put =
+                org.mockito.ArgumentCaptor.forClass(software.amazon.awssdk.services.s3.model.PutObjectRequest.class);
+            verify(amazonS3, times(1)).putObject(put.capture(), any(software.amazon.awssdk.core.sync.RequestBody.class));
+            assertEquals(splitLoc.getKey() + ".schema", put.getValue().key());
+        }
+    }
 }

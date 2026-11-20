@@ -24,10 +24,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertThrows;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -378,5 +383,86 @@ public class SnowflakeAuthUtilsTest
         assertThrows(IllegalArgumentException.class, () -> {
             SnowflakeAuthUtils.validateCredentials(credentials, SnowflakeAuthType.SNOWFLAKE);
         });
+    }
+
+    // ---- PEM normalization: every input shape a secret can carry must parse to the same key ----
+
+    private static String generatePkcs8Base64() throws Exception
+    {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        KeyPair pair = generator.generateKeyPair();
+        return Base64.getEncoder().encodeToString(pair.getPrivate().getEncoded());
+    }
+
+    private static String wrap64(String base64)
+    {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < base64.length(); i += 64) {
+            sb.append(base64, i, Math.min(i + 64, base64.length())).append('\n');
+        }
+        return sb.toString();
+    }
+
+    @Test
+    public void testCreatePrivateKeyFromRawBase64()
+            throws Exception
+    {
+        String base64 = generatePkcs8Base64();
+        PrivateKey key = SnowflakeAuthUtils.createPrivateKey(base64, null);
+        assertEquals("RSA", key.getAlgorithm());
+    }
+
+    @Test
+    public void testCreatePrivateKeyFromMultiLinePem()
+            throws Exception
+    {
+        String pem = "-----BEGIN PRIVATE KEY-----\n" + wrap64(generatePkcs8Base64()) + "-----END PRIVATE KEY-----\n";
+        assertEquals("RSA", SnowflakeAuthUtils.createPrivateKey(pem, null).getAlgorithm());
+    }
+
+    @Test
+    public void testCreatePrivateKeyFromSingleLinePem()
+            throws Exception
+    {
+        // Header, body and footer inline on one line, as it ends up when a PEM is pasted into a JSON secret.
+        String pem = "-----BEGIN PRIVATE KEY----- " + generatePkcs8Base64() + " -----END PRIVATE KEY-----";
+        assertEquals("RSA", SnowflakeAuthUtils.createPrivateKey(pem, null).getAlgorithm());
+    }
+
+    @Test
+    public void testCreatePrivateKeyFromPemWithSpacesInsteadOfNewlines()
+            throws Exception
+    {
+        // Every newline collapsed to a space (header, 64-char body chunks and footer all on one line).
+        String pem = ("-----BEGIN PRIVATE KEY-----\n" + wrap64(generatePkcs8Base64()) + "-----END PRIVATE KEY-----\n")
+                .replace("\n", " ");
+        assertEquals("RSA", SnowflakeAuthUtils.createPrivateKey(pem, null).getAlgorithm());
+    }
+
+    @Test
+    public void testCreatePrivateKeyUnencryptedPemWithStrayPassphraseKeepsDeclaredLabel()
+            throws Exception
+    {
+        // Regression: the declared PEM label wins over the passphrase heuristic. An unencrypted key whose secret also
+        // carries a passphrase must still parse as PrivateKeyInfo, not be relabelled ENCRYPTED PRIVATE KEY.
+        String pem = "-----BEGIN PRIVATE KEY-----\n" + wrap64(generatePkcs8Base64()) + "-----END PRIVATE KEY-----\n";
+        assertEquals("RSA", SnowflakeAuthUtils.createPrivateKey(pem, "unused-passphrase").getAlgorithm());
+    }
+
+    @Test
+    public void testFormatPrivateKeyWithPemHeadersPreservesEncryptedLabel()
+    {
+        String pem = "-----BEGIN ENCRYPTED PRIVATE KEY----- QUJD -----END ENCRYPTED PRIVATE KEY-----";
+        String formatted = SnowflakeAuthUtils.formatPrivateKeyWithPemHeaders(pem, null);
+        assertTrue(formatted.startsWith("-----BEGIN ENCRYPTED PRIVATE KEY-----\nQUJD\n"));
+        assertTrue(formatted.endsWith("-----END ENCRYPTED PRIVATE KEY-----\n"));
+    }
+
+    @Test
+    public void testFormatPrivateKeyWithPemHeadersInfersLabelOnlyForRawBase64()
+    {
+        assertTrue(SnowflakeAuthUtils.formatPrivateKeyWithPemHeaders("QUJD", "pw").startsWith("-----BEGIN ENCRYPTED PRIVATE KEY-----"));
+        assertTrue(SnowflakeAuthUtils.formatPrivateKeyWithPemHeaders("QUJD", null).startsWith("-----BEGIN PRIVATE KEY-----"));
     }
 }
