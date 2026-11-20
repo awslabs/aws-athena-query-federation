@@ -41,6 +41,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -235,8 +236,14 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         String exportBucket = split.getProperty(SNOWFLAKE_SPLIT_EXPORT_BUCKET);
         String s3ObjectKey = split.getProperty(SNOWFLAKE_SPLIT_OBJECT_KEY);
         // Empty export (no rows): fall back to JDBC so we can still derive the schema and emit an empty result + sidecar.
+        // Only the ResultSetMetaData is needed, so wrap the query in LIMIT 0 rather than re-running it in full.
+        // Note: this schema comes from the JDBC mapping (deriveExportSchema) while non-empty results use the Parquet
+        // file's types; consumers that cache schemas across runs should expect the two to differ for some types
+        // (e.g. timestamps).
         if (s3ObjectKey == null || s3ObjectKey.isEmpty()) {
-            return super.exportResultSetToSpill(request, allocator, spillLocations);
+            // (doReadRecords has already verified the passthrough signature before reaching this point.)
+            String query = request.getConstraints().getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
+            return writePassThroughQueryUsingResultSchema(request, "SELECT * FROM (" + query + ") LIMIT 0", allocator, spillLocations);
         }
 
         S3SpillLocation spillLocation = (S3SpillLocation) split.getSpillLocation();
@@ -246,9 +253,13 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         LOGGER.info("exportResultSetToSpill(S3 export): reading exported Parquet {} and re-spilling as Arrow", s3path);
 
         // Derive the schema from the self-describing Parquet, then read all its columns with faithful types (no
-        // projection/coercion: we keep the exported schema and carry it in the sidecar).
-        DatasetFactory datasetFactory = new FileSystemDatasetFactory(new RootAllocator(), NativeMemoryPool.getDefault(), FileFormat.PARQUET, s3path);
-        Schema derivedSchema = datasetFactory.inspect();
+        // projection/coercion: we keep the exported schema and carry it in the sidecar). The factory and its
+        // allocator hold native memory, so release them as soon as the schema is known.
+        Schema derivedSchema;
+        try (BufferAllocator inspectAllocator = new RootAllocator();
+                DatasetFactory datasetFactory = new FileSystemDatasetFactory(inspectAllocator, NativeMemoryPool.getDefault(), FileFormat.PARQUET, s3path)) {
+            derivedSchema = datasetFactory.inspect();
+        }
 
         try (ArrowReader reader = constructArrowReader(s3path, derivedSchema);
                 ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, derivedSchema, request.getConstraints());
@@ -280,22 +291,95 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     {
         LOGGER.debug("URI {}", uri);
         BufferAllocator allocator = new RootAllocator();
-        DatasetFactory datasetFactory = new FileSystemDatasetFactory(
-                allocator,
-                NativeMemoryPool.getDefault(),
-                FileFormat.PARQUET,
-                uri);
-        Dataset dataset = datasetFactory.finish();
+        DatasetFactory datasetFactory = null;
+        Dataset dataset = null;
+        Scanner scanner = null;
+        try {
+            datasetFactory = new FileSystemDatasetFactory(
+                    allocator,
+                    NativeMemoryPool.getDefault(),
+                    FileFormat.PARQUET,
+                    uri);
+            dataset = datasetFactory.finish();
 
-        // do a scan projection, only getting the column we want
-        ScanOptions options = new ScanOptions(/*batchSize*/ EXPORT_READ_BATCH_SIZE_BYTE,
-                Optional.of(schema.getFields().stream()
-                        .map(Field::getName)
-                        .filter(name -> !name.equalsIgnoreCase(BLOCK_PARTITION_COLUMN_NAME))
-                        .toArray(String[]::new))); // Project the column we needed only.
+            // do a scan projection, only getting the column we want
+            ScanOptions options = new ScanOptions(/*batchSize*/ EXPORT_READ_BATCH_SIZE_BYTE,
+                    Optional.of(schema.getFields().stream()
+                            .map(Field::getName)
+                            .filter(name -> !name.equalsIgnoreCase(BLOCK_PARTITION_COLUMN_NAME))
+                            .toArray(String[]::new))); // Project the column we needed only.
 
-        Scanner scanner = dataset.newScan(options);
-        return scanner.scanBatches();
+            scanner = dataset.newScan(options);
+            // The reader owns the whole chain: closing it releases the scanner, dataset, factory and allocator, which
+            // otherwise leak native memory on every split in a warm Lambda.
+            return new ScanArrowReader(allocator, scanner.scanBatches(), scanner, dataset, datasetFactory, allocator);
+        }
+        catch (RuntimeException ex) {
+            closeQuietly(scanner, dataset, datasetFactory, allocator);
+            throw ex;
+        }
+    }
+
+    private static void closeQuietly(AutoCloseable... resources)
+    {
+        for (AutoCloseable resource : resources) {
+            if (resource != null) {
+                try {
+                    resource.close();
+                }
+                catch (Exception ex) {
+                    LOGGER.warn("Failed to close {}", resource.getClass().getSimpleName(), ex);
+                }
+            }
+        }
+    }
+
+    /**
+     * An {@link ArrowReader} that delegates to the scanner's reader and, on close, also releases the native resources
+     * the reader depends on (scanner, dataset, dataset factory, allocator), in that order.
+     */
+    private static final class ScanArrowReader extends ArrowReader
+    {
+        private final ArrowReader delegate;
+        private final AutoCloseable[] resources;
+
+        ScanArrowReader(BufferAllocator allocator, ArrowReader delegate, AutoCloseable... resources)
+        {
+            super(allocator);
+            this.delegate = delegate;
+            this.resources = resources;
+        }
+
+        @Override
+        public VectorSchemaRoot getVectorSchemaRoot() throws IOException
+        {
+            return delegate.getVectorSchemaRoot();
+        }
+
+        @Override
+        public boolean loadNextBatch() throws IOException
+        {
+            return delegate.loadNextBatch();
+        }
+
+        @Override
+        public long bytesRead()
+        {
+            return delegate.bytesRead();
+        }
+
+        @Override
+        protected void closeReadSource() throws IOException
+        {
+            delegate.close();
+            closeQuietly(resources);
+        }
+
+        @Override
+        protected Schema readSchema() throws IOException
+        {
+            return delegate.getVectorSchemaRoot().getSchema();
+        }
     }
 
     private static String constructS3Uri(String bucket, String key)
