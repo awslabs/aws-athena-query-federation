@@ -38,6 +38,8 @@ import java.io.StringReader;
 import java.security.PrivateKey;
 import java.security.Security;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Utility class for Snowflake authentication methods.
@@ -45,6 +47,9 @@ import java.util.Map;
 public class SnowflakeAuthUtils
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeAuthUtils.class);
+    // "-----BEGIN <label>-----" / "-----END <label>-----"; the label is captured so it can be preserved verbatim.
+    private static final Pattern PEM_HEADER = Pattern.compile("-----BEGIN ([^-]+)-----");
+    private static final Pattern PEM_FOOTER = Pattern.compile("-----END [^-]+-----.*$", Pattern.DOTALL);
 
     private SnowflakeAuthUtils()
     {
@@ -114,36 +119,43 @@ public class SnowflakeAuthUtils
     }
 
     /**
-     * Formats a private key string with PEM headers if it's not already formatted.
-     * 
+     * Normalizes a private key string into a well-formed PEM that BouncyCastle's PEMParser accepts. The input may be:
+     * <ul>
+     * <li>raw base64 with no headers/footers,</li>
+     * <li>a PEM whose header/footer and body are inline on a single line (common when the key is stored inside a
+     * JSON secret), or</li>
+     * <li>an already well-formed multi-line PEM.</li>
+     * </ul>
+     * When the input carries a {@code -----BEGIN ...-----} header its label is kept verbatim: the label tells the
+     * parser which ASN.1 structure to expect ({@code PRIVATE KEY} is PKCS#8 {@code PrivateKeyInfo},
+     * {@code ENCRYPTED PRIVATE KEY} is {@code EncryptedPrivateKeyInfo}), so re-inferring it would mislabel an
+     * unencrypted key whose secret also happens to carry a passphrase. Only for raw base64 input is the label
+     * inferred from whether a passphrase was supplied.
+     *
      * @param privateKeyString The private key string (PEM-formatted or raw base64)
      * @param passphrase The passphrase for encrypted private keys (can be null for unencrypted keys)
      * @return Properly formatted PEM string
      */
-    private static String formatPrivateKeyWithPemHeaders(String privateKeyString, String passphrase)
+    static String formatPrivateKeyWithPemHeaders(String privateKeyString, String passphrase)
     {
-        // Normalize to a well-formed PEM regardless of the input shape. The input may be:
-        //   - raw base64 with no headers/footers,
-        //   - a PEM whose header/footer and body are inline on a single line (common when the key is
-        //     stored inside a JSON secret) — which BouncyCastle's PEMParser rejects, or
-        //   - an already well-formed multi-line PEM.
-        // Strip any existing BEGIN/END markers and all whitespace to recover the base64 body, then
-        // re-wrap it with the correct header and 64-character lines so PEMParser can always read it.
-        // This makes the federation path as lenient as the describeEntity (AppFlow) path, which was
-        // accepting keys with or without headers while this path only accepted header-less keys.
-        final boolean encrypted = privateKeyString.contains("ENCRYPTED")
-                || (passphrase != null && !passphrase.trim().isEmpty());
+        Matcher header = PEM_HEADER.matcher(privateKeyString);
+        final String keyType;
+        final String body;
+        if (header.find()) {
+            keyType = header.group(1).trim();
+            body = PEM_FOOTER.matcher(privateKeyString.substring(header.end())).replaceFirst("");
+        }
+        else {
+            boolean hasPassphrase = passphrase != null && !passphrase.trim().isEmpty();
+            keyType = hasPassphrase ? "ENCRYPTED PRIVATE KEY" : "PRIVATE KEY";
+            body = privateKeyString;
+        }
 
-        String body = privateKeyString
-                .replaceAll("-----BEGIN[^-]*-----", "")
-                .replaceAll("-----END[^-]*-----", "")
-                .replaceAll("\\s", "");
-
-        final String keyType = encrypted ? "ENCRYPTED PRIVATE KEY" : "PRIVATE KEY";
+        String base64 = body.replaceAll("\\s", "");
         StringBuilder pem = new StringBuilder();
         pem.append("-----BEGIN ").append(keyType).append("-----\n");
-        for (int i = 0; i < body.length(); i += 64) {
-            pem.append(body, i, Math.min(i + 64, body.length())).append('\n');
+        for (int i = 0; i < base64.length(); i += 64) {
+            pem.append(base64, i, Math.min(i + 64, base64.length())).append('\n');
         }
         pem.append("-----END ").append(keyType).append("-----\n");
         LOGGER.debug("Normalized private key into well-formed PEM ({})", keyType);
