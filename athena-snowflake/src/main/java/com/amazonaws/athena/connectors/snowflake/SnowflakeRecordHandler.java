@@ -22,10 +22,16 @@ package com.amazonaws.athena.connectors.snowflake;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -53,7 +59,10 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.TimeStampMilliTZVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.VectorAppender;
 import org.apache.commons.lang3.StringUtils;
@@ -70,7 +79,11 @@ import software.amazon.awssdk.utils.Validate;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
@@ -202,6 +215,66 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
       super.readWithConstraint(spiller, recordsRequest, queryStatusChecker);
     }
 
+    /**
+     * Query-passthrough export ({@link JdbcRecordHandler#EXPORT_SCHEMA} marker). When S3 export is enabled, the query was already
+     * unloaded to Parquet by {@code COPY INTO} during GetSplits, so instead of re-running it over JDBC we read this
+     * split's Parquet file, derive the schema from it (Parquet is self-describing), re-spill the rows as Arrow, and
+     * write the {@code <spillKey>.schema} sidecar. The schema and data use the Parquet's faithful types with no
+     * coercion (unlike the normal read path, which normalizes to request.getSchema()). When S3 export is not enabled,
+     * we fall back to the base JDBC path (which derives the schema from the ResultSet).
+     */
+    @Override
+    protected Schema exportResultSetToSpill(ReadRecordsRequest request, BlockAllocator allocator, List<SpillLocation> spillLocations)
+            throws Exception
+    {
+        if (!SnowflakeConstants.isS3ExportEnabled(configOptions)) {
+            return super.exportResultSetToSpill(request, allocator, spillLocations);
+        }
+
+        Split split = request.getSplit();
+        String exportBucket = split.getProperty(SNOWFLAKE_SPLIT_EXPORT_BUCKET);
+        String s3ObjectKey = split.getProperty(SNOWFLAKE_SPLIT_OBJECT_KEY);
+        // Empty export (no rows): fall back to JDBC so we can still derive the schema and emit an empty result + sidecar.
+        if (s3ObjectKey == null || s3ObjectKey.isEmpty()) {
+            return super.exportResultSetToSpill(request, allocator, spillLocations);
+        }
+
+        S3SpillLocation spillLocation = (S3SpillLocation) split.getSpillLocation();
+        S3Client s3Client = resolveScopedS3Client(request);
+        SpillConfig spillConfig = buildExportSpillConfig(request);
+        String s3path = constructS3Uri(exportBucket, s3ObjectKey);
+        LOGGER.info("exportResultSetToSpill(S3 export): reading exported Parquet {} and re-spilling as Arrow", s3path);
+
+        // Derive the schema from the self-describing Parquet, then read all its columns with faithful types (no
+        // projection/coercion: we keep the exported schema and carry it in the sidecar).
+        DatasetFactory datasetFactory = new FileSystemDatasetFactory(new RootAllocator(), NativeMemoryPool.getDefault(), FileFormat.PARQUET, s3path);
+        Schema derivedSchema = datasetFactory.inspect();
+
+        try (ArrowReader reader = constructArrowReader(s3path, derivedSchema);
+                ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, derivedSchema, request.getConstraints());
+                S3BlockSpiller spiller = new S3BlockSpiller(s3Client, spillConfig, allocator, derivedSchema, evaluator, configOptions)) {
+            VectorSchemaRoot root = reader.getVectorSchemaRoot();
+            // Write the schema sidecar BEFORE any record is written, so a reader can discover the schema
+            // as soon as the first data object appears (and even if the row-writing loop later fails).
+            writeSchemaSidecar(s3Client, spillLocation, split.getEncryptionKey(), derivedSchema, allocator);
+            while (reader.loadNextBatch()) {
+                // Bulk columnar copy: append each Parquet vector into the spill block (types already match).
+                spiller.writeRows((Block block, int startRowNum) -> {
+                    for (Field field : root.getSchema().getFields()) {
+                        FieldVector src = root.getVector(field.getName());
+                        VectorAppender appender = new VectorAppender(block.getFieldVector(field.getName()));
+                        src.accept(appender, null);
+                    }
+                    return root.getRowCount();
+                });
+            }
+            if (spiller.spilled()) {
+                spillLocations.addAll(spiller.getSpillLocations());
+            }
+        }
+        return derivedSchema;
+    }
+
     @VisibleForTesting
     protected ArrowReader constructArrowReader(String uri, Schema schema)
     {
@@ -299,5 +372,47 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         resultVector.setValueCount(rowCount);
 
         return resultVector;
+    }
+
+    /**
+     * Preserves the declared precision of integer-like Snowflake {@code NUMBER(p,0)} columns on the JDBC export
+     * path. Snowflake reports a scale-0 {@code NUMBER} with JDBC type {@code BIGINT}/{@code INTEGER}/..., so the
+     * default mapping yields an Arrow integer vector that cannot carry the precision {@code p}. We re-map those
+     * columns to {@code Decimal(p, 0)} so the exported schema (and sidecar) keeps the source precision.
+     *
+     * <p>Columns the driver already maps to a decimal (scale &gt; 0) are left untouched, and precisions outside the
+     * Arrow 128-bit decimal range (1..38) fall back to the default integer mapping. Timestamp types are left as-is
+     * ({@code timestamp[ms, tz=UTC]}); they are written unpacked because the base export path disables timezone
+     * packing for the current thread (see
+     * {@link com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil#overrideTimezonePacking(boolean)}).
+     */
+    @Override
+    protected Schema deriveExportSchema(ResultSet resultSet) throws SQLException
+    {
+        Schema baseSchema = super.deriveExportSchema(resultSet);
+        ResultSetMetaData metadata = resultSet.getMetaData();
+        List<Field> fields = new ArrayList<>(baseSchema.getFields().size());
+
+        for (int i = 0; i < baseSchema.getFields().size(); i++) {
+            Field baseField = baseSchema.getFields().get(i);
+            int column = i + 1; // ResultSetMetaData columns are 1-indexed
+            Types.MinorType minorType = Types.getMinorTypeForArrowType(baseField.getType());
+            boolean isArrowInteger = minorType == Types.MinorType.TINYINT || minorType == Types.MinorType.SMALLINT
+                    || minorType == Types.MinorType.INT || minorType == Types.MinorType.BIGINT;
+
+            if (isArrowInteger && metadata.getScale(column) == 0) {
+                int precision = metadata.getPrecision(column);
+                if (precision >= 1 && precision <= 38) {
+                    ArrowType.Decimal decimalType = new ArrowType.Decimal(precision, 0, 128);
+                    fields.add(new Field(baseField.getName(),
+                            new FieldType(baseField.isNullable(), decimalType, null), baseField.getChildren()));
+                    continue;
+                }
+                LOGGER.debug("deriveExportSchema: column {} precision {} outside Arrow decimal range; keeping {}",
+                        baseField.getName(), precision, baseField.getType());
+            }
+            fields.add(baseField);
+        }
+        return new Schema(fields, baseSchema.getCustomMetadata());
     }
 }

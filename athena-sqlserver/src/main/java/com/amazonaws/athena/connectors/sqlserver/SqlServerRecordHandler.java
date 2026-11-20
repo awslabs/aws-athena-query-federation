@@ -30,9 +30,12 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcExportTypes;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
@@ -42,7 +45,12 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
 
@@ -94,6 +102,55 @@ public class SqlServerRecordHandler extends JdbcRecordHandler
         return preparedStatement;
     }
     
+    /**
+     * Fetches the export result in batches instead of reading all of it into memory.
+     */
+    @Override
+    protected PreparedStatement prepareExportStatement(Connection connection, String query) throws SQLException
+    {
+        PreparedStatement preparedStatement = super.prepareExportStatement(connection, query);
+        preparedStatement.setFetchSize(FETCH_SIZE);
+        return preparedStatement;
+    }
+
+    /**
+     * Maps SQL Server columns for the export. TINYINT is unsigned (0 to 255), so it widens to SMALLINT, as on the
+     * normal read path. DATETIMEOFFSET becomes a UTC timestamp that keeps the instant. The rest use
+     * {@link JdbcExportTypes#defaultArrowType}, so TIME, SQL_VARIANT and the other types the spill cannot write
+     * become VARCHAR.
+     */
+    @Override
+    protected Schema deriveExportSchema(ResultSet resultSet) throws SQLException
+    {
+        ResultSetMetaData metadata = resultSet.getMetaData();
+        List<Field> fields = new ArrayList<>();
+        for (int column = 1; column <= metadata.getColumnCount(); column++) {
+            fields.add(Field.nullable(metadata.getColumnLabel(column), exportArrowType(metadata, column)));
+        }
+        return new Schema(fields);
+    }
+
+    private ArrowType exportArrowType(ResultSetMetaData metadata, int column) throws SQLException
+    {
+        switch (metadata.getColumnType(column)) {
+            case Types.TINYINT:
+                return new ArrowType.Int(16, true);
+            case microsoft.sql.Types.DATETIMEOFFSET:
+                return JdbcExportTypes.TIMESTAMP_UTC;
+            default:
+                return JdbcExportTypes.defaultArrowType(metadata, column, configOptions);
+        }
+    }
+
+    @Override
+    protected Object readExportValue(ResultSet resultSet, int column, Field field) throws SQLException
+    {
+        if (resultSet.getMetaData().getColumnType(column) == microsoft.sql.Types.DATETIMEOFFSET) {
+            return JdbcExportTypes.readOffsetTimestamp(resultSet, column);
+        }
+        return JdbcExportTypes.readValue(resultSet, column, field.getType());
+    }
+
     @Override
     public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
