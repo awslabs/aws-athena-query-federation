@@ -67,6 +67,7 @@ import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
+import org.apache.arrow.adapter.jdbc.JdbcFieldInfo;
 import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
@@ -82,6 +83,7 @@ import org.apache.arrow.vector.holders.NullableTinyIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
@@ -100,14 +102,17 @@ import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TimeZone;
 
 /**
@@ -120,15 +125,22 @@ public abstract class JdbcRecordHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
-    // Default S3 client retained from the constructor. The base RecordHandler keeps its own copy private, so we hold
-    // a reference here to use as the fallback for getS3Client(...) on the direct-query spill-write path.
-    private final S3Client amazonS3Client;
     private static final String CLICKHOUSE_DB = "clickhouse";
-    // Query-passthrough marker argument: when present, the direct query's results are written to S3 and its
-    // ResultSet-derived schema is exported to a sidecar object (see doReadRecords / writeDirectQueryToSpill).
+    // Query-passthrough argument: when set to a true-ish value ("true", case-insensitive), the direct query's results
+    // are written to S3 and its ResultSet-derived schema is exported to a sidecar object (see doReadRecords /
+    // writePassThroughQueryUsingResultSchema). Any other value, or absence, selects the normal read path.
     public static final String EXPORT_SCHEMA = "ExportSchema";
     // Suffix for the sidecar object that carries the ResultSet-derived Arrow schema for pass through query spills.
     private static final String SCHEMA_SUFFIX = ".schema";
+    // Label mixed into the split's nonce to derive the sidecar's own AES-GCM nonce (see schemaSidecarEncryptionKey).
+    public static final String SCHEMA_SIDECAR_KEY_LABEL = "schema-sidecar";
+    // Arrow minor types BlockUtils.setValue can populate; anything else is exported as VARCHAR by deriveExportSchema.
+    private static final Set<Types.MinorType> EXPORTABLE_MINOR_TYPES = EnumSet.of(
+            Types.MinorType.BIT, Types.MinorType.TINYINT, Types.MinorType.SMALLINT, Types.MinorType.INT,
+            Types.MinorType.BIGINT, Types.MinorType.UINT1, Types.MinorType.UINT2, Types.MinorType.UINT4,
+            Types.MinorType.UINT8, Types.MinorType.FLOAT4, Types.MinorType.FLOAT8, Types.MinorType.DECIMAL,
+            Types.MinorType.VARCHAR, Types.MinorType.VARBINARY, Types.MinorType.DATEDAY, Types.MinorType.DATEMILLI,
+            Types.MinorType.TIMESTAMPMILLITZ, Types.MinorType.TIMESTAMPMICROTZ);
 
     protected final JdbcQueryPassthrough queryPassthrough = new JdbcQueryPassthrough();
 
@@ -140,7 +152,6 @@ public abstract class JdbcRecordHandler
         super(sourceType, configOptions);
         this.jdbcConnectionFactory = null;
         this.databaseConnectionConfig = null;
-        this.amazonS3Client = null;
     }
 
     protected JdbcRecordHandler(
@@ -154,7 +165,6 @@ public abstract class JdbcRecordHandler
         super(amazonS3, secretsManager, athena, databaseConnectionConfig.getEngine(), configOptions);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
-        this.amazonS3Client = amazonS3;
     }
 
     protected JdbcConnectionFactory getJdbcConnectionFactory()
@@ -187,10 +197,12 @@ public abstract class JdbcRecordHandler
     @Override
     public RecordResponse doReadRecords(BlockAllocator allocator, ReadRecordsRequest request) throws Exception
     {
-        Map<String, String> queryPassthroughArguments = request.getConstraints().getQueryPassthroughArguments();
-        if (queryPassthroughArguments == null || !queryPassthroughArguments.containsKey(EXPORT_SCHEMA)) {
+        if (!isExportSchemaRequest(request.getConstraints())) {
             return super.doReadRecords(allocator, request);
         }
+        // Same checks buildQueryPassthroughSql applies on the normal passthrough path: the function signature must
+        // match this connector's and QUERY must be present and non-empty.
+        queryPassthrough.verify(request.getConstraints().getQueryPassthroughArguments());
 
         List<SpillLocation> spillLocations = new ArrayList<>();
         // The row source (live JDBC vs a pre-exported artifact) is an overridable detail; the response contract is
@@ -200,6 +212,16 @@ public abstract class JdbcRecordHandler
 
         return new RemoteReadRecordsResponse(request.getCatalogName(), derivedSchema, spillLocations,
                 request.getSplit().getEncryptionKey());
+    }
+
+    /**
+     * @return true when the request is a query-passthrough read whose {@link #EXPORT_SCHEMA} argument is "true"
+     * (case-insensitive). Presence alone is not enough: {@code ExportSchema=false} selects the normal read path.
+     */
+    protected static boolean isExportSchemaRequest(Constraints constraints)
+    {
+        Map<String, String> queryPassthroughArguments = constraints.getQueryPassthroughArguments();
+        return queryPassthroughArguments != null && Boolean.parseBoolean(queryPassthroughArguments.get(EXPORT_SCHEMA));
     }
 
     /**
@@ -281,8 +303,8 @@ public abstract class JdbcRecordHandler
      *
      * @return the Arrow schema derived from the live result (the schema the data was written with).
      */
-    private Schema writePassThroughQueryUsingResultSchema(ReadRecordsRequest request, String passThroughQuery, BlockAllocator allocator,
-                                                          List<SpillLocation> spillLocations)
+    protected Schema writePassThroughQueryUsingResultSchema(ReadRecordsRequest request, String passThroughQuery, BlockAllocator allocator,
+                                                            List<SpillLocation> spillLocations)
             throws Exception
     {
         S3SpillLocation spillLocation = (S3SpillLocation) request.getSplit().getSpillLocation();
@@ -295,8 +317,16 @@ public abstract class JdbcRecordHandler
         // This separate-schema export targets plain Arrow readers, so disable Presto/Athena timezone packing for
         // this thread: timestamp-with-tz values are written as plain epoch millis (cleared in finally below).
         DateTimeFormatterUtil.overrideTimezonePacking(false);
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
-            connection.setAutoCommit(false); // enable server-side streaming for large result sets
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)));
+                QueryStatusChecker queryStatusChecker = createQueryStatusChecker(request)) {
+            String databaseProductName = connection.getMetaData().getDatabaseProductName();
+            // Same session handling as readWithConstraint: ClickHouse rejects setAutoCommit(false) and commit().
+            boolean supportsTransactions = !CLICKHOUSE_DB.equalsIgnoreCase(databaseProductName);
+            if (supportsTransactions) {
+                connection.setAutoCommit(false); // enable server-side streaming for large result sets
+            }
+            enableCaseSensitivelyLookUpSession(connection);
+
             try (PreparedStatement preparedStatement = connection.prepareStatement(passThroughQuery);
                     ResultSet resultSet = preparedStatement.executeQuery()) {
                 // Derive the Arrow schema from the ResultSet itself (faithful column names AND types).
@@ -316,17 +346,33 @@ public abstract class JdbcRecordHandler
                     // column index -- both avoid a per-cell lookup by column name. The derived schema's field order
                     // matches the ResultSet column order, so vector c corresponds to column c+1.
                     final int fieldCount = derivedSchema.getFields().size();
+                    // Columns exported as VARCHAR (either genuinely textual or mapped there by deriveExportSchema
+                    // because the JDBC type has no Arrow/BlockUtils equivalent) are read with getString so the
+                    // driver's textual form is used rather than toString() of an opaque driver object.
+                    final boolean[] readAsString = new boolean[fieldCount];
+                    for (int c = 0; c < fieldCount; c++) {
+                        readAsString[c] = derivedSchema.getFields().get(c).getType() instanceof ArrowType.Utf8;
+                    }
                     while (resultSet.next()) {
+                        if (!queryStatusChecker.isQueryRunning()) {
+                            LOGGER.info("writePassThroughQueryUsingResultSchema: query {} is no longer running; stopping export after {} row(s)",
+                                    request.getQueryId(), rowsReturnedFromDatabase);
+                            break;
+                        }
                         spiller.writeRows((Block block, int rowNum) -> {
                             List<FieldVector> vectors = block.getFieldVectors();
                             for (int c = 0; c < fieldCount; c++) {
-                                BlockUtils.setValue(vectors.get(c), rowNum, resultSet.getObject(c + 1));
+                                Object value = readAsString[c] ? resultSet.getString(c + 1) : resultSet.getObject(c + 1);
+                                BlockUtils.setValue(vectors.get(c), rowNum, value);
                             }
                             return 1;
                         });
                         rowsReturnedFromDatabase++;
                     }
-                    connection.commit();
+                    if (supportsTransactions) {
+                        connection.commit();
+                    }
+                    disableCaseSensitivelyLookUpSession(connection);
 
                     if (spiller.spilled()) {
                         spillLocations.addAll(spiller.getSpillLocations());
@@ -345,17 +391,65 @@ public abstract class JdbcRecordHandler
 
     /**
      * Derives the Arrow schema for the pass-through export from the live {@link ResultSet}. The default uses the
-     * faithful JDBC-to-Arrow mapping ({@link JdbcToArrowUtils}). Connectors may override to adjust the mapping, for
-     * example to preserve the declared precision of integer-like {@code NUMBER(p,0)} columns (which the default maps
-     * to an Arrow integer type, dropping the precision) by mapping them to {@code Decimal(p,0)} instead.
+     * faithful JDBC-to-Arrow mapping ({@link JdbcToArrowUtils}) column by column, and falls back to VARCHAR for any
+     * column that cannot be exported faithfully:
+     * <ul>
+     * <li>JDBC types arrow-jdbc does not map ({@code OTHER}, {@code JAVA_OBJECT}, {@code SQLXML}, {@code ROWID}, ...;
+     * e.g. Postgres {@code uuid}/{@code jsonb}, Oracle intervals);</li>
+     * <li>Arrow types {@link BlockUtils#setValue} cannot populate ({@code TIME}, {@code ARRAY}, {@code STRUCT},
+     * non-TZ timestamps, and so on);</li>
+     * <li>{@code DECIMAL}/{@code NUMERIC} columns whose reported precision is 0 (unconstrained {@code numeric}), which
+     * cannot be represented as an Arrow decimal without rounding.</li>
+     * </ul>
+     * Such columns are written with {@link ResultSet#getString} so the driver's textual form is preserved. Connectors
+     * may override to adjust the mapping further, for example to preserve the declared precision of integer-like
+     * {@code NUMBER(p,0)} columns by mapping them to {@code Decimal(p,0)}.
      *
      * @param resultSet the live result set whose {@link java.sql.ResultSetMetaData} drives the schema
      * @return the Arrow schema the export data will be written with
      */
     protected Schema deriveExportSchema(ResultSet resultSet) throws SQLException
     {
-        return JdbcToArrowUtils.jdbcToArrowSchema(resultSet.getMetaData(),
-                Calendar.getInstance(TimeZone.getTimeZone("UTC")));
+        ResultSetMetaData metadata = resultSet.getMetaData();
+        Calendar utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        List<Field> fields = new ArrayList<>(metadata.getColumnCount());
+        for (int column = 1; column <= metadata.getColumnCount(); column++) {
+            JdbcFieldInfo fieldInfo = new JdbcFieldInfo(metadata, column);
+            String name = metadata.getColumnLabel(column);
+            boolean nullable = metadata.isNullable(column) != ResultSetMetaData.columnNoNulls;
+            ArrowType arrowType = exportArrowTypeOrNull(fieldInfo, utc);
+            if (arrowType == null) {
+                LOGGER.info("deriveExportSchema: column {} (jdbc type {} / {}) has no faithful Arrow mapping; exporting as VARCHAR",
+                        name, fieldInfo.getJdbcType(), fieldInfo.getTypeName());
+                arrowType = ArrowType.Utf8.INSTANCE;
+            }
+            fields.add(new Field(name, new FieldType(nullable, arrowType, null), null));
+        }
+        return new Schema(fields);
+    }
+
+    /**
+     * @return the Arrow type arrow-jdbc assigns to the column when {@link BlockUtils#setValue} can populate a vector
+     * of that type, otherwise null.
+     */
+    private static ArrowType exportArrowTypeOrNull(JdbcFieldInfo fieldInfo, Calendar calendar)
+    {
+        int jdbcType = fieldInfo.getJdbcType();
+        if ((jdbcType == java.sql.Types.DECIMAL || jdbcType == java.sql.Types.NUMERIC) && fieldInfo.getPrecision() <= 0) {
+            return null;
+        }
+        ArrowType arrowType;
+        try {
+            arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(fieldInfo, calendar);
+        }
+        catch (UnsupportedOperationException | IllegalArgumentException ex) {
+            return null;
+        }
+        if (arrowType == null) {
+            return null;
+        }
+        Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
+        return EXPORTABLE_MINOR_TYPES.contains(minorType) ? arrowType : null;
     }
 
     /**
@@ -383,31 +477,52 @@ public abstract class JdbcRecordHandler
      */
     protected S3Client resolveScopedS3Client(ReadRecordsRequest request)
     {
-        S3Client s3Client = getS3Client(getRequestOverrideConfig(request.getIdentity().getConfigOptions()), amazonS3Client);
-        return (s3Client != null) ? s3Client : S3Client.create();
+        S3Client s3Client = getS3Client(getRequestOverrideConfig(request.getIdentity().getConfigOptions()), getAmazonS3());
+        if (s3Client == null) {
+            // Never fall back to the function's own identity for spill writes.
+            throw new AthenaConnectorException("No S3 client available for export spill writes",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+        }
+        return s3Client;
     }
 
     /**
-     * Writes the derived schema to the {@code <spillKey>.schema} sidecar, encrypted with the SAME SDK crypto as the
-     * data objects (AesGcmBlockCrypto when a key is present, NoOp otherwise).
+     * Writes the derived schema to the {@code <spillKey>.schema} sidecar, encrypted with the same SDK crypto as the
+     * data objects (AesGcmBlockCrypto when a key is present, NoOp otherwise) but under the sidecar's own nonce (see
+     * {@link #schemaSidecarEncryptionKey}), and with the same {@code spill_put_request_headers} the spiller applies
+     * to data objects (SSE-KMS, bucket-owner checks, ...).
      */
     protected void writeSchemaSidecar(S3Client s3Client, S3SpillLocation spillLocation, EncryptionKey encryptionKey,
             Schema derivedSchema, BlockAllocator allocator)
     {
         BlockCrypto blockCrypto = (encryptionKey != null)
                 ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
-        byte[] schemaBytes = blockCrypto.encrypt(encryptionKey, derivedSchema.serializeAsMessage());
+        byte[] schemaBytes = blockCrypto.encrypt(schemaSidecarEncryptionKey(encryptionKey), derivedSchema.serializeAsMessage());
         putSchema(s3Client, spillLocation.getBucket(), spillLocation.getKey() + SCHEMA_SUFFIX, schemaBytes);
+    }
+
+    /**
+     * The key used to encrypt the {@code <spillKey>.schema} sidecar: the split's AES key with a nonce derived from the
+     * split's nonce and {@link #SCHEMA_SIDECAR_KEY_LABEL}. AES-GCM must never encrypt two messages under the same
+     * (key, nonce) pair, and the data blocks already use the split's nonce as-is; the sidecar's plaintext (an Arrow
+     * schema message) is also highly predictable, so it gets its own nonce. Readers must apply the same derivation.
+     *
+     * @param splitKey the split's encryption key, or null when spill encryption is disabled
+     * @return the sidecar key, or null when {@code splitKey} is null
+     */
+    public static EncryptionKey schemaSidecarEncryptionKey(EncryptionKey splitKey)
+    {
+        return splitKey == null ? null : splitKey.deriveWithLabel(SCHEMA_SIDECAR_KEY_LABEL);
     }
 
     private void putSchema(S3Client client, String bucket, String key, byte[] payload)
     {
-        PutObjectRequest putRequest = PutObjectRequest.builder()
+        PutObjectRequest.Builder putRequest = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)
-                .contentLength((long) payload.length)
-                .build();
-        client.putObject(putRequest, RequestBody.fromBytes(payload));
+                .contentLength((long) payload.length);
+        S3BlockSpiller.createSpillPutRequestOverrideConfig(configOptions).ifPresent(putRequest::overrideConfiguration);
+        client.putObject(putRequest.build(), RequestBody.fromBytes(payload));
         LOGGER.info("putSchema: wrote {} bytes to s3://{}/{}", payload.length, bucket, key);
     }
 
