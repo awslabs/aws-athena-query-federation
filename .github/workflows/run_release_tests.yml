@@ -32,6 +32,11 @@ jobs:
       - name: Setup Repo Root Directory
         run: echo "COMMON_REPO_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
       - name: install python library.
         run: |
           cd $GITHUB_WORKSPACE/athena_federation_testing;
