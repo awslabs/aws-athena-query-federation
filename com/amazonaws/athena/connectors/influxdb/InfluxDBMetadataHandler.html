@@ -430,6 +430,12 @@ extends <a href="../../connector/lambda/handlers/MetadataHandler.html" title="cl
  1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
  2. A Set<String> of partition column names (or empty if the table isn't partitioned).</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../connector/lambda/exceptions/AthenaConnectorException.html" title="class in com.amazonaws.athena.connector.lambda.exceptions">AthenaConnectorException</a></code> - with <code>INVALID_INPUT_EXCEPTION</code> if the query returns no rows.
+             InfluxDB 3 sends no result batches for an empty result, and the InfluxDB client does not expose
+             the result schema without a batch, so the columns are unknown. Athena rejects a passthrough schema
+             with no columns (<code>GENERIC_INTERNAL_ERROR: descriptor has no fields</code>). Athena reports this
+             error to the user as <code>GENERIC_USER_ERROR: Failed To Get Query Passthrough Schema</code>; the
+             message is in the Lambda function's log.</dd>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
 </dl>
 </li>

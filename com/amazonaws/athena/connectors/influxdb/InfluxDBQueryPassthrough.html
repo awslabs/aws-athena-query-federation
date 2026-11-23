@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -236,35 +236,43 @@ implements <a href="../../connector/lambda/metadata/optimizations/querypassthrou
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code>boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#allowQueryPassthrough(java.util.Map)">allowQueryPassthrough</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
+<td class="colLast">
+<div class="block">Passthrough runs caller-supplied SQL against InfluxDB, so this connector enables it only when
+ <code>enable_query_passthrough</code> is <code>true</code>.</div>
+</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#assertEnabled(java.util.Map)">assertEnabled</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
 <td class="colLast">
 <div class="block">Enforces the <code>enable_query_passthrough</code> flag at execution time.</div>
 </td>
 </tr>
-<tr id="i1" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#customConnectorVerifications(java.util.Map)">customConnectorVerifications</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;engineQptArguments)</code></th>
 <td class="colLast">
 <div class="block">Provides a mechanism to perform custom connector verification logic.</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getFunctionArguments()">getFunctionArguments</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getFunctionName()">getFunctionName</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getFunctionSchema()">getFunctionSchema</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>org.slf4j.Logger</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLogger()">getLogger</a></span>()</code></th>
 <td class="colLast">
@@ -284,7 +292,7 @@ implements <a href="../../connector/lambda/metadata/optimizations/querypassthrou
 <!--   -->
 </a>
 <h3>Methods inherited from interface&nbsp;com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.<a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthroughSignature</a></h3>
-<code><a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#addQueryPassthroughCapabilityIfEnabled(com.google.common.collect.ImmutableMap.Builder,java.util.Map)">addQueryPassthroughCapabilityIfEnabled</a>, <a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#allowQueryPassthrough(java.util.Map)">allowQueryPassthrough</a>, <a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#getFunctionSignature()">getFunctionSignature</a>, <a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#getQueryPassthroughCapabilities()">getQueryPassthroughCapabilities</a>, <a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#verify(java.util.Map)">verify</a>, <a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#verifyFunctionSignature(java.util.Map)">verifyFunctionSignature</a></code></li>
+<code><a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#addQueryPassthroughCapabilityIfEnabled(com.google.common.collect.ImmutableMap.Builder,java.util.Map)">addQueryPassthroughCapabilityIfEnabled</a>, <a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#getFunctionSignature()">getFunctionSignature</a>, <a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#getQueryPassthroughCapabilities()">getQueryPassthroughCapabilities</a>, <a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#verify(java.util.Map)">verify</a>, <a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#verifyFunctionSignature(java.util.Map)">verifyFunctionSignature</a></code></li>
 </ul>
 </li>
 </ul>
@@ -466,6 +474,24 @@ implements <a href="../../connector/lambda/metadata/optimizations/querypassthrou
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code><a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#customConnectorVerifications(java.util.Map)">customConnectorVerifications</a></code>&nbsp;in interface&nbsp;<code><a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthroughSignature</a></code></dd>
+</dl>
+</li>
+</ul>
+<a id="allowQueryPassthrough(java.util.Map)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>allowQueryPassthrough</h4>
+<pre class="methodSignature">public&nbsp;boolean&nbsp;allowQueryPassthrough&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
+<div class="block">Passthrough runs caller-supplied SQL against InfluxDB, so this connector enables it only when
+ <code>enable_query_passthrough</code> is <code>true</code>. A missing value disables it. This overrides the SDK
+ default, which enables passthrough when the option is missing.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#allowQueryPassthrough(java.util.Map)">allowQueryPassthrough</a></code>&nbsp;in interface&nbsp;<code><a href="../../connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthroughSignature</a></code></dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>true if enabled; otherwise false</dd>
 </dl>
 </li>
 </ul>
