@@ -88,6 +88,17 @@ public class InfluxDBQueryPassthrough implements QueryPassthroughSignature
     }
 
     /**
+     * Passthrough runs caller-supplied SQL against InfluxDB, so this connector enables it only when
+     * {@code enable_query_passthrough} is {@code true}. A missing value disables it. This overrides the SDK
+     * default, which enables passthrough when the option is missing.
+     */
+    @Override
+    public boolean allowQueryPassthrough(final Map<String, String> configOptions)
+    {
+        return "true".equalsIgnoreCase(configOptions.getOrDefault(ENABLE_QUERY_PASSTHROUGH, "false"));
+    }
+
+    /**
      * Enforces the {@code enable_query_passthrough} flag at execution time.
      *
      * @throws AthenaConnectorException with {@code OPERATION_NOT_SUPPORTED_EXCEPTION} if

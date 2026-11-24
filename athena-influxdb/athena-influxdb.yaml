@@ -74,9 +74,9 @@ Parameters:
     Type: Number
     Default: 8181
   EnableQueryPassthrough:
-    Description: "(Optional) Whether to enable query passthrough (the system.query table function). Defaults to 'true'."
+    Description: "(Optional) Set to 'true' to enable query passthrough (the system.query table function), which runs caller-supplied InfluxDB SQL. Defaults to 'false'."
     Type: String
-    Default: 'true'
+    Default: 'false'
   EnableQueryParallelism:
     Description: "(Optional) Whether to enable query parallelism. When this is enabled, queries with lower and upper time bounds will be split into multiple Lambda functions in parallel, for improved query performance."
     Type: String
@@ -152,15 +152,16 @@ Resources:
           Version: '2012-10-17'
         - Statement:
             - Action:
+                - s3:ListBucket
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${SpillBucket}'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${InfluxDBSecretId}*'
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${InfluxDBSecretId}-??????'
           Version: '2012-10-17'
-        # VPC access: attach the AWS-managed Lambda VPC execution role only when deployed into a VPC.
-        - !If
-            - HasVpcConfig
-            - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole'
-            - !Ref 'AWS::NoValue'
 Outputs:
   ConnectorSecurityGroupId:
     Condition: CreateConnectorSecurityGroup
