@@ -20,11 +20,9 @@
 package com.amazonaws.athena.connectors.google.bigquery;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.domain.predicate.*;
-import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
-import com.google.common.collect.ImmutableList;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -93,11 +91,6 @@ public class BigQueryStorageApiUtilsTest
         constraintMap.put("booleanRange", booleanRangeSet);
         constraintMap.put("integerInRange", integerInRangeSet);
 
-        final List<QueryParameterValue> expectedParameterValues = ImmutableList.of(QueryParameterValue.int64(10), QueryParameterValue.int64(20),
-                QueryParameterValue.string("a_low"), QueryParameterValue.string("z_high"),
-                QueryParameterValue.bool(true),
-                QueryParameterValue.int64(10), QueryParameterValue.int64(1000000));
-
         try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null)) {
             List<String> fields = new ArrayList<>();
             for (Field field : makeSchema(constraintMap).getFields()) {
@@ -115,7 +108,81 @@ public class BigQueryStorageApiUtilsTest
                     "selected_fields: \"stringRange\"\n" +
                     "selected_fields: \"booleanRange\"\n" +
                     "selected_fields: \"integerInRange\"\n" +
-                    "row_restriction: \"integerRange IS NULL OR integerRange > 10 AND integerRange < 20 AND isNullRange IS NULL AND isNotNullRange IS NOT NULL AND stringRange >= \\\"a_low\\\" AND stringRange < \\\"z_high\\\" AND booleanRange = true AND integerInRange IN (10,1000000)\"\n", option.toString());
+                    "row_restriction: \"`integerRange` IS NULL OR `integerRange` > 10 AND `integerRange` < 20 AND `isNullRange` IS NULL AND `isNotNullRange` IS NOT NULL AND `stringRange` >= \\'a_low\\' AND `stringRange` < \\'z_high\\' AND `booleanRange` = true AND `integerInRange` IN (10,1000000)\"\n", option.toString());
+        }
+    }
+
+    @Test
+    public void testSetConstraints_MultiValueStringIn_UsesSingleQuotedLiteralsInInList()
+    {
+        Map<String, ValueSet> constraintMap = new LinkedHashMap<>();
+        ValueSet stringInSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
+                .add(Range.equal(allocator, STRING_TYPE, "alpha"))
+                .add(Range.equal(allocator, STRING_TYPE, "beta"))
+                .build();
+        constraintMap.put("status", stringInSet);
+
+        try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(),
+                DEFAULT_NO_LIMIT, Collections.emptyMap(), null)) {
+            Schema schema = makeSchema(constraintMap);
+            ReadSession.TableReadOptions.Builder optionsBuilder = ReadSession.TableReadOptions.newBuilder()
+                    .addSelectedFields("status");
+            ReadSession.TableReadOptions.Builder option =
+                    BigQueryStorageApiUtils.setConstraints(optionsBuilder, schema, constraints, false);
+            String rowRestriction = option.build().getRowRestriction();
+            assertTrue(rowRestriction.contains("`status` IN ("));
+            assertTrue(rowRestriction.contains("'alpha'"));
+            assertTrue(rowRestriction.contains("'beta'"));
+        }
+    }
+
+    @Test
+    public void testSetConstraints_MultiValueDateIn_UsesSingleQuotedLiteralsInInList()
+    {
+        ArrowType dateDay = new ArrowType.Date(DateUnit.DAY);
+        Map<String, ValueSet> constraintMap = new LinkedHashMap<>();
+        ValueSet dateInSet = SortedRangeSet.newBuilder(dateDay, false)
+                .add(Range.equal(allocator, dateDay, 0L))
+                .add(Range.equal(allocator, dateDay, 1L))
+                .build();
+        constraintMap.put("event_day", dateInSet);
+
+        try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(),
+                DEFAULT_NO_LIMIT, Collections.emptyMap(), null)) {
+            Schema schema = makeSchema(constraintMap);
+            ReadSession.TableReadOptions.Builder optionsBuilder = ReadSession.TableReadOptions.newBuilder()
+                    .addSelectedFields("event_day");
+            ReadSession.TableReadOptions.Builder option =
+                    BigQueryStorageApiUtils.setConstraints(optionsBuilder, schema, constraints, false);
+            String rowRestriction = option.build().getRowRestriction();
+            assertTrue(rowRestriction.contains("`event_day` IN ("));
+            assertTrue(rowRestriction.contains("'1970-01-01'"));
+            assertTrue(rowRestriction.contains("'1970-01-02'"));
+        }
+    }
+
+    @Test
+    public void testSetConstraints_DateRangeComparison_UsesSingleQuotedLiterals()
+    {
+        ArrowType dateDay = new ArrowType.Date(DateUnit.DAY);
+        Map<String, ValueSet> constraintMap = new LinkedHashMap<>();
+        ValueSet dateRange = SortedRangeSet.newBuilder(dateDay, false)
+                .add(new Range(Marker.exactly(allocator, dateDay, 5L), Marker.below(allocator, dateDay, 10L)))
+                .build();
+        constraintMap.put("event_day", dateRange);
+
+        try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(),
+                DEFAULT_NO_LIMIT, Collections.emptyMap(), null)) {
+            Schema schema = makeSchema(constraintMap);
+            ReadSession.TableReadOptions.Builder optionsBuilder = ReadSession.TableReadOptions.newBuilder()
+                    .addSelectedFields("event_day");
+            ReadSession.TableReadOptions.Builder option =
+                    BigQueryStorageApiUtils.setConstraints(optionsBuilder, schema, constraints, false);
+            String rowRestriction = option.build().getRowRestriction();
+            assertTrue(rowRestriction.contains("`event_day` >="));
+            assertTrue(rowRestriction.contains("`event_day` <"));
+            assertTrue(rowRestriction.contains("'1970-01-06'"));
+            assertTrue(rowRestriction.contains("'1970-01-11'"));
         }
     }
 
