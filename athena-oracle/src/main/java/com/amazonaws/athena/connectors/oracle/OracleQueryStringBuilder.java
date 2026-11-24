@@ -28,7 +28,6 @@ import org.apache.calcite.sql.SqlDialect;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Extends {@link JdbcSplitQueryBuilder} and implements ORACLE specific SQL clauses for split.
@@ -61,10 +60,10 @@ public class OracleQueryStringBuilder
             // No partitions
             return String.format(" FROM %s ", tableName);
         }
-
-        Set<String> partitionVals = split.getProperties().keySet();
-        String partValue = split.getProperty(partitionVals.iterator().next());
-        return String.format(" FROM %s ", tableName + " " + "PARTITION " + "(" + partValue + ")");
+        // Always read the partition name by its known property key. Do not use keySet().iterator().next():
+        // splits may also carry CATALOG_CASING_FILTER (and other properties), and picking an arbitrary
+        // key would interpolate that value into PARTITION (...), producing invalid/unsafe SQL.
+        return String.format(" FROM %s PARTITION (%s) ", tableName, quote(partitionName));
     }
 
     @Override
