@@ -20,18 +20,16 @@
 package com.amazonaws.athena.connectors.aws.cmdb.tables.ec2;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
@@ -42,20 +40,36 @@ import software.amazon.awssdk.services.ec2.model.PrefixListId;
 import software.amazon.awssdk.services.ec2.model.SecurityGroup;
 import software.amazon.awssdk.services.ec2.model.UserIdGroupPair;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@RunWith(MockitoJUnitRunner.class)
 public class SecurityGroupsTableProviderTest
         extends AbstractTableProviderTest
 {
-    private static final Logger logger = LoggerFactory.getLogger(SecurityGroupsTableProviderTest.class);
 
     @Mock
     private Ec2Client mockEc2;
@@ -85,6 +99,12 @@ public class SecurityGroupsTableProviderTest
         return 2;
     }
 
+    @Override
+    protected boolean directionColumnNotNullOnly()
+    {
+        return true;
+    }
+
     protected TableProvider setUpSource()
     {
         return new SecurityGroupsTableProvider(mockEc2);
@@ -106,56 +126,6 @@ public class SecurityGroupsTableProviderTest
                 });
     }
 
-    protected void validateRow(Block block, int pos)
-    {
-        for (FieldReader fieldReader : block.getFieldReaders()) {
-            fieldReader.setPosition(pos);
-            Field field = fieldReader.getField();
-
-            if (field.getName().equals(getIdField())) {
-                assertEquals(getIdValue(), fieldReader.readText().toString());
-            }
-            else {
-                validate(fieldReader);
-            }
-        }
-    }
-
-    private void validate(FieldReader fieldReader)
-    {
-        Field field = fieldReader.getField();
-        Types.MinorType type = Types.getMinorTypeForArrowType(field.getType());
-        switch (type) {
-            case VARCHAR:
-                if (field.getName().equals("$data$") || field.getName().equals("direction")) {
-                    assertNotNull(fieldReader.readText().toString());
-                }
-                else {
-                    assertEquals(field.getName(), fieldReader.readText().toString());
-                }
-                break;
-            case DATEMILLI:
-                assertEquals(100_000, fieldReader.readLocalDateTime().atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
-                break;
-            case BIT:
-                assertTrue(fieldReader.readBoolean());
-                break;
-            case INT:
-                assertTrue(fieldReader.readInteger() > 0);
-                break;
-            case STRUCT:
-                for (Field child : field.getChildren()) {
-                    validate(fieldReader.reader(child.getName()));
-                }
-                break;
-            case LIST:
-                validate(fieldReader.reader());
-                break;
-            default:
-                throw new RuntimeException("No validation configured for field " + field.getName() + ":" + type + " " + field.getChildren());
-        }
-    }
-
     private SecurityGroup makeSecurityGroup(String id)
     {
         return SecurityGroup.builder()
@@ -171,5 +141,81 @@ public class SecurityGroupsTableProviderTest
                         .prefixListIds(PrefixListId.builder().prefixListId("prefix").description("description").build())
                         .userIdGroupPairs(UserIdGroupPair.builder().groupId("group_id").userId("user_id").build()).build()
                 ).build();
+    }
+
+    @Test
+    public void readWithConstraint_whenNameConstraintSingleValue_usesGroupNames() {
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            SecurityGroupsTableProvider provider = new SecurityGroupsTableProvider(mockEc2);
+            String nameValue = "my-sg-name";
+            when(mockEc2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class)))
+                    .thenReturn(DescribeSecurityGroupsResponse.builder()
+                            .securityGroups(Collections.singletonList(makeSecurityGroup("sg-123")))
+                            .build());
+
+            Map<String, ValueSet> constraintsMap = new HashMap<>();
+            constraintsMap.put("name",
+                    EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false).add(nameValue).build());
+            ReadRecordsRequest request = buildReadRequest(allocator, provider, constraintsMap);
+
+            BlockSpiller mockSpiller = mock(BlockSpiller.class);
+            QueryStatusChecker mockChecker = mock(QueryStatusChecker.class);
+            lenient().when(mockChecker.isQueryRunning()).thenReturn(true);
+
+            provider.readWithConstraint(mockSpiller, request, mockChecker);
+
+            ArgumentCaptor<DescribeSecurityGroupsRequest> captor = ArgumentCaptor.forClass(DescribeSecurityGroupsRequest.class);
+            verify(mockEc2).describeSecurityGroups(captor.capture());
+            assertEquals("Request should use groupNames for name constraint", Collections.singletonList(nameValue), captor.getValue().groupNames());
+        }
+    }
+
+    @Test
+    public void readWithConstraint_whenSecurityGroupHasEgressPermissions_writesEgressRows() {
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            SecurityGroupsTableProvider provider = new SecurityGroupsTableProvider(mockEc2);
+            IpPermission egressPerm = IpPermission.builder()
+                    .ipProtocol("tcp")
+                    .fromPort(443)
+                    .toPort(443)
+                    .ipRanges(IpRange.builder().cidrIp("0.0.0.0/0").build())
+                    .build();
+            SecurityGroup sgWithEgress = makeSecurityGroup("sg-egress").toBuilder()
+                    .ipPermissionsEgress(Collections.singletonList(egressPerm))
+                    .build();
+            when(mockEc2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class)))
+                    .thenReturn(DescribeSecurityGroupsResponse.builder()
+                            .securityGroups(Collections.singletonList(sgWithEgress))
+                            .build());
+
+            Map<String, ValueSet> constraintsMap = new HashMap<>();
+            constraintsMap.put("id",
+                    EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false).add("sg-egress").build());
+            ReadRecordsRequest request = buildReadRequest(allocator, provider, constraintsMap);
+
+            BlockSpiller mockSpiller = mock(BlockSpiller.class);
+            QueryStatusChecker mockChecker = mock(QueryStatusChecker.class);
+            lenient().when(mockChecker.isQueryRunning()).thenReturn(true);
+
+            provider.readWithConstraint(mockSpiller, request, mockChecker);
+
+            verify(mockEc2).describeSecurityGroups(any(DescribeSecurityGroupsRequest.class));
+            verify(mockSpiller, atLeastOnce()).writeRows(any());
+        }
+    }
+
+    private ReadRecordsRequest buildReadRequest(BlockAllocatorImpl allocator, SecurityGroupsTableProvider provider,
+                                                Map<String, ValueSet> constraintsMap)
+    {
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        TableName tableName = new TableName(getExpectedSchema(), getExpectedTable());
+        FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
+        return new ReadRecordsRequest(identity, "catalog", "queryId", tableName,
+                provider.getTable(allocator, new GetTableRequest(identity,
+                        "queryId", "catalog", tableName, Collections.emptyMap())).getSchema(),
+                Split.newBuilder(
+                        S3SpillLocation.newBuilder().withBucket("b").withPrefix("p").withSplitId("s").withQueryId("q").withIsDirectory(true).build(),
+                        new LocalKeyFactory().create()).build(),
+                constraints, 100_000, 100_000);
     }
 }
