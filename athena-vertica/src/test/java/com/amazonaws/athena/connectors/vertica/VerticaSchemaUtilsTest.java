@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.vertica;
 
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
@@ -80,6 +81,8 @@ public class VerticaSchemaUtilsTest extends TestBase
                 {"testSchema", "testTable1", "bigint_col", "BIGINT"},
                 {"testSchema", "testTable1", "float4_col", "FLOAT4"},
                 {"testSchema", "testTable1", "float8_col", "FLOAT8"},
+                {"testSchema", "testTable1", "float_col", "FLOAT"},
+                {"testSchema", "testTable1", "double_precision_col", "DOUBLE PRECISION"},
                 {"testSchema", "testTable1", "numeric_col", "NUMERIC"},
                 {"testSchema", "testTable1", "boolean_col", "BOOLEAN"},
                 {"testSchema", "testTable1", "varchar_col", "VARCHAR"},
@@ -90,7 +93,8 @@ public class VerticaSchemaUtilsTest extends TestBase
         };
         int[] types = {
                 Types.BIT, Types.TINYINT, Types.SMALLINT, Types.INTEGER, Types.BIGINT,
-                Types.FLOAT, Types.DOUBLE, Types.NUMERIC, Types.BOOLEAN, Types.VARCHAR,
+                Types.FLOAT, Types.FLOAT, Types.FLOAT, Types.DOUBLE,
+                Types.NUMERIC,  Types.BOOLEAN, Types.VARCHAR,
                 Types.TIMESTAMP, Types.TIMESTAMP, Types.DATE, Types.OTHER
         };
 
@@ -110,6 +114,8 @@ public class VerticaSchemaUtilsTest extends TestBase
         assertEquals("Int(64, true)", mockSchema.findField("bigint_col").getType().toString());
         assertEquals("FloatingPoint(SINGLE)", mockSchema.findField("float4_col").getType().toString());
         assertEquals("FloatingPoint(DOUBLE)", mockSchema.findField("float8_col").getType().toString());
+        assertEquals("FloatingPoint(DOUBLE)", mockSchema.findField("float_col").getType().toString());
+        assertEquals("FloatingPoint(DOUBLE)", mockSchema.findField("double_precision_col").getType().toString());
         assertEquals("Decimal(10, 2, 128)", mockSchema.findField("numeric_col").getType().toString());
         assertEquals("Utf8", mockSchema.findField("boolean_col").getType().toString());
         assertEquals("Utf8", mockSchema.findField("varchar_col").getType().toString());
@@ -133,6 +139,29 @@ public class VerticaSchemaUtilsTest extends TestBase
             assertTrue(e.getMessage().contains("Error in building the table schema"));
             assertTrue(e.getCause() instanceof SQLException);
         }
+    }
+
+    @Test
+    public void convertToArrowType_mixedCaseTypeNamesFromQpt() throws SQLException
+    {
+        // QPT path uses ResultSetMetaData.getColumnTypeName(), which Vertica may return as "Float", "Integer", etc.
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        VerticaSchemaUtils.convertToArrowType(schemaBuilder, "id", "Integer");
+        VerticaSchemaUtils.convertToArrowType(schemaBuilder, "col_float", "Float");
+        Schema schema = schemaBuilder.build();
+
+        assertEquals("Int(64, true)", schema.findField("id").getType().toString());
+        assertEquals("FloatingPoint(DOUBLE)", schema.findField("col_float").getType().toString());
+    }
+
+    @Test
+    public void convertToArrowType_nullTypeNameMapsToVarchar() throws SQLException
+    {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        VerticaSchemaUtils.convertToArrowType(schemaBuilder, "null_col", null);
+        Schema schema = schemaBuilder.build();
+
+        assertEquals("Utf8", schema.findField("null_col").getType().toString());
     }
 
     @Test
