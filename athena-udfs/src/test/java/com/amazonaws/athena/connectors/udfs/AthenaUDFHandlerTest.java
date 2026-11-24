@@ -24,9 +24,8 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.spec.SecretKeySpec;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -35,6 +34,7 @@ import java.util.zip.DataFormatException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -97,10 +97,40 @@ public class AthenaUDFHandlerTest
     {
         try {
             athenaUDFHandler.decompress("");
+            fail("Expected truncated input to fail");
         }
         catch (RuntimeException e) {
             assertTrue(e.getCause() instanceof DataFormatException);
             assertEquals("Input is truncated", e.getCause().getMessage());
+        }
+    }
+
+    @Test
+    public void encrypt_ValidPlaintextAndSecret_ReturnsOriginalPlaintext()
+    {
+        String expected = "test";
+        String encrypted = athenaUDFHandler.encrypt(expected, DUMMY_SECRET_NAME);
+        assertEquals(expected, athenaUDFHandler.decrypt(encrypted, DUMMY_SECRET_NAME));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void decrypt_InvalidBase64_ThrowsIllegalArgumentException()
+    {
+        athenaUDFHandler.decrypt("not-valid-base64!!!", DUMMY_SECRET_NAME);
+    }
+
+    @Test
+    public void decrypt_TamperedCiphertext_ThrowsRuntimeExceptionWithBadPaddingCause()
+    {
+        String encrypted = athenaUDFHandler.encrypt("abcdef", DUMMY_SECRET_NAME);
+        byte[] raw = decoder.decode(encrypted);
+        raw[raw.length - 1] ^= 0x01;
+        try {
+            athenaUDFHandler.decrypt(encoder.encodeToString(raw), DUMMY_SECRET_NAME);
+            fail("Expected tampered ciphertext to fail");
+        }
+        catch (RuntimeException e) {
+            assertTrue(e.getCause() instanceof BadPaddingException);
         }
     }
 
