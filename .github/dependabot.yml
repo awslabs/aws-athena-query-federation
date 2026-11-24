@@ -8,8 +8,17 @@ updates:
   - package-ecosystem: "maven" # See documentation for possible values
     directory: "/" # Location of package manifests
     open-pull-requests-limit: 20
+    # Avoid Dependabot mass-rebasing every open PR whenever master moves.
+    # Merge queue / branch update still refreshes a PR when it is next to merge.
+    rebase-strategy: disabled
     schedule:
       interval: "weekly"
+    # Collapse patch/minor bumps into fewer PRs; majors stay individual for manual review.
+    groups:
+      maven-patch-and-minor:
+        update-types:
+          - "patch"
+          - "minor"
     ignore:
       - dependency-name: "com.google.cloud:google-cloud-bigquery"
       - dependency-name: "com.google.cloud:google-cloud-resourcemanager"
@@ -20,8 +29,14 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    rebase-strategy: disabled
     schedule:
       interval: "weekly"
+    groups:
+      github-actions-patch-and-minor:
+        update-types:
+          - "patch"
+          - "minor"
 
   - package-ecosystem: "npm"
     directory: "/validation_testing/cdk_federation_infra_provisioning/app"
