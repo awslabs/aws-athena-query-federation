@@ -104,14 +104,14 @@ public class ClickHouseRecordHandlerTest
     }
 
     @Test
-    public void clickHouseRecordHandler_ConstructorWithDatabaseConnectionConfig_PassesEmptyJdbcProperties()
+    public void constructor_withDatabaseConnectionConfig_usesEmptyJdbcProperties()
     {
         Assert.assertTrue(ClickHouseConstants.JDBC_PROPERTIES.isEmpty());
         Assert.assertFalse(ClickHouseConstants.JDBC_PROPERTIES.containsKey("databaseTerm"));
     }
 
     @Test
-    public void testBuildSplitSqlWithQueryPassThroughEnabled()
+    public void buildSplitSql_withQueryPassThroughEnabled_returnsPassthroughPreparedStatement()
             throws SQLException
     {
         Mockito.when(mockConstraints.isQueryPassThrough()).thenReturn(true);
@@ -154,7 +154,7 @@ public class ClickHouseRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithQueryPassThroughDisabled()
+    public void buildSplitSql_withQueryPassThroughDisabled_usesJdbcSplitQueryBuilder()
             throws SQLException
     {
         Mockito.when(mockConstraints.isQueryPassThrough()).thenReturn(false);
@@ -198,7 +198,7 @@ public class ClickHouseRecordHandlerTest
     }
 
     @Test(expected = SQLException.class)
-    public void testBuildSplitSqlWithSQLExceptionFromJdbcSplitQueryBuilder()
+    public void buildSplitSql_whenJdbcSplitQueryBuilderThrowsSQLException_throwsSQLException()
             throws SQLException
     {
         Mockito.when(mockConstraints.isQueryPassThrough()).thenReturn(false);
@@ -214,6 +214,25 @@ public class ClickHouseRecordHandlerTest
 
         // Execute and verify exception
         handler.buildSplitSql(
+                mockConnection,
+                TEST_CATALOG,
+                tableName,
+                mockSchema,
+                mockConstraints,
+                mockSplit
+        );
+    }
+
+    @Test(expected = SQLException.class)
+    public void buildSplitSql_whenQueryPassThroughSqlThrowsSQLException_throwsSQLException()
+            throws SQLException
+    {
+        Mockito.when(mockConstraints.isQueryPassThrough()).thenReturn(true);
+        ClickHouseRecordHandler spyHandler = Mockito.spy(handler);
+        Mockito.doThrow(new SQLException(DATABASE_CONNECTION_FAILED_MESSAGE)).when(spyHandler)
+                .buildQueryPassthroughSql(any(Connection.class), any(Constraints.class));
+
+        spyHandler.buildSplitSql(
                 mockConnection,
                 TEST_CATALOG,
                 tableName,
