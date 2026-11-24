@@ -373,7 +373,7 @@ public abstract class MetadataHandler
     {
         logger.info("resolveDoGetTableImplementation: resolving implementation - isQueryPassthrough[{}]", request.isQueryPassthrough());
         if (request.isQueryPassthrough()) {
-            if (!QueryPassthroughSignature.allowQueryPassthrough(configOptions)) {
+            if (!QueryPassthroughSignature.isQueryPassthroughEnabled(configOptions)) {
                 throw new AthenaConnectorException("Query Passthrough is disabled",
                         ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
             }

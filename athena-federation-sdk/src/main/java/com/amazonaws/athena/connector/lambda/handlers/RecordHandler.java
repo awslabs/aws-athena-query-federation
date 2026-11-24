@@ -194,7 +194,7 @@ public abstract class RecordHandler
     {
         logger.info("doReadRecords: {}:{}", request.getSchema(), request.getSplit().getSpillLocation());
         if (request.getConstraints().isQueryPassThrough()
-                && !QueryPassthroughSignature.allowQueryPassthrough(configOptions)) {
+                && !QueryPassthroughSignature.isQueryPassthroughEnabled(configOptions)) {
             throw new AthenaConnectorException("Query Passthrough is disabled",
                     ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
