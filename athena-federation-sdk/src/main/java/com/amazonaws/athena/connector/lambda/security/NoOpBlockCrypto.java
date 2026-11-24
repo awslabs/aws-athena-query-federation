@@ -76,6 +76,14 @@ public class NoOpBlockCrypto
         }
     }
 
+    public byte[] encrypt(EncryptionKey key, byte[] bytes)
+    {
+        if (key != null) {
+            throw new AthenaConnectorException("Real key provided to NoOpBlockCrypto, likely indicates you wanted real crypto.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+        return bytes;
+    }
+
     public byte[] decrypt(EncryptionKey key, byte[] bytes)
     {
         return bytes;
