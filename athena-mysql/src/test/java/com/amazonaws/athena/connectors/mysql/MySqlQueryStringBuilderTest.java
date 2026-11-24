@@ -73,7 +73,7 @@ public class MySqlQueryStringBuilderTest
         Map<String, ValueSet> constraintsMap = ImmutableMap.of("testCol2", SortedRangeSet.of(false, Range.all(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType())));
         Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `dateCol` FROM `testCatalog`.`testTable`.`testSchema` PARTITION(p0)  WHERE (`testCol2` IS NOT NULL)";
+        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `dateCol` FROM `testCatalog`.`testTable`.`testSchema` PARTITION(`p0`)  WHERE (`testCol2` IS NOT NULL)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 
@@ -89,7 +89,7 @@ public class MySqlQueryStringBuilderTest
         Map<String, ValueSet> constraintsMap = ImmutableMap.of("testCol2", SortedRangeSet.of(false, Range.lessThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 138), Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 138)));
         Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `dateCol` FROM `testCatalog`.`testTable`.`testSchema` PARTITION(p0)  WHERE ((`testCol2` < ?) OR (`testCol2` > ?))";
+        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `dateCol` FROM `testCatalog`.`testTable`.`testSchema` PARTITION(`p0`)  WHERE ((`testCol2` < ?) OR (`testCol2` > ?))";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 
@@ -107,7 +107,7 @@ public class MySqlQueryStringBuilderTest
                         Range.lessThan(allocator, Types.MinorType.DATEDAY.getType(), 8035),
                         Range.greaterThan(allocator, Types.MinorType.DATEDAY.getType(), 10440)));
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `dateCol` FROM `testCatalog`.`testTable`.`testSchema` PARTITION(p0)  WHERE ((`dateCol` < ?) OR (`dateCol` > ?))";
+        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `dateCol` FROM `testCatalog`.`testTable`.`testSchema` PARTITION(`p0`)  WHERE ((`dateCol` < ?) OR (`dateCol` > ?))";
         Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
@@ -126,5 +126,15 @@ public class MySqlQueryStringBuilderTest
         //End date = 1998-8-2
         Date endDate = new Date(98, 7, 2);
         Mockito.verify(expectedPreparedStatement, times(1)).setDate(2, endDate);
+    }
+
+    @Test
+    public void getFromClauseWithSplit_withEmbeddedBacktickInPartition_escapesBackticks()
+    {
+        Split split = Split.newBuilder(s3SpillLocation, null)
+                .add(MySqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, "p`0")
+                .build();
+        assertEquals(" FROM `testCatalog`.`testSchema`.`testTable` PARTITION(`p``0`) ",
+                mySqlQueryStringBuilder.getFromClauseWithSplit("testCatalog", "testSchema", "testTable", split));
     }
 }
