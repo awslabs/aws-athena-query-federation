@@ -78,6 +78,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -88,6 +89,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
@@ -393,7 +395,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                         "AND (\"decimal_col\" = 123.45 ) AND (\"varchar_col\" = 'test' )",
                 queryId);
 
-        Mockito.when(connection.getMetaData().getColumns(null, "schema1", "table1", null)).thenReturn(resultSet);
+        stubColumnQuery(resultSet);
         Mockito.lenient().when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
         Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(s3ExportBucket);
 
@@ -933,7 +935,7 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
-        Mockito.when(connection.getMetaData().getColumns(null, TEST_SCHEMA, TEST_TABLE, null)).thenReturn(resultSet);
+        stubColumnQuery(resultSet);
 
         Mockito.lenient().when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
         Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(TEST_S3_BUCKET);
@@ -957,5 +959,30 @@ public class VerticaMetadataHandlerTest extends TestBase
 
             return actualSql;
         }
+    }
+
+    private void stubColumnQuery(ResultSet resultSet) throws SQLException
+    {
+        PreparedStatement resolveStatement = Mockito.mock(PreparedStatement.class);
+        ResultSet resolveResult = Mockito.mock(ResultSet.class);
+        AtomicReference<String> schema = new AtomicReference<>();
+        AtomicReference<String> table = new AtomicReference<>();
+        Mockito.when(connection.prepareStatement(VerticaSchemaUtils.RESOLVE_TABLE_SQL)).thenReturn(resolveStatement);
+        Mockito.doAnswer(invocation -> {
+            schema.set(invocation.getArgument(1));
+            return null;
+        }).when(resolveStatement).setString(Mockito.eq(1), Mockito.any());
+        Mockito.doAnswer(invocation -> {
+            table.set(invocation.getArgument(1));
+            return null;
+        }).when(resolveStatement).setString(Mockito.eq(2), Mockito.any());
+        Mockito.when(resolveStatement.executeQuery()).thenReturn(resolveResult);
+        Mockito.when(resolveResult.next()).thenReturn(true, false);
+        Mockito.when(resolveResult.getString("schema_name")).thenAnswer(invocation -> schema.get());
+        Mockito.when(resolveResult.getString("table_name")).thenAnswer(invocation -> table.get());
+
+        PreparedStatement statement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(connection.prepareStatement(VerticaSchemaUtils.JDBC_COLUMNS_SQL)).thenReturn(statement);
+        Mockito.when(statement.executeQuery()).thenReturn(resultSet);
     }
 }
