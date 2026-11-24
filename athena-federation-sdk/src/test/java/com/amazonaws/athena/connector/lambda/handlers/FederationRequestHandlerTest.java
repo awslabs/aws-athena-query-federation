@@ -23,6 +23,8 @@ import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.domain.spill.ExpectedBucketOwnerInterceptor;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -51,10 +53,14 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SERVICE_KMS;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SPILL_BUCKET_OWNER;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SPILL_FAS_TOKEN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -271,6 +277,102 @@ public class FederationRequestHandlerTest {
         S3Client result = handler.getS3Client(overrideConfig, defaultS3Client);
 
         assertEquals(defaultS3Client, result);
+    }
+
+    @Test
+    public void testGetSpillS3Client_NoSpillChannel_UsesCallerOverride() {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(FAS_TOKEN, "tenant-token");
+        configOptions.put(SERVICE_KMS, "tenant-kms");
+
+        S3Client result = handler.getSpillS3Client(configOptions, null, defaultS3Client);
+
+        assertEquals(defaultS3Client, result);
+        verify(kmsEncryptionProvider, never()).getFasCredentials(anyString(), anyString());
+    }
+
+    @Test
+    public void testGetSpillS3Client_NullConfigOptions_UsesDefault() {
+        assertEquals(defaultS3Client, handler.getSpillS3Client(null, null, defaultS3Client));
+    }
+
+    // The options DNA sends for a service-managed spill query: the tenant FAS token plus the spill channel, both
+    // decrypted with service_kms_key_id, and the service bucket and prefix used for the spill location.
+    private static Map<String, String> serviceManagedSpillOptions() {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(FAS_TOKEN, "tenant-token");
+        configOptions.put(SERVICE_KMS, "service-kms");
+        configOptions.put(SPILL_FAS_TOKEN, "spill-token");
+        configOptions.put(SPILL_BUCKET_OWNER, "123456789012");
+        configOptions.put("spill_bucket", "service-spill-bucket");
+        configOptions.put("spill_prefix", "athena-spill/query-1");
+        return configOptions;
+    }
+
+    @Test
+    public void testGetSpillS3Client_WithSpillChannel_UsesSpillCredentials() {
+        Map<String, String> configOptions = serviceManagedSpillOptions();
+        when(kmsEncryptionProvider.getFasCredentials("service-kms", "spill-token")).thenReturn(awsCredentials);
+        AwsRequestOverrideConfiguration tenantOverride = AwsRequestOverrideConfiguration.builder()
+                .credentialsProvider(mock(AwsCredentialsProvider.class))
+                .build();
+
+        S3Client result = handler.getSpillS3Client(configOptions, tenantOverride, defaultS3Client);
+
+        assertNotNull(result);
+        assertNotSame(defaultS3Client, result);
+        assertTrue(result.serviceClientConfiguration().overrideConfiguration().executionInterceptors().stream()
+                .anyMatch(i -> i instanceof ExpectedBucketOwnerInterceptor));
+        verify(kmsEncryptionProvider).getFasCredentials("service-kms", "spill-token");
+        verify(kmsEncryptionProvider, never()).getFasCredentials("service-kms", "tenant-token");
+        assertTrue(handler.isServiceManagedSpill(configOptions));
+        result.close();
+    }
+
+    @Test
+    public void testGetSpillS3Client_IncompleteSpillChannel_Fails() {
+        String[] requiredKeys = {SPILL_FAS_TOKEN, SERVICE_KMS, SPILL_BUCKET_OWNER};
+        for (String missing : requiredKeys) {
+            Map<String, String> configOptions = serviceManagedSpillOptions();
+            configOptions.remove(missing);
+            assertTrue(handler.isServiceManagedSpill(configOptions));
+            assertThrows(missing, AthenaConnectorException.class,
+                    () -> handler.getSpillS3Client(configOptions, null, defaultS3Client));
+        }
+        verify(kmsEncryptionProvider, never()).getFasCredentials(anyString(), anyString());
+    }
+
+    @Test
+    public void testGetSpillS3Client_MissingTokenKey_FailsNamingTheKey() {
+        Map<String, String> configOptions = serviceManagedSpillOptions();
+        configOptions.remove(SERVICE_KMS);
+
+        AthenaConnectorException e = assertThrows(AthenaConnectorException.class,
+                () -> handler.getSpillS3Client(configOptions, null, defaultS3Client));
+
+        assertTrue(e.getMessage().contains(SERVICE_KMS));
+        verify(kmsEncryptionProvider, never()).getFasCredentials(anyString(), anyString());
+    }
+
+    @Test
+    public void testIsServiceManagedSpill_NoSpillKeys() {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(FAS_TOKEN, "tenant-token");
+        configOptions.put(SERVICE_KMS, "service-kms");
+        configOptions.put(SPILL_BUCKET_OWNER, " ");
+
+        assertFalse(handler.isServiceManagedSpill(configOptions));
+        assertFalse(handler.isServiceManagedSpill(null));
+    }
+
+    @Test
+    public void testGetSpillS3Client_InvalidBucketOwner_Fails() {
+        Map<String, String> configOptions = serviceManagedSpillOptions();
+        configOptions.put(SPILL_BUCKET_OWNER, "not-an-account");
+
+        assertThrows(AthenaConnectorException.class,
+                () -> handler.getSpillS3Client(configOptions, null, defaultS3Client));
+        verify(kmsEncryptionProvider, never()).getFasCredentials(anyString(), anyString());
     }
 
     @Test

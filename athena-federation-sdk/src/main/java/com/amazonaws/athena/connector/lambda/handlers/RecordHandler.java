@@ -196,7 +196,7 @@ public abstract class RecordHandler
         AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         SpillConfig spillConfig = getSpillConfig(request);
         AthenaClient athenaClient = getAthenaClient(overrideConfig, athena);
-        S3Client s3Client = getS3Client(overrideConfig, amazonS3);
+        S3Client s3Client = getSpillS3Client(federatedIdentity.getConfigOptions(), overrideConfig, amazonS3);
         try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator,
                 request.getSchema(),
                 request.getConstraints());
@@ -213,6 +213,12 @@ public abstract class RecordHandler
                         request.getSchema(),
                         spiller.getSpillLocations(),
                         spillConfig.getEncryptionKey());
+            }
+        }
+        finally {
+            // The spill-channel client is built per request; the spiller has finished its writes by now.
+            if (isServiceManagedSpill(federatedIdentity.getConfigOptions())) {
+                s3Client.close();
             }
         }
     }
