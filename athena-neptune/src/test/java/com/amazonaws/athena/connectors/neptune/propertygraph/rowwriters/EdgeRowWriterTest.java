@@ -23,13 +23,28 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter.RowWriterBuilder;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connectors.neptune.Constants;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -45,19 +60,55 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 /**
  * Unit tests for the changed logic in EdgeRowWriter: FieldValueNormalizer usage,
  * valueMap vs project().by() (list vs scalar vs Map), VARCHAR null-first-element handling,
  * and special keys (id, in, out).
  */
+@RunWith(MockitoJUnitRunner.class)
 public class EdgeRowWriterTest
 {
     private BlockAllocatorImpl allocator;
-
+    
+    public static final String TEST_FIELD = "testField";
+    
+    // Field names for edge-context extractor tests (moved from RowWritersComprehensiveTest)
+    private static final String EMPTY_FIELD = "emptyField";
+    private static final String TESTFIELD = "TESTFIELD";
+    private static final String TESTFIELD_LOWER = "testfield";
+    private static final String TEST_VALUE = "Test Value";
+    private static final String SPACES = "   ";
+    
+    // Configuration values
+    private static final String CASE_INSENSITIVE_TRUE = "true";
+    private static final String CASE_INSENSITIVE_FALSE = "false";
+    
+    @Mock
+    private RowWriterBuilder mockRowWriterBuilder;
+    
+    @Mock
+    private Field mockField;
+    
+    private Map<String, String> configOptions;
+    private Map<String, Object> edgeContext;
+    
+    
     @Before
     public void setUp()
     {
         allocator = new BlockAllocatorImpl();
+        when(mockRowWriterBuilder.withExtractor(anyString(), any())).thenReturn(mockRowWriterBuilder);
+        when(mockField.getName()).thenReturn(TEST_FIELD);
+        configOptions = new HashMap<>();
+        edgeContext = new HashMap<>();
+        edgeContext.put(T.id.toString(), "edge456");
+        edgeContext.put(T.label.toString(), "knows");
     }
 
     @After
@@ -365,4 +416,215 @@ public class EdgeRowWriterTest
         assertNotNull(result);
         assertEquals(1.5, ((Number) result).doubleValue(), 1e-9);
     }
+    
+    @Test
+    public void writeRowTemplate_WithCaseInsensitiveBool_createsBitExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Bool.INSTANCE);
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_TRUE);
+        
+        BitExtractor capturedExtractor = captureExtractorAfterWrite(mockField, BitExtractor.class, TEST_FIELD);
+        assertNotNull("BitExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, Boolean.TRUE);
+        NullableBitHolder holder = new NullableBitHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(1, holder.value);
+        
+        context.put(TEST_FIELD, "false");
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(0, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithCaseInsensitiveConfigAndUtf8Type_createsVarCharExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_TRUE);
+        
+        VarCharExtractor capturedExtractor = captureExtractorAfterWrite(mockField, VarCharExtractor.class, TEST_FIELD);
+        assertNotNull("VarCharExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "edge-value");
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("edge-value", holder.value);
+        
+        context.put(TEST_FIELD, 12345);
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("12345", holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithCaseInsensitiveDisabledAndUtf8Type_createsVarCharExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_FALSE);
+        
+        VarCharExtractor capturedExtractor = captureExtractorAfterWrite(mockField, VarCharExtractor.class, TEST_FIELD);
+        assertNotNull("VarCharExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "case-sensitive-key-only");
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("case-sensitive-key-only", holder.value);
+    }
+    @Test
+    public void writeRowTemplate_WithNullCaseInsensitiveConfigAndUtf8Type_createsVarCharExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        
+        VarCharExtractor capturedExtractor = captureExtractorAfterWrite(mockField, VarCharExtractor.class, TEST_FIELD);
+        assertNotNull("VarCharExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "default-config");
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("default-config", holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithEmptyConfigOptionsAndUtf8Type_createsVarCharExtractor() throws Exception
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        
+        VarCharExtractor capturedExtractor = captureExtractorAfterWrite(mockField, VarCharExtractor.class, TEST_FIELD);
+        assertNotNull("VarCharExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "empty-config-options");
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals("empty-config-options", holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithCaseSensitiveConfigAndUtf8Type_doesNotMatchDifferentCaseKey() throws Exception
+    {
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_FALSE);
+        edgeContext.put(TESTFIELD_LOWER, TEST_VALUE);
+        
+        VarCharExtractor extractor = captureExtractorAfterWrite(edgeFieldUtf8(TESTFIELD), VarCharExtractor.class, TESTFIELD);
+        NullableVarCharHolder holder = new NullableVarCharHolder();
+        extractor.extract(edgeContext, holder);
+        assertEquals(0, holder.isSet);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithCaseInsensitiveConfigAndBigIntType_createsBigIntExtractor() throws Exception
+    {
+        mockFieldArrowType(new ArrowType.Int(64, true));
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_TRUE);
+        
+        BigIntExtractor capturedExtractor = captureExtractorAfterWrite(mockField, BigIntExtractor.class, TEST_FIELD);
+        assertNotNull("BigIntExtractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "9876543210");
+        NullableBigIntHolder holder = new NullableBigIntHolder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(9876543210L, holder.value);
+        
+        context.put(TEST_FIELD, 42L);
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(42L, holder.value);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithCaseInsensitiveConfigAndFloat4Type_createsFloat4Extractor() throws Exception
+    {
+        mockFieldArrowType(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE));
+        setupSchemaCaseInsensitive(CASE_INSENSITIVE_TRUE);
+        
+        Float4Extractor capturedExtractor = captureExtractorAfterWrite(mockField, Float4Extractor.class, TEST_FIELD);
+        assertNotNull("Float4Extractor should not be null", capturedExtractor);
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put(TEST_FIELD, "2.5");
+        NullableFloat4Holder holder = new NullableFloat4Holder();
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(2.5f, holder.value, 0.0001f);
+        
+        context.put(TEST_FIELD, 1.25f);
+        capturedExtractor.extract(context, holder);
+        assertEquals(1, holder.isSet);
+        assertEquals(1.25f, holder.value, 0.0001f);
+    }
+    
+    @Test(expected = NullPointerException.class)
+    public void writeRowTemplate_WithNullConfigOptionsAndUtf8Type_throwsNullPointerException()
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        
+        EdgeRowWriter.writeRowTemplate(mockRowWriterBuilder, mockField, null);
+    }
+    
+    @Test(expected = NullPointerException.class)
+    public void writeRowTemplate_WithNullRowWriterBuilderAndUtf8Type_throwsNullPointerException()
+    {
+        mockFieldArrowType(ArrowType.Utf8.INSTANCE);
+        
+        EdgeRowWriter.writeRowTemplate(null, mockField, configOptions);
+    }
+    
+    @Test(expected = NullPointerException.class)
+    public void writeRowTemplate_WithNullField_throwsNullPointerException()
+    {
+        EdgeRowWriter.writeRowTemplate(mockRowWriterBuilder, null, configOptions);
+    }
+    
+    @Test
+    public void writeRowTemplate_WithEdgeContextAndSpacesInBitField_handlesUnset() throws Exception
+    {
+        edgeContext.put(EMPTY_FIELD, SPACES);
+        
+        BitExtractor extractor = captureExtractorAfterWrite(edgeFieldBool(EMPTY_FIELD), BitExtractor.class, EMPTY_FIELD);
+        NullableBitHolder holder = new NullableBitHolder();
+        extractor.extract(edgeContext, holder);
+        assertEquals(0, holder.isSet);
+    }
+    
+    private void setupSchemaCaseInsensitive(String caseInsensitiveValue)
+    {
+        configOptions.put(Constants.SCHEMA_CASE_INSEN, caseInsensitiveValue);
+    }
+    
+    private void mockFieldArrowType(ArrowType arrowType)
+    {
+        when(mockField.getType()).thenReturn(arrowType);
+    }
+    
+    private <E extends Extractor> E captureExtractorAfterWrite(Field field, Class<E> extractorType, String registeredFieldName)
+    {
+        EdgeRowWriter.writeRowTemplate(mockRowWriterBuilder, field, configOptions);
+        ArgumentCaptor<E> captor = ArgumentCaptor.forClass(extractorType);
+        verify(mockRowWriterBuilder).withExtractor(eq(registeredFieldName), captor.capture());
+        return captor.getValue();
+    }
+    
+    private Field edgeFieldBool(String name)
+    {
+        return new Field(name, FieldType.nullable(new ArrowType.Bool()), null);
+    }
+    
+    private Field edgeFieldUtf8(String name)
+    {
+        return new Field(name, FieldType.nullable(new ArrowType.Utf8()), null);
+    }
+    
+
 }

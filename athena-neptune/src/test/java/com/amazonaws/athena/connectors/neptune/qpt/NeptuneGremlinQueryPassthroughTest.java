@@ -44,6 +44,8 @@ public class NeptuneGremlinQueryPassthroughTest {
     private static final String TEST_COMPONENT_TYPE = "testType";
     private static final String VALID_TRAVERSE = "g.V().hasLabel('airport').valueMap()";
     private static final String VALID_SCHEMA_FUNCTION = "system.traverse";
+    public static final String EXPECTED_ATHENA_CONNECTOR_EXCEPTION = "Expected AthenaConnectorException";
+    public static final String MISSING_QUERY_PASSTHROUGH_ARGUMENT = "Missing Query Passthrough Argument: ";
 
     private final NeptuneGremlinQueryPassthrough queryPassthrough = new NeptuneGremlinQueryPassthrough();
     private Map<String, String> baseArguments;
@@ -64,7 +66,7 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void testVerifyWithValidArguments() {
+    public void verify_withValidArguments_doesNotThrowException() {
         try {
             queryPassthrough.verify(baseArguments);
         } catch (Exception e) {
@@ -73,70 +75,70 @@ public class NeptuneGremlinQueryPassthroughTest {
     }
 
     @Test
-    public void testVerifyWithEmptyArguments() {
+    public void verify_withEmptyArguments_throwsAthenaConnectorException() {
         try {
             queryPassthrough.verify(new HashMap<>());
-            fail("Expected AthenaConnectorException");
+            fail(EXPECTED_ATHENA_CONNECTOR_EXCEPTION);
         } catch (AthenaConnectorException e) {
             assertEquals("Function Signature doesn't match implementation's", e.getMessage());
         }
     }
 
     @Test
-    public void testVerifyWithMissingDatabase() {
+    public void verify_withMissingDatabase_throwsAthenaConnectorException() {
         baseArguments.remove(DATABASE);
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected AthenaConnectorException");
+            fail(EXPECTED_ATHENA_CONNECTOR_EXCEPTION);
         } catch (AthenaConnectorException e) {
-            assertEquals("Missing Query Passthrough Argument: " + DATABASE, e.getMessage());
+            assertEquals(MISSING_QUERY_PASSTHROUGH_ARGUMENT + DATABASE, e.getMessage());
         }
     }
 
     @Test
-    public void testVerifyWithMissingCollection() {
+    public void verify_withMissingCollection_throwsAthenaConnectorException() {
         baseArguments.remove(COLLECTION);
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected AthenaConnectorException");
+            fail(EXPECTED_ATHENA_CONNECTOR_EXCEPTION);
         } catch (AthenaConnectorException e) {
-            assertEquals("Missing Query Passthrough Argument: " + COLLECTION, e.getMessage());
+            assertEquals(MISSING_QUERY_PASSTHROUGH_ARGUMENT + COLLECTION, e.getMessage());
         }
     }
 
     @Test
-    public void testVerifyWithMissingComponentType() {
+    public void verify_withMissingComponentType_throwsAthenaConnectorException() {
         baseArguments.remove(COMPONENT_TYPE);
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected AthenaConnectorException");
+            fail(EXPECTED_ATHENA_CONNECTOR_EXCEPTION);
         } catch (AthenaConnectorException e) {
-            assertEquals("Missing Query Passthrough Argument: " + COMPONENT_TYPE, e.getMessage());
+            assertEquals(MISSING_QUERY_PASSTHROUGH_ARGUMENT + COMPONENT_TYPE, e.getMessage());
         }
     }
 
     @Test
-    public void testVerifyWithMissingTraverse() {
+    public void verify_withMissingTraverse_throwsAthenaConnectorException() {
         baseArguments.remove(TRAVERSE);
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected AthenaConnectorException");
+            fail(EXPECTED_ATHENA_CONNECTOR_EXCEPTION);
         } catch (AthenaConnectorException e) {
-            assertEquals("Missing Query Passthrough Argument: " + TRAVERSE, e.getMessage());
+            assertEquals(MISSING_QUERY_PASSTHROUGH_ARGUMENT + TRAVERSE, e.getMessage());
         }
     }
 
     @Test
-    public void testVerifyWithTraverseAndQueryArguments_ShouldThrowException() {
+    public void verify_withTraverseAndQueryArguments_throwsAthenaConnectorException() {
         baseArguments.put("QUERY", "g.V().hasLabel('airport')");
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected AthenaConnectorException");
+            fail(EXPECTED_ATHENA_CONNECTOR_EXCEPTION);
         } catch (AthenaConnectorException e) {
             assertEquals("Mixed operations not supported: Cannot use both SPARQL query and Gremlin traverse in the same request", e.getMessage());
         }
@@ -172,6 +174,23 @@ public class NeptuneGremlinQueryPassthroughTest {
             queryPassthrough.verify(baseArguments);
         } catch (Exception e) {
             fail("Should not throw any exception");
+        }
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void verify_withNullArguments_throwsNullPointerException() {
+        queryPassthrough.verify(null);
+    }
+
+    @Test
+    public void verify_withEmptyTraverseValue_throwsAthenaConnectorException() {
+        baseArguments.put(TRAVERSE, "");
+
+        try {
+            queryPassthrough.verify(baseArguments);
+            fail(EXPECTED_ATHENA_CONNECTOR_EXCEPTION);
+        } catch (AthenaConnectorException e) {
+            assertEquals("Missing Query Passthrough Value for Argument: " + TRAVERSE, e.getMessage());
         }
     }
 }
