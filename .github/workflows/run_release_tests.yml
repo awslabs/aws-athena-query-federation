@@ -43,7 +43,7 @@ jobs:
           python -m venv perf_testing;
           source perf_testing/bin/activate;
           pip install -r requirements.txt;
-          echo PATH=$PATH >> $GITHUB_ENV
+          echo "$GITHUB_WORKSPACE/athena_federation_testing/perf_testing/bin" >> $GITHUB_PATH
 
       - name: Setup AWS Cred
         uses: aws-actions/configure-aws-credentials@v6
