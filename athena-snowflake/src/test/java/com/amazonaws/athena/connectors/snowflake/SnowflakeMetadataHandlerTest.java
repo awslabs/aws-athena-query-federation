@@ -35,8 +35,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -52,8 +50,6 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.google.common.collect.ImmutableList;
-import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
@@ -1393,6 +1389,10 @@ public class SnowflakeMetadataHandlerTest
     @Test
     public void createCredentialsProvider_returnsProviderOnlyWhenSecretPresent()
     {
+        when(this.secretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+                .thenReturn(GetSecretValueResponse.builder()
+                        .secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}")
+                        .build());
         assertNotNull(this.snowflakeMetadataHandler.createCredentialsProvider("testSecret", null));
         org.junit.Assert.assertNull(this.snowflakeMetadataHandler.createCredentialsProvider("", null));
         org.junit.Assert.assertNull(this.snowflakeMetadataHandler.createCredentialsProvider(null, null));
