@@ -41,6 +41,73 @@ public class HiveUtilsTest
     }
 
     @Test
+    public void quoteStringLiteral_whenValueIsSimple_returnsSingleQuotedLiteral()
+    {
+        assertEquals("'1'", HiveUtils.quoteStringLiteral("1"));
+    }
+
+    @Test
+    public void quoteStringLiteral_whenValueContainsOrTrue_staysInsideQuotedLiteral()
+    {
+        assertEquals("'1 OR true --'", HiveUtils.quoteStringLiteral("1 OR true --"));
+    }
+
+    @Test
+    public void quoteStringLiteral_whenValueContainsSingleQuote_doublesEmbeddedQuote()
+    {
+        assertEquals("'O''REILLY'", HiveUtils.quoteStringLiteral("O'REILLY"));
+    }
+
+    @Test
+    public void quoteStringLiteral_whenValueIsMixedCase_preservesCase()
+    {
+        assertEquals("'Test'", HiveUtils.quoteStringLiteral("Test"));
+    }
+
+    @Test
+    public void quoteStringLiteral_whenValueEndsWithBackslash_escapesBackslashSoLiteralStaysClosed()
+    {
+        assertEquals("'x\\\\'", HiveUtils.quoteStringLiteral("x\\"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenBooleanTrue_returnsUnquotedTrue()
+    {
+        assertEquals("true", HiveUtils.partitionValueExpression("boolean", "true"));
+        assertEquals("TRUE", HiveUtils.partitionValueExpression("BOOLEAN", "TRUE"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenBooleanFalse_returnsUnquotedFalse()
+    {
+        assertEquals("false", HiveUtils.partitionValueExpression("boolean", "false"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenStringLikeType_quotesAsStringLiteral()
+    {
+        assertEquals("'Hyderabad'", HiveUtils.partitionValueExpression("string", "Hyderabad"));
+        assertEquals("'Hyderabad'", HiveUtils.partitionValueExpression("varchar", "Hyderabad"));
+        assertEquals("'2'", HiveUtils.partitionValueExpression("char(64)", "2"));
+        assertEquals("'1 OR true --'", HiveUtils.partitionValueExpression("char(64)", "1 OR true --"));
+        assertEquals("'2020-01-01'", HiveUtils.partitionValueExpression("date", "2020-01-01"));
+        assertEquals("'2020-01-01'", HiveUtils.partitionValueExpression("date(10)", "2020-01-01"));
+        assertEquals("'2020-01-01'", HiveUtils.partitionValueExpression("DATE(", "2020-01-01"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenColumnTypeIsNull_returnsUnquotedValue()
+    {
+        assertEquals("Hyderabad", HiveUtils.partitionValueExpression(null, "Hyderabad"));
+    }
+
+    @Test
+    public void partitionValueExpression_whenIntValue_returnsUnquotedLiteral()
+    {
+        assertEquals("2020", HiveUtils.partitionValueExpression("int", "2020"));
+    }
+
+    @Test
     public void quoteIdentifier_whenIdentifierIsEmpty_returnsQuotedEmptyIdentifier()
     {
         assertEquals("``", HiveUtils.quoteIdentifier(""));
