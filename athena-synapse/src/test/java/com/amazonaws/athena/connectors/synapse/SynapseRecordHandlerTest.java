@@ -275,6 +275,21 @@ public class SynapseRecordHandlerTest
         verify(connection, Mockito.times(1)).commit();
     }
 
+    @Test
+    public void readWithConstraint_problemRowLoggingEnabled_looksUpPrimaryKeys() throws Exception
+    {
+        // Synapse/DataLake only wire the shared Jdbc logging path; assert the enable flag triggers PK lookup.
+        this.synapseRecordHandler = new SynapseRecordHandler(
+                new DatabaseConnectionConfig(TEST_CATALOG, SynapseConstants.NAME, TEST_JDBC_URL),
+                amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder,
+                ImmutableMap.of("enable_problem_row_logging", "true"));
+
+        when(connection.getCatalog()).thenReturn(TEST_CATALOG);
+        runReadWithConstraintForUrl("jdbc:sqlserver://test.sql.azuresynapse.net:1433;databaseName=testdb;");
+
+        verify(connection.getMetaData()).getPrimaryKeys(TEST_CATALOG, TEST_SCHEMA, TEST_TABLE);
+    }
+
     private void runReadWithConstraintForUrl(String jdbcUrl) throws Exception {
         Schema schema = SchemaBuilder.newBuilder()
                 .addField(FieldBuilder.newBuilder(TEST_ID_COL, Types.MinorType.INT.getType()).build())

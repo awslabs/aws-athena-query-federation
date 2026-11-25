@@ -227,6 +227,58 @@ public class DataLakeRecordHandlerTest
     }
 
     @Test
+    public void readWithConstraint_problemRowLoggingEnabled_looksUpPrimaryKeys()
+            throws Exception
+    {
+        this.dataLakeGen2RecordHandler = new DataLakeGen2RecordHandler(
+                new DatabaseConnectionConfig("testCatalog", DataLakeGen2Constants.NAME,
+                        "datalakegentwo://jdbc:sqlserver://hostname;databaseName=fakedatabase"),
+                amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder,
+                ImmutableMap.of("enable_problem_row_logging", "true"));
+
+        DatabaseMetaData metaData = Mockito.mock(DatabaseMetaData.class);
+        Mockito.when(connection.getMetaData()).thenReturn(metaData);
+        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+        Mockito.when(metaData.getURL())
+                .thenReturn("datalakegentwo://jdbc:sqlserver://myserver.database.windows.net:1433;database=mydatabase;");
+
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        java.sql.ResultSet resultSet = Mockito.mock(java.sql.ResultSet.class);
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(preparedStatement);
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        Mockito.when(resultSet.next()).thenReturn(true, false);
+        Mockito.when(resultSet.findColumn(Mockito.anyString())).thenReturn(1);
+        Mockito.when(resultSet.getInt("id")).thenReturn(1);
+        Mockito.when(resultSet.wasNull()).thenReturn(false);
+
+        com.amazonaws.athena.connector.lambda.QueryStatusChecker queryStatusChecker =
+                Mockito.mock(com.amazonaws.athena.connector.lambda.QueryStatusChecker.class);
+        Mockito.when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("id", Types.MinorType.INT.getType()).build())
+                .build();
+        Split split = Mockito.mock(Split.class);
+        Mockito.when(split.getProperties()).thenReturn(Collections.emptyMap());
+
+        com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest request =
+                Mockito.mock(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest.class);
+        Mockito.when(request.getQueryId()).thenReturn("testQueryId");
+        Mockito.when(request.getCatalogName()).thenReturn("testCatalog");
+        Mockito.when(request.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
+        Mockito.when(request.getSchema()).thenReturn(schema);
+        Mockito.when(request.getConstraints()).thenReturn(createEmptyConstraint());
+        Mockito.when(request.getSplit()).thenReturn(split);
+
+        com.amazonaws.athena.connector.lambda.data.BlockSpiller spiller =
+                Mockito.mock(com.amazonaws.athena.connector.lambda.data.BlockSpiller.class);
+        dataLakeGen2RecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
+
+        Mockito.verify(metaData).getPrimaryKeys("testCatalog", "testSchema", "testTable");
+        Mockito.verify(spiller, Mockito.times(1)).writeRows(Mockito.any());
+    }
+
+    @Test
     public void buildSplitSql_ComplexMixedPredicates_ReturnsPreparedStatement() throws SQLException
     {
         TableName tableName = new TableName("testSchema", "testTable");
