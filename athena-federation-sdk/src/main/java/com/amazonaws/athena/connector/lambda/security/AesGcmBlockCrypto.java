@@ -89,6 +89,17 @@ public class AesGcmBlockCrypto
         }
     }
 
+    public byte[] encrypt(EncryptionKey key, byte[] bytes)
+    {
+        try {
+            Cipher cipher = makeCipher(Cipher.ENCRYPT_MODE, key);
+            return cipher.doFinal(bytes);
+        }
+        catch (BadPaddingException | IllegalBlockSizeException ex) {
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+        }
+    }
+
     public Block decrypt(EncryptionKey key, byte[] bytes, Schema schema)
     {
         try {

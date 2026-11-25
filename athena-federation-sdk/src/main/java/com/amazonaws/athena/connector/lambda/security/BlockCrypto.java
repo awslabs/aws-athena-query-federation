@@ -38,6 +38,17 @@ public interface BlockCrypto
     byte[] encrypt(EncryptionKey key, Block block);
 
     /**
+     * Used to encrypt raw bytes (for example a serialized Arrow Schema message) using the same scheme as
+     * {@link #encrypt(EncryptionKey, Block)}. This is the symmetric counterpart of {@link #decrypt(EncryptionKey,
+     * byte[])} and is helpful when you want to encrypt a payload that is not an Arrow Block/record batch.
+     *
+     * @param key The EncryptionKey to use when encrypting the bytes.
+     * @param bytes The plaintext bytes to encrypt.
+     * @return The encrypted bytes.
+     */
+    byte[] encrypt(EncryptionKey key, byte[] bytes);
+
+    /**
      * Used to decrypt and deserialize a Block from the provided bytes and schema.
      *
      * @param key The EncryptionKey to use when decrypting the Block.

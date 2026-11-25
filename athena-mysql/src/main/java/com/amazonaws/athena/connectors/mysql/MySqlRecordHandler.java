@@ -27,9 +27,12 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcExportTypes;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
@@ -40,7 +43,12 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_DRIVER_CLASS;
@@ -104,5 +112,61 @@ public class MySqlRecordHandler
         preparedStatement.setFetchSize(Integer.MIN_VALUE);
 
         return preparedStatement;
+    }
+
+    /**
+     * Streams the export result row by row; without this Connector/J reads the whole result into memory.
+     */
+    @Override
+    protected PreparedStatement prepareExportStatement(Connection connection, String query) throws SQLException
+    {
+        PreparedStatement preparedStatement = super.prepareExportStatement(connection, query);
+        preparedStatement.setFetchSize(Integer.MIN_VALUE);
+        return preparedStatement;
+    }
+
+    /**
+     * Maps MySQL columns for the export. Unsigned integers widen to the next type that holds their full range
+     * (BIGINT UNSIGNED to Decimal(20,0)), BIT(n) with n &gt; 1 is binary, and the rest use
+     * {@link JdbcExportTypes#defaultArrowType}, so TIME and the other types the spill cannot write become VARCHAR.
+     */
+    @Override
+    protected Schema deriveExportSchema(ResultSet resultSet) throws SQLException
+    {
+        ResultSetMetaData metadata = resultSet.getMetaData();
+        List<Field> fields = new ArrayList<>();
+        for (int column = 1; column <= metadata.getColumnCount(); column++) {
+            fields.add(Field.nullable(metadata.getColumnLabel(column), exportArrowType(metadata, column)));
+        }
+        return new Schema(fields);
+    }
+
+    private ArrowType exportArrowType(ResultSetMetaData metadata, int column) throws SQLException
+    {
+        int jdbcType = metadata.getColumnType(column);
+        if (!metadata.isSigned(column)) {
+            switch (jdbcType) {
+                case Types.TINYINT:
+                    return new ArrowType.Int(16, true);
+                case Types.SMALLINT:
+                    return new ArrowType.Int(32, true);
+                case Types.INTEGER:
+                    return new ArrowType.Int(64, true);
+                case Types.BIGINT:
+                    return JdbcExportTypes.decimal(20, 0);
+                default:
+                    break;
+            }
+        }
+        if (jdbcType == Types.BIT && metadata.getPrecision(column) > 1) {
+            return ArrowType.Binary.INSTANCE;
+        }
+        return JdbcExportTypes.defaultArrowType(metadata, column, configOptions);
+    }
+
+    @Override
+    protected Object readExportValue(ResultSet resultSet, int column, Field field) throws SQLException
+    {
+        return JdbcExportTypes.readValue(resultSet, column, field.getType());
     }
 }
