@@ -56,6 +56,8 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1283,5 +1285,76 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         Mockito.verify(this.connection).prepareStatement(sqlCaptor.capture());
 
         Assert.assertEquals(expectedSql, sqlCaptor.getValue());
+    }
+
+    @Test
+    public void testPrepareExportStatementSetsFetchSize()
+            throws SQLException
+    {
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement("SELECT 1")).thenReturn(preparedStatement);
+
+        Assert.assertSame(preparedStatement, this.postGreSqlRecordHandler.prepareExportStatement(this.connection, "SELECT 1"));
+        Mockito.verify(preparedStatement).setFetchSize(3000);
+    }
+
+    @Test
+    public void testDeriveExportSchemaMapsPostgresTypes()
+            throws SQLException
+    {
+        Schema schema = this.postGreSqlRecordHandler.deriveExportSchema(postgresExportResultSet());
+
+        Assert.assertEquals(Types.MinorType.INT.getType(), schema.getFields().get(0).getType());
+        Assert.assertEquals(new ArrowType.Decimal(38, 18, 128), schema.getFields().get(1).getType());
+        Assert.assertEquals(new ArrowType.Decimal(10, 2, 128), schema.getFields().get(2).getType());
+        Assert.assertEquals(Types.MinorType.TIMESTAMPMILLITZ, Types.getMinorTypeForArrowType(schema.getFields().get(3).getType()));
+        Assert.assertEquals(ArrowType.Utf8.INSTANCE, schema.getFields().get(4).getType());
+        Assert.assertEquals(ArrowType.Utf8.INSTANCE, schema.getFields().get(5).getType());
+        Assert.assertEquals(ArrowType.Utf8.INSTANCE, schema.getFields().get(6).getType());
+        Assert.assertEquals("dup", schema.getFields().get(7).getName());
+        Assert.assertEquals("dup", schema.getFields().get(8).getName());
+    }
+
+    @Test
+    public void testDeriveExportSchemaUsesDefaultScaleForUnboundedNumeric()
+            throws SQLException
+    {
+        PostGreSqlRecordHandler handler = new PostGreSqlRecordHandler(
+                new DatabaseConnectionConfig("testCatalog", POSTGRES_NAME, "postgres://jdbc:postgresql://hostname/user=A&password=B"),
+                amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, ImmutableMap.of("default_scale", "4"));
+
+        Schema schema = handler.deriveExportSchema(postgresExportResultSet());
+
+        Assert.assertEquals(new ArrowType.Decimal(38, 4, 128), schema.getFields().get(1).getType());
+        Assert.assertEquals(new ArrowType.Decimal(10, 2, 128), schema.getFields().get(2).getType());
+    }
+
+    /** Column metadata as pgjdbc 42.7 reports it on PostgreSQL 16; the last two columns share a label. */
+    private static ResultSet postgresExportResultSet()
+            throws SQLException
+    {
+        Object[][] columns = {
+                {"int4_col", java.sql.Types.INTEGER, 10, 0},
+                {"numeric_col", java.sql.Types.NUMERIC, 0, 0},
+                {"numeric_10_2_col", java.sql.Types.NUMERIC, 10, 2},
+                {"timestamptz_col", java.sql.Types.TIMESTAMP, 35, 6},
+                {"time_col", java.sql.Types.TIME, 15, 6},
+                {"uuid_col", java.sql.Types.OTHER, Integer.MAX_VALUE, 0},
+                {"array_col", java.sql.Types.ARRAY, 10, 0},
+                {"dup", java.sql.Types.INTEGER, 10, 0},
+                {"dup", java.sql.Types.INTEGER, 10, 0}};
+        ResultSetMetaData metadata = Mockito.mock(ResultSetMetaData.class);
+        Mockito.when(metadata.getColumnCount()).thenReturn(columns.length);
+        for (int i = 0; i < columns.length; i++) {
+            int column = i + 1;
+            Mockito.when(metadata.getColumnLabel(column)).thenReturn((String) columns[i][0]);
+            Mockito.when(metadata.getColumnName(column)).thenReturn((String) columns[i][0]);
+            Mockito.when(metadata.getColumnType(column)).thenReturn((Integer) columns[i][1]);
+            Mockito.when(metadata.getPrecision(column)).thenReturn((Integer) columns[i][2]);
+            Mockito.when(metadata.getScale(column)).thenReturn((Integer) columns[i][3]);
+        }
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        Mockito.when(resultSet.getMetaData()).thenReturn(metadata);
+        return resultSet;
     }
 }
