@@ -151,11 +151,26 @@ public interface QueryPassthroughSignature
     }
 
     /**
-     * A method that checks the Lambda's environment variables to see if QPT is disabled/enabled
+     * Checks whether Query Passthrough is enabled from the connector config / Lambda environment.
+     * The SDK default treats a missing flag as enabled. Connectors with a stricter policy override this method.
+     * Capability registration calls this method, so an override applies there.
+     * {@link #isQueryPassthroughEnabled(Map)} is the same default for callers that have no signature instance.
      * @param configOptions
      * @return true if enabled; otherwise false
      */
     default boolean allowQueryPassthrough(Map<String, String> configOptions)
+    {
+        return isQueryPassthroughEnabled(configOptions);
+    }
+
+    /**
+     * SDK default for {@code enable_query_passthrough}. A missing value is treated as enabled.
+     * MetadataHandler and RecordHandler call this because they do not have a {@link QueryPassthroughSignature}.
+     * A connector override of {@link #allowQueryPassthrough(Map)} is not visible here.
+     * @param configOptions
+     * @return true if enabled; otherwise false
+     */
+    static boolean isQueryPassthroughEnabled(Map<String, String> configOptions)
     {
         String enableQueryPassthroughEnvVal = configOptions
                 .getOrDefault(ENABLE_QUERY_PASSTHROUGH, DEFAULT_ENABLE_QUERY_PASSTHROUGH_STATE)
